@@ -1,0 +1,860 @@
+# OpenAPI 3.1.0 — Jarvis OS API Reference
+# Auto-generated API documentation for Jarvis OS
+openapi: 3.1.0
+info:
+  title: Jarvis OS API
+  description: |
+    Jarvis OS is a modular, extensible AI assistant platform.
+    
+    ## Authentication
+    All API requests require authentication via Bearer token.
+    Generate an API key with: `jarvis auth generate-key`
+    
+    ## Base URL
+    - Production: `https://your-domain.com/api/v1`
+    - Development: `http://localhost:8000/api/v1`
+    
+    ## Rate Limiting
+    - 60 requests per minute per user
+    - Rate limit headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`
+  version: 1.0.0
+  contact:
+    name: Jarvis OS Team
+    url: https://github.com/open-jarvis/OpenJarvis
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.jarvis-os.ai/api/v1
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your API key: `Bearer <your-api-key>`
+
+  schemas:
+    # ─── Chat ─────────────────────────────────────────────────────
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+          description: Message role
+        content:
+          type: string
+          description: Message content
+        name:
+          type: string
+          description: Optional sender name
+        tool_calls:
+          type: array
+          items:
+            type: object
+          description: Tool calls (assistant only)
+        tool_call_id:
+          type: string
+          description: Tool call ID (tool only)
+
+    ChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          description: Conversation messages
+        model:
+          type: string
+          description: Model to use (default from config)
+        temperature:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 2
+          default: 0.7
+          description: Sampling temperature
+        max_tokens:
+          type: integer
+          description: Maximum tokens to generate
+        stream:
+          type: boolean
+          default: false
+          description: Enable streaming response
+
+    ChatResponse:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Generated response
+        model:
+          type: string
+          description: Model used
+        provider:
+          type: string
+          description: Provider used (ollama, openai, anthropic)
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+        finish_reason:
+          type: string
+          enum: [stop, length, tool_calls, content_filter]
+
+    # ─── Agents ───────────────────────────────────────────────────
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Agent unique identifier
+        name:
+          type: string
+          description: Agent name
+        type:
+          type: string
+          enum: [orchestrator, react, simple, research, monitor]
+          description: Agent type
+        status:
+          type: string
+          enum: [idle, running, paused, error]
+          description: Agent status
+        config:
+          type: object
+          description: Agent configuration
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AgentCreate:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          description: Agent name
+        type:
+          type: string
+          enum: [orchestrator, react, simple, research, monitor]
+          description: Agent type
+        config:
+          type: object
+          description: Optional agent configuration
+
+    # ─── Memory ───────────────────────────────────────────────────
+    MemoryEntry:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+          description: Unique memory key
+        value:
+          type: string
+          description: Memory content
+        namespace:
+          type: string
+          default: default
+          description: Memory namespace
+        metadata:
+          type: object
+          description: Optional metadata
+        ttl:
+          type: integer
+          description: Time-to-live in seconds
+
+    MemoryResult:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        namespace:
+          type: string
+        score:
+          type: number
+          format: float
+          description: Relevance score
+        timestamp:
+          type: number
+          format: float
+
+    MemorySearch:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: Search query
+        namespace:
+          type: string
+          default: default
+        limit:
+          type: integer
+          default: 10
+          maximum: 100
+        threshold:
+          type: number
+          format: float
+          default: 0.0
+          description: Minimum similarity score
+
+    # ─── Plugins ──────────────────────────────────────────────────
+    Plugin:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+
+    # ─── Auth ─────────────────────────────────────────────────────
+    AuthRequest:
+      type: object
+      required: [api_key]
+      properties:
+        api_key:
+          type: string
+          description: API key to validate
+
+    AuthResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        user_id:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+
+    # ─── Health ───────────────────────────────────────────────────
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+        uptime:
+          type: number
+        providers:
+          type: object
+          description: Provider health status
+        memory:
+          type: object
+          description: Memory backend status
+        services:
+          type: object
+          description: External service status
+
+    # ─── Error ────────────────────────────────────────────────────
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Error description
+        error_code:
+          type: string
+          description: Error code for programmatic handling
+        status_code:
+          type: integer
+
+    # ─── Admin ────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    UserCreate:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          default: [user]
+
+  # ─── Parameters ────────────────────────────────────────────────
+  parameters:
+    Namespace:
+      name: namespace
+      in: query
+      schema:
+        type: string
+        default: default
+      description: Memory namespace
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 10
+        maximum: 100
+      description: Results limit
+
+paths:
+  # ─── Chat ──────────────────────────────────────────────────────
+  /chat:
+    post:
+      summary: Send a chat message
+      description: |
+        Send messages to the AI assistant and get a response.
+        Supports streaming via Server-Sent Events.
+      tags: [Chat]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chat/stream:
+    post:
+      summary: Stream a chat response (SSE)
+      description: |
+        Stream AI responses using Server-Sent Events.
+        Each event contains a chunk of the response.
+      tags: [Chat]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Stream of response chunks (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE stream with data chunks
+        '401':
+          description: Unauthorized
+
+  # ─── Agents ────────────────────────────────────────────────────
+  /agents:
+    get:
+      summary: List all agents
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+    post:
+      summary: Create a new agent
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentCreate'
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+
+  /agents/{agent_id}:
+    get:
+      summary: Get agent details
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent details
+
+    delete:
+      summary: Delete an agent
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Agent deleted
+
+  /agents/{agent_id}/run:
+    post:
+      summary: Run an agent with input
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: string
+                  description: Agent input
+      responses:
+        '200':
+          description: Agent execution result
+
+  # ─── Memory ────────────────────────────────────────────────────
+  /memory:
+    get:
+      summary: Retrieve a memory entry
+      tags: [Memory]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Namespace'
+      responses:
+        '200':
+          description: Memory entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryEntry'
+
+    post:
+      summary: Store a memory entry
+      tags: [Memory]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryEntry'
+      responses:
+        '201':
+          description: Memory stored
+
+    delete:
+      summary: Delete a memory entry
+      tags: [Memory]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Namespace'
+      responses:
+        '204':
+          description: Memory deleted
+
+  /memory/search:
+    post:
+      summary: Search memory entries
+      tags: [Memory]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySearch'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemoryResult'
+
+  /memory/namespaces:
+    get:
+      summary: List all memory namespaces
+      tags: [Memory]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of namespaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  # ─── Plugins ───────────────────────────────────────────────────
+  /plugins:
+    get:
+      summary: List all plugins
+      tags: [Plugins]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of plugins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plugin'
+
+    post:
+      summary: Load a plugin
+      tags: [Plugins]
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Plugin loaded
+
+  /plugins/{plugin_name}:
+    get:
+      summary: Get plugin details
+      tags: [Plugins]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: plugin_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plugin details
+
+    delete:
+      summary: Unload a plugin
+      tags: [Plugins]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: plugin_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Plugin unloaded
+
+  /plugins/capabilities:
+    get:
+      summary: List all available plugin capabilities
+      tags: [Plugins]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of capabilities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  # ─── Providers ─────────────────────────────────────────────────
+  /providers:
+    get:
+      summary: List all LLM providers
+      tags: [Providers]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: string
+                  default:
+                    type: string
+
+  /providers/{provider_name}/models:
+    get:
+      summary: List models for a provider
+      tags: [Providers]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: provider_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of models
+
+  # ─── Auth ──────────────────────────────────────────────────────
+  /auth/validate:
+    post:
+      summary: Validate an API key
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/key:
+    post:
+      summary: Generate a new API key
+      tags: [Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: New API key generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api_key:
+                    type: string
+
+  # ─── Health ────────────────────────────────────────────────────
+  /health:
+    get:
+      summary: Health check endpoint
+      description: |
+        Returns the health status of all system components.
+        Used by Docker healthcheck and monitoring systems.
+      tags: [System]
+      responses:
+        '200':
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: System unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # ─── Admin ─────────────────────────────────────────────────────
+  /admin/users:
+    get:
+      summary: List all users (admin only)
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+    post:
+      summary: Create a new user (admin only)
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created
+
+  /admin/roles:
+    get:
+      summary: List all roles (admin only)
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of roles
+
+  /admin/metrics:
+    get:
+      summary: System metrics (Prometheus format)
+      tags: [Admin]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ─── WebSocket ─────────────────────────────────────────────────
+  /ws/chat:
+    get:
+      summary: WebSocket chat endpoint
+      description: |
+        Upgrade to WebSocket for real-time chat with streaming.
+        Authentication via `token` query parameter.
+      tags: [WebSocket]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Switching to WebSocket protocol
+        '401':
+          description: Unauthorized
+
+tags:
+  - name: Chat
+    description: Chat with AI assistants
+  - name: Agents
+    description: Agent lifecycle management
+  - name: Memory
+    description: Memory and knowledge storage
+  - name: Plugins
+    description: Plugin system management
+  - name: Providers
+    description: LLM provider management
+  - name: Auth
+    description: Authentication and API keys
+  - name: Admin
+    description: Administrative operations
+  - name: WebSocket
+    description: Real-time WebSocket endpoints
+  - name: System
+    description: System health and monitoring

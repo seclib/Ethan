@@ -1,0 +1,93 @@
+{
+  "dashboard": {
+    "title": "Ethan — Vue d'ensemble",
+    "uid": "openjarvis-overview",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "unit": "percent",
+        "thresholds": {
+          "steps": [
+            { "value": 0, "color": "green" },
+            { "value": 70, "color": "yellow" },
+            { "value": 85, "color": "red" }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "unit": "percent"
+      },
+      {
+        "id": 3,
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(openjarvis_requests_total[5m])) by (method)",
+            "legendFormat": "{{method}}"
+          }
+        ],
+        "unit": "rps"
+      },
+      {
+        "id": 4,
+        "title": "API Latency (P95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(openjarvis_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          }
+        ],
+        "unit": "s"
+      },
+      {
+        "id": 5,
+        "title": "Active Agents",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(openjarvis_active_agents)",
+            "legendFormat": "Total"
+          }
+        ],
+        "unit": "short"
+      },
+      {
+        "id": 6,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(openjarvis_errors_total[5m])) by (error_type)",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "unit": "reqps"
+      }
+    ]
+  }
+}

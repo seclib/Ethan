@@ -1,0 +1,114 @@
+# =============================================================================
+# .dockerignore — Optimize Docker builds by excluding unnecessary files
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+.gitmodules
+.gitkeep
+.worktrees
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment files (contain secrets!)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.pytype/
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/src-tauri/target/
+
+# Rust
+target/
+rust/target/
+
+# Documentation build
+site/
+
+# Logs and data files
+*.log
+*.sqlite
+*.db
+*.jsonl
+*.npz
+results/
+logs/
+traces/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker (prevent nested builds)
+docker-compose*.yml
+Dockerfile*
+deploy/docker/Dockerfile*
+
+# Desktop build
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+
+# Research output
+research_mining_*
+.python-version
+
+# Local dev artifacts
+minion_logs/
+*.oj-debug.json
+oj-debug.*.json
+CLAUDE.md
+.claude/
+
+# NFS lock files
+.nfs*
+**/.nfs*
+
+# Worktrees
+.worktrees/
+
+# Scratch / temp
+scratch/
+Inline/
+
+# MkDocs site
+site/
+
+# Claude artifacts
+docs/plans/
+docs/superpowers/
+.superpowers/

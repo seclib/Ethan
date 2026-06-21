@@ -1,0 +1,31 @@
+# Plugin: Browser
+name: browser
+version: 1.0.0
+description: Web browser automation plugin using Playwright
+author: Jarvis OS Team
+license: Apache-2.0
+
+capabilities:
+  - browse_web
+  - extract_content
+  - take_screenshot
+  - fill_forms
+  - click_elements
+  - navigate_url
+  - execute_javascript
+
+dependencies:
+  python:
+    - playwright>=1.40
+  system:
+    - chromium
+
+config:
+  headless: true
+  timeout: 30000
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  viewport:
+    width: 1280
+    height: 720
+
+entrypoint: main.py

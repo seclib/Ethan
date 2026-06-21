@@ -1,0 +1,40 @@
+# Plugin: Terminal
+name: terminal
+version: 1.0.0
+description: Shell command execution and terminal emulation
+author: Jarvis OS Team
+license: Apache-2.0
+
+capabilities:
+  - execute_command
+  - run_script
+  - list_directory
+  - read_file
+  - write_file
+  - monitor_process
+
+dependencies:
+  python: []
+  system: []
+
+config:
+  allowed_commands:
+    - ls
+    - cat
+    - head
+    - tail
+    - grep
+    - find
+    - ps
+    - df
+    - du
+    - echo
+    - pwd
+    - whoami
+    - date
+    - uname
+  timeout: 30
+  max_output: 100000
+  working_directory: /workspace
+
+entrypoint: main.py

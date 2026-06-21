@@ -1,0 +1,115 @@
+# =============================================================================
+# Dockerfile.backend — OpenJarvis Backend (Python + Rust)
+# Multi-stage build with non-root user, healthcheck, and optimized layers
+# =============================================================================
+
+# Stage 1: Build frontend SPA
+FROM node:22-slim AS frontend-builder
+
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --ignore-scripts 2>/dev/null || npm install
+
+COPY frontend/ .
+RUN npm run build
+
+# Stage 2: Build Rust crates (PyO3)
+FROM python:3.12-slim-bookworm AS rust-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+
+WORKDIR /build
+COPY rust/ rust/
+COPY pyproject.toml README.md ./
+COPY src/ src/
+
+# Build Rust bindings
+RUN pip install --no-cache-dir uv && \
+    cd rust && \
+    cargo build --release --workspace && \
+    cd ..
+
+# Stage 3: Build Python package
+FROM python:3.12-slim-bookworm AS python-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src/ src/
+COPY scripts/install scripts/install
+COPY deploy/windows deploy/windows
+
+# Copy built frontend
+COPY --from=frontend-builder /build/dist src/openjarvis/server/static/
+
+# Copy Rust artifacts
+COPY --from=rust-builder /build/rust/target/release/ rust/target/release/
+
+RUN pip install --no-cache-dir uv && \
+    uv pip install --system ".[server]" && \
+    # Cleanup
+    rm -rf /root/.cache
+
+# Stage 4: Runtime image
+FROM python:3.12-slim-bookworm AS runtime
+
+# Create non-root user
+RUN groupadd -r jarvis && \
+    useradd -r -g jarvis -d /home/jarvis -s /sbin/nologin -c "OpenJarvis User" jarvis && \
+    mkdir -p /home/jarvis && \
+    chown -R jarvis:jarvis /home/jarvis
+
+# Create required directories
+RUN mkdir -p \
+    /etc/openjarvis \
+    /var/log/openjarvis \
+    /var/lib/openjarvis/memory \
+    /var/lib/openjarvis/uploads \
+    /var/lib/openjarvis/cache \
+    /var/lib/openjarvis/models \
+    /workspace \
+    && chown -R jarvis:jarvis /etc/openjarvis /var/log/openjarvis /var/lib/openjarvis /workspace
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages and artifacts from builder
+COPY --from=python-builder /usr/local /usr/local
+COPY --from=python-builder /app /app
+
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OPENJARVIS_HOME=/etc/openjarvis \
+    OPENJARVIS_CONFIG=/etc/openjarvis/config.toml
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Switch to non-root user
+USER jarvis
+
+EXPOSE 8000
+
+ENTRYPOINT ["jarvis"]
+CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]

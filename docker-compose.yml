@@ -1,0 +1,560 @@
+# =============================================================================
+# docker-compose.yml — Ethan (Racine)
+# =============================================================================
+#
+# Point d'entrée principal Docker Compose.
+# Référence les Dockerfiles existants dans deploy/docker/ sans les modifier.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d
+#
+# Services:
+#   - backend    : API Ethan (FastAPI) — utilise deploy/docker/Dockerfile.backend
+#   - frontend   : Interface web (Nginx) — utilise deploy/docker/Dockerfile.frontend
+#   - ollama     : Inférence LLM locale (optionnel, désactivable via OLLAMA_ENABLED=false)
+#   - redis      : Cache & mémoire courte agent (optionnel, désactivable via REDIS_ENABLED=false)
+#
+# Intégration Ollama :
+#   Ollama est intégré comme service optionnel mais direct (pas de profile).
+#   Le backend détecte automatiquement Ollama via OLLAMA_HOST.
+#   Pour désactiver : OLLAMA_ENABLED=false docker compose up -d
+#   Pour changer de modèle : OLLAMA_MODEL=llama3.2 docker compose up -d
+#
+# Intégration Redis :
+#   Redis sert de cache pour les conversations et de mémoire courte pour les agents.
+#   Persistance activable via REDIS_PERSISTENCE=true.
+#   Pour désactiver : REDIS_ENABLED=false docker compose up -d
+#
+# Réseau:
+#   - jarvis-network : Réseau isolé pour tous les services
+#
+# Volumes persistants:
+#   - jarvis-config, jarvis-logs, jarvis-workspace, jarvis-memory
+#   - jarvis-uploads, jarvis-cache, jarvis-models, ollama-models
+#   - redis-data
+#
+# Voir aussi:
+#   - deploy/docker/docker-compose.yml    : Version complète (production)
+#   - deploy/docker/docker-compose.dev.yml: Version développement
+#   - docker-compose.dev.yml              : Version développement (racine)
+# =============================================================================
+
+networks:
+  jarvis-network:
+    name: jarvis-network
+    driver: bridge
+
+volumes:
+  jarvis-config:
+    name: jarvis-config
+  jarvis-logs:
+    name: jarvis-logs
+  jarvis-workspace:
+    name: jarvis-workspace
+  jarvis-memory:
+    name: jarvis-memory
+  jarvis-uploads:
+    name: jarvis-uploads
+  jarvis-cache:
+    name: jarvis-cache
+  jarvis-models:
+    name: jarvis-models
+  ollama-models:
+    name: ollama-models
+  redis-data:
+    name: redis-data
+  postgres-data:
+    name: postgres-data
+  chromadb-data:
+    name: chromadb-data
+  qdrant-data:
+    name: qdrant-data
+  prometheus-data:
+    name: prometheus-data
+  grafana-data:
+    name: grafana-data
+
+services:
+  # ===========================================================================
+  # Backend — API Ethan
+  # Utilise le Dockerfile multi-stage existant dans deploy/docker/
+  # ===========================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+    image: openjarvis/backend:latest
+    container_name: openjarvis-backend
+    networks:
+      - jarvis-network
+    ports:
+      - "${OPENJARVIS_PORT:-8000}:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=jarvis-network"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=web,web-secure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.priority=20"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    environment:
+      # Core
+      - OPENJARVIS_API_KEY=${OPENJARVIS_API_KEY:?OPENJARVIS_API_KEY is required}
+      - OPENJARVIS_HOME=/etc/openjarvis
+      - OPENJARVIS_CONFIG=/etc/openjarvis/config.toml
+      - OPENJARVIS_LOG_LEVEL=${OPENJARVIS_LOG_LEVEL:-info}
+      - OPENJARVIS_DEV_MODE=${OPENJARVIS_DEV_MODE:-false}
+
+      # Engine
+      - OPENJARVIS_ENGINE_DEFAULT=${OPENJARVIS_ENGINE_DEFAULT:-ollama}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+
+      # Database
+      - OPENJARVIS_DATABASE_URL=${OPENJARVIS_DATABASE_URL:-sqlite:////var/lib/openjarvis/memory/openjarvis.db}
+
+      # Paths
+      - OPENJARVIS_WORKSPACE=/workspace
+      - OPENJARVIS_UPLOADS=/var/lib/openjarvis/uploads
+      - OPENJARVIS_CACHE=/var/lib/openjarvis/cache
+      - OPENJARVIS_MODELS=/var/lib/openjarvis/models
+    volumes:
+      - jarvis-config:/etc/openjarvis:ro
+      - jarvis-logs:/var/log/openjarvis
+      - jarvis-workspace:/workspace
+      - jarvis-memory:/var/lib/openjarvis/memory
+      - jarvis-uploads:/var/lib/openjarvis/uploads
+      - jarvis-cache:/var/lib/openjarvis/cache
+      - jarvis-models:/var/lib/openjarvis/models
+    depends_on:
+      ollama:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # PostgreSQL — Base de données principale
+  # ===========================================================================
+  # Service optionnel pour stocker :
+  #   - utilisateurs
+  #   - conversations
+  #   - logs agents
+  #   - configurations
+  #
+  # Migration progressive : le backend fonctionne en SQLite par défaut.
+  # Pour activer PostgreSQL : OPENJARVIS_DATABASE_URL=postgresql://...
+  #
+  # Désactivable via : POSTGRES_ENABLED=false docker compose up -d
+  #
+  # Accès :
+  #   Host: postgres
+  #   Port: 5432
+  #   DB:   openjarvis
+  #   User: openjarvis
+  #   Pass: (voir .env)
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: openjarvis-postgres
+    networks:
+      - jarvis-network
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-openjarvis}
+      - POSTGRES_USER=${POSTGRES_USER:-openjarvis}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openjarvis} -d ${POSTGRES_DB:-openjarvis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Redis — Cache & Mémoire Courte Agent
+  # ===========================================================================
+  # Service optionnel pour le cache des conversations et la mémoire courte.
+  # Utilisé par le backend pour stocker les sessions actives.
+  # Persistance activable via REDIS_PERSISTENCE=true.
+  #
+  # Désactivable via : REDIS_ENABLED=false docker compose up -d
+  #
+  # Utilisation dans le code :
+  #   from core.memory.redis_backend import RedisBackend
+  #   backend = RedisBackend(host="redis", port=6379)
+  #   await backend.store(MemoryEntry(key="session:123", value=...))
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: openjarvis-redis
+    networks:
+      - jarvis-network
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    environment:
+      - REDIS_PERSISTENCE=${REDIS_PERSISTENCE:-false}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    # Commande avec persistance activable
+    command: >
+      sh -c '
+        if [ "${REDIS_PERSISTENCE}" = "true" ]; then
+          redis-server --appendonly yes --save 60 1
+        else
+          redis-server --save "" --appendonly no
+        fi
+      '
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # ChromaDB — Base vectorielle (simple / dev)
+  # ===========================================================================
+  # Service optionnel pour la mémoire long terme et la recherche sémantique.
+  # Utilise le backend ChromaDB existant dans core/memory/chromadb_backend.py
+  #
+  # Désactivable via : CHROMADB_ENABLED=false docker compose up -d
+  #
+  # Accès :
+  #   Host: chromadb
+  #   Port: 8000
+  #   API:  http://localhost:8000/api/v1
+  # ===========================================================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: openjarvis-chromadb
+    networks:
+      - jarvis-network
+    ports:
+      - "${CHROMADB_PORT:-8000}:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Qdrant — Base vectorielle (production)
+  # ===========================================================================
+  # Service optionnel pour la mémoire long terme en production.
+  # Plus performant que ChromaDB pour les gros volumes.
+  #
+  # Désactivable via : QDRANT_ENABLED=false docker compose up -d
+  #
+  # Accès :
+  #   Host: qdrant
+  #   Port: 6333
+  #   API:  http://localhost:6333
+  # ===========================================================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: openjarvis-qdrant
+    networks:
+      - jarvis-network
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Grafana — Visualisation & Dashboards
+  # ===========================================================================
+  # Interface web pour visualiser les métriques Prometheus.
+  # Dashboards préconfigurés pour :
+  #   - Vue d'ensemble système (CPU, RAM, réseau)
+  #   - Métriques API (latence, throughput, erreurs)
+  #   - Métriques agents (usage, performance)
+  #   - Métriques services (Redis, PostgreSQL, Ollama)
+  #
+  # Accès :
+  #   - UI: http://localhost:3000
+  #   - Login: admin / (voir GRAFANA_ADMIN_PASSWORD)
+  #
+  # Désactivable via : GRAFANA_ENABLED=false docker compose up -d
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: openjarvis-grafana
+    networks:
+      - jarvis-network
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_METRICS_ENABLED=true
+      - GF_METRICS_PORT=3001
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Prometheus — Monitoring & Métriques
+  # ===========================================================================
+  # Collecte les métriques de tous les services :
+  #   - CPU, RAM, réseau (via cAdvisor)
+  #   - Métriques backend (API latency, agent usage)
+  #   - Métriques Traefik (requests, status codes)
+  #   - Métriques Redis, PostgreSQL, etc.
+  #
+  # Accès :
+  #   - UI: http://localhost:9090
+  #   - API: http://localhost:9090/api/v1
+  #
+  # Désactivable via : PROMETHEUS_ENABLED=false docker compose up -d
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: openjarvis-prometheus
+    networks:
+      - jarvis-network
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    environment:
+      - PROMETHEUS_RETENTION_TIME=${PROMETHEUS_RETENTION_TIME:-30d}
+      - PROMETHEUS_RETENTION_SIZE=${PROMETHEUS_RETENTION_SIZE:-10GB}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Traefik — Reverse Proxy Principal
+  # ===========================================================================
+  # Routeur HTTP/HTTPS pour :
+  #   - frontend  : http://localhost/  → frontend:80
+  #   - backend   : http://localhost/api → backend:8000
+  #   - api docs  : http://localhost/docs → backend:8000/docs
+  #
+  # SSL Ready :
+  #   - Let's Encrypt automatique en production
+  #   - Certificats auto-renouvelés
+  #   - HTTPS sur port 443
+  #
+  # Mode Dev Bypass :
+  #   - Par défaut, Traefik est actif
+  #   - Pour bypasser : accéder directement aux ports des services
+  #   - Frontend : http://localhost:80
+  #   - Backend  : http://localhost:8000
+  #
+  # Désactivable via : TRAEFIK_ENABLED=false docker compose up -d
+  #
+  # Dashboard : http://localhost:8080 (dashboard Traefik)
+  # ===========================================================================
+  traefik:
+    image: traefik:v3.1
+    container_name: openjarvis-traefik
+    networks:
+      - jarvis-network
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_HTTPS_PORT:-443}:443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik-letsencrypt:/letsencrypt
+    environment:
+      - TRAEFIK_DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
+      - TRAEFIK_LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
+      # Let's Encrypt (production)
+      - TRAEFIK_ACME_EMAIL=${TRAEFIK_ACME_EMAIL:-}
+      - TRAEFIK_ACME_DOMAIN=${TRAEFIK_ACME_DOMAIN:-}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Frontend — Interface Web (Nginx)
+  # Utilise le Dockerfile multi-stage existant dans deploy/docker/
+  # ===========================================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+    image: openjarvis/frontend:latest
+    container_name: openjarvis-frontend
+    networks:
+      - jarvis-network
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=jarvis-network"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web,web-secure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.priority=10"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.frontend-compress.compress=true"
+      - "traefik.http.middlewares.frontend-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.frontend-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.routers.frontend.middlewares=frontend-compress,frontend-headers"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Ollama — Inférence LLM Locale
+  # ===========================================================================
+  # Service optionnel mais direct (pas de profile requis).
+  # Désactivable via : OLLAMA_ENABLED=false docker compose up -d
+  # Modèle par défaut configurable via : OLLAMA_MODEL=llama3.2
+  #
+  # Le backend détecte automatiquement Ollama via OLLAMA_HOST.
+  # Si Ollama est indisponible, le backend utilise le provider configuré.
+  #
+  # GPU Support :
+  #   - NVIDIA : décommentez la section deploy.resources
+  #   - AMD    : utilisez ollama/ollama:rocm
+  # ===========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: openjarvis-ollama
+    networks:
+      - jarvis-network
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
+      - OLLAMA_DEBUG=${OLLAMA_DEBUG:-0}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    # Décommentez pour support GPU NVIDIA :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
