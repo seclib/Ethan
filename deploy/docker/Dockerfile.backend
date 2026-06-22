@@ -54,7 +54,7 @@ COPY scripts/install scripts/install
 COPY deploy/windows deploy/windows
 
 # Copy built frontend
-COPY --from=frontend-builder /build/dist src/openjarvis/server/static/
+COPY --from=frontend-builder /src/openjarvis/server/static src/openjarvis/server/static/
 
 # Copy Rust artifacts
 COPY --from=rust-builder /build/rust/target/release/ rust/target/release/

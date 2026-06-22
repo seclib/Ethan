@@ -151,3 +151,149 @@ serialized = {
 | **Full-text search** | Query by text content | PostgreSQL | "Find documents about deployment" |
 
 **Cache Strategy**:
+- LRU cache with configurable max size (default: 1000 items)
+- Cache hit: return immediately (sub-millisecond latency)
+- Cache miss: fetch from provider, cache for TTL/10 duration
+- Cache invalidation: on update/delete of cached item
+
+## 7. Stage 5: Summarization
+
+**Description**: Memory items can be summarized to extract key information, reduce storage, and improve retrieval speed.
+
+**When Summarization Occurs**:
+- When memory size exceeds configurable threshold (e.g., > 100KB)
+- Before promotion to a different memory type
+- Periodically as maintenance (configurable interval)
+- On explicit request via `memory:summarize` event
+
+**Summarization Approaches**:
+| Approach | Method | Quality | Speed | Use Case |
+|----------|--------|---------|-------|----------|
+| Truncation | Keep first N characters | Low | Instant | Large text blocks |
+| Extraction | Extract key-value pairs from metadata | Medium | Fast | Structured data |
+| LLM-based | Use local/cloud LLM for summarization | High | Slow | Important episodic memories |
+
+**LLM Summarization Trigger**:
+```yaml
+summarization:
+  enabled: true
+  max_size_bytes: 100000
+  method: "llm"
+  llm:
+    model: "llama3.2"
+    prompt: "Summarize the following memory item in 2-3 sentences..."
+    max_tokens: 200
+  batch_size: 10
+  schedule: "*/30 * * * *"
+```
+
+## 8. Stage 6: Promotion
+
+**Description**: Information moves between memory types as it becomes more or less relevant. Promotion is automatic based on configurable policies.
+
+**Promotion Paths**:
+```
+     Working ──────────────────► Episodic ────────────────► Semantic
+        │                             │                         │
+        │  (TTL expired but           │  (accessed > N times    │  (no promotion,
+        │   important)                │   or explicitly saved)  │   persistent)
+        │                             │                         │
+        ▼                             ▼                         ▼
+   Expiration                    Expiration                 (persistent)
+
+Procedural ───── (manual updates only, no automatic promotion) ────► (versioned)
+```
+
+**Promotion Triggers**:
+| From | To | Trigger | Condition |
+|------|----|---------|-----------|
+| Working → Episodic | TTL expiration | TTL expired + accessed ≥ 1 time |
+| Working → Expiration | TTL expiration | TTL expired + accessed = 0 (unimportant) |
+| Episodic → Semantic | Frequency threshold | Accessed ≥ N times (default: 10) |
+| Episodic → Expiration | Retention policy | Age > retention_days (default: 90) |
+| Semantic | N/A | Persistent, never auto-expires |
+
+**Promotion Pipeline**:
+1. **Promoter worker** scans memory types periodically (configurable interval)
+2. For each item, evaluates promotion rules (age, access count, priority)
+3. If promotion required:
+   - Summarize content (optional, configurable)
+   - Delete from source provider
+   - Store in target provider with updated memory type
+4. Logs all promotions for audit
+
+## 9. Stage 7: Expiration
+
+**Description**: Memory items are permanently deleted when their TTL or retention policy expires.
+
+**Expiration Policies**:
+| Memory Type | Default TTL | Deletion Strategy | Grace Period |
+|-------------|-------------|-------------------|-------------|
+| Working | 5 minutes | Hard delete | None |
+| Episodic | 90 days | Soft delete → hard delete | 30 days |
+| Semantic | No expiration | Manual only | N/A |
+| Procedural | No expiration | Manual only | N/A |
+
+**Deletion Strategies**:
+```yaml
+deletion:
+  hard:
+    description: "Immediately remove from provider"
+    applies_to: [working]
+    action: "DELETE FROM provider WHERE id = ?"
+  soft:
+    description: "Mark as deleted, hide from queries"
+    applies_to: [episodic]
+    action: "UPDATE SET deleted_at = NOW(), is_deleted = TRUE"
+    cleanup_after_days: 30
+  archive:
+    description: "Move to cold storage before hard delete"
+    applies_to: [episodic]
+    export: "JSON → S3/disk"
+    cleanup_after_days: 30
+```
+
+**Expirer Worker**:
+```yaml
+expirer:
+  enabled: true
+  interval: 15  # minutes between scans
+  batch_size: 100
+  schedules:
+    working:
+      scan_interval: 5
+      cleanup_immediately: true
+    episodic:
+      scan_interval: 60
+      cleanup_after_days: 30
+```
+
+## 10. Workers Summary
+
+| Worker | Schedule | Responsibility | Configurable |
+|--------|----------|----------------|-------------|
+| **Promoter** | Every 5 min | Scan Working → promote to Episodic | interval, thresholds |
+| **Summarizer** | Every 30 min | Summarize large items | method, size threshold |
+| **Expirer** | Every 15 min | Remove expired items | TTLs per type, grace periods |
+| **Archiver** | Daily | Move soft-deleted to cold storage | enabled, storage path |
+
+Workers run asynchronously inside the MemoryManager using a background task scheduler.
+
+## 11. Observability
+
+Each lifecycle stage emits metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `memory.capture.count` | Counter | memory_type, source | Items captured |
+| `memory.capture.latency` | Histogram | memory_type | Time to capture |
+| `memory.classification.time` | Histogram | - | Time to classify |
+| `memory.storage.latency` | Histogram | provider, memory_type | Storage provider latency |
+| `memory.retrieval.cache_hit` | Counter | memory_type | Cache hits |
+| `memory.retrieval.cache_miss` | Counter | memory_type | Cache misses |
+| `memory.retrieval.latency` | Histogram | provider, memory_type | Retrieval latency |
+| `memory.summarization.count` | Counter | method | Items summarized |
+| `memory.promotion.count` | Counter | from_type, to_type | Items promoted |
+| `memory.expiration.count` | Counter | memory_type, strategy | Items expired |
+
+All metrics exposed via Prometheus endpoint at `/metrics`.
