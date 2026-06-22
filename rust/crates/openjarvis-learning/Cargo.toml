@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ethan-core = { path = "../ethan-core" }
-ethan-traces = { path = "../ethan-traces" }
+ethan-core = { path = "../openjarvis-core" }
+ethan-traces = { path = "../openjarvis-traces" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
