@@ -130,15 +130,15 @@ class PrivacyScanner:
             )
 
     def check_icloud_sync(self) -> ScanResult:
-        """Check whether ~/.openjarvis is inside iCloud Drive sync scope."""
+        """Check whether ~/.ethan is inside iCloud Drive sync scope."""
         try:
-            config_path = Path("~/.openjarvis").expanduser().resolve()
+            config_path = Path("~/.ethan").expanduser().resolve()
             icloud_path = Path("~/Library/Mobile Documents/").expanduser().resolve()
             if str(config_path).startswith(str(icloud_path)):
                 return ScanResult(
                     name="iCloud Sync",
                     status="warn",
-                    message="~/.openjarvis may be synced to iCloud.",
+                    message="~/.ethan may be synced to iCloud.",
                     platform="darwin",
                 )
             # Also probe defaults for com.apple.bird (iCloud daemon)
@@ -159,7 +159,7 @@ class PrivacyScanner:
             return ScanResult(
                 name="iCloud Sync",
                 status="ok",
-                message="~/.openjarvis is not inside iCloud Drive.",
+                message="~/.ethan is not inside iCloud Drive.",
                 platform="darwin",
             )
         except Exception:
@@ -450,7 +450,7 @@ def _render_results(results: List[ScanResult]) -> None:
 
     console = Console()
     console.print()
-    console.print("[bold]OpenJarvis Security Scan[/bold]")
+    console.print("[bold]Ethan Security Scan[/bold]")
     console.print()
 
     table = Table(show_header=True, header_style="bold", show_lines=True)
@@ -481,7 +481,7 @@ def _render_results(results: List[ScanResult]) -> None:
     if fail_count:
         console.print(
             "[red bold]Action required:[/red bold] address critical findings "
-            "before storing sensitive data with OpenJarvis."
+            "before storing sensitive data with Ethan."
         )
         console.print()
     elif warn_count:

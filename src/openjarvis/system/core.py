@@ -6,45 +6,45 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from openjarvis.core.config import JarvisConfig
-from openjarvis.core.events import EventBus
-from openjarvis.core.types import Message, Role
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.system.bundles import (
+from ethan.core.config import JarvisConfig
+from ethan.core.events import EventBus
+from ethan.core.types import Message, Role
+from ethan.engine._stubs import InferenceEngine
+from ethan.system.bundles import (
     AgentRuntime,
     Observability,
     Scheduling,
     SecurityContext,
 )
-from openjarvis.tools._stubs import BaseTool, ToolExecutor
+from ethan.tools._stubs import BaseTool, ToolExecutor
 
 if TYPE_CHECKING:
-    from openjarvis.agents._stubs import BaseAgent
-    from openjarvis.agents.executor import AgentExecutor
-    from openjarvis.agents.manager import AgentManager
-    from openjarvis.agents.scheduler import AgentScheduler
-    from openjarvis.channels._stubs import BaseChannel
-    from openjarvis.learning._stubs import RouterPolicy
-    from openjarvis.learning.learning_orchestrator import LearningOrchestrator
-    from openjarvis.mcp.client import MCPClient
-    from openjarvis.mcp.server import MCPServer
-    from openjarvis.operators.manager import OperatorManager
-    from openjarvis.sandbox.runner import ContainerRunner
-    from openjarvis.scheduler.scheduler import TaskScheduler
-    from openjarvis.scheduler.store import SchedulerStore
-    from openjarvis.security.audit import AuditLogger
-    from openjarvis.security.boundary import BoundaryGuard
-    from openjarvis.security.capabilities import CapabilityPolicy
-    from openjarvis.sessions.session import SessionStore
-    from openjarvis.skills.manager import SkillManager
-    from openjarvis.speech._stubs import SpeechBackend
-    from openjarvis.system.orchestrator import QueryOrchestrator
-    from openjarvis.telemetry.gpu_monitor import GpuMonitor
-    from openjarvis.telemetry.store import TelemetryStore
-    from openjarvis.tools.storage._stubs import MemoryBackend
-    from openjarvis.traces.collector import TraceCollector
-    from openjarvis.traces.store import TraceStore
-    from openjarvis.workflow.engine import WorkflowEngine
+    from ethan.agents._stubs import BaseAgent
+    from ethan.agents.executor import AgentExecutor
+    from ethan.agents.manager import AgentManager
+    from ethan.agents.scheduler import AgentScheduler
+    from ethan.channels._stubs import BaseChannel
+    from ethan.learning._stubs import RouterPolicy
+    from ethan.learning.learning_orchestrator import LearningOrchestrator
+    from ethan.mcp.client import MCPClient
+    from ethan.mcp.server import MCPServer
+    from ethan.operators.manager import OperatorManager
+    from ethan.sandbox.runner import ContainerRunner
+    from ethan.scheduler.scheduler import TaskScheduler
+    from ethan.scheduler.store import SchedulerStore
+    from ethan.security.audit import AuditLogger
+    from ethan.security.boundary import BoundaryGuard
+    from ethan.security.capabilities import CapabilityPolicy
+    from ethan.sessions.session import SessionStore
+    from ethan.skills.manager import SkillManager
+    from ethan.speech._stubs import SpeechBackend
+    from ethan.system.orchestrator import QueryOrchestrator
+    from ethan.telemetry.gpu_monitor import GpuMonitor
+    from ethan.telemetry.store import TelemetryStore
+    from ethan.tools.storage._stubs import MemoryBackend
+    from ethan.traces.collector import TraceCollector
+    from ethan.traces.store import TraceStore
+    from ethan.workflow.engine import WorkflowEngine
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ class JarvisSystem:
     def _get_orchestrator(self) -> QueryOrchestrator:
         orch = self.__dict__.get("_orchestrator")
         if orch is None:
-            from openjarvis.system.orchestrator import QueryOrchestrator
+            from ethan.system.orchestrator import QueryOrchestrator
 
             orch = QueryOrchestrator(self)
             self.__dict__["_orchestrator"] = orch
@@ -196,11 +196,11 @@ class JarvisSystem:
         Parameters
         ----------
         channel_bridge:
-            A connected :class:`~openjarvis.channels._stubs.BaseChannel`
+            A connected :class:`~ethan.channels._stubs.BaseChannel`
             instance whose ``on_message`` method accepts a callable.
         """
-        from openjarvis.core.types import Message
-        from openjarvis.sessions.session import SessionStore
+        from ethan.core.types import Message
+        from ethan.sessions.session import SessionStore
 
         if self.session_store is None:
             from pathlib import Path

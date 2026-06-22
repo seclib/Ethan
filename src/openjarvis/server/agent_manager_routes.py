@@ -6,7 +6,7 @@ import logging
 import re as _re
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.agents.manager import AgentManager
+from ethan.agents.manager import AgentManager
 
 try:
     from fastapi import APIRouter, HTTPException, Request
@@ -15,7 +15,7 @@ try:
 except ImportError:
     raise ImportError("fastapi and pydantic are required for server routes")
 
-logger = logging.getLogger("openjarvis.server.agent_manager")
+logger = logging.getLogger("ethan.server.agent_manager")
 
 
 class CreateAgentRequest(BaseModel):
@@ -79,8 +79,8 @@ def _resolve_memory_backend(config: Any) -> Any:
     if config is None or not getattr(config.agent, "context_from_memory", False):
         return None
     try:
-        import openjarvis.tools.storage  # noqa: F401
-        from openjarvis.core.registry import MemoryRegistry
+        import ethan.tools.storage  # noqa: F401
+        from ethan.core.registry import MemoryRegistry
 
         key = config.memory.default_backend
         if MemoryRegistry.contains(key):
@@ -120,11 +120,11 @@ def _make_lightweight_system(
     could interfere with in-flight requests).
     """
     try:
-        from openjarvis.engine._discovery import get_engine
+        from ethan.engine._discovery import get_engine
 
         cfg = config
         if cfg is None:
-            from openjarvis.core.config import load_config
+            from ethan.core.config import load_config
 
             cfg = load_config()
 
@@ -135,7 +135,7 @@ def _make_lightweight_system(
         if resolved is not None:
             plain_engine = resolved[1]
         else:
-            from openjarvis.engine.ollama import OllamaEngine
+            from ethan.engine.ollama import OllamaEngine
 
             host = cfg.engine.ollama.host if cfg else ""
             plain_engine = OllamaEngine(host=host) if host else OllamaEngine()
@@ -143,8 +143,8 @@ def _make_lightweight_system(
         # Wrap with InstrumentedEngine so agent ticks are recorded
         # in telemetry (FLOPs, energy, cost savings).
         try:
-            from openjarvis.core.events import get_event_bus
-            from openjarvis.telemetry.instrumented_engine import (
+            from ethan.core.events import get_event_bus
+            from ethan.telemetry.instrumented_engine import (
                 InstrumentedEngine,
             )
 
@@ -203,21 +203,21 @@ def _ensure_registries_populated() -> None:
     import importlib
     import sys
 
-    from openjarvis.core.registry import ChannelRegistry, ToolRegistry
+    from ethan.core.registry import ChannelRegistry, ToolRegistry
 
     # First, try a normal import (works if modules haven't been imported yet)
     try:
-        import openjarvis.channels  # noqa: F401
+        import ethan.channels  # noqa: F401
     except Exception:
         pass
 
     try:
-        import openjarvis.tools  # noqa: F401
+        import ethan.tools  # noqa: F401
     except Exception:
         pass
 
-    # Also try to import browser tools (not included in openjarvis.tools.__init__)
-    for _browser_mod in ("openjarvis.tools.browser", "openjarvis.tools.browser_axtree"):
+    # Also try to import browser tools (not included in ethan.tools.__init__)
+    for _browser_mod in ("ethan.tools.browser", "ethan.tools.browser_axtree"):
         try:
             importlib.import_module(_browser_mod)
         except Exception:
@@ -226,7 +226,7 @@ def _ensure_registries_populated() -> None:
     # If registries are still empty, reload individual submodules from sys.modules
     if not ChannelRegistry.keys():
         for mod_name in list(sys.modules):
-            if mod_name.startswith("openjarvis.channels.") and not mod_name.endswith(
+            if mod_name.startswith("ethan.channels.") and not mod_name.endswith(
                 "_stubs"
             ):
                 try:
@@ -237,7 +237,7 @@ def _ensure_registries_populated() -> None:
     if not ToolRegistry.keys():
         for mod_name in list(sys.modules):
             if (
-                mod_name.startswith("openjarvis.tools.")
+                mod_name.startswith("ethan.tools.")
                 and not mod_name.endswith("_stubs")
                 and not mod_name.endswith("agent_tools")
             ):
@@ -249,8 +249,8 @@ def _ensure_registries_populated() -> None:
     # After reloading tools, also try browser tools if still not registered
     if not any(ToolRegistry.contains(n) for n in _BROWSER_SUB_TOOLS):
         for _browser_mod in (
-            "openjarvis.tools.browser",
-            "openjarvis.tools.browser_axtree",
+            "ethan.tools.browser",
+            "ethan.tools.browser_axtree",
         ):
             mod = sys.modules.get(_browser_mod)
             if mod is not None:
@@ -264,8 +264,8 @@ def build_tools_list() -> List[Dict[str, Any]]:
     """Build unified tools list from ToolRegistry + ChannelRegistry."""
     import os
 
-    from openjarvis.core.credentials import TOOL_CREDENTIALS
-    from openjarvis.core.registry import ChannelRegistry, ToolRegistry
+    from ethan.core.credentials import TOOL_CREDENTIALS
+    from ethan.core.registry import ChannelRegistry, ToolRegistry
 
     _ensure_registries_populated()
 
@@ -368,7 +368,7 @@ def _resolve_tool_specs(
     if not tool_config:
         return []
 
-    from openjarvis.core.registry import ChannelRegistry, ToolRegistry
+    from ethan.core.registry import ChannelRegistry, ToolRegistry
 
     _ensure_registries_populated()
 
@@ -460,7 +460,7 @@ def _build_managed_system_prompt(system_prompt: str, app_config: Any) -> str:
     neither persona nor template yields an empty string, preserving the
     prior no-SYSTEM-message behavior.
     """
-    from openjarvis.prompt.builder import SystemPromptBuilder
+    from ethan.prompt.builder import SystemPromptBuilder
 
     builder = SystemPromptBuilder(
         agent_template=system_prompt or "",
@@ -492,7 +492,7 @@ def _replay_history_messages(
     regressing to fabricated tool output on later turns. Without this, only
     the assistant's text is replayed and the tool-use signal is lost (#382).
     """
-    from openjarvis.core.types import Message, Role, ToolCall
+    from ethan.core.types import Message, Role, ToolCall
 
     messages: List[Any] = []
     for m in reversed(history):
@@ -551,7 +551,7 @@ def _instantiate_managed_tool(
     instead of silently failing with "No backend configured" (#395).
     """
     try:
-        from openjarvis.cli.ask import (
+        from ethan.cli.ask import (
             _CHANNEL_TOOLS,
             _MEMORY_TOOLS,
             _get_memory_backend,
@@ -600,19 +600,19 @@ def _build_deep_research_tools(
     from pathlib import Path
 
     if not knowledge_db_path:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
+        from ethan.core.config import DEFAULT_CONFIG_DIR
 
         knowledge_db_path = str(DEFAULT_CONFIG_DIR / "knowledge.db")
 
     if not Path(knowledge_db_path).exists():
         return []
 
-    from openjarvis.connectors.retriever import TwoStageRetriever
-    from openjarvis.connectors.store import KnowledgeStore
-    from openjarvis.tools.knowledge_search import KnowledgeSearchTool
-    from openjarvis.tools.knowledge_sql import KnowledgeSQLTool
-    from openjarvis.tools.scan_chunks import ScanChunksTool
-    from openjarvis.tools.think import ThinkTool
+    from ethan.connectors.retriever import TwoStageRetriever
+    from ethan.connectors.store import KnowledgeStore
+    from ethan.tools.knowledge_search import KnowledgeSearchTool
+    from ethan.tools.knowledge_sql import KnowledgeSQLTool
+    from ethan.tools.scan_chunks import ScanChunksTool
+    from ethan.tools.think import ThinkTool
 
     store = KnowledgeStore(knowledge_db_path)
     retriever = TwoStageRetriever(store)
@@ -664,7 +664,7 @@ def _get_mcp_tools(app_state: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]
 
     import json as _json
 
-    from openjarvis.core.config import load_config
+    from ethan.core.config import load_config
 
     openai_tools: List[Dict[str, Any]] = []
     adapters_by_name: Dict[str, Any] = {}
@@ -678,9 +678,9 @@ def _get_mcp_tools(app_state: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]
     if not app_config.tools.mcp.enabled or not app_config.tools.mcp.servers:
         return openai_tools, adapters_by_name
 
-    from openjarvis.mcp.client import MCPClient
-    from openjarvis.mcp.transport import StdioTransport, StreamableHTTPTransport
-    from openjarvis.tools.mcp_adapter import MCPToolProvider
+    from ethan.mcp.client import MCPClient
+    from ethan.mcp.transport import StdioTransport, StreamableHTTPTransport
+    from ethan.tools.mcp_adapter import MCPToolProvider
 
     # Keep clients alive so transports persist for tool calls at runtime
     mcp_clients: list = getattr(app_state, "_mcp_clients", [])
@@ -823,7 +823,7 @@ async def _stream_managed_agent(
     import json
     import uuid
 
-    from openjarvis.core.types import Message, Role
+    from ethan.core.types import Message, Role
 
     agent_id = agent_record["id"]
     config = agent_record.get("config", {})
@@ -849,7 +849,7 @@ async def _stream_managed_agent(
     # persona files (parity with the CLI/ask path) — see #431.
     app_config = getattr(app_state, "config", None)
     if app_config is None:
-        from openjarvis.core.config import load_config
+        from ethan.core.config import load_config
 
         app_config = load_config()
 
@@ -897,7 +897,7 @@ async def _stream_managed_agent(
                 import threading
                 import time as _dr_time
 
-                from openjarvis.agents.deep_research import DeepResearchAgent
+                from ethan.agents.deep_research import DeepResearchAgent
 
                 progress_q: queue.Queue = queue.Queue()
 
@@ -1324,7 +1324,7 @@ async def _stream_managed_agent(
                 ]
 
                 # Add assistant message with tool_calls to conversation
-                from openjarvis.core.types import ToolCall as MsgToolCall
+                from ethan.core.types import ToolCall as MsgToolCall
 
                 assistant_msg = Message(
                     role=Role.ASSISTANT,
@@ -1379,11 +1379,11 @@ async def _stream_managed_agent(
                             tool_result_content = result.content
                         else:
                             # Try to use ToolExecutor if tools are configured
-                            from openjarvis.core.registry import ToolRegistry
-                            from openjarvis.tools._stubs import (
+                            from ethan.core.registry import ToolRegistry
+                            from ethan.tools._stubs import (
                                 ToolCall as StubToolCall,
                             )
-                            from openjarvis.tools._stubs import (
+                            from ethan.tools._stubs import (
                                 ToolExecutor,
                             )
 
@@ -1630,8 +1630,8 @@ def create_agent_manager_router(
 
         def _run_tick():
             try:
-                from openjarvis.agents.executor import AgentExecutor
-                from openjarvis.core.events import get_event_bus
+                from ethan.agents.executor import AgentExecutor
+                from ethan.core.events import get_event_bus
 
                 _ts = getattr(request.app.state, "trace_store", None)
                 executor = AgentExecutor(
@@ -1742,7 +1742,7 @@ def create_agent_manager_router(
             identifier = (req.config or {}).get("identifier", "")
             if identifier:
                 try:
-                    from openjarvis.channels.imessage_daemon import (
+                    from ethan.channels.imessage_daemon import (
                         is_running,
                         run_daemon,
                     )
@@ -1752,13 +1752,13 @@ def create_agent_manager_router(
 
                         engine = getattr(request.app.state, "engine", None)
                         if engine:
-                            from openjarvis.server.agent_manager_routes import (
+                            from ethan.server.agent_manager_routes import (
                                 _build_deep_research_tools,
                             )
 
                             tools = _build_deep_research_tools(engine=engine, model="")
                             if tools:
-                                from openjarvis.agents.deep_research import (
+                                from ethan.agents.deep_research import (
                                     DeepResearchAgent,
                                 )
 
@@ -1794,7 +1794,7 @@ def create_agent_manager_router(
             from_number = config.get("from_number", "")
             if api_key_id and api_secret_key:
                 try:
-                    from openjarvis.channels.sendblue import (
+                    from ethan.channels.sendblue import (
                         SendBlueChannel,
                     )
 
@@ -1813,10 +1813,10 @@ def create_agent_manager_router(
                         bridge._channels["sendblue"] = sb_channel
                     else:
                         # Create a new ChannelBridge with DeepResearch
-                        from openjarvis.server.channel_bridge import (
+                        from ethan.server.channel_bridge import (
                             ChannelBridge,
                         )
-                        from openjarvis.server.session_store import (
+                        from ethan.server.session_store import (
                             SessionStore,
                         )
 
@@ -1824,13 +1824,13 @@ def create_agent_manager_router(
                         engine = getattr(request.app.state, "engine", None)
                         dr_agent = None
                         if engine:
-                            from openjarvis.server.agent_manager_routes import (
+                            from ethan.server.agent_manager_routes import (
                                 _build_deep_research_tools as _bdr,
                             )
 
                             tools = _bdr(engine=engine, model="")
                             if tools:
-                                from openjarvis.agents.deep_research import (
+                                from ethan.agents.deep_research import (
                                     DeepResearchAgent,
                                 )
 
@@ -1848,7 +1848,7 @@ def create_agent_manager_router(
                                 )
                         bus = getattr(request.app.state, "bus", None)
                         if bus is None:
-                            from openjarvis.core.events import EventBus
+                            from ethan.core.events import EventBus
 
                             bus = EventBus()
                         bridge = ChannelBridge(
@@ -1874,10 +1874,10 @@ def create_agent_manager_router(
             app_token = config.get("app_token", "")
             if bot_token and app_token:
                 try:
-                    from openjarvis.channels.slack_daemon import (
+                    from ethan.channels.slack_daemon import (
                         start_slack_daemon,
                     )
-                    from openjarvis.channels.slack_daemon import (
+                    from ethan.channels.slack_daemon import (
                         stop_daemon as stop_slack,
                     )
 
@@ -1925,13 +1925,13 @@ def create_agent_manager_router(
             if binding:
                 ch_type = binding.get("channel_type")
                 if ch_type == "imessage":
-                    from openjarvis.channels.imessage_daemon import (
+                    from ethan.channels.imessage_daemon import (
                         stop_daemon,
                     )
 
                     stop_daemon()
                 elif ch_type == "slack":
-                    from openjarvis.channels.slack_daemon import (
+                    from ethan.channels.slack_daemon import (
                         stop_daemon as stop_slack_daemon,
                     )
 
@@ -1973,8 +1973,8 @@ def create_agent_manager_router(
             import threading
             import time as _time
 
-            from openjarvis.agents.executor import AgentExecutor
-            from openjarvis.core.events import get_event_bus
+            from ethan.agents.executor import AgentExecutor
+            from ethan.core.events import get_event_bus
 
             _srv_engine = getattr(request.app.state, "engine", None)
             _srv_model = getattr(request.app.state, "model", "")
@@ -2081,7 +2081,7 @@ def create_agent_manager_router(
     def trigger_learning(agent_id: str):
         if not manager.get_agent(agent_id):
             raise HTTPException(status_code=404, detail="Agent not found")
-        from openjarvis.core.events import EventType, get_event_bus
+        from ethan.core.events import EventType, get_event_bus
 
         bus = get_event_bus()
         bus.publish(EventType.AGENT_LEARNING_STARTED, {"agent_id": agent_id})
@@ -2094,11 +2094,11 @@ def create_agent_manager_router(
         if not manager.get_agent(agent_id):
             raise HTTPException(status_code=404, detail="Agent not found")
         try:
-            from openjarvis.core.config import load_config
-            from openjarvis.traces.store import TraceStore
+            from ethan.core.config import load_config
+            from ethan.traces.store import TraceStore
 
             config = load_config()
-            store = TraceStore(config.traces.db_path or "~/.openjarvis/traces.db")
+            store = TraceStore(config.traces.db_path or "~/.ethan/traces.db")
             traces = store.list_traces(agent=agent_id, limit=limit)
             return {
                 "traces": [
@@ -2119,11 +2119,11 @@ def create_agent_manager_router(
     @agents_router.get("/{agent_id}/traces/{trace_id}")
     def get_trace(agent_id: str, trace_id: str):
         try:
-            from openjarvis.core.config import load_config
-            from openjarvis.traces.store import TraceStore
+            from ethan.core.config import load_config
+            from ethan.traces.store import TraceStore
 
             config = load_config()
-            store = TraceStore(config.traces.db_path or "~/.openjarvis/traces.db")
+            store = TraceStore(config.traces.db_path or "~/.ethan/traces.db")
             trace = store.get(trace_id)
             if trace is None:
                 raise HTTPException(status_code=404, detail="Trace not found")
@@ -2223,7 +2223,7 @@ def create_agent_manager_router(
 
     @tools_router.post("/{tool_name}/credentials")
     async def save_tool_credentials(tool_name: str, request: Request):
-        from openjarvis.core.credentials import save_credential
+        from ethan.core.credentials import save_credential
 
         body = await request.json()
         saved = []
@@ -2234,7 +2234,7 @@ def create_agent_manager_router(
 
     @tools_router.get("/{tool_name}/credentials/status")
     def credential_status(tool_name: str):
-        from openjarvis.core.credentials import get_credential_status
+        from ethan.core.credentials import get_credential_status
 
         return get_credential_status(tool_name)
 
@@ -2364,7 +2364,7 @@ def create_agent_manager_router(
             payload: Dict[str, str] = {
                 "number": to_number,
                 "content": (
-                    "Hello from your OpenJarvis agent! "
+                    "Hello from your Ethan agent! "
                     "Text this number anytime to search your "
                     "personal data. Reply with any question to try it."
                 ),

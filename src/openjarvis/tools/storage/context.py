@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
-from openjarvis.core.events import EventType, get_event_bus
-from openjarvis.core.types import Message, Role
-from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
+from ethan.core.events import EventType, get_event_bus
+from ethan.core.types import Message, Role
+from ethan.tools.storage._stubs import MemoryBackend, RetrievalResult
 
 
 @dataclass(slots=True)

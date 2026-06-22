@@ -12,10 +12,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Iterator, Optional
 
-from openjarvis.connectors._stubs import Document
-from openjarvis.connectors.gmail_imap import GmailIMAPConnector
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
+from ethan.connectors._stubs import Document
+from ethan.connectors.gmail_imap import GmailIMAPConnector
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
 
 _DEFAULT_CREDENTIALS_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "outlook.json")
 

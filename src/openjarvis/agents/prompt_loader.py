@@ -22,18 +22,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def _openjarvis_home() -> Path:
-    """Resolve $OPENJARVIS_HOME, defaulting to ~/.openjarvis."""
-    return Path(os.environ.get("OPENJARVIS_HOME", "~/.openjarvis")).expanduser()
+def _ethan_home() -> Path:
+    """Resolve $OPENJARVIS_HOME, defaulting to ~/.ethan."""
+    return Path(os.environ.get("OPENJARVIS_HOME", "~/.ethan")).expanduser()
 
 
 def load_system_prompt_override(agent_name: str) -> str | None:
     """Return the override prompt for *agent_name*, or ``None``.
 
     Looks for ``$OPENJARVIS_HOME/agents/<agent_name>/system_prompt.md``.
-    ``OPENJARVIS_HOME`` defaults to ``~/.openjarvis`` when unset.
+    ``OPENJARVIS_HOME`` defaults to ``~/.ethan`` when unset.
     """
-    home = _openjarvis_home()
+    home = _ethan_home()
     prompt_path = home / "agents" / agent_name / "system_prompt.md"
     if not prompt_path.exists():
         return None
@@ -58,7 +58,7 @@ def load_few_shot_exemplars(
     Looks for ``$OPENJARVIS_HOME/agents/<agent_name>/few_shot.json``.
     Expected format: ``[{"input": "Q", "output": "A"}, ...]``.
     """
-    home = _openjarvis_home()
+    home = _ethan_home()
     fs_path = home / "agents" / agent_name / "few_shot.json"
     if not fs_path.exists():
         return []

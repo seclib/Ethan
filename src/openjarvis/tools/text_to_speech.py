@@ -6,9 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry, TTSRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.core.registry import ToolRegistry, TTSRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 
 @ToolRegistry.register("text_to_speech")
@@ -54,7 +54,7 @@ class TextToSpeechTool(BaseTool):
 
     def execute(self, **params: Any) -> ToolResult:
         # Ensure TTS backends are registered
-        import openjarvis.speech  # noqa: F401
+        import ethan.speech  # noqa: F401
 
         text = params.get("text", "")
         voice_id = params.get("voice_id", "")

@@ -15,9 +15,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from openjarvis.core.types import Trace
-from openjarvis.evals.core.types import EvalRecord
-from openjarvis.traces.store import TraceStore
+from ethan.core.types import Trace
+from ethan.evals.core.types import EvalRecord
+from ethan.traces.store import TraceStore
 
 
 def write_external_records_as_traces(

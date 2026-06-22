@@ -5,16 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 
 @ToolRegistry.register("memory_manage")
 class MemoryManageTool(BaseTool):
     """Manage persistent agent memory (MEMORY.md)."""
 
-    def __init__(self, memory_path: Path | str = "~/.openjarvis/MEMORY.md") -> None:
+    def __init__(self, memory_path: Path | str = "~/.ethan/MEMORY.md") -> None:
         self._memory_path = Path(memory_path).expanduser()
 
     @property

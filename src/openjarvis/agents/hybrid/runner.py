@@ -2,16 +2,16 @@
 
 ::
 
-    python -m openjarvis.agents.hybrid.runner --cell minions-gaia-qwen27b-opus-3
+    python -m ethan.agents.hybrid.runner --cell minions-gaia-qwen27b-opus-3
 
 Reads a cell definition from ``registry/<method>.toml`` (bundled with this
 package or pointed at by ``OPENJARVIS_HYBRID_REGISTRY_DIR``), constructs
-the registered agent, loads bench tasks via OpenJarvis's existing dataset
+the registered agent, loads bench tasks via Ethan's existing dataset
 providers, runs every task, scores it, and writes
 ``<EXPERIMENTS_DIR>/runs/<cell>/results.jsonl`` + ``summary.json``.
 
 The output schema matches ``hybrid-local-cloud-compute/runner.py`` so the
-existing rescore / dashboard scripts can read OpenJarvis cells without
+existing rescore / dashboard scripts can read Ethan cells without
 modification.
 """
 
@@ -35,16 +35,16 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
-from openjarvis.agents._stubs import AgentContext, AgentResult
-from openjarvis.agents.hybrid._energy import EnergyCollector
-from openjarvis.agents.hybrid._prompts import format_prompt as _format_prompt
+from ethan.agents._stubs import AgentContext, AgentResult
+from ethan.agents.hybrid._energy import EnergyCollector
+from ethan.agents.hybrid._prompts import format_prompt as _format_prompt
 
 PACKAGE_DIR = Path(__file__).parent
 DEFAULT_REGISTRY_DIR = PACKAGE_DIR / "registry"
 DEFAULT_EXPERIMENTS_DIR = Path(
     os.environ.get(
         "OPENJARVIS_HYBRID_EXPERIMENTS_DIR",
-        Path.home() / ".openjarvis" / "experiments" / "hybrid",
+        Path.home() / ".ethan" / "experiments" / "hybrid",
     )
 )
 DEFAULT_SUBSETS_DIR = DEFAULT_EXPERIMENTS_DIR / "subsets"
@@ -124,7 +124,7 @@ def load_registry(registry_dir: Optional[Path] = None) -> Dict[str, Dict[str, An
 
 def _load_gaia_tasks(n: Optional[int]) -> List[Dict[str, Any]]:
     """GAIA validation. Each task is a dict with `task_id` + `question`."""
-    from openjarvis.evals.datasets.gaia import GAIADataset
+    from ethan.evals.datasets.gaia import GAIADataset
 
     ds = GAIADataset()
     ds.load(max_samples=n)
@@ -133,7 +133,7 @@ def _load_gaia_tasks(n: Optional[int]) -> List[Dict[str, Any]]:
         # rec.problem is the formatted question prompt; rec.metadata carries
         # the GAIA-specific fields including any reference answer. Prefer the
         # upstream GAIA `task_id` field (bare uuid) over rec.record_id (which
-        # OpenJarvis prefixes with `gaia-`) so subsets keyed by the upstream
+        # Ethan prefixes with `gaia-`) so subsets keyed by the upstream
         # id round-trip.
         md = rec.metadata or {}
         task_id = md.get("task_id") or rec.record_id
@@ -148,7 +148,7 @@ def _load_gaia_tasks(n: Optional[int]) -> List[Dict[str, Any]]:
 
 def _load_swebench_tasks(n: Optional[int]) -> List[Dict[str, Any]]:
     """SWE-bench-Verified test. Each task carries patch-evaluation fields."""
-    from openjarvis.evals.datasets.swebench import SWEBenchDataset
+    from ethan.evals.datasets.swebench import SWEBenchDataset
 
     ds = SWEBenchDataset(variant="verified")
     ds.load(max_samples=n)
@@ -262,10 +262,10 @@ def _get_gaia_scorer():
     if _GAIA_SCORER is None:
         with _GAIA_SCORER_LOCK:
             if _GAIA_SCORER is None:
-                from openjarvis.evals.backends.jarvis_direct import (
+                from ethan.evals.backends.jarvis_direct import (
                     JarvisDirectBackend,
                 )
-                from openjarvis.evals.scorers.gaia_exact import GAIAScorer
+                from ethan.evals.scorers.gaia_exact import GAIAScorer
 
                 judge_model = os.environ.get(
                     "OPENJARVIS_GAIA_JUDGE_MODEL", "gpt-5-mini-2025-08-07"
@@ -281,14 +281,14 @@ def _get_gaia_scorer():
 def _score_gaia(task: Dict[str, Any], answer: str) -> Dict[str, Any]:
     """GAIA scorer — normalized exact-match with an LLM-judge fallback.
 
-    Uses the shared OpenJarvis :class:`GAIAScorer`. The previous version
+    Uses the shared Ethan :class:`GAIAScorer`. The previous version
     only credited answers that emitted a literal ``FINAL ANSWER:`` line and
     string-matched it; a verbose answer that stated the right answer in
     prose silently scored 0. Opus emits the marker ~92% of the time but
     GPT-5-mini / Haiku almost never do, so their GAIA cells were badly
     undercounted. The judge recovers the answer from prose instead.
     """
-    from openjarvis.evals.core.types import EvalRecord
+    from ethan.evals.core.types import EvalRecord
 
     ref = (task.get("reference") or "").strip()
     if not ref:
@@ -324,8 +324,8 @@ def _score_swebench(
     swebench harness cache and the second cell silently scores 0 with
     ``reason: no_report`` (or reads the first cell's verdict).
     """
-    from openjarvis.evals.core.types import EvalRecord
-    from openjarvis.evals.scorers.swebench_harness import (
+    from ethan.evals.core.types import EvalRecord
+    from ethan.evals.scorers.swebench_harness import (
         SWEBenchHarnessScorer,
         extract_patch,
     )
@@ -410,8 +410,8 @@ def _cell_lock(out_dir: Path, cell_name: str):
 
 def _build_agent(cell: Dict[str, Any]):
     """Construct the registered agent for this cell."""
-    import openjarvis.agents  # noqa: F401 — populate registry
-    from openjarvis.core.registry import AgentRegistry
+    import ethan.agents  # noqa: F401 — populate registry
+    from ethan.core.registry import AgentRegistry
 
     method = cell["method"]
     if not AgentRegistry.contains(method):
@@ -840,7 +840,7 @@ def _run_cell_locked(
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(
-        prog="python -m openjarvis.agents.hybrid.runner",
+        prog="python -m ethan.agents.hybrid.runner",
         description="Run a hybrid paradigm experiment cell.",
     )
     p.add_argument("--cell", required=True, help="Cell name from the registry TOMLs.")

@@ -9,10 +9,10 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Optional
 
-from openjarvis.connectors.store import KnowledgeStore
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.connectors.store import KnowledgeStore
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 _MAX_ROWS = 50
 

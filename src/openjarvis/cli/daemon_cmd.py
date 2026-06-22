@@ -11,7 +11,7 @@ import time
 import click
 from rich.console import Console
 
-from openjarvis.core.config import DEFAULT_CONFIG_DIR, load_config
+from ethan.core.config import DEFAULT_CONFIG_DIR, load_config
 
 _PID_FILE = DEFAULT_CONFIG_DIR / "server.pid"
 _LOG_FILE = DEFAULT_CONFIG_DIR / "server.log"
@@ -39,7 +39,7 @@ def _write_pid(pid: int) -> None:
 
 @click.group()
 def daemon() -> None:
-    """Manage the OpenJarvis server daemon."""
+    """Manage the Ethan server daemon."""
 
 
 @daemon.command()
@@ -55,7 +55,7 @@ def start(
     model_name: str | None,
     agent_name: str | None,
 ) -> None:
-    """Start the OpenJarvis server as a background daemon."""
+    """Start the Ethan server as a background daemon."""
     console = Console(stderr=True)
 
     existing = _read_pid()
@@ -69,7 +69,7 @@ def start(
     bind_port = port or config.server.port
 
     # Build command to run jarvis serve
-    cmd = [sys.executable, "-m", "openjarvis.cli", "serve"]
+    cmd = [sys.executable, "-m", "ethan.cli", "serve"]
     if host:
         cmd.extend(["--host", host])
     if port:
@@ -93,7 +93,7 @@ def start(
     _write_pid(proc.pid)
 
     console.print(
-        f"[green]OpenJarvis server started[/green] (PID {proc.pid})\n"
+        f"[green]Ethan server started[/green] (PID {proc.pid})\n"
         f"  URL: http://{bind_host}:{bind_port}\n"
         f"  Log: {_LOG_FILE}"
     )
@@ -101,7 +101,7 @@ def start(
 
 @daemon.command()
 def stop() -> None:
-    """Stop the running OpenJarvis server daemon."""
+    """Stop the running Ethan server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is None:
@@ -133,7 +133,7 @@ def stop() -> None:
 @daemon.command()
 @click.pass_context
 def restart(ctx: click.Context) -> None:
-    """Restart the OpenJarvis server daemon."""
+    """Restart the Ethan server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is not None:
@@ -144,7 +144,7 @@ def restart(ctx: click.Context) -> None:
 
 @daemon.command()
 def status() -> None:
-    """Show status of the OpenJarvis server daemon."""
+    """Show status of the Ethan server daemon."""
     console = Console(stderr=True)
     pid = _read_pid()
     if pid is None:

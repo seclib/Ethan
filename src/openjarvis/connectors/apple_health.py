@@ -4,7 +4,7 @@ Two data sources are tried in order:
 1. HealthKit SQLite DB at ``~/Library/Health/healthdb_secure.sqlite`` (macOS
    with HealthKit sync enabled).
 2. Health Export XML placed by the user at
-   ``~/.openjarvis/connectors/apple_health_export/export.xml``.
+   ``~/.ethan/connectors/apple_health_export/export.xml``.
 
 Both are local-only; no API keys are needed.
 """
@@ -21,9 +21,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
 
 logger = logging.getLogger(__name__)
 

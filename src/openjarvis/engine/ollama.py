@@ -10,15 +10,15 @@ from typing import Any, Dict, List
 
 import httpx
 
-from openjarvis.core.registry import EngineRegistry
-from openjarvis.core.types import Message
-from openjarvis.engine._base import (
+from ethan.core.registry import EngineRegistry
+from ethan.core.types import Message
+from ethan.engine._base import (
     EngineConnectionError,
     InferenceEngine,
     estimate_prompt_tokens,
     messages_to_dicts,
 )
-from openjarvis.engine._stubs import StreamChunk
+from ethan.engine._stubs import StreamChunk
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class OllamaEngine(InferenceEngine):
         # Apply structured output / JSON mode
         response_format = kwargs.get("response_format")
         if response_format is not None:
-            from openjarvis.engine._stubs import ResponseFormat
+            from ethan.engine._stubs import ResponseFormat
 
             if isinstance(response_format, ResponseFormat):
                 payload["format"] = "json"

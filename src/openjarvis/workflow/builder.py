@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from openjarvis.workflow.graph import WorkflowGraph
-from openjarvis.workflow.types import NodeType, WorkflowEdge, WorkflowNode
+from ethan.workflow.graph import WorkflowGraph
+from ethan.workflow.types import NodeType, WorkflowEdge, WorkflowNode
 
 
 class WorkflowBuilder:

@@ -19,11 +19,11 @@ from urllib.parse import urlencode
 
 import httpx
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.connectors.oauth import delete_tokens, load_tokens, save_tokens
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
-from openjarvis.tools._stubs import ToolSpec
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.connectors.oauth import delete_tokens, load_tokens, save_tokens
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
+from ethan.tools._stubs import ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +285,7 @@ class SlackConnector(BaseConnector):
     ----------
     credentials_path:
         Path to the JSON file where OAuth tokens are stored.  Defaults to
-        ``~/.openjarvis/connectors/slack.json``.
+        ``~/.ethan/connectors/slack.json``.
     """
 
     connector_id = "slack"

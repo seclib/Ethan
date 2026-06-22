@@ -13,10 +13,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.config import load_config
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.types import Conversation, Message, Role, ToolResult
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.core.config import load_config
+from ethan.core.events import EventBus, EventType
+from ethan.core.types import Conversation, Message, Role, ToolResult
+from ethan.engine._stubs import InferenceEngine
 
 
 @dataclass(slots=True)
@@ -254,7 +254,7 @@ class BaseAgent(ABC):
             if finish_reason != "length":
                 break
             # Append what we have so far and ask the model to continue
-            from openjarvis.core.types import Message, Role
+            from ethan.core.types import Message, Role
 
             messages.append(Message(role=Role.ASSISTANT, content=content))
             messages.append(
@@ -334,7 +334,7 @@ class ToolUsingAgent(BaseAgent):
             max_tokens=max_tokens,
             prompt_builder=prompt_builder,
         )
-        from openjarvis.tools._stubs import ToolExecutor
+        from ethan.tools._stubs import ToolExecutor
 
         self._tools = tools or []
         # Plan 2B I3: store optimized few-shot examples for agents to inject
@@ -362,7 +362,7 @@ class ToolUsingAgent(BaseAgent):
         # Loop guard
         self._loop_guard = None
         try:
-            from openjarvis.agents.loop_guard import LoopGuard, LoopGuardConfig
+            from ethan.agents.loop_guard import LoopGuard, LoopGuardConfig
 
             if loop_guard_config is None:
                 loop_guard_config = LoopGuardConfig()

@@ -1,6 +1,6 @@
 """Recipe loader — load and resolve TOML recipe files.
 
-Recipes are the universal composition format for OpenJarvis.  Each recipe
+Recipes are the universal composition format for Ethan.  Each recipe
 specifies all five primitives (Intelligence, Engine, Agent, Tools, Learning)
 and carries a ``kind`` that determines its lifecycle:
 
@@ -24,8 +24,8 @@ except ModuleNotFoundError:
 _PROJECT_RECIPES_DIR = Path(__file__).resolve().parent / "data"
 _PROJECT_OPERATORS_DIR = _PROJECT_RECIPES_DIR / "operators"
 # User-level directories
-_USER_RECIPES_DIR = Path.home() / ".openjarvis" / "recipes"
-_USER_OPERATORS_DIR = Path.home() / ".openjarvis" / "operators"
+_USER_RECIPES_DIR = Path.home() / ".ethan" / "recipes"
+_USER_OPERATORS_DIR = Path.home() / ".ethan" / "operators"
 
 
 @dataclass(slots=True)
@@ -136,7 +136,7 @@ class Recipe:
         and the recipe's benchmarks (or *benchmarks* override) as
         ``[[benchmarks]]``, inheriting agent type and tools.
         """
-        from openjarvis.recipes.composer import recipe_to_eval_suite
+        from ethan.recipes.composer import recipe_to_eval_suite
 
         return recipe_to_eval_suite(
             self,
@@ -147,7 +147,7 @@ class Recipe:
 
     def to_operator_manifest(self) -> Any:
         """Convert this recipe into an ``OperatorManifest``."""
-        from openjarvis.recipes.composer import recipe_to_operator
+        from ethan.recipes.composer import recipe_to_operator
 
         return recipe_to_operator(self)
 
@@ -288,8 +288,8 @@ def discover_recipes(
     Search order (later entries override earlier ones by name):
     1. Project ``recipes/data/`` directory (discrete recipes)
     2. Project ``recipes/data/operators/`` directory (operator recipes)
-    3. User ``~/.openjarvis/recipes/`` directory
-    4. User ``~/.openjarvis/operators/`` directory
+    3. User ``~/.ethan/recipes/`` directory
+    4. User ``~/.ethan/operators/`` directory
     5. Any additional directories in *extra_dirs*
 
     Args:

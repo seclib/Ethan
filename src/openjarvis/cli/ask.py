@@ -12,24 +12,24 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from openjarvis.cli._banner import print_banner
-from openjarvis.cli._tool_names import resolve_tool_names
-from openjarvis.cli.hints import hint_no_engine
-from openjarvis.core.config import load_config
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.types import Message, Role
-from openjarvis.engine import (
+from ethan.cli._banner import print_banner
+from ethan.cli._tool_names import resolve_tool_names
+from ethan.cli.hints import hint_no_engine
+from ethan.core.config import load_config
+from ethan.core.events import EventBus, EventType
+from ethan.core.types import Message, Role
+from ethan.engine import (
     EngineConnectionError,
     discover_engines,
     discover_models,
     get_engine,
 )
-from openjarvis.intelligence import (
+from ethan.intelligence import (
     merge_discovered_models,
     register_builtin_models,
 )
-from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
-from openjarvis.telemetry.store import TelemetryStore
+from ethan.telemetry.instrumented_engine import InstrumentedEngine
+from ethan.telemetry.store import TelemetryStore
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +53,11 @@ def _run_research(
     from rich.markdown import Markdown
     from rich.theme import Theme
 
-    from openjarvis.agents.research_loop import DEFAULT_PLANNER_MODEL, ResearchAgent
-    from openjarvis.connectors.embeddings import OllamaEmbedder
-    from openjarvis.connectors.hybrid_search import HybridSearch
-    from openjarvis.connectors.store import KnowledgeStore
-    from openjarvis.engine.ollama import OllamaEngine
+    from ethan.agents.research_loop import DEFAULT_PLANNER_MODEL, ResearchAgent
+    from ethan.connectors.embeddings import OllamaEmbedder
+    from ethan.connectors.hybrid_search import HybridSearch
+    from ethan.connectors.store import KnowledgeStore
+    from ethan.engine.ollama import OllamaEngine
 
     store_kwargs: dict = {}
     if knowledge_db:
@@ -226,8 +226,8 @@ def _get_memory_backend(config):
     tool is the hallucination vector.
     """
     try:
-        import openjarvis.tools.storage  # noqa: F401
-        from openjarvis.core.registry import MemoryRegistry
+        import ethan.tools.storage  # noqa: F401
+        from ethan.core.registry import MemoryRegistry
 
         key = config.memory.default_backend
         if not MemoryRegistry.contains(key):
@@ -273,7 +273,7 @@ def _build_tools(
     provided — these are the failure modes that silently cascade into
     hallucinated or dropped replies downstream.
     """
-    from openjarvis.core.registry import ToolRegistry
+    from ethan.core.registry import ToolRegistry
 
     tools = []
     for name in tool_names:
@@ -329,9 +329,9 @@ def _run_agent(
 ):
     """Instantiate and run an agent, returning the AgentResult."""
     # Import agents to trigger registration
-    import openjarvis.agents  # noqa: F401
-    from openjarvis.agents._stubs import AgentContext
-    from openjarvis.core.registry import AgentRegistry
+    import ethan.agents  # noqa: F401
+    from ethan.agents._stubs import AgentContext
+    from ethan.core.registry import AgentRegistry
 
     if not AgentRegistry.contains(agent_name):
         raise click.ClickException(
@@ -346,14 +346,14 @@ def _run_agent(
     tools = []
     if tool_names:
         # Trigger tool registration
-        import openjarvis.tools  # noqa: F401
+        import ethan.tools  # noqa: F401
 
         tools = _build_tools(tool_names, config, engine, model_name)
 
     # MCP tools from config.tools.mcp.servers. Loaded regardless of
     # tool_names — if the caller passed --tools, the loader filters MCP
     # tools to those names; otherwise every MCP tool is included.
-    from openjarvis.mcp.loader import load_mcp_tools_from_config
+    from ethan.mcp.loader import load_mcp_tools_from_config
 
     mcp_tools, mcp_clients = load_mcp_tools_from_config(
         config.tools.mcp,
@@ -392,7 +392,7 @@ def _run_agent(
     import inspect as _inspect
 
     if "prompt_builder" in _inspect.signature(agent_cls.__init__).parameters:
-        from openjarvis.prompt.builder import SystemPromptBuilder
+        from ethan.prompt.builder import SystemPromptBuilder
 
         agent_kwargs["prompt_builder"] = SystemPromptBuilder(
             agent_template=config.agent.default_system_prompt or "",
@@ -412,7 +412,7 @@ def _run_agent(
     # Inject memory context into conversation if available
     if config.agent.context_from_memory:
         try:
-            from openjarvis.tools.storage.context import ContextConfig, inject_context
+            from ethan.tools.storage.context import ContextConfig, inject_context
 
             backend = _get_memory_backend(config)
             if backend is not None:
@@ -617,7 +617,7 @@ def _print_profile(
     default=None,
     help=(
         "Override the KnowledgeStore path used by --research "
-        "(default: ~/.openjarvis/knowledge.db)."
+        "(default: ~/.ethan/knowledge.db)."
     ),
 )
 @click.option(
@@ -640,7 +640,7 @@ def _print_profile(
     "persona_name",
     default=None,
     help=(
-        "Named persona dir under ~/.openjarvis/personas/<name>/ "
+        "Named persona dir under ~/.ethan/personas/<name>/ "
         "(overrides config). Pass 'none' to disable all persona files."
     ),
 )
@@ -681,7 +681,7 @@ def ask(
             sys.exit(1)
     if capture_screen:
         try:
-            from openjarvis.cli._screen import capture_screen_to_temp
+            from ethan.cli._screen import capture_screen_to_temp
 
             _shot = capture_screen_to_temp()
             with open(_shot, "rb") as _fh:
@@ -740,7 +740,7 @@ def ask(
         max_tokens = config.intelligence.max_tokens
 
     # Run complexity analysis on the query
-    from openjarvis.learning.routing.complexity import (
+    from ethan.learning.routing.complexity import (
         ComplexityResult,
         adjust_tokens_for_model,
         score_complexity,
@@ -806,7 +806,7 @@ def ask(
         return
 
     # Apply security guardrails
-    from openjarvis.security import setup_security
+    from ethan.security import setup_security
 
     sec = setup_security(config, engine, bus)
     engine = sec.engine
@@ -816,7 +816,7 @@ def ask(
     want_energy = config.telemetry.gpu_metrics or enable_profile
     if want_energy:
         try:
-            from openjarvis.telemetry.energy_monitor import create_energy_monitor
+            from ethan.telemetry.energy_monitor import create_energy_monitor
 
             energy_monitor = create_energy_monitor(
                 prefer_vendor=config.telemetry.energy_vendor or None,
@@ -925,7 +925,7 @@ def ask(
         return
 
     # Direct-to-engine mode (no agent)
-    # Privacy guard: a screenshot/image is sensitive, and OpenJarvis is
+    # Privacy guard: a screenshot/image is sensitive, and Ethan is
     # local-first. If the active engine isn't local, warn before the image
     # leaves the machine rather than silently uploading it to a third party.
     _LOCAL_ENGINES = {
@@ -951,7 +951,7 @@ def ask(
     # Memory-augmented context injection
     if not no_context and config.agent.context_from_memory:
         try:
-            from openjarvis.tools.storage.context import (
+            from ethan.tools.storage.context import (
                 ContextConfig,
                 inject_context,
             )

@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
 
-from openjarvis.core import open_browser
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
+from ethan.core import open_browser
+from ethan.core.config import DEFAULT_CONFIG_DIR
 
 # ---------------------------------------------------------------------------
 # Connector credentials directory
@@ -48,7 +48,7 @@ class OAuthProvider:
     extra_auth_params: Dict[str, str] = field(default_factory=dict)
     # Which connector IDs this provider covers (one flow → all connected)
     connector_ids: Tuple[str, ...] = ()
-    # Filenames in ~/.openjarvis/connectors/ to save tokens to
+    # Filenames in ~/.ethan/connectors/ to save tokens to
     credential_files: Tuple[str, ...] = ()
 
 
@@ -139,7 +139,7 @@ def get_client_credentials(
 ) -> Optional[Tuple[str, str]]:
     """Load stored client_id and client_secret for *provider*.
 
-    Checks credential files in ``~/.openjarvis/connectors/`` and falls
+    Checks credential files in ``~/.ethan/connectors/`` and falls
     back to environment variables ``OPENJARVIS_{NAME}_CLIENT_ID`` and
     ``OPENJARVIS_{NAME}_CLIENT_SECRET``.
     """
@@ -445,7 +445,7 @@ def run_oauth_flow(
                 self.end_headers()
                 self.wfile.write(
                     b"<html><body><h2>Authorization successful!</h2>"
-                    b"<p>You can close this tab and return to OpenJarvis.</p>"
+                    b"<p>You can close this tab and return to Ethan.</p>"
                     b"</body></html>"
                 )
             elif "error" in params:
@@ -565,7 +565,7 @@ def _wait_for_callback_code(
                     b"<html><body style='font-family:system-ui;text-align:center;"
                     b"padding:60px'>"
                     b"<h2 style='color:#22c55e'>Connected!</h2>"
-                    b"<p>You can close this tab and return to OpenJarvis.</p>"
+                    b"<p>You can close this tab and return to Ethan.</p>"
                     b"</body></html>"
                 )
             elif "error" in params:

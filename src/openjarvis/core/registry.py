@@ -9,9 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Tuple, Type, TypeVar
 
 if TYPE_CHECKING:
-    from openjarvis.agents._stubs import BaseAgent
-    from openjarvis.engine._stubs import InferenceEngine
-    from openjarvis.tools.storage._stubs import MemoryBackend
+    from ethan.agents._stubs import BaseAgent
+    from ethan.engine._stubs import InferenceEngine
+    from ethan.tools.storage._stubs import MemoryBackend
 
 T = TypeVar("T")
 
@@ -157,7 +157,7 @@ class MinerRegistry(RegistryBase[Any]):
     """Registry for Pearl mining provider implementations.
 
     Each provider implements the ``MiningProvider`` ABC defined in
-    ``openjarvis.mining._stubs``. Registry keys are short lowercase strings
+    ``ethan.mining._stubs``. Registry keys are short lowercase strings
     such as ``"vllm-pearl"`` (CUDA + Hopper) and (future) ``"mlx-pearl"``,
     ``"llamacpp-pearl-metal"``, ``"ollama-pearl"``.
     """

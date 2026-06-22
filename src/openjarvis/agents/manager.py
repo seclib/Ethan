@@ -192,7 +192,7 @@ class AgentManager:
         # the executor silently falls back to _AGENT_TICK_DEFAULT_MODEL while
         # the Overview shows a stale/default value. Lazy import avoids any
         # import-order coupling with the executor module.
-        from openjarvis.agents.executor import _AGENT_TICK_DEFAULT_MODEL
+        from ethan.agents.executor import _AGENT_TICK_DEFAULT_MODEL
 
         config = dict(config or {})
         if not config.get("model"):
@@ -526,7 +526,7 @@ class AgentManager:
 
         # Built-in templates
         try:
-            tpl_dir = importlib.resources.files("openjarvis.agents") / "templates"
+            tpl_dir = importlib.resources.files("ethan.agents") / "templates"
             for item in tpl_dir.iterdir():
                 if str(item).endswith(".toml"):
                     data = tomllib.loads(item.read_text(encoding="utf-8"))
@@ -537,7 +537,7 @@ class AgentManager:
             pass
 
         # User templates
-        user_dir = Path("~/.openjarvis/templates").expanduser()
+        user_dir = Path("~/.ethan/templates").expanduser()
         if user_dir.is_dir():
             for f in user_dir.glob("*.toml"):
                 try:

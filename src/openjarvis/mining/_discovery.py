@@ -1,4 +1,4 @@
-# src/openjarvis/mining/_discovery.py
+# src/ethan/mining/_discovery.py
 """Capability detection for mining providers.
 
 Each function answers a single yes/no question and returns ``(ok: bool,
@@ -14,9 +14,9 @@ from typing import Tuple
 
 import httpx
 
-from openjarvis.core.config import HardwareInfo
-from openjarvis.mining._models import get_pearl_model_spec, pearl_variant_for_base_model
-from openjarvis.mining._stubs import MiningCapabilities
+from ethan.core.config import HardwareInfo
+from ethan.mining._models import get_pearl_model_spec, pearl_variant_for_base_model
+from ethan.mining._stubs import MiningCapabilities
 
 # ---------------------------------------------------------------------------
 # Constants for the v1 vllm-pearl provider
@@ -84,7 +84,7 @@ def detect_for_engine_model(
     if spec is None:
         return MiningCapabilities(
             False,
-            reason=f"model {model!r} is not in OpenJarvis' Pearl model registry",
+            reason=f"model {model!r} is not in Ethan' Pearl model registry",
         )
     if not spec.is_validated:
         return MiningCapabilities(
@@ -123,7 +123,7 @@ def check_docker_available() -> Tuple[bool, str]:
 
 
 def check_disk_free(path: Path) -> Tuple[bool, str]:
-    from openjarvis.mining._constants import MIN_FREE_DISK_GB
+    from ethan.mining._constants import MIN_FREE_DISK_GB
 
     usage = shutil.disk_usage(path)
     free_gb = usage.free / (1024**3)

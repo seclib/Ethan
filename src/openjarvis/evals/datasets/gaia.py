@@ -11,9 +11,9 @@ import shutil
 from pathlib import Path
 from typing import Iterable, List, MutableMapping, Optional, Sequence
 
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.splits import apply_split
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.splits import apply_split
+from ethan.evals.core.types import EvalRecord
 
 _DEFAULT_CACHE_DIR = Path.home() / ".cache" / "gaia_benchmark"
 

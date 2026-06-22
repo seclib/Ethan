@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from openjarvis.evals.core.config import EvalConfigError, expand_suite, load_eval_config
-from openjarvis.evals.core.types import (
+from ethan.evals.core.config import EvalConfigError, expand_suite, load_eval_config
+from ethan.evals.core.types import (
     BenchmarkConfig,
     DefaultsConfig,
     EvalSuiteConfig,
@@ -658,7 +658,7 @@ class TestCLIConfig:
     def test_run_missing_benchmark_and_config(self):
         from click.testing import CliRunner
 
-        from openjarvis.evals.cli import main
+        from ethan.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "-m", "qwen3:8b"])
@@ -668,7 +668,7 @@ class TestCLIConfig:
     def test_run_missing_model_and_config(self):
         from click.testing import CliRunner
 
-        from openjarvis.evals.cli import main
+        from ethan.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "-b", "supergpqa"])
@@ -678,7 +678,7 @@ class TestCLIConfig:
     def test_run_config_file_not_found(self):
         from click.testing import CliRunner
 
-        from openjarvis.evals.cli import main
+        from ethan.evals.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["run", "--config", "/nonexistent.toml"])
@@ -694,7 +694,7 @@ class TestCLIConfig:
 
         from click.testing import CliRunner
 
-        from openjarvis.evals.cli import main
+        from ethan.evals.cli import main
 
         p = _write_toml(
             tmp_path,
@@ -711,7 +711,7 @@ class TestCLIConfig:
         )
 
         runner = CliRunner()
-        with patch("openjarvis.evals.cli._run_single", side_effect=Exception("mock")):
+        with patch("ethan.evals.cli._run_single", side_effect=Exception("mock")):
             result = runner.invoke(main, ["run", "--config", str(p)])
 
         # Should print suite info before failing

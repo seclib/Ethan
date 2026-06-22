@@ -67,8 +67,8 @@ async def list_agents(request: Request):
     """List available agent types and running agents."""
     registered = []
     try:
-        import openjarvis.agents  # noqa: F401 — side-effect registration
-        from openjarvis.core.registry import AgentRegistry
+        import ethan.agents  # noqa: F401 — side-effect registration
+        from ethan.core.registry import AgentRegistry
 
         for key in sorted(AgentRegistry.keys()):
             cls = AgentRegistry.get(key)
@@ -84,7 +84,7 @@ async def list_agents(request: Request):
 
     running = []
     try:
-        from openjarvis.tools.agent_tools import _SPAWNED_AGENTS
+        from ethan.tools.agent_tools import _SPAWNED_AGENTS
 
         running = [{"id": k, **v} for k, v in _SPAWNED_AGENTS.items()]
     except ImportError:
@@ -97,7 +97,7 @@ async def list_agents(request: Request):
 async def create_agent(req: AgentCreateRequest, request: Request):
     """Spawn a new agent."""
     try:
-        from openjarvis.tools.agent_tools import AgentSpawnTool
+        from ethan.tools.agent_tools import AgentSpawnTool
 
         tool = AgentSpawnTool()
         params = {"agent_type": req.agent_type}
@@ -121,7 +121,7 @@ async def create_agent(req: AgentCreateRequest, request: Request):
 async def kill_agent(agent_id: str, request: Request):
     """Kill a running agent."""
     try:
-        from openjarvis.tools.agent_tools import AgentKillTool
+        from ethan.tools.agent_tools import AgentKillTool
 
         tool = AgentKillTool()
         result = tool.execute(agent_id=agent_id)
@@ -136,7 +136,7 @@ async def kill_agent(agent_id: str, request: Request):
 async def message_agent(agent_id: str, req: AgentMessageRequest, request: Request):
     """Send a message to a running agent."""
     try:
-        from openjarvis.tools.agent_tools import AgentSendTool
+        from ethan.tools.agent_tools import AgentSendTool
 
         tool = AgentSendTool()
         result = tool.execute(agent_id=agent_id, message=req.message)
@@ -156,17 +156,17 @@ def _get_memory_backend(request: Request):
     """Return the app-level memory backend, falling back to a fresh SQLiteMemory.
 
     Raises ``HTTPException(503)`` with an actionable message when the backend
-    cannot be built because the mandatory ``openjarvis_rust`` extension is not
+    cannot be built because the mandatory ``ethan_rust`` extension is not
     installed in the serving venv. This is deliberately distinct from a benign
     "memory not configured" case (which returns ``None``): a missing native
     extension must fail loudly, never silently degrade (#502).
     """
     backend = getattr(request.app.state, "memory_backend", None)
     if backend is None:
-        from openjarvis.tools.storage._stubs import MemoryBackendUnavailable
+        from ethan.tools.storage._stubs import MemoryBackendUnavailable
 
         try:
-            from openjarvis.tools.storage.sqlite import SQLiteMemory
+            from ethan.tools.storage.sqlite import SQLiteMemory
 
             backend = SQLiteMemory()
         except MemoryBackendUnavailable as exc:
@@ -237,24 +237,24 @@ async def memory_config(request: Request):
     """Return current memory configuration.
 
     Reports memory as *unavailable* (rather than falsely claiming
-    ``backend_type: sqlite``) when the native ``openjarvis_rust`` extension is
+    ``backend_type: sqlite``) when the native ``ethan_rust`` extension is
     missing, so the UI can show the real cause instead of a healthy-looking
     config that backs a silent no-op (#502).
     """
     try:
         config = getattr(request.app.state, "config", None)
         if config is None:
-            from openjarvis.core.config import load_config
+            from ethan.core.config import load_config
 
             config = load_config()
         backend = getattr(request.app.state, "memory_backend", None)
         available = True
         detail: Optional[str] = None
         if backend is None:
-            from openjarvis.tools.storage._stubs import MemoryBackendUnavailable
+            from ethan.tools.storage._stubs import MemoryBackendUnavailable
 
             try:
-                from openjarvis.tools.storage.sqlite import SQLiteMemory
+                from ethan.tools.storage.sqlite import SQLiteMemory
 
                 backend = SQLiteMemory()
             except MemoryBackendUnavailable as exc:
@@ -288,8 +288,8 @@ async def memory_index(req: MemoryIndexRequest, request: Request):
         import os
         from pathlib import Path
 
-        from openjarvis.security.file_policy import is_sensitive_file
-        from openjarvis.tools.storage.ingest import ingest_path
+        from ethan.security.file_policy import is_sensitive_file
+        from ethan.tools.storage.ingest import ingest_path
 
         target = Path(req.path).expanduser().resolve()
         if not target.exists():
@@ -416,8 +416,8 @@ async def telemetry_stats(request: Request):
     try:
         from dataclasses import asdict
 
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.telemetry.aggregator import TelemetryAggregator
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.telemetry.aggregator import TelemetryAggregator
 
         db_path = DEFAULT_CONFIG_DIR / "telemetry.db"
         if not db_path.exists():
@@ -442,8 +442,8 @@ async def telemetry_stats(request: Request):
 async def telemetry_energy(request: Request):
     """Get energy monitoring data."""
     try:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.telemetry.aggregator import TelemetryAggregator
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.telemetry.aggregator import TelemetryAggregator
 
         db_path = DEFAULT_CONFIG_DIR / "telemetry.db"
         if not db_path.exists():
@@ -488,7 +488,7 @@ skills_router = APIRouter(prefix="/v1/skills", tags=["skills"])
 async def list_skills(request: Request):
     """List installed skills."""
     try:
-        from openjarvis.core.registry import SkillRegistry
+        from ethan.core.registry import SkillRegistry
 
         skills = []
         for key in sorted(SkillRegistry.keys()):
@@ -504,7 +504,7 @@ async def install_skill(request: Request):
     """Install a skill (placeholder)."""
     return {
         "status": "not_implemented",
-        "message": "Use TOML files in ~/.openjarvis/skills/",
+        "message": "Use TOML files in ~/.ethan/skills/",
     }
 
 
@@ -526,7 +526,7 @@ sessions_router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
 async def list_sessions(request: Request, limit: int = 20):
     """List active sessions."""
     try:
-        from openjarvis.sessions.store import SessionStore
+        from ethan.sessions.store import SessionStore
 
         store = SessionStore()
         sessions = store.recent(limit=limit)
@@ -540,7 +540,7 @@ async def list_sessions(request: Request, limit: int = 20):
 async def get_session(session_id: str, request: Request):
     """Get a specific session."""
     try:
-        from openjarvis.sessions.store import SessionStore
+        from ethan.sessions.store import SessionStore
 
         store = SessionStore()
         session = store.get(session_id)
@@ -592,8 +592,8 @@ metrics_router = APIRouter(tags=["metrics"])
 async def prometheus_metrics(request: Request):
     """Prometheus-compatible metrics endpoint."""
     try:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.telemetry.aggregator import TelemetryAggregator
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.telemetry.aggregator import TelemetryAggregator
 
         db_path = DEFAULT_CONFIG_DIR / "telemetry.db"
         if not db_path.exists():
@@ -605,15 +605,15 @@ async def prometheus_metrics(request: Request):
         stats = agg.summary()
 
         lines = [
-            "# HELP openjarvis_requests_total Total requests processed",
-            "# TYPE openjarvis_requests_total counter",
-            f"openjarvis_requests_total {stats.get('total_requests', 0)}",
-            "# HELP openjarvis_tokens_total Total tokens generated",
-            "# TYPE openjarvis_tokens_total counter",
-            f"openjarvis_tokens_total {stats.get('total_tokens', 0)}",
-            "# HELP openjarvis_latency_avg_ms Average latency in milliseconds",
-            "# TYPE openjarvis_latency_avg_ms gauge",
-            f"openjarvis_latency_avg_ms {stats.get('avg_latency_ms', 0)}",
+            "# HELP ethan_requests_total Total requests processed",
+            "# TYPE ethan_requests_total counter",
+            f"ethan_requests_total {stats.get('total_requests', 0)}",
+            "# HELP ethan_tokens_total Total tokens generated",
+            "# TYPE ethan_tokens_total counter",
+            f"ethan_tokens_total {stats.get('total_tokens', 0)}",
+            "# HELP ethan_latency_avg_ms Average latency in milliseconds",
+            "# TYPE ethan_latency_avg_ms gauge",
+            f"ethan_latency_avg_ms {stats.get('avg_latency_ms', 0)}",
         ]
         from starlette.responses import PlainTextResponse
 
@@ -642,7 +642,7 @@ def _record_ws_trace(
     """Record a trace for a completed WebSocket chat (best-effort)."""
     if trace_store is None or not result:
         return
-    from openjarvis.traces.collector import record_response_trace
+    from ethan.traces.collector import record_response_trace
 
     record_response_trace(
         trace_store,
@@ -668,7 +668,7 @@ async def websocket_chat_stream(websocket: WebSocket):
         {"type": "done",  "content": "..."}   -- final assembled response
         {"type": "error", "detail": "..."}    -- on failure
     """
-    from openjarvis.server.auth_middleware import websocket_authorized
+    from ethan.server.auth_middleware import websocket_authorized
 
     expected_key = getattr(websocket.app.state, "api_key", "")
     if not websocket_authorized(websocket, expected_key):
@@ -814,7 +814,7 @@ async def learning_stats(request: Request):
 
     # Skill discovery
     try:
-        from openjarvis.learning.agents.skill_discovery import SkillDiscovery
+        from ethan.learning.agents.skill_discovery import SkillDiscovery
 
         discovery = SkillDiscovery()
         result["skill_discovery"] = {
@@ -835,7 +835,7 @@ async def learning_policy(request: Request):
 
     # Load config and extract learning section
     try:
-        from openjarvis.core.config import load_config
+        from ethan.core.config import load_config
 
         config = load_config()
         lc = config.learning
@@ -923,8 +923,8 @@ feedback_router = APIRouter(prefix="/v1/feedback", tags=["feedback"])
 async def submit_feedback(req: FeedbackScoreRequest, request: Request):
     """Submit feedback for a trace."""
     try:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.traces.store import TraceStore
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.traces.store import TraceStore
 
         db_path = DEFAULT_CONFIG_DIR / "traces.db"
         if not db_path.exists():
@@ -960,8 +960,8 @@ optimize_router = APIRouter(prefix="/v1/optimize", tags=["optimize"])
 async def list_optimize_runs(request: Request):
     """List optimization runs."""
     try:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.learning.optimize.store import OptimizationStore
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.learning.optimize.store import OptimizationStore
 
         db_path = DEFAULT_CONFIG_DIR / "optimize.db"
         if not db_path.exists():
@@ -980,8 +980,8 @@ async def list_optimize_runs(request: Request):
 async def get_optimize_run(run_id: str, request: Request):
     """Get optimization run details."""
     try:
-        from openjarvis.core.config import DEFAULT_CONFIG_DIR
-        from openjarvis.learning.optimize.store import OptimizationStore
+        from ethan.core.config import DEFAULT_CONFIG_DIR
+        from ethan.learning.optimize.store import OptimizationStore
 
         db_path = DEFAULT_CONFIG_DIR / "optimize.db"
         if not db_path.exists():
@@ -1014,7 +1014,7 @@ async def start_optimize_run(req: OptimizeRunRequest, request: Request):
 
 def include_all_routes(app) -> None:
     """Include all extended API routers in a FastAPI app."""
-    from openjarvis.server.approval_routes import (
+    from ethan.server.approval_routes import (
         router as approval_router,  # noqa: PLC0415
     )
 
@@ -1036,7 +1036,7 @@ def include_all_routes(app) -> None:
     # Agent Manager routes (if available)
     try:
         if hasattr(app.state, "agent_manager") and app.state.agent_manager:
-            from openjarvis.server.agent_manager_routes import (  # noqa: PLC0415
+            from ethan.server.agent_manager_routes import (  # noqa: PLC0415
                 create_agent_manager_router,
             )
 
@@ -1057,8 +1057,8 @@ def include_all_routes(app) -> None:
 
     # WebSocket bridge for real-time agent events
     try:
-        from openjarvis.core.events import get_event_bus
-        from openjarvis.server.ws_bridge import create_ws_router
+        from ethan.core.events import get_event_bus
+        from ethan.server.ws_bridge import create_ws_router
 
         ws_router = create_ws_router(get_event_bus())
         app.include_router(ws_router)

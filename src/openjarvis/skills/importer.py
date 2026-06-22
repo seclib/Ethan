@@ -1,4 +1,4 @@
-"""SkillImporter — install ResolvedSkill instances into ~/.openjarvis/skills/.
+"""SkillImporter — install ResolvedSkill instances into ~/.ethan/skills/.
 
 Steps performed by ``import_skill``:
 
@@ -23,9 +23,9 @@ from typing import List
 
 import yaml
 
-from openjarvis.skills.parser import SkillParser
-from openjarvis.skills.sources.base import ResolvedSkill
-from openjarvis.skills.tool_translator import ToolTranslator
+from ethan.skills.parser import SkillParser
+from ethan.skills.sources.base import ResolvedSkill
+from ethan.skills.tool_translator import ToolTranslator
 
 # Subdirectories of a skill that are always copied (never gated by --with-scripts)
 COPIED_SUBDIRS = ("references", "assets", "templates")
@@ -56,7 +56,7 @@ class SkillImporter:
         self._parser = parser
         self._translator = tool_translator
         if target_root is None:
-            target_root = Path("~/.openjarvis/skills/").expanduser()
+            target_root = Path("~/.ethan/skills/").expanduser()
         self._target_root = Path(target_root)
 
     def import_skill(

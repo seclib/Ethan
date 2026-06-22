@@ -1,4 +1,4 @@
-"""``jarvis doctor`` — run diagnostic checks on the OpenJarvis installation."""
+"""``jarvis doctor`` — run diagnostic checks on the Ethan installation."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from openjarvis.core.config import DEFAULT_CONFIG_PATH, load_config
+from ethan.core.config import DEFAULT_CONFIG_PATH, load_config
 
 
 @dataclass
@@ -64,7 +64,7 @@ def _check_config_parses() -> CheckResult:
 def _ensure_engines_imported() -> None:
     """Import engine modules to trigger registration decorators."""
     try:
-        import openjarvis.engine  # noqa: F401
+        import ethan.engine  # noqa: F401
     except Exception:
         pass
 
@@ -74,7 +74,7 @@ def _get_config() -> Any:
     try:
         return load_config()
     except Exception:
-        from openjarvis.core.config import JarvisConfig
+        from ethan.core.config import JarvisConfig
 
         return JarvisConfig()
 
@@ -85,8 +85,8 @@ def _check_engines() -> List[CheckResult]:
 
     _ensure_engines_imported()
 
-    from openjarvis.core.registry import EngineRegistry
-    from openjarvis.engine import _discovery
+    from ethan.core.registry import EngineRegistry
+    from ethan.engine import _discovery
 
     config = _get_config()
 
@@ -114,8 +114,8 @@ def _check_models() -> List[CheckResult]:
 
     _ensure_engines_imported()
 
-    from openjarvis.core.registry import EngineRegistry
-    from openjarvis.engine import _discovery
+    from ethan.core.registry import EngineRegistry
+    from ethan.engine import _discovery
 
     config = _get_config()
 
@@ -167,8 +167,8 @@ def _check_default_model() -> CheckResult:
 
     _ensure_engines_imported()
 
-    from openjarvis.core.registry import EngineRegistry
-    from openjarvis.engine import _discovery
+    from ethan.core.registry import EngineRegistry
+    from ethan.engine import _discovery
 
     preferred = config.intelligence.preferred_engine or config.engine.default
     check_order = []
@@ -201,12 +201,12 @@ def _check_optional_deps() -> List[CheckResult]:
     """Check availability of optional dependency packages."""
     results: List[CheckResult] = []
     optional_packages = [
-        ("fastapi", "openjarvis[server]", "REST API server"),
+        ("fastapi", "ethan[server]", "REST API server"),
         ("torch", "pip install torch", "SFT/GRPO training"),
-        ("pynvml", "openjarvis[gpu-metrics]", "NVIDIA energy monitoring"),
-        ("amdsmi", "openjarvis[energy-amd]", "AMD energy monitoring"),
-        ("colbert", "openjarvis[memory-colbert]", "ColBERT memory backend"),
-        ("zeus", "openjarvis[energy-apple]", "Apple Silicon energy monitoring"),
+        ("pynvml", "ethan[gpu-metrics]", "NVIDIA energy monitoring"),
+        ("amdsmi", "ethan[energy-amd]", "AMD energy monitoring"),
+        ("colbert", "ethan[memory-colbert]", "ColBERT memory backend"),
+        ("zeus", "ethan[energy-apple]", "Apple Silicon energy monitoring"),
     ]
     for pkg, install_hint, description in optional_packages:
         try:
@@ -226,7 +226,7 @@ def _check_optional_deps() -> List[CheckResult]:
 def _check_security_profile() -> CheckResult:
     """Check if a security profile is configured."""
     try:
-        from openjarvis.core.config import load_config
+        from ethan.core.config import load_config
 
         config = load_config()
         if config.security.profile:
@@ -319,7 +319,7 @@ def _results_to_dicts(checks: List[CheckResult]) -> List[Dict[str, Any]]:
 @click.command()
 @click.option("--json", "as_json", is_flag=True, help="Output results as JSON.")
 def doctor(as_json: bool) -> None:
-    """Run diagnostic checks on your OpenJarvis installation."""
+    """Run diagnostic checks on your Ethan installation."""
     checks = _run_all_checks()
 
     if as_json:
@@ -328,7 +328,7 @@ def doctor(as_json: bool) -> None:
 
     console = Console()
     console.print()
-    console.print("[bold]OpenJarvis Doctor[/bold]")
+    console.print("[bold]Ethan Doctor[/bold]")
     console.print()
 
     table = Table(show_header=True, header_style="bold")
@@ -353,7 +353,7 @@ def doctor(as_json: bool) -> None:
     console.print()
 
     # Background tasks section
-    from openjarvis.cli._bg_state import get_status
+    from ethan.cli._bg_state import get_status
 
     console.print("[bold]Background tasks[/bold]")
     bg = get_status()
@@ -364,8 +364,8 @@ def doctor(as_json: bool) -> None:
     elif bg.rust_extension == "failed":
         console.print(f"  [red]✗[/red] Rust extension: failed — {bg.rust_error[:80]}")
         console.print(
-            "    retry: ~/.openjarvis/.scripts/install-rust.sh && "
-            "~/.openjarvis/.scripts/build-extension.sh"
+            "    retry: ~/.ethan/.scripts/install-rust.sh && "
+            "~/.ethan/.scripts/build-extension.sh"
         )
         bg_failed = True
     else:
@@ -380,7 +380,7 @@ def doctor(as_json: bool) -> None:
             console.print(f"  [green]✓[/green] {model_id}: ready")
         elif state == "failed":
             console.print(f"  [red]✗[/red] {model_id}: failed")
-            console.print(f"    retry: ~/.openjarvis/.scripts/pull-model.sh {model_id}")
+            console.print(f"    retry: ~/.ethan/.scripts/pull-model.sh {model_id}")
             bg_failed = True
         else:
             console.print(f"  [yellow]…[/yellow] {model_id}: downloading")

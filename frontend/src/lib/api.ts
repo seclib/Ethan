@@ -35,7 +35,7 @@ const DESKTOP_API_FALLBACK = 'http://127.0.0.1:8000';
 
 const getSettingsApiUrl = (): string => {
   try {
-    const raw = localStorage.getItem('openjarvis-settings');
+    const raw = localStorage.getItem('ethan-settings');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.apiUrl) return parsed.apiUrl.replace(/\/+$/, '');
@@ -59,7 +59,7 @@ export const getBase = (): string => {
 // Returns '' when unset, so a keyless local server keeps working unchanged.
 export const getApiKey = (): string => {
   try {
-    const raw = localStorage.getItem('openjarvis-settings');
+    const raw = localStorage.getItem('ethan-settings');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.apiKey) return String(parsed.apiKey);
@@ -948,7 +948,7 @@ export interface MemoryStats {
 
 export interface MemoryConfig {
   backend: string;
-  // Set by the server when the native `openjarvis_rust` extension is missing,
+  // Set by the server when the native `ethan_rust` extension is missing,
   // so the UI can show the real cause instead of a healthy-looking config.
   available?: boolean;
   detail?: string | null;
@@ -960,7 +960,7 @@ export interface MemoryConfig {
 
 /**
  * Extract the server's `detail` message from a failed JSON response so the UI
- * surfaces the real cause (e.g. "openjarvis_rust extension is not installed")
+ * surfaces the real cause (e.g. "ethan_rust extension is not installed")
  * instead of a blanket fallback string (#502).
  */
 async function memoryErrorDetail(res: Response, fallback: string): Promise<string> {

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from openjarvis.core import config as _cfg
+from ethan.core import config as _cfg
 
 if TYPE_CHECKING:
     import click
@@ -26,8 +26,8 @@ def check_and_route(ctx: click.Context) -> None:
         return
 
     # Late imports to avoid circular import with cli/__init__.py.
-    from openjarvis.cli.chat_cmd import chat as chat_cmd
-    from openjarvis.cli.init_cmd import init as init_cmd
+    from ethan.cli.chat_cmd import chat as chat_cmd
+    from ethan.cli.init_cmd import init as init_cmd
 
     if _cfg.DEFAULT_CONFIG_PATH.exists():
         ctx.invoke(chat_cmd)

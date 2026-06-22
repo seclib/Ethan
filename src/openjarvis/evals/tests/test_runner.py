@@ -6,13 +6,13 @@ import json
 
 import pytest
 
-from openjarvis.evals.core.runner import (
+from ethan.evals.core.runner import (
     EvalRunner,
     _metric_stats,
     _metric_stats_to_dict,
 )
-from openjarvis.evals.core.types import EvalRecord, MetricStats, RunConfig
-from openjarvis.evals.tests.conftest import MockBackend, MockDataset, MockScorer
+from ethan.evals.core.types import EvalRecord, MetricStats, RunConfig
+from ethan.evals.tests.conftest import MockBackend, MockDataset, MockScorer
 
 
 class TestEvalRunner:

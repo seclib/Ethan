@@ -8,8 +8,8 @@ from __future__ import annotations
 import random
 from typing import Iterable, List, MutableMapping, Optional, Sequence
 
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.types import EvalRecord
 
 _DEFAULT_INPUT_PROMPT = """Please answer the question below. You should:
 

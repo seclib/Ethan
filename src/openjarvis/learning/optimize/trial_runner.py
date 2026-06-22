@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional
 
-from openjarvis.evals.core.types import RunConfig, RunSummary
-from openjarvis.learning.optimize.types import (
+from ethan.evals.core.types import RunConfig, RunSummary
+from ethan.learning.optimize.types import (
     BenchmarkScore,
     SampleScore,
     TrialConfig,
@@ -66,13 +66,13 @@ class TrialRunner:
         run_config = self._build_run_config(trial, recipe)
 
         # Lazy imports so the optimize package stays lightweight
-        from openjarvis.evals.cli import (
+        from ethan.evals.cli import (
             _build_backend,
             _build_dataset,
             _build_judge_backend,
             _build_scorer,
         )
-        from openjarvis.evals.core.runner import EvalRunner
+        from ethan.evals.core.runner import EvalRunner
 
         dataset = _build_dataset(self.benchmark)
         backend = _build_backend(
@@ -275,7 +275,7 @@ class MultiBenchTrialRunner:
             "dataset_version": "0.1.1",
             "model_name": litellm_model,
             "agent_import_path": (
-                "openjarvis.evals.backends.tb_agent:OpenJarvisTerminalBenchAgent"
+                "ethan.evals.backends.tb_agent:EthanTerminalBenchAgent"
             ),
             "agent_kwargs": {
                 "model_name": litellm_model,

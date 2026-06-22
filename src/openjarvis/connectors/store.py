@@ -17,9 +17,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from openjarvis.core.events import EventType, get_event_bus
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
+from ethan.core.events import EventType, get_event_bus
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage._stubs import MemoryBackend, RetrievalResult
 
 # ---------------------------------------------------------------------------
 # DDL
@@ -157,14 +157,14 @@ class KnowledgeStore(MemoryBackend):
 
     def __init__(self, db_path: Union[str, Path] = "") -> None:
         if not db_path:
-            from openjarvis.core.config import DEFAULT_CONFIG_DIR
+            from ethan.core.config import DEFAULT_CONFIG_DIR
 
             db_path = DEFAULT_CONFIG_DIR / "knowledge.db"
 
         self._db_path = str(db_path)
         # Ensure the parent directory exists (skip for :memory:)
         if self._db_path != ":memory:":
-            from openjarvis.security.file_utils import secure_create
+            from ethan.security.file_utils import secure_create
 
             secure_create(Path(self._db_path))
 

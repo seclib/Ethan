@@ -16,8 +16,8 @@ import click
 import pytest
 from rich.console import Console
 
-from openjarvis.evals.cli import _build_backend, _run_terminalbench_native
-from openjarvis.evals.core.types import RunConfig
+from ethan.evals.cli import _build_backend, _run_terminalbench_native
+from ethan.evals.core.types import RunConfig
 
 
 def _quiet_console() -> Console:
@@ -38,7 +38,7 @@ def _tb_config(**overrides) -> RunConfig:
 
 
 class TestBuildBackendForwardsEndpoint:
-    @patch("openjarvis.evals.backends.jarvis_direct.JarvisDirectBackend")
+    @patch("ethan.evals.backends.jarvis_direct.JarvisDirectBackend")
     def test_jarvis_direct_receives_base_url_and_api_key(self, mock_cls):
         _build_backend(
             "jarvis-direct",
@@ -52,7 +52,7 @@ class TestBuildBackendForwardsEndpoint:
         assert kwargs["base_url"] == "http://node7:8123/v1"
         assert kwargs["api_key"] == "sk-k"
 
-    @patch("openjarvis.evals.backends.jarvis_agent.JarvisAgentBackend")
+    @patch("ethan.evals.backends.jarvis_agent.JarvisAgentBackend")
     def test_jarvis_agent_receives_base_url_and_api_key(self, mock_cls):
         _build_backend(
             "jarvis-agent",
@@ -66,7 +66,7 @@ class TestBuildBackendForwardsEndpoint:
         assert kwargs["base_url"] == "http://node7:8123/v1"
         assert kwargs["api_key"] == "sk-k"
 
-    @patch("openjarvis.evals.backends.jarvis_direct.JarvisDirectBackend")
+    @patch("ethan.evals.backends.jarvis_direct.JarvisDirectBackend")
     def test_suite_mode_scopes_endpoint_to_external_backends(self, mock_cls):
         """[backend.external] suite semantics stay hermes/openclaw-only:
         first_party_endpoint=False must not forward to first-party."""
@@ -93,7 +93,7 @@ class TestBuildBackendForwardsEndpoint:
 
 
 class TestTerminalBenchNativeApiBase:
-    @patch("openjarvis.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
+    @patch("ethan.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
     def test_base_url_passed_through_as_api_base(self, mock_cls):
         mock_backend = MagicMock()
         mock_backend.run_harness.return_value = SimpleNamespace(trial_results=[])
@@ -106,7 +106,7 @@ class TestTerminalBenchNativeApiBase:
         )
         assert mock_cls.call_args.kwargs["api_base"] == "http://node7:8123/v1"
 
-    @patch("openjarvis.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
+    @patch("ethan.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
     def test_base_url_without_v1_gets_single_v1_suffix(self, mock_cls):
         mock_backend = MagicMock()
         mock_backend.run_harness.return_value = SimpleNamespace(trial_results=[])
@@ -119,7 +119,7 @@ class TestTerminalBenchNativeApiBase:
         )
         assert mock_cls.call_args.kwargs["api_base"] == "http://node7:8123/v1"
 
-    @patch("openjarvis.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
+    @patch("ethan.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
     def test_default_api_base_unchanged_without_base_url(self, mock_cls):
         mock_backend = MagicMock()
         mock_backend.run_harness.return_value = SimpleNamespace(trial_results=[])
@@ -128,7 +128,7 @@ class TestTerminalBenchNativeApiBase:
         _run_terminalbench_native(_tb_config(), _quiet_console())
         assert mock_cls.call_args.kwargs["api_base"] == "http://localhost:8000/v1"
 
-    @patch("openjarvis.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
+    @patch("ethan.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
     def test_api_key_exported_as_openai_api_key_during_run(self, mock_cls, monkeypatch):
         """terminus-2 reads OPENAI_API_KEY via LiteLLM; the var must be set
         during harness.run() and restored afterwards."""
@@ -152,7 +152,7 @@ class TestTerminalBenchNativeApiBase:
         assert seen["openai_api_key"] == "sk-tb"
         assert "OPENAI_API_KEY" not in os.environ  # restored
 
-    @patch("openjarvis.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
+    @patch("ethan.evals.backends.terminalbench_native.TerminalBenchNativeBackend")
     def test_preexisting_openai_api_key_restored(self, mock_cls, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-original")
         mock_backend = MagicMock()
@@ -169,9 +169,9 @@ class TestTerminalBenchNativeApiBase:
 
 
 class TestRunSingleSuiteModeGating:
-    @patch("openjarvis.evals.cli._run_terminalbench_native")
+    @patch("ethan.evals.cli._run_terminalbench_native")
     def test_suite_mode_drops_endpoint_for_terminalbench(self, mock_tb):
-        from openjarvis.evals.cli import _run_single
+        from ethan.evals.cli import _run_single
 
         mock_tb.return_value = SimpleNamespace(accuracy=0.0)
         config = _tb_config(base_url="http://node7:8123/v1", api_key="sk-k")
@@ -179,9 +179,9 @@ class TestRunSingleSuiteModeGating:
         assert mock_tb.call_args.kwargs["base_url"] is None
         assert mock_tb.call_args.kwargs["api_key"] is None
 
-    @patch("openjarvis.evals.cli._run_terminalbench_native")
+    @patch("ethan.evals.cli._run_terminalbench_native")
     def test_cli_mode_forwards_endpoint_for_terminalbench(self, mock_tb):
-        from openjarvis.evals.cli import _run_single
+        from ethan.evals.cli import _run_single
 
         mock_tb.return_value = SimpleNamespace(accuracy=0.0)
         config = _tb_config(base_url="http://node7:8123/v1", api_key="sk-k")

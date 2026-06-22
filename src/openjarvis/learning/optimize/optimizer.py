@@ -16,10 +16,10 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     tomli_w = None  # type: ignore[assignment]
 
-from openjarvis.learning.optimize.llm_optimizer import LLMOptimizer
-from openjarvis.learning.optimize.store import OptimizationStore
-from openjarvis.learning.optimize.trial_runner import TrialRunner
-from openjarvis.learning.optimize.types import (
+from ethan.learning.optimize.llm_optimizer import LLMOptimizer
+from ethan.learning.optimize.store import OptimizationStore
+from ethan.learning.optimize.trial_runner import TrialRunner
+from ethan.learning.optimize.types import (
     ObjectiveSpec,
     OptimizationRun,
     SearchSpace,
@@ -165,7 +165,7 @@ class OptimizationEngine:
         """
         run_id = uuid.uuid4().hex[:16]
         # Detect benchmark name(s) from the trial runner
-        from openjarvis.learning.optimize.trial_runner import MultiBenchTrialRunner
+        from ethan.learning.optimize.trial_runner import MultiBenchTrialRunner
 
         benchmark_name = getattr(self.trial_runner, "benchmark", "")
         benchmark_names: List[str] = []
@@ -213,7 +213,7 @@ class OptimizationEngine:
             elif result.per_benchmark:
                 # Multi-benchmark composite: build a synthetic summary
                 # for analysis from per_benchmark data
-                from openjarvis.evals.core.types import RunSummary as _RS
+                from ethan.evals.core.types import RunSummary as _RS
 
                 synth = _RS(
                     benchmark="multi",

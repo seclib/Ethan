@@ -8,7 +8,7 @@ import sys
 import click
 from rich.console import Console
 
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.config import DEFAULT_CONFIG_DIR
 
 _MCP_CONFIG_DIR = DEFAULT_CONFIG_DIR / "mcp"
 

@@ -11,12 +11,12 @@ import json
 import logging
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall, ToolResult
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.tools._stubs import BaseTool
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall, ToolResult
+from ethan.engine._stubs import InferenceEngine
+from ethan.tools._stubs import BaseTool
 
 logger = logging.getLogger(__name__)
 

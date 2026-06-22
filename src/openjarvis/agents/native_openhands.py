@@ -1,6 +1,6 @@
 """NativeOpenHandsAgent -- code-execution-centric agent.
 
-Renamed from ``OpenHandsAgent`` to clarify this is OpenJarvis's native
+Renamed from ``OpenHandsAgent`` to clarify this is Ethan's native
 CodeAct-style implementation.  The ``OpenHandsAgent`` name is now used
 for the real openhands-sdk integration in ``openhands.py``.
 """
@@ -11,16 +11,16 @@ import json as _json
 import re
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.agents.prompt_loader import (
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
 )
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall, ToolResult
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.tools._stubs import BaseTool, build_tool_descriptions
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall, ToolResult
+from ethan.engine._stubs import InferenceEngine
+from ethan.tools._stubs import BaseTool, build_tool_descriptions
 
 OPENHANDS_SYSTEM_PROMPT = (  # noqa: E501
     "You are an AI assistant with access to tools. "
@@ -100,7 +100,7 @@ class NativeOpenHandsAgent(ToolUsingAgent):
             return text, False
         url = url_match.group(0).rstrip(".,;)")
         try:
-            from openjarvis.tools.web_search import WebSearchTool
+            from ethan.tools.web_search import WebSearchTool
 
             content = WebSearchTool._fetch_url(url, max_chars=4000)
             header = f"\n\n--- Content from {url} ---\n"

@@ -17,7 +17,7 @@ def channels() -> None:
 @channels.command("status")
 def channels_status() -> None:
     """Show status of all configured channels."""
-    from openjarvis.channels.imessage_daemon import is_running
+    from ethan.channels.imessage_daemon import is_running
 
     console = Console()
     table = Table(title="Channel Status")
@@ -56,7 +56,7 @@ def imessage_start(
 
     CHAT_IDENTIFIER is the phone number or email to monitor.
     """
-    from openjarvis.channels.imessage_daemon import (
+    from ethan.channels.imessage_daemon import (
         is_running,
         run_daemon,
     )
@@ -74,7 +74,7 @@ def imessage_start(
             [
                 sys.executable,
                 "-m",
-                "openjarvis.channels.imessage_daemon",
+                "ethan.channels.imessage_daemon",
                 "--chat",
                 chat_identifier,
             ],
@@ -95,22 +95,22 @@ def imessage_start(
         )
         console.print("Press Ctrl+C to stop.\n")
 
-        from openjarvis.agents.deep_research import (
+        from ethan.agents.deep_research import (
             DeepResearchAgent,
         )
-        from openjarvis.connectors.retriever import (
+        from ethan.connectors.retriever import (
             TwoStageRetriever,
         )
-        from openjarvis.connectors.store import KnowledgeStore
-        from openjarvis.engine.ollama import OllamaEngine
-        from openjarvis.tools.knowledge_search import (
+        from ethan.connectors.store import KnowledgeStore
+        from ethan.engine.ollama import OllamaEngine
+        from ethan.tools.knowledge_search import (
             KnowledgeSearchTool,
         )
-        from openjarvis.tools.knowledge_sql import (
+        from ethan.tools.knowledge_sql import (
             KnowledgeSQLTool,
         )
-        from openjarvis.tools.scan_chunks import ScanChunksTool
-        from openjarvis.tools.think import ThinkTool
+        from ethan.tools.scan_chunks import ScanChunksTool
+        from ethan.tools.think import ThinkTool
 
         engine = OllamaEngine()
         store = KnowledgeStore()
@@ -144,7 +144,7 @@ def imessage_start(
 @channels.command("imessage-stop")
 def imessage_stop() -> None:
     """Stop the iMessage daemon."""
-    from openjarvis.channels.imessage_daemon import stop_daemon
+    from ethan.channels.imessage_daemon import stop_daemon
 
     console = Console()
     if stop_daemon():

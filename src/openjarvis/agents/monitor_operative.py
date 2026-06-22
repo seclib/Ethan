@@ -19,16 +19,16 @@ import logging
 import re
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.agents.prompt_loader import (
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
 )
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall, ToolResult, _message_to_dict
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.tools._stubs import BaseTool
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall, ToolResult, _message_to_dict
+from ethan.engine._stubs import InferenceEngine
+from ethan.tools._stubs import BaseTool
 
 logger = logging.getLogger(__name__)
 
@@ -505,7 +505,7 @@ class MonitorOperativeAgent(ToolUsingAgent):
         """Build a text description of available tools for the system prompt."""
         if not self._tools:
             return ""
-        from openjarvis.tools._stubs import build_tool_descriptions
+        from ethan.tools._stubs import build_tool_descriptions
 
         return build_tool_descriptions(self._tools)
 

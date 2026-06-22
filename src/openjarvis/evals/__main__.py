@@ -1,6 +1,6 @@
-"""Allow running as ``python -m openjarvis.evals``."""
+"""Allow running as ``python -m ethan.evals``."""
 
-from openjarvis.evals.cli import main
+from ethan.evals.cli import main
 
 if __name__ == "__main__":
     main()

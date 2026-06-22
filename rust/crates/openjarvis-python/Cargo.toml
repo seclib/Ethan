@@ -1,29 +1,29 @@
 [package]
-name = "openjarvis-python"
+name = "ethan-python"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "openjarvis_rust"
+name = "ethan_rust"
 crate-type = ["cdylib"]
 
 [dependencies]
-openjarvis-core = { path = "../openjarvis-core" }
-openjarvis-engine = { path = "../openjarvis-engine" }
-openjarvis-security = { path = "../openjarvis-security" }
-openjarvis-tools = { path = "../openjarvis-tools" }
-openjarvis-agents = { path = "../openjarvis-agents" }
-openjarvis-traces = { path = "../openjarvis-traces" }
-openjarvis-telemetry = { path = "../openjarvis-telemetry" }
-openjarvis-learning = { path = "../openjarvis-learning" }
-openjarvis-mcp = { path = "../openjarvis-mcp" }
-openjarvis-sessions = { path = "../openjarvis-sessions" }
-openjarvis-workflow = { path = "../openjarvis-workflow" }
-openjarvis-skills = { path = "../openjarvis-skills" }
-openjarvis-recipes = { path = "../openjarvis-recipes" }
-openjarvis-templates = { path = "../openjarvis-templates" }
-openjarvis-a2a = { path = "../openjarvis-a2a" }
-openjarvis-scheduler = { path = "../openjarvis-scheduler" }
+ethan-core = { path = "../ethan-core" }
+ethan-engine = { path = "../ethan-engine" }
+ethan-security = { path = "../ethan-security" }
+ethan-tools = { path = "../ethan-tools" }
+ethan-agents = { path = "../ethan-agents" }
+ethan-traces = { path = "../ethan-traces" }
+ethan-telemetry = { path = "../ethan-telemetry" }
+ethan-learning = { path = "../ethan-learning" }
+ethan-mcp = { path = "../ethan-mcp" }
+ethan-sessions = { path = "../ethan-sessions" }
+ethan-workflow = { path = "../ethan-workflow" }
+ethan-skills = { path = "../ethan-skills" }
+ethan-recipes = { path = "../ethan-recipes" }
+ethan-templates = { path = "../ethan-templates" }
+ethan-a2a = { path = "../ethan-a2a" }
+ethan-scheduler = { path = "../ethan-scheduler" }
 pyo3 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

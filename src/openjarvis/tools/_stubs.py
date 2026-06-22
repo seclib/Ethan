@@ -14,8 +14,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.types import ToolCall, ToolResult
+from ethan.core.events import EventBus, EventType
+from ethan.core.types import ToolCall, ToolResult
 
 # ---------------------------------------------------------------------------
 # ToolSpec — metadata describing a tool's interface
@@ -64,7 +64,7 @@ class BaseTool(ABC):
 
     def to_openai_function(self) -> Dict[str, Any]:
         """Convert to OpenAI function-calling format."""
-        from openjarvis.tools.description_loader import (
+        from ethan.tools.description_loader import (
             get_tool_description_override,
         )
 
@@ -181,7 +181,7 @@ class ToolExecutor:
         taint_set = params.get("_taint") if isinstance(params, dict) else None
         if taint_set is not None:
             try:
-                from openjarvis.security.taint import TaintSet, check_taint
+                from ethan.security.taint import TaintSet, check_taint
 
                 if isinstance(taint_set, TaintSet):
                     violation = check_taint(tool_call.name, taint_set)
@@ -270,7 +270,7 @@ class ToolExecutor:
         # Auto-detect taints in results
         if result.success:
             try:
-                from openjarvis.security.taint import auto_detect_taint
+                from ethan.security.taint import auto_detect_taint
 
                 detected = auto_detect_taint(result.content)
                 if detected and detected.labels:
@@ -369,7 +369,7 @@ def build_tool_descriptions(
     if not tools:
         return "No tools available."
 
-    from openjarvis.tools.description_loader import (
+    from ethan.tools.description_loader import (
         get_tool_description_override,
     )
 

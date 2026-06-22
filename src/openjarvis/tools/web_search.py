@@ -6,10 +6,10 @@ import logging
 import os
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.security.ssrf import check_ssrf
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.security.ssrf import check_ssrf
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class WebSearchTool(BaseTool):
             follow_redirects=True,
             timeout=30.0,
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; OpenJarvis/1.0; +https://github.com/openjarvis)"
+                "User-Agent": "Mozilla/5.0 (compatible; Ethan/1.0; +https://github.com/ethan)"
             },
         )
         resp.raise_for_status()

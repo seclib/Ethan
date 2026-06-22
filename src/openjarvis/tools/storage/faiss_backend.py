@@ -17,10 +17,10 @@ except ImportError as _faiss_exc:
         "pip install faiss-cpu  (or faiss-gpu)"
     ) from _faiss_exc
 
-from openjarvis.core.events import EventType, get_event_bus
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
-from openjarvis.tools.storage.embeddings import (
+from ethan.core.events import EventType, get_event_bus
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage._stubs import MemoryBackend, RetrievalResult
+from ethan.tools.storage.embeddings import (
     Embedder,
     SentenceTransformerEmbedder,
 )

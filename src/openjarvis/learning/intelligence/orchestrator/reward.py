@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-from openjarvis.learning.intelligence.orchestrator.types import Episode
+from ethan.learning.intelligence.orchestrator.types import Episode
 
 
 @dataclass

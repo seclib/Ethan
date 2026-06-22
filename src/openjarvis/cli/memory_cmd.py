@@ -10,10 +10,10 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 
-from openjarvis.core.config import load_config
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage.chunking import ChunkConfig
-from openjarvis.tools.storage.ingest import ingest_path
+from ethan.core.config import load_config
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage.chunking import ChunkConfig
+from ethan.tools.storage.ingest import ingest_path
 
 
 def _get_backend(backend_key: str | None = None):
@@ -22,7 +22,7 @@ def _get_backend(backend_key: str | None = None):
     key = backend_key or config.memory.default_backend
 
     # Ensure backends are registered
-    import openjarvis.tools.storage  # noqa: F401
+    import ethan.tools.storage  # noqa: F401
 
     if not MemoryRegistry.contains(key):
         raise click.ClickException(

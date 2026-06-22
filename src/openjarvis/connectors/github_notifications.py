@@ -13,9 +13,9 @@ from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
 
 _DEFAULT_TOKEN_PATH = str(DEFAULT_CONFIG_DIR / "connectors" / "github.json")
 

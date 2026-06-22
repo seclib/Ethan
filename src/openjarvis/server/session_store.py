@@ -22,8 +22,8 @@ class SessionStore:
 
     def __init__(self, db_path: str = "") -> None:
         if not db_path:
-            db_path = str(Path.home() / ".openjarvis" / "sessions.db")
-        from openjarvis.security.file_utils import secure_create
+            db_path = str(Path.home() / ".ethan" / "sessions.db")
+        from ethan.security.file_utils import secure_create
 
         secure_create(Path(db_path))
         self._db = sqlite3.connect(db_path, check_same_thread=False)

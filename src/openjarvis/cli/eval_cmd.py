@@ -317,7 +317,7 @@ def eval_run(
     # Config-driven mode: load TOML suite, expand, run all
     if config_path is not None:
         try:
-            from openjarvis.evals.core.config import expand_suite, load_eval_config
+            from ethan.evals.core.config import expand_suite, load_eval_config
         except ImportError:
             console.print(
                 "[red]Eval framework not available. "
@@ -348,7 +348,7 @@ def eval_run(
         )
 
         try:
-            from openjarvis.evals.cli import _run_single
+            from ethan.evals.cli import _run_single
         except ImportError:
             console.print("[red]Eval CLI module not available.[/red]")
             sys.exit(1)
@@ -380,7 +380,7 @@ def eval_run(
         console.print(f"[yellow]Warning: unknown benchmark '{benchmark}'[/yellow]")
 
     try:
-        from openjarvis.evals.core.types import RunConfig
+        from ethan.evals.core.types import RunConfig
     except ImportError:
         console.print(
             "[red]Eval framework not available. "
@@ -420,7 +420,7 @@ def eval_run(
     )
 
     try:
-        from openjarvis.evals.cli import _run_single
+        from ethan.evals.cli import _run_single
 
         console.print(
             f"[cyan]Benchmark:[/cyan] {benchmark}\n"

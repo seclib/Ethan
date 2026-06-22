@@ -6,10 +6,10 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from openjarvis.evals.core.backend import InferenceBackend
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.scorer import Scorer
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.backend import InferenceBackend
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.scorer import Scorer
+from ethan.evals.core.types import EvalRecord
 
 # ---------------------------------------------------------------------------
 # Mock backend

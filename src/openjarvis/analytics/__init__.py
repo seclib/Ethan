@@ -1,25 +1,25 @@
 """External anonymous usage analytics.
 
-Sends anonymized events to PostHog so the OpenJarvis team can measure
+Sends anonymized events to PostHog so the Ethan team can measure
 setup success, retention, feature usage, and churn — without ever
 collecting chat content, prompts, file paths, emails, IPs, or hardware
 identifiers.
 
-Distinct from :mod:`openjarvis.telemetry`, which stores local FLOPs and
+Distinct from :mod:`ethan.telemetry`, which stores local FLOPs and
 energy metrics in a SQLite DB and never leaves the machine.
 
-Disable: set ``[analytics] enabled = false`` in ``~/.openjarvis/config.toml``.
+Disable: set ``[analytics] enabled = false`` in ``~/.ethan/config.toml``.
 """
 
-from openjarvis.analytics.aggregator import SessionAggregator
-from openjarvis.analytics.bridge import EventBridge
-from openjarvis.analytics.client import AnalyticsClient
-from openjarvis.analytics.identity import (
+from ethan.analytics.aggregator import SessionAggregator
+from ethan.analytics.bridge import EventBridge
+from ethan.analytics.client import AnalyticsClient
+from ethan.analytics.identity import (
     get_or_create_anon_id,
     is_analytics_enabled,
     reset_anon_id,
 )
-from openjarvis.analytics.redaction import hash_id, redact
+from ethan.analytics.redaction import hash_id, redact
 
 __all__ = [
     "AnalyticsClient",

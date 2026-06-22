@@ -65,7 +65,7 @@ class CapabilityPolicy:
         self._policies: Dict[str, AgentPolicy] = {}
         self._default_deny = default_deny
 
-        from openjarvis._rust_bridge import get_rust_module
+        from ethan._rust_bridge import get_rust_module
 
         _rust = get_rust_module()
         self._rust_impl = _rust.CapabilityPolicy(default_deny=default_deny)

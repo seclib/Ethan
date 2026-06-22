@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from openjarvis.scheduler.store import SchedulerStore
+from ethan.scheduler.store import SchedulerStore
 
 logger = logging.getLogger(__name__)
 

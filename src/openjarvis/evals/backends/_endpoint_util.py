@@ -23,7 +23,7 @@ def build_endpoint_engine(
     Pre-flight health-checks the endpoint and raises a loud, actionable
     error when it is unreachable — engine discovery is never consulted.
     """
-    from openjarvis.engine.openai_compat_engines import (
+    from ethan.engine.openai_compat_engines import (
         OpenAICompatEngine,
         normalize_openai_base_url,
     )

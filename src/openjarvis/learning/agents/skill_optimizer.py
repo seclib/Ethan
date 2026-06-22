@@ -2,7 +2,7 @@
 
 Buckets traces by skill name, runs the underlying optimizer on each skill's
 bucket, and writes the result as a sidecar overlay file in
-``~/.openjarvis/learning/skills/<skill-name>/optimized.toml``.
+``~/.ethan/learning/skills/<skill-name>/optimized.toml``.
 
 The actual DSPy/GEPA invocation is done in ``_run_dspy`` / ``_run_gepa``,
 which are isolated for easy mocking in tests.  In Plan 2A these are
@@ -19,9 +19,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.types import Trace, TraceStep
-from openjarvis.skills.manager import SkillManager
-from openjarvis.skills.overlay import SkillOverlay, write_overlay
+from ethan.core.types import Trace, TraceStep
+from ethan.skills.manager import SkillManager
+from ethan.skills.overlay import SkillOverlay, write_overlay
 
 LOGGER = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class SkillOptimizer:
         if overlay_dir is None:
             # Try config first; fall back to the default tree.
             try:
-                from openjarvis.core.config import load_config
+                from ethan.core.config import load_config
 
                 cfg = load_config()
                 cfg_dir = getattr(
@@ -99,7 +99,7 @@ class SkillOptimizer:
                 pass
             if overlay_dir is None:
                 overlay_dir = Path(
-                    "~/.openjarvis/learning/skills/"
+                    "~/.ethan/learning/skills/"
                 ).expanduser()
         overlay_dir = Path(overlay_dir).expanduser()
 
@@ -200,8 +200,8 @@ class SkillOptimizer:
         optimizer's output `system_prompt` as the new skill description if
         non-empty.  Plan 2B will measure and refine.
         """
-        from openjarvis.core.config import DSPyOptimizerConfig
-        from openjarvis.learning.agents.dspy_optimizer import DSPyAgentOptimizer
+        from ethan.core.config import DSPyOptimizerConfig
+        from ethan.learning.agents.dspy_optimizer import DSPyAgentOptimizer
 
         cfg = DSPyOptimizerConfig(
             min_traces=max(1, self._min_traces),
@@ -259,8 +259,8 @@ class SkillOptimizer:
         skill_traces: List[Trace],
     ) -> _OptimizerOutput:
         """Run GEPAAgentOptimizer on the bucket.  Same shape as _run_dspy."""
-        from openjarvis.core.config import GEPAOptimizerConfig
-        from openjarvis.learning.agents.gepa_optimizer import GEPAAgentOptimizer
+        from ethan.core.config import GEPAOptimizerConfig
+        from ethan.learning.agents.gepa_optimizer import GEPAAgentOptimizer
 
         cfg = GEPAOptimizerConfig(min_traces=max(1, self._min_traces))
         optimizer = GEPAAgentOptimizer(cfg)

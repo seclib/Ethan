@@ -12,7 +12,7 @@ from rich.table import Table
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from openjarvis.evals.core.types import MetricStats, RunSummary
+    from ethan.evals.core.types import MetricStats, RunSummary
 
 OPENJARVIS_BANNER = r"""
   ___                       _                  _
@@ -27,7 +27,7 @@ VERSION = "v1.8"
 
 
 def print_banner(console: Console) -> None:
-    """Print the OpenJarvis ASCII banner inside a styled panel."""
+    """Print the Ethan ASCII banner inside a styled panel."""
     panel = Panel(
         OPENJARVIS_BANNER.rstrip(),
         border_style="cyan",

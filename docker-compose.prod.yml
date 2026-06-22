@@ -1,0 +1,128 @@
+# =============================================================================
+# docker-compose.prod.yml — Ethan OS (Production Extension)
+# =============================================================================
+#
+# Services additionnels pour la production :
+#   - Prometheus (métriques)
+#   - Grafana (visualisation)
+#   - Traefik (reverse proxy, SSL)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+# Note: Requiert une configuration DNS et SSL pour Traefik
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Prometheus — Collecte de métriques
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ethan-prometheus
+    hostname: prometheus
+    networks:
+      - ethan-network
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    environment:
+      - PROMETHEUS_RETENTION_TIME=${PROMETHEUS_RETENTION_TIME:-30d}
+      - PROMETHEUS_RETENTION_SIZE=${PROMETHEUS_RETENTION_SIZE:-10GB}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Grafana — Dashboards & visualisation
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ethan-grafana
+    hostname: grafana
+    networks:
+      - ethan-network
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_METRICS_ENABLED=true
+      - GF_METRICS_PORT=3001
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Traefik — Reverse proxy & SSL termination
+  # ===========================================================================
+  traefik:
+    image: traefik:v3.1
+    container_name: ethan-traefik
+    hostname: traefik
+    networks:
+      - ethan-network
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_HTTPS_PORT:-443}:443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik-letsencrypt:/letsencrypt
+    environment:
+      - TRAEFIK_DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
+      - TRAEFIK_LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
+      - TRAEFIK_ACME_EMAIL=${TRAEFIK_ACME_EMAIL:-}
+      - TRAEFIK_ACME_DOMAIN=${TRAEFIK_ACME_DOMAIN:-}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ── Volumes additionnels ──────────────────────────────────────────────────────
+volumes:
+  prometheus-data:
+    name: ethan-prometheus-data
+  grafana-data:
+    name: ethan-grafana-data
+  traefik-letsencrypt:
+    name: ethan-traefik-letsencrypt

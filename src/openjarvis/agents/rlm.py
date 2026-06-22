@@ -12,17 +12,17 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.agents.prompt_loader import (
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
 )
-from openjarvis.agents.rlm_repl import RLMRepl
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall, ToolResult
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.tools._stubs import BaseTool, build_tool_descriptions
+from ethan.agents.rlm_repl import RLMRepl
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall, ToolResult
+from ethan.engine._stubs import InferenceEngine
+from ethan.tools._stubs import BaseTool, build_tool_descriptions
 
 # ---------------------------------------------------------------------------
 # System prompt
@@ -37,7 +37,7 @@ RLM_SYSTEM_PROMPT = (
     "- `llm_batch(prompts: list[str]) -> list[str]` — Call a "
     "sub-LM with multiple prompts.\n"
     "- `tool_call(tool_name: str, args: dict) -> str` — Execute an "
-    "OpenJarvis tool and return its textual output.\n"
+    "Ethan tool and return its textual output.\n"
     "- `read_file(path: str, max_lines: int = 120) -> str` — Read the "
     "first N lines of a file through the real file_read tool.\n"
     "- `read_file_chunk(path: str, start_line: int, end_line: int) -> str` "
@@ -373,7 +373,7 @@ class RLMAgent(ToolUsingAgent):
         return arg_names
 
     def _execute_tool_from_repl(self, tool_name: str, params: Dict[str, Any]) -> str:
-        """Execute a real OpenJarvis tool from within the REPL."""
+        """Execute a real Ethan tool from within the REPL."""
         if self._executor is None:
             raise RuntimeError(f"Tool '{tool_name}' is not available")
 

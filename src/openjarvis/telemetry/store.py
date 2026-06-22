@@ -9,8 +9,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from openjarvis.core.events import Event, EventBus, EventType
-from openjarvis.core.types import TelemetryRecord
+from ethan.core.events import Event, EventBus, EventType
+from ethan.core.types import TelemetryRecord
 
 logger = logging.getLogger(__name__)
 

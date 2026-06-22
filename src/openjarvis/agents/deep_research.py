@@ -9,16 +9,16 @@ from __future__ import annotations
 
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.agents.prompt_loader import (
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.agents.prompt_loader import (
     load_few_shot_exemplars,
     load_system_prompt_override,
 )
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall, ToolResult
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.tools._stubs import BaseTool
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall, ToolResult
+from ethan.engine._stubs import InferenceEngine
+from ethan.tools._stubs import BaseTool
 
 
 def _tc_name(tc: dict) -> str:
@@ -97,7 +97,7 @@ knowledge_sql. Return the document title and source.
 emails". Filter gmail by recency, summarize senders and subjects.
 
 **Cross-source synthesis** — "everything about the Scipio project", \
-"what do I know about OpenJarvis?". Search a topic across ALL sources \
+"what do I know about Ethan?". Search a topic across ALL sources \
 (messages, emails, meetings, docs, notes) and synthesize findings.
 
 **Deep research** — "when was my trip to Spain?", "which VCs have I \

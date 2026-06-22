@@ -28,9 +28,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
-from openjarvis.tools.storage.embeddings import Embedder, OllamaEmbedder
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage._stubs import MemoryBackend, RetrievalResult
+from ethan.tools.storage.embeddings import Embedder, OllamaEmbedder
 
 logger = logging.getLogger(__name__)
 

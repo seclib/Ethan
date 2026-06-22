@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from openjarvis.core.types import Message, Role
-from openjarvis.tools._stubs import BaseTool
+from ethan.core.types import Message, Role
+from ethan.tools._stubs import BaseTool
 
 if TYPE_CHECKING:
-    from openjarvis.system.protocols import OrchestratorDeps
+    from ethan.system.protocols import OrchestratorDeps
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class QueryOrchestrator:
 
         if context and s.memory_backend and s.config.agent.context_from_memory:
             try:
-                from openjarvis.tools.storage.context import (
+                from ethan.tools.storage.context import (
                     ContextConfig,
                     inject_context,
                 )
@@ -96,7 +96,7 @@ class QueryOrchestrator:
         """Detect if a query should be routed to a specific agent."""
         import re
 
-        from openjarvis.core.registry import AgentRegistry
+        from ethan.core.registry import AgentRegistry
 
         if re.search(
             r"\b(good\s+morning|morning\s+digest|daily\s+briefing|morning\s+briefing)\b",
@@ -122,9 +122,9 @@ class QueryOrchestrator:
         prior_messages=None,
     ) -> Dict[str, Any]:
         """Run through an agent."""
-        from openjarvis.agents._stubs import AgentContext
-        from openjarvis.core.events import EventType
-        from openjarvis.core.registry import AgentRegistry
+        from ethan.agents._stubs import AgentContext
+        from ethan.core.events import EventType
+        from ethan.core.registry import AgentRegistry
 
         s = self._system
 
@@ -186,8 +186,8 @@ class QueryOrchestrator:
                     "honorific": dc.honorific,
                 }
             )
-            from openjarvis.tools.digest_collect import DigestCollectTool
-            from openjarvis.tools.text_to_speech import TextToSpeechTool
+            from ethan.tools.digest_collect import DigestCollectTool
+            from ethan.tools.text_to_speech import TextToSpeechTool
 
             digest_tools = [DigestCollectTool(), TextToSpeechTool()]
             existing = agent_kwargs.get("tools", [])
@@ -213,7 +213,7 @@ class QueryOrchestrator:
         # instances (e.g. the judge backend).
         try:
             if s.trace_store is not None:
-                from openjarvis.traces.collector import TraceCollector
+                from ethan.traces.collector import TraceCollector
 
                 collector = TraceCollector(
                     ag,
@@ -293,18 +293,18 @@ class QueryOrchestrator:
 
     def _build_tools(self, tool_names: List[str]) -> List[BaseTool]:
         """Build tool instances from tool names."""
-        from openjarvis.core.registry import ToolRegistry
+        from ethan.core.registry import ToolRegistry
 
         s = self._system
         tools: List[BaseTool] = []
         for name in tool_names:
             try:
                 if name == "retrieval" and s.memory_backend:
-                    from openjarvis.tools.retrieval import RetrievalTool
+                    from ethan.tools.retrieval import RetrievalTool
 
                     tools.append(RetrievalTool(s.memory_backend))
                 elif name == "llm":
-                    from openjarvis.tools.llm_tool import LLMTool
+                    from ethan.tools.llm_tool import LLMTool
 
                     tools.append(LLMTool(s.engine, model=s.model))
                 elif ToolRegistry.contains(name):

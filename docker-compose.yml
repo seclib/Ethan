@@ -1,84 +1,57 @@
 # =============================================================================
-# docker-compose.yml — Ethan (Racine)
+# docker-compose.yml — Ethan OS (Baseline)
 # =============================================================================
 #
-# Point d'entrée principal Docker Compose.
-# Référence les Dockerfiles existants dans deploy/docker/ sans les modifier.
+# Architecture de base pour Ethan OS.
+# Services core uniquement : backend + frontend.
 #
 # Usage:
 #   cp .env.example .env
-#   docker compose up -d
+#   docker compose up --build
 #
-# Services:
-#   - backend    : API Ethan (FastAPI) — utilise deploy/docker/Dockerfile.backend
-#   - frontend   : Interface web (Nginx) — utilise deploy/docker/Dockerfile.frontend
-#   - ollama     : Inférence LLM locale (optionnel, désactivable via OLLAMA_ENABLED=false)
-#   - redis      : Cache & mémoire courte agent (optionnel, désactivable via REDIS_ENABLED=false)
+# Extensions:
+#   - docker-compose.dev.yml   : Services data/AI (redis, postgres, ollama, etc.)
+#   - docker-compose.prod.yml  : Monitoring (prometheus, grafana, traefik)
 #
-# Intégration Ollama :
-#   Ollama est intégré comme service optionnel mais direct (pas de profile).
-#   Le backend détecte automatiquement Ollama via OLLAMA_HOST.
-#   Pour désactiver : OLLAMA_ENABLED=false docker compose up -d
-#   Pour changer de modèle : OLLAMA_MODEL=llama3.2 docker compose up -d
-#
-# Intégration Redis :
-#   Redis sert de cache pour les conversations et de mémoire courte pour les agents.
-#   Persistance activable via REDIS_PERSISTENCE=true.
-#   Pour désactiver : REDIS_ENABLED=false docker compose up -d
-#
-# Réseau:
-#   - jarvis-network : Réseau isolé pour tous les services
-#
-# Volumes persistants:
-#   - jarvis-config, jarvis-logs, jarvis-workspace, jarvis-memory
-#   - jarvis-uploads, jarvis-cache, jarvis-models, ollama-models
-#   - redis-data
-#
-# Voir aussi:
-#   - deploy/docker/docker-compose.yml    : Version complète (production)
-#   - deploy/docker/docker-compose.dev.yml: Version développement
-#   - docker-compose.dev.yml              : Version développement (racine)
+# Exemples:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up
 # =============================================================================
 
+# ── Networks ──────────────────────────────────────────────────────────────────
 networks:
-  jarvis-network:
-    name: jarvis-network
+  ethan-network:
+    name: ethan-network
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
+# ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
-  jarvis-config:
-    name: jarvis-config
-  jarvis-logs:
-    name: jarvis-logs
-  jarvis-workspace:
-    name: jarvis-workspace
-  jarvis-memory:
-    name: jarvis-memory
-  jarvis-uploads:
-    name: jarvis-uploads
-  jarvis-cache:
-    name: jarvis-cache
-  jarvis-models:
-    name: jarvis-models
-  ollama-models:
-    name: ollama-models
+  # Core application data
+  ethan-logs:
+    name: ethan-logs
+  ethan-config:
+    name: ethan-config
+  ethan-cache:
+    name: ethan-cache
+  ethan-workspace:
+    name: ethan-workspace
+  # AI infrastructure volumes
   redis-data:
     name: redis-data
   postgres-data:
     name: postgres-data
-  chromadb-data:
-    name: chromadb-data
   qdrant-data:
     name: qdrant-data
-  prometheus-data:
-    name: prometheus-data
-  grafana-data:
-    name: grafana-data
+  ollama-models:
+    name: ollama-models
 
+# ── Services ──────────────────────────────────────────────────────────────────
 services:
   # ===========================================================================
-  # Backend — API Ethan
-  # Utilise le Dockerfile multi-stage existant dans deploy/docker/
+  # Backend — Ethan API (FastAPI + Rust)
   # ===========================================================================
   backend:
     build:
@@ -86,18 +59,11 @@ services:
       dockerfile: deploy/docker/Dockerfile.backend
     image: ethan/backend:latest
     container_name: ethan-backend
+    hostname: backend
     networks:
-      - jarvis-network
+      - ethan-network
     ports:
       - "${ETHAN_PORT:-8000}:8000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=jarvis-network"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=web,web-secure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.backend.priority=20"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
     environment:
       # Core
       - ETHAN_API_KEY=${ETHAN_API_KEY:?ETHAN_API_KEY is required}
@@ -108,10 +74,8 @@ services:
 
       # Engine
       - ETHAN_ENGINE_DEFAULT=${ETHAN_ENGINE_DEFAULT:-ollama}
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://localhost:11434}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
 
       # Database
       - ETHAN_DATABASE_URL=${ETHAN_DATABASE_URL:-sqlite:////var/lib/ethan/memory/ethan.db}
@@ -122,17 +86,19 @@ services:
       - ETHAN_CACHE=/var/lib/ethan/cache
       - ETHAN_MODELS=/var/lib/ethan/models
     volumes:
-      - jarvis-config:/etc/ethan:ro
-      - jarvis-logs:/var/log/ethan
-      - jarvis-workspace:/workspace
-      - jarvis-memory:/var/lib/ethan/memory
-      - jarvis-uploads:/var/lib/ethan/uploads
-      - jarvis-cache:/var/lib/ethan/cache
-      - jarvis-models:/var/lib/ethan/models
+      - ethan-config:/etc/ethan:ro
+      - ethan-logs:/var/log/ethan
+      - ethan-workspace:/workspace
+      - ethan-cache:/var/lib/ethan/cache
     depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
       ollama:
         condition: service_healthy
-        required: false
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -148,328 +114,7 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # PostgreSQL — Base de données principale
-  # ===========================================================================
-  # Service optionnel pour stocker :
-  #   - utilisateurs
-  #   - conversations
-  #   - logs agents
-  #   - configurations
-  #
-  # Migration progressive : le backend fonctionne en SQLite par défaut.
-  # Pour activer PostgreSQL : OPENJARVIS_DATABASE_URL=postgresql://...
-  #
-  # Désactivable via : POSTGRES_ENABLED=false docker compose up -d
-  #
-  # Accès :
-  #   Host: postgres
-  #   Port: 5432
-  #   DB:   ethan
-  #   User: ethan
-  #   Pass: (voir .env)
-  # ===========================================================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: ethan-postgres
-    networks:
-      - jarvis-network
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-ethan}
-      - POSTGRES_USER=${POSTGRES_USER:-ethan}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openjarvis} -d ${POSTGRES_DB:-openjarvis}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Redis — Cache & Mémoire Courte Agent
-  # ===========================================================================
-  # Service optionnel pour le cache des conversations et la mémoire courte.
-  # Utilisé par le backend pour stocker les sessions actives.
-  # Persistance activable via REDIS_PERSISTENCE=true.
-  #
-  # Désactivable via : REDIS_ENABLED=false docker compose up -d
-  #
-  # Utilisation dans le code :
-  #   from core.memory.redis_backend import RedisBackend
-  #   backend = RedisBackend(host="redis", port=6379)
-  #   await backend.store(MemoryEntry(key="session:123", value=...))
-  # ===========================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: ethan-redis
-    networks:
-      - jarvis-network
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis-data:/data
-    environment:
-      - REDIS_PERSISTENCE=${REDIS_PERSISTENCE:-false}
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    restart: unless-stopped
-    # Commande avec persistance activable
-    command: >
-      sh -c '
-        if [ "${REDIS_PERSISTENCE}" = "true" ]; then
-          redis-server --appendonly yes --save 60 1
-        else
-          redis-server --save "" --appendonly no
-        fi
-      '
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # ChromaDB — Base vectorielle (simple / dev)
-  # ===========================================================================
-  # Service optionnel pour la mémoire long terme et la recherche sémantique.
-  # Utilise le backend ChromaDB existant dans core/memory/chromadb_backend.py
-  #
-  # Désactivable via : CHROMADB_ENABLED=false docker compose up -d
-  #
-  # Accès :
-  #   Host: chromadb
-  #   Port: 8000
-  #   API:  http://localhost:8000/api/v1
-  # ===========================================================================
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: ethan-chromadb
-    networks:
-      - jarvis-network
-    ports:
-      - "${CHROMADB_PORT:-8000}:8000"
-    volumes:
-      - chromadb-data:/chroma/chroma
-    environment:
-      - CHROMA_SERVER_HOST=0.0.0.0
-      - CHROMA_SERVER_HTTP_PORT=8000
-      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Qdrant — Base vectorielle (production)
-  # ===========================================================================
-  # Service optionnel pour la mémoire long terme en production.
-  # Plus performant que ChromaDB pour les gros volumes.
-  #
-  # Désactivable via : QDRANT_ENABLED=false docker compose up -d
-  #
-  # Accès :
-  #   Host: qdrant
-  #   Port: 6333
-  #   API:  http://localhost:6333
-  # ===========================================================================
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: ethan-qdrant
-    networks:
-      - jarvis-network
-    ports:
-      - "${QDRANT_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__HTTP_PORT=6333
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Grafana — Visualisation & Dashboards
-  # ===========================================================================
-  # Interface web pour visualiser les métriques Prometheus.
-  # Dashboards préconfigurés pour :
-  #   - Vue d'ensemble système (CPU, RAM, réseau)
-  #   - Métriques API (latence, throughput, erreurs)
-  #   - Métriques agents (usage, performance)
-  #   - Métriques services (Redis, PostgreSQL, Ollama)
-  #
-  # Accès :
-  #   - UI: http://localhost:3000
-  #   - Login: admin / (voir GRAFANA_ADMIN_PASSWORD)
-  #
-  # Désactivable via : GRAFANA_ENABLED=false docker compose up -d
-  # ===========================================================================
-  grafana:
-    image: grafana/grafana:latest
-    container_name: ethan-grafana
-    networks:
-      - jarvis-network
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./deploy/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./deploy/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
-      - GF_METRICS_ENABLED=true
-      - GF_METRICS_PORT=3001
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Prometheus — Monitoring & Métriques
-  # ===========================================================================
-  # Collecte les métriques de tous les services :
-  #   - CPU, RAM, réseau (via cAdvisor)
-  #   - Métriques backend (API latency, agent usage)
-  #   - Métriques Traefik (requests, status codes)
-  #   - Métriques Redis, PostgreSQL, etc.
-  #
-  # Accès :
-  #   - UI: http://localhost:9090
-  #   - API: http://localhost:9090/api/v1
-  #
-  # Désactivable via : PROMETHEUS_ENABLED=false docker compose up -d
-  # ===========================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: ethan-prometheus
-    networks:
-      - jarvis-network
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - prometheus-data:/prometheus
-      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-    environment:
-      - PROMETHEUS_RETENTION_TIME=${PROMETHEUS_RETENTION_TIME:-30d}
-      - PROMETHEUS_RETENTION_SIZE=${PROMETHEUS_RETENTION_SIZE:-10GB}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # Traefik — Reverse Proxy Principal
-  # ===========================================================================
-  # Routeur HTTP/HTTPS pour :
-  #   - frontend  : http://localhost/  → frontend:80
-  #   - backend   : http://localhost/api → backend:8000
-  #   - api docs  : http://localhost/docs → backend:8000/docs
-  #
-  # SSL Ready :
-  #   - Let's Encrypt automatique en production
-  #   - Certificats auto-renouvelés
-  #   - HTTPS sur port 443
-  #
-  # Mode Dev Bypass :
-  #   - Par défaut, Traefik est actif
-  #   - Pour bypasser : accéder directement aux ports des services
-  #   - Frontend : http://localhost:80
-  #   - Backend  : http://localhost:8000
-  #
-  # Désactivable via : TRAEFIK_ENABLED=false docker compose up -d
-  #
-  # Dashboard : http://localhost:8080 (dashboard Traefik)
-  # ===========================================================================
-  traefik:
-    image: traefik:v3.1
-    container_name: ethan-traefik
-    networks:
-      - jarvis-network
-    ports:
-      - "${TRAEFIK_HTTP_PORT:-80}:80"
-      - "${TRAEFIK_HTTPS_PORT:-443}:443"
-      - "${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - traefik-letsencrypt:/letsencrypt
-    environment:
-      - TRAEFIK_DASHBOARD_ENABLED=${TRAEFIK_DASHBOARD_ENABLED:-true}
-      - TRAEFIK_LOG_LEVEL=${TRAEFIK_LOG_LEVEL:-INFO}
-      # Let's Encrypt (production)
-      - TRAEFIK_ACME_EMAIL=${TRAEFIK_ACME_EMAIL:-}
-      - TRAEFIK_ACME_DOMAIN=${TRAEFIK_ACME_DOMAIN:-}
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
   # Frontend — Interface Web (Nginx)
-  # Utilise le Dockerfile multi-stage existant dans deploy/docker/
   # ===========================================================================
   frontend:
     build:
@@ -477,22 +122,11 @@ services:
       dockerfile: deploy/docker/Dockerfile.frontend
     image: ethan/frontend:latest
     container_name: ethan-frontend
+    hostname: frontend
     networks:
-      - jarvis-network
+      - ethan-network
     ports:
-      - "${NGINX_PORT:-80}:80"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=jarvis-network"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.frontend.entrypoints=web,web-secure"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.frontend.priority=10"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      - "traefik.http.middlewares.frontend-compress.compress=true"
-      - "traefik.http.middlewares.frontend-headers.headers.browserXssFilter=true"
-      - "traefik.http.middlewares.frontend-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.routers.frontend.middlewares=frontend-compress,frontend-headers"
+      - "${NGINX_PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -508,30 +142,118 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-  # ===========================================================================
-  # Ollama — Inférence LLM Locale
-  # ===========================================================================
-  # Service optionnel mais direct (pas de profile requis).
-  # Désactivable via : OLLAMA_ENABLED=false docker compose up -d
-  # Modèle par défaut configurable via : OLLAMA_MODEL=llama3.2
-  #
-  # Le backend détecte automatiquement Ollama via OLLAMA_HOST.
-  # Si Ollama est indisponible, le backend utilise le provider configuré.
-  #
-  # GPU Support :
-  #   - NVIDIA : décommentez la section deploy.resources
-  #   - AMD    : utilisez ollama/ollama:rocm
-  # ===========================================================================
+  # ==========================================================================
+  # Redis — Cache, événements, mémoire court-terme
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: ethan-redis
+    hostname: redis
+    networks:
+      - ethan-network
+    # Pas de port exposé publiquement – uniquement interne
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    environment:
+      - REDIS_PERSISTENCE=${REDIS_PERSISTENCE:-false}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  # ==========================================================================
+  # PostgreSQL — Base de données structurée
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ethan-postgres
+    hostname: postgres
+    networks:
+      - ethan-network
+    # Pas de port exposé publiquement – uniquement interne
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ethan}
+      - POSTGRES_USER=${POSTGRES_USER:-ethan}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ethan} -d ${POSTGRES_DB:-ethan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  # ==========================================================================
+  # Qdrant — Vector database (production)
+  # ==========================================================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ethan-qdrant
+    hostname: qdrant
+    networks:
+      - ethan-network
+    # Pas de port exposé publiquement – uniquement interne
+    # ports:
+    #   - "${QDRANT_PORT:-6333}:6333"
+    #   - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  # ==========================================================================
+  # Ollama — LLM local
+  # ==========================================================================
   ollama:
     image: ollama/ollama:latest
     container_name: ethan-ollama
+    hostname: ollama
     networks:
-      - jarvis-network
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+      - ethan-network
+    # Pas de port exposé publiquement – uniquement interne
+    # ports:
+    #   - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama-models:/root/.ollama
+    depends_on:
+      qdrant:
+        condition: service_healthy
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
@@ -545,14 +267,6 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
-    # Décommentez pour support GPU NVIDIA :
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
     logging:
       driver: "json-file"
       options:

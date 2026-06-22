@@ -2,7 +2,7 @@
 
 import importlib
 
-from openjarvis.channels._stubs import (
+from ethan.channels._stubs import (
     BaseChannel,
     ChannelHandler,
     ChannelMessage,

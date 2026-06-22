@@ -710,22 +710,22 @@
 }
 
 /* Deep Research timeline — pending-step shimmer */
-@keyframes openjarvis-research-shimmer {
+@keyframes ethan-research-shimmer {
   0% { transform: translateX(-120%); }
   100% { transform: translateX(420%); }
 }
 .research-shimmer {
-  animation: openjarvis-research-shimmer 1.6s ease-in-out infinite;
+  animation: ethan-research-shimmer 1.6s ease-in-out infinite;
 }
 
 /* Sync progress pulse — fires on each items_synced bump so the
    "12,450 / 99,840" label visibly breathes between polls. */
-@keyframes openjarvis-sync-bump {
+@keyframes ethan-sync-bump {
   0% { opacity: 0.55; }
   100% { opacity: 1; }
 }
 .sync-bump {
-  animation: openjarvis-sync-bump 400ms ease-out;
+  animation: ethan-sync-bump 400ms ease-out;
 }
 
 /* Deep Research inline citation pills — small rounded chips that flow

@@ -5,7 +5,7 @@ ToolOrchestra) all coordinate at least two models: a small **local** model
 served by vLLM over an OpenAI-compatible endpoint, and a **cloud** model
 reached via the Anthropic or OpenAI SDK.
 
-Why not just use OpenJarvis's :class:`InferenceEngine` for both? Two reasons:
+Why not just use Ethan's :class:`InferenceEngine` for both? Two reasons:
 
 1. The reference hybrid adapters (``hybrid-local-cloud-compute/adapters/``) make
    raw SDK calls because some of them (Minions, Archon) construct external
@@ -45,17 +45,17 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, BaseAgent
-from openjarvis.agents.hybrid._openai_retry import patch_openai_globally
-from openjarvis.agents.hybrid._prices import (
+from ethan.agents._stubs import AgentContext, AgentResult, BaseAgent
+from ethan.agents.hybrid._openai_retry import patch_openai_globally
+from ethan.agents.hybrid._prices import (
     NO_TEMP_PREFIXES,
     is_gpt5_family,
     supports_temperature,
 )
-from openjarvis.agents.hybrid._prices import (
+from ethan.agents.hybrid._prices import (
     cost as estimate_cost,
 )
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.engine._stubs import InferenceEngine
 
 # Install OpenAI SDK retry + per-org concurrency cap at import time so
 # every paradigm (advisors, conductor, minions, mini_swe_agent's cloud
@@ -547,8 +547,8 @@ class LocalCloudAgent(BaseAgent):
         custom ``base_url`` and ``OPENROUTER_API_KEY``. ``model`` is the
         OpenRouter slug ``"<provider>/<model>"`` (e.g.
         ``"deepseek/deepseek-r1"``). For convenience the caller may also
-        pass the OpenJarvis-engine-style ``"openrouter/<provider>/<model>"``
-        prefix (see ``src/openjarvis/engine/cloud.py``) — we strip it here.
+        pass the Ethan-engine-style ``"openrouter/<provider>/<model>"``
+        prefix (see ``src/ethan/engine/cloud.py``) — we strip it here.
 
         Note: unlike ``_call_openai``, we do NOT apply the GPT-5 family
         ``max_completion_tokens`` rewrite or temperature stripping —

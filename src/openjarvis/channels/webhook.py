@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from openjarvis.channels._stubs import (
+from ethan.channels._stubs import (
     BaseChannel,
     ChannelHandler,
     ChannelStatus,
 )
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.registry import ChannelRegistry
+from ethan.core.events import EventBus, EventType
+from ethan.core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
 

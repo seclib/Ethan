@@ -12,8 +12,8 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from openjarvis.core.types import RoutingContext
-from openjarvis.learning._stubs import QueryAnalyzer
+from ethan.core.types import RoutingContext
+from ethan.learning._stubs import QueryAnalyzer
 
 # ---------------------------------------------------------------------------
 # Signal patterns

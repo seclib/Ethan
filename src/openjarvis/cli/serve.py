@@ -8,15 +8,15 @@ import sys
 import click
 from rich.console import Console
 
-from openjarvis.cli._banner import print_banner
-from openjarvis.core.config import load_config
-from openjarvis.core.events import EventBus
-from openjarvis.engine import (
+from ethan.cli._banner import print_banner
+from ethan.core.config import load_config
+from ethan.core.events import EventBus
+from ethan.engine import (
     discover_engines,
     discover_models,
     get_engine,
 )
-from openjarvis.intelligence import (
+from ethan.intelligence import (
     merge_discovered_models,
     register_builtin_models,
 )
@@ -137,7 +137,7 @@ def serve(
         try:
             from pathlib import Path
 
-            from openjarvis.telemetry.store import TelemetryStore
+            from ethan.telemetry.store import TelemetryStore
 
             db_path = Path(config.telemetry.db_path).expanduser()
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -163,7 +163,7 @@ def serve(
     engine_name, engine = resolved
 
     # Apply security guardrails
-    from openjarvis.security import setup_security
+    from ethan.security import setup_security
 
     sec = setup_security(config, engine, bus)
     engine = sec.engine
@@ -183,7 +183,7 @@ def serve(
     )
     if _has_cloud and engine_name != "cloud":
         try:
-            from openjarvis.engine.cloud import CloudEngine
+            from ethan.engine.cloud import CloudEngine
 
             cloud_engine = CloudEngine()
             if cloud_engine.health():
@@ -198,11 +198,11 @@ def serve(
 
     # Wrap engine with InstrumentedEngine for telemetry recording
     try:
-        from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
+        from ethan.telemetry.instrumented_engine import InstrumentedEngine
 
         energy_mon = None
         try:
-            from openjarvis.telemetry.energy_monitor import create_energy_monitor
+            from ethan.telemetry.energy_monitor import create_energy_monitor
 
             energy_mon = create_energy_monitor()
             if energy_mon is not None:
@@ -231,7 +231,7 @@ def serve(
         multi_entries.append(("cloud", cloud_engine))
 
     if len(multi_entries) > 1:
-        from openjarvis.engine.multi import MultiEngine
+        from ethan.engine.multi import MultiEngine
 
         engine = MultiEngine(multi_entries)
         engine_name = "multi"
@@ -274,8 +274,8 @@ def serve(
     resolved_tools: list = []
     if agent_key:
         try:
-            import openjarvis.agents  # noqa: F401
-            from openjarvis.core.registry import AgentRegistry
+            import ethan.agents  # noqa: F401
+            from ethan.core.registry import AgentRegistry
 
             if AgentRegistry.contains(agent_key):
                 agent_cls = AgentRegistry.get(agent_key)
@@ -290,9 +290,9 @@ def serve(
 
                 # Load tools for agents that support them
                 if getattr(agent_cls, "accepts_tools", False):
-                    import openjarvis.tools  # noqa: F401  # trigger registration
-                    from openjarvis.core.registry import ToolRegistry
-                    from openjarvis.tools._stubs import BaseTool
+                    import ethan.tools  # noqa: F401  # trigger registration
+                    from ethan.core.registry import ToolRegistry
+                    from ethan.tools._stubs import BaseTool
 
                     _DEFAULT_TOOLS = {"think", "calculator", "web_search"}
                     configured = config.agent.tools
@@ -324,7 +324,7 @@ def serve(
 
                     # MCP server tools from config.tools.mcp.servers
                     # (#461 — these were silently dropped).
-                    from openjarvis.mcp.loader import load_mcp_tools_from_config
+                    from ethan.mcp.loader import load_mcp_tools_from_config
 
                     mcp_tools, mcp_clients = load_mcp_tools_from_config(
                         config.tools.mcp,
@@ -360,7 +360,7 @@ def serve(
     channel_bridge = None
     if config.channel.enabled and config.channel.default_channel:
         try:
-            from openjarvis.system import SystemBuilder
+            from ethan.system import SystemBuilder
 
             # Reuse _resolve_channel logic from SystemBuilder
             sb = SystemBuilder(config)
@@ -377,7 +377,7 @@ def serve(
 
     # Wire channel messages → agent / engine (per-chat session isolation)
     if channel_bridge is not None:
-        from openjarvis.system import JarvisSystem
+        from ethan.system import JarvisSystem
 
         channel_agent = config.channel.default_agent or agent_key or "simple"
 
@@ -388,15 +388,15 @@ def serve(
         _channel_mcp_clients: list = []
         if channel_agent:
             try:
-                import openjarvis.agents
-                from openjarvis.core.registry import AgentRegistry
+                import ethan.agents
+                from ethan.core.registry import AgentRegistry
 
                 if AgentRegistry.contains(channel_agent):
                     _ch_cls = AgentRegistry.get(channel_agent)
                     if getattr(_ch_cls, "accepts_tools", False):
-                        import openjarvis.tools
-                        from openjarvis.core.registry import ToolRegistry
-                        from openjarvis.tools._stubs import BaseTool
+                        import ethan.tools
+                        from ethan.core.registry import ToolRegistry
+                        from ethan.tools._stubs import BaseTool
 
                         _DEFAULT_TOOLS = {"think", "calculator", "web_search"}
                         configured = config.agent.tools
@@ -426,7 +426,7 @@ def serve(
                                 _channel_tools.append(_tcls)
 
                         # MCP tools for the channel agent too (#461).
-                        from openjarvis.mcp.loader import (
+                        from ethan.mcp.loader import (
                             load_mcp_tools_from_config,
                         )
 
@@ -463,7 +463,7 @@ def serve(
     # Set up speech backend
     speech_backend = None
     try:
-        from openjarvis.speech._discovery import get_speech_backend
+        from ethan.speech._discovery import get_speech_backend
 
         speech_backend = get_speech_backend(config)
         if speech_backend:
@@ -472,15 +472,15 @@ def serve(
         logger.debug("Speech backend discovery failed: %s", exc)
 
     # Create app
-    from openjarvis.server.app import create_app
+    from ethan.server.app import create_app
 
     # Set up memory backend for context injection. Built before the scheduler
     # block so the executor's JarvisSystem can reference it (#263).
     memory_backend = None
     if config.agent.context_from_memory:
         try:
-            import openjarvis.tools.storage  # noqa: F401
-            from openjarvis.core.registry import MemoryRegistry
+            import ethan.tools.storage  # noqa: F401
+            from ethan.core.registry import MemoryRegistry
 
             mem_key = config.memory.default_backend
             if MemoryRegistry.contains(mem_key):
@@ -498,10 +498,10 @@ def serve(
         try:
             from pathlib import Path
 
-            from openjarvis.agents.manager import AgentManager
+            from ethan.agents.manager import AgentManager
 
             am_db = config.agent_manager.db_path or str(
-                Path("~/.openjarvis/agents.db").expanduser()
+                Path("~/.ethan/agents.db").expanduser()
             )
             # The server owns the scheduler and is the authoritative tick
             # runner — on boot it holds no locks, so it (and only it) sweeps
@@ -514,13 +514,13 @@ def serve(
     agent_scheduler = None
     if agent_manager is not None:
         try:
-            from openjarvis.agents.executor import AgentExecutor
-            from openjarvis.agents.scheduler import AgentScheduler
+            from ethan.agents.executor import AgentExecutor
+            from ethan.agents.scheduler import AgentScheduler
 
             _trace_store = None
             try:
                 if config.traces.enabled:
-                    from openjarvis.traces.store import TraceStore
+                    from ethan.traces.store import TraceStore
 
                     _trace_store = TraceStore(db_path=config.traces.db_path)
             except Exception:
@@ -539,9 +539,9 @@ def serve(
             # only reads engine/model/config/memory_backend/tool_executor/
             # session_store/channel_backend from the system (see
             # AgentExecutor), all of which are wired here.
-            from openjarvis.sessions.session import SessionStore
-            from openjarvis.system import JarvisSystem
-            from openjarvis.tools._stubs import ToolExecutor
+            from ethan.sessions.session import SessionStore
+            from ethan.system import JarvisSystem
+            from ethan.tools._stubs import ToolExecutor
 
             _sched_session_store = None
             if config.sessions.enabled:
@@ -608,7 +608,7 @@ def serve(
             import tomllib
 
             _cfg_path = str(
-                __import__("pathlib").Path.home() / ".openjarvis" / "config.toml"
+                __import__("pathlib").Path.home() / ".ethan" / "config.toml"
             )
             with open(_cfg_path, "rb") as _f:
                 _raw = tomllib.load(_f)
@@ -616,12 +616,12 @@ def serve(
         except (FileNotFoundError, ImportError):
             pass
 
-    from openjarvis.server.auth_middleware import check_bind_safety
+    from ethan.server.auth_middleware import check_bind_safety
 
     check_bind_safety(bind_host, api_key=api_key)
 
     # Log credential status at startup
-    from openjarvis.core.credentials import TOOL_CREDENTIALS, get_credential_status
+    from ethan.core.credentials import TOOL_CREDENTIALS, get_credential_status
 
     _cred_parts = []
     for _tool_name in sorted(TOOL_CREDENTIALS):
@@ -643,10 +643,10 @@ def serve(
     # Wrap existing channel in ChannelBridge orchestrator
     if channel_bridge is not None:
         try:
-            from openjarvis.server.channel_bridge import (
+            from ethan.server.channel_bridge import (
                 ChannelBridge,
             )
-            from openjarvis.server.session_store import (
+            from ethan.server.session_store import (
                 SessionStore,
             )
 
@@ -681,7 +681,7 @@ def serve(
     )
 
     console.print(
-        f"[green]Starting OpenJarvis API server[/green]\n"
+        f"[green]Starting Ethan API server[/green]\n"
         f"  Engine: [cyan]{engine_name}[/cyan]\n"
         f"  Model:  [cyan]{model_name}[/cyan]\n"
         f"  Agent:  [cyan]{agent_key or 'none'}[/cyan]\n"

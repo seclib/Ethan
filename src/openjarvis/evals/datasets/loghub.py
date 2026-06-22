@@ -13,8 +13,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.types import EvalRecord
 
 logger = logging.getLogger(__name__)
 

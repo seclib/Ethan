@@ -10,7 +10,7 @@ def hint_no_config() -> str:
     return (
         "[yellow]Hint:[/yellow] No config file found.\n"
         "  Run [bold]jarvis init[/bold] to detect hardware and generate "
-        "[cyan]~/.openjarvis/config.toml[/cyan].\n"
+        "[cyan]~/.ethan/config.toml[/cyan].\n"
         "  Or run [bold]jarvis quickstart[/bold] for a guided setup."
     )
 

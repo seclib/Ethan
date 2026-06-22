@@ -56,23 +56,23 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.agents._stubs import AgentContext
-from openjarvis.agents.hybrid._base import (
+from ethan.agents._stubs import AgentContext
+from ethan.agents.hybrid._base import (
     ANTHROPIC_WEB_SEARCH_TOOL,
     WEB_SEARCH_COST_PER_CALL,
     LocalCloudAgent,
 )
-from openjarvis.agents.hybrid._prices import (
+from ethan.agents.hybrid._prices import (
     PRICES,
     is_gpt5_family,
     supports_temperature,
 )
-from openjarvis.agents.hybrid.mini_swe_agent import (
+from ethan.agents.hybrid.mini_swe_agent import (
     _clone_repo,
     _extract_diff,
     run_swe_agent_loop,
 )
-from openjarvis.core.registry import AgentRegistry
+from ethan.core.registry import AgentRegistry
 
 ORCHESTRATOR_SYS = """\
 You are a tool-orchestrating agent. You coordinate a pool of workers to answer the user's question. Each turn you MUST emit exactly one JSON object — no prose, no markdown fences — taking one of two forms:
@@ -175,7 +175,7 @@ RL_ALL_TOOLS: Dict[str, Dict[str, List[str]]] = {
     "search": {"model": ["search-1", "search-2", "search-3"]},
 }
 
-# Map the orchestrator's `model` slot to a concrete OpenJarvis worker spec.
+# Map the orchestrator's `model` slot to a concrete Ethan worker spec.
 # Tiers ranked by the upstream tools.json table (`*-1` = frontier,
 # `*-2` = mid, `*-3` = local). math-1 / math-2 collapse onto the same
 # tiers since we don't have Qwen-Math served.
@@ -343,11 +343,11 @@ def _paper_expert_for(
 def _call_tavily_search(query: str, max_results: int = 5) -> Tuple[str, int, int]:
     """One-shot Tavily search. Returns (text, p_tok=0, c_tok=0).
 
-    Token counts are reported as zero (no LLM was billed); the OpenJarvis
+    Token counts are reported as zero (no LLM was billed); the Ethan
     accounting layer separately tallies tool-call counts. Falls back to
     DuckDuckGo if Tavily is unreachable (see ``WebSearchTool``).
     """
-    from openjarvis.tools.web_search import WebSearchTool
+    from ethan.tools.web_search import WebSearchTool
 
     tool = WebSearchTool(max_results=max_results)
     res = tool.execute(query=query, max_results=max_results)
@@ -357,7 +357,7 @@ def _call_tavily_search(query: str, max_results: int = 5) -> Tuple[str, int, int
     return text, 0, 0
 
 
-_MODAL_APP_NAME = "openjarvis-toolorchestra-sandbox"
+_MODAL_APP_NAME = "ethan-toolorchestra-sandbox"
 
 
 def _call_modal_python(code: str, timeout_s: int = 60) -> Tuple[str, int]:

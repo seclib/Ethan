@@ -12,11 +12,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from openjarvis.core.config import load_config
-from openjarvis.core.registry import ModelRegistry
-from openjarvis.engine import discover_engines, discover_models
-from openjarvis.intelligence import merge_discovered_models, register_builtin_models
-from openjarvis.intelligence.model_catalog import BUILTIN_MODELS
+from ethan.core.config import load_config
+from ethan.core.registry import ModelRegistry
+from ethan.engine import discover_engines, discover_models
+from ethan.intelligence import merge_discovered_models, register_builtin_models
+from ethan.intelligence.model_catalog import BUILTIN_MODELS
 
 
 @click.group()

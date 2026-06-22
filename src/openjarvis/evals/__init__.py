@@ -1,1 +1,1 @@
-"""OpenJarvis Evaluation Framework."""
+"""Ethan Evaluation Framework."""

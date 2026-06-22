@@ -1,9 +1,9 @@
-"""`jarvis self-update` — upgrade OpenJarvis to the latest release.
+"""`jarvis self-update` — upgrade Ethan to the latest release.
 
-Runs the right upgrade command for how the user installed OpenJarvis:
+Runs the right upgrade command for how the user installed Ethan:
 
-- PyPI installs get ``pip install --upgrade openjarvis``.
-- uv-tool installs get ``uv tool upgrade openjarvis``.
+- PyPI installs get ``pip install --upgrade ethan``.
+- uv-tool installs get ``uv tool upgrade ethan``.
 - Editable git checkouts get ``git pull && uv sync`` in the checkout.
 
 The detection logic is shared with the post-command "new version
@@ -18,14 +18,14 @@ import sys
 
 import click
 
-import openjarvis
-from openjarvis.cli._install_detect import detect_install
+import ethan
+from ethan.cli._install_detect import detect_install
 
 
 @click.command(
     "self-update",
     help=(
-        "Upgrade OpenJarvis to the latest release. Detects how you "
+        "Upgrade Ethan to the latest release. Detects how you "
         "installed (pip, uv tool, editable git) and runs the right "
         "command. Use --check to only print the upgrade command "
         "without running it."
@@ -44,9 +44,9 @@ from openjarvis.cli._install_detect import detect_install
 )
 def self_update(check: bool, yes: bool) -> None:
     info = detect_install()
-    current = openjarvis.__version__
+    current = ethan.__version__
 
-    click.echo(f"Current OpenJarvis version: v{current}")
+    click.echo(f"Current Ethan version: v{current}")
     click.echo(f"Install method: {info.kind}")
     click.echo(f"Upgrade command: {info.upgrade_command}")
 

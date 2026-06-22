@@ -5,8 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Optional
 
-from openjarvis.evals.backends._commit_util import openjarvis_commit
-from openjarvis.evals.core.backend import InferenceBackend
+from ethan.evals.backends._commit_util import ethan_commit
+from ethan.evals.core.backend import InferenceBackend
 
 
 class JarvisDirectBackend(InferenceBackend):
@@ -17,7 +17,7 @@ class JarvisDirectBackend(InferenceBackend):
     """
 
     backend_id = "jarvis-direct"
-    framework_name = "openjarvis"
+    framework_name = "ethan"
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class JarvisDirectBackend(InferenceBackend):
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
     ) -> None:
-        from openjarvis.system import SystemBuilder
+        from ethan.system import SystemBuilder
 
         self._telemetry = telemetry
         self._gpu_metrics = gpu_metrics
@@ -37,7 +37,7 @@ class JarvisDirectBackend(InferenceBackend):
             # Explicit endpoint targeting (--base-url): pin the eval to
             # exactly this OpenAI-compatible endpoint. Fails fast if it is
             # unreachable; never falls back to a discovered engine.
-            from openjarvis.evals.backends._endpoint_util import (
+            from ethan.evals.backends._endpoint_util import (
                 build_endpoint_engine,
             )
 
@@ -53,10 +53,10 @@ class JarvisDirectBackend(InferenceBackend):
 
     @property
     def framework_commit_value(self) -> str:
-        """OpenJarvis repo HEAD commit (for telemetry tagging)."""
-        from openjarvis.evals.backends._commit_util import openjarvis_commit
+        """Ethan repo HEAD commit (for telemetry tagging)."""
+        from ethan.evals.backends._commit_util import ethan_commit
 
-        return openjarvis_commit()
+        return ethan_commit()
 
     def generate(
         self,
@@ -85,7 +85,7 @@ class JarvisDirectBackend(InferenceBackend):
         temperature: float = 0.0,
         max_tokens: int = 2048,
     ) -> Dict[str, Any]:
-        from openjarvis.core.types import Message, Role
+        from ethan.core.types import Message, Role
 
         messages = []
         if system:
@@ -128,8 +128,8 @@ class JarvisDirectBackend(InferenceBackend):
             "throughput_tok_per_sec": telemetry_data.get("throughput_tok_per_sec", 0.0),
             "tool_calls": 0,
             "turn_count": 1,
-            "framework": "openjarvis",
-            "framework_commit": openjarvis_commit(),
+            "framework": "ethan",
+            "framework_commit": ethan_commit(),
             "error": None,
         }
 

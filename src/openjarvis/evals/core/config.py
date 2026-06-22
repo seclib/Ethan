@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from openjarvis.evals.core.types import (
+from ethan.evals.core.types import (
     BenchmarkConfig,
     DefaultsConfig,
     EvalSuiteConfig,

@@ -1,15 +1,15 @@
 """Top-level system composition: JarvisSystem, SystemBuilder, and helpers."""
 
-from openjarvis.system.builder import SystemBuilder
-from openjarvis.system.bundles import (
+from ethan.system.builder import SystemBuilder
+from ethan.system.bundles import (
     AgentRuntime,
     Observability,
     Scheduling,
     SecurityContext,
 )
-from openjarvis.system.core import JarvisSystem
-from openjarvis.system.orchestrator import QueryOrchestrator
-from openjarvis.system.protocols import OrchestratorDeps
+from ethan.system.core import JarvisSystem
+from ethan.system.orchestrator import QueryOrchestrator
+from ethan.system.protocols import OrchestratorDeps
 
 __all__ = [
     "AgentRuntime",

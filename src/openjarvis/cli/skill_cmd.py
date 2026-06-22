@@ -9,16 +9,16 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from openjarvis.core.config import load_config
-from openjarvis.core.events import EventBus
-from openjarvis.skills.manager import SkillManager
+from ethan.core.config import load_config
+from ethan.core.events import EventBus
+from ethan.skills.manager import SkillManager
 
 
 def _get_trace_store():
     """Return a TraceStore instance from the user config (or None)."""
     try:
-        from openjarvis.core.config import load_config
-        from openjarvis.traces.store import TraceStore
+        from ethan.core.config import load_config
+        from ethan.traces.store import TraceStore
 
         cfg = load_config()
         return TraceStore(cfg.traces.db_path)
@@ -28,12 +28,12 @@ def _get_trace_store():
 
 def _get_discovered_dir() -> Path:
     """Return the directory where discovered skill manifests are written."""
-    return Path("~/.openjarvis/skills/discovered/").expanduser()
+    return Path("~/.ethan/skills/discovered/").expanduser()
 
 
 def _get_overlay_dir() -> Path:
     """Return the directory where optimization overlays are stored."""
-    return Path("~/.openjarvis/learning/skills/").expanduser()
+    return Path("~/.ethan/learning/skills/").expanduser()
 
 
 def _get_skill_paths() -> List[Path]:
@@ -41,7 +41,7 @@ def _get_skill_paths() -> List[Path]:
     workspace = Path("./skills")
     if workspace.exists():
         paths.append(workspace)
-    user_dir = Path("~/.openjarvis/skills/").expanduser()
+    user_dir = Path("~/.ethan/skills/").expanduser()
     paths.append(user_dir)
     return paths
 
@@ -159,11 +159,11 @@ def _parse_source_query(query: str) -> tuple[str, str]:
 def _get_resolver(source: str, url: str = ""):
     """Return a resolver instance for the given source name."""
     if source == "hermes":
-        from openjarvis.skills.sources.hermes import HermesResolver
+        from ethan.skills.sources.hermes import HermesResolver
 
         return HermesResolver()
     if source == "openclaw":
-        from openjarvis.skills.sources.openclaw import OpenClawResolver
+        from ethan.skills.sources.openclaw import OpenClawResolver
 
         return OpenClawResolver()
     if source == "github":
@@ -171,10 +171,10 @@ def _get_resolver(source: str, url: str = ""):
             raise click.BadParameter("github source requires --url")
         from pathlib import Path as _Path
 
-        from openjarvis.skills.sources.github import GitHubResolver
+        from ethan.skills.sources.github import GitHubResolver
 
         cache = _Path(
-            "~/.openjarvis/skill-cache/github/" + url.rstrip("/").rsplit("/", 1)[-1]
+            "~/.ethan/skill-cache/github/" + url.rstrip("/").rsplit("/", 1)[-1]
         ).expanduser()
         return GitHubResolver(cache_root=cache, repo_url=url)
     raise click.BadParameter(f"Unknown source: {source!r}")
@@ -225,9 +225,9 @@ def install(query: str, with_scripts: bool, force: bool, url: str):
         console.print(f"[red]No skill named '{name}' found in source '{source}'[/red]")
         raise SystemExit(1)
 
-    from openjarvis.skills.importer import SkillImporter
-    from openjarvis.skills.parser import SkillParser
-    from openjarvis.skills.tool_translator import ToolTranslator
+    from ethan.skills.importer import SkillImporter
+    from ethan.skills.parser import SkillParser
+    from ethan.skills.tool_translator import ToolTranslator
 
     importer = SkillImporter(parser=SkillParser(), tool_translator=ToolTranslator())
     result = importer.import_skill(matches[0], with_scripts=with_scripts, force=force)
@@ -302,9 +302,9 @@ def sync(
         )
         return
 
-    from openjarvis.skills.importer import SkillImporter
-    from openjarvis.skills.parser import SkillParser
-    from openjarvis.skills.tool_translator import ToolTranslator
+    from ethan.skills.importer import SkillImporter
+    from ethan.skills.parser import SkillParser
+    from ethan.skills.tool_translator import ToolTranslator
 
     importer = SkillImporter(parser=SkillParser(), tool_translator=ToolTranslator())
 
@@ -391,7 +391,7 @@ def sources():
 def remove(skill_name: str, yes: bool):
     """Remove an installed skill by name.
 
-    Searches ``~/.openjarvis/skills/`` and ``./skills`` for a directory whose
+    Searches ``~/.ethan/skills/`` and ``./skills`` for a directory whose
     name (or parsed manifest name) matches ``skill_name`` and deletes it.
     """
     console = Console()
@@ -541,7 +541,7 @@ def update():
 )
 def discover(min_frequency: int, min_outcome: float, dry_run: bool) -> None:
     """Mine the trace store for recurring tool sequences and write them as
-    discovered skill manifests under ~/.openjarvis/skills/discovered/."""
+    discovered skill manifests under ~/.ethan/skills/discovered/."""
     console = Console()
     store = _get_trace_store()
     if store is None:
@@ -559,7 +559,7 @@ def discover(min_frequency: int, min_outcome: float, dry_run: bool) -> None:
         # Use a temporary directory so nothing is persisted
         import tempfile
 
-        tmp = Path(tempfile.mkdtemp(prefix="openjarvis-discover-dryrun-"))
+        tmp = Path(tempfile.mkdtemp(prefix="ethan-discover-dryrun-"))
         try:
             written = mgr.discover_from_traces(
                 store,
@@ -600,7 +600,7 @@ def discover(min_frequency: int, min_outcome: float, dry_run: bool) -> None:
 def show_overlay(skill_name: str) -> None:
     """Show the optimization overlay for a skill, if one exists."""
     console = Console()
-    from openjarvis.skills.overlay import SkillOverlayLoader
+    from ethan.skills.overlay import SkillOverlayLoader
 
     loader = SkillOverlayLoader(_get_overlay_dir())
     overlay = loader.load(skill_name)

@@ -17,11 +17,11 @@ import subprocess
 from pathlib import Path
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, BaseAgent
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.agents._stubs import AgentContext, AgentResult, BaseAgent
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import ToolResult
+from ethan.engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class ClaudeCodeAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _ensure_runner(self) -> Path:
-        """Copy the bundled runner to ``~/.openjarvis/claude_code_runner/``
+        """Copy the bundled runner to ``~/.ethan/claude_code_runner/``
         and run ``npm install`` if ``node_modules`` is missing.
 
         Returns the path to the runner directory.
@@ -103,7 +103,7 @@ class ClaudeCodeAgent(BaseAgent):
                 "Install it from https://nodejs.org/ or via your package manager."
             )
 
-        dest = Path.home() / ".openjarvis" / "claude_code_runner"
+        dest = Path.home() / ".ethan" / "claude_code_runner"
         dest.mkdir(parents=True, exist_ok=True)
 
         # Copy runner files if missing or outdated

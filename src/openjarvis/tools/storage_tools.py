@@ -9,10 +9,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
-from openjarvis.tools.storage._stubs import MemoryBackend
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
+from ethan.tools.storage._stubs import MemoryBackend
 
 
 @ToolRegistry.register("memory_store")
@@ -278,8 +278,8 @@ class MemoryIndexTool(BaseTool):
         try:
             from pathlib import Path
 
-            from openjarvis.tools.storage.chunking import ChunkConfig
-            from openjarvis.tools.storage.ingest import ingest_path
+            from ethan.tools.storage.chunking import ChunkConfig
+            from ethan.tools.storage.ingest import ingest_path
 
             chunk_cfg = ChunkConfig(
                 chunk_size=int(params.get("chunk_size", 512)),

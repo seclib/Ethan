@@ -14,7 +14,7 @@ from typing import List
 
 import yaml
 
-from openjarvis.skills.sources.base import ResolvedSkill, SourceResolver
+from ethan.skills.sources.base import ResolvedSkill, SourceResolver
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class HermesResolver(SourceResolver):
 
     def __init__(self, cache_root: Path | None = None) -> None:
         if cache_root is None:
-            cache_root = Path("~/.openjarvis/skill-cache/hermes/").expanduser()
+            cache_root = Path("~/.ethan/skill-cache/hermes/").expanduser()
         self._cache_root = Path(cache_root)
 
     def cache_dir(self) -> Path:

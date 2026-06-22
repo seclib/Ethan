@@ -9,7 +9,7 @@ from rich.table import Table
 
 def _load_registry_map() -> tuple[dict[str, object], dict[str, object]]:
     """Import all registries and return (by_name, aliases) lookup dicts."""
-    from openjarvis.core.registry import (
+    from ethan.core.registry import (
         AgentRegistry,
         BenchmarkRegistry,
         ChannelRegistry,
@@ -83,7 +83,7 @@ def list_registries() -> None:
         console.print(f"[red]Error loading registries: {exc}[/red]")
         return
 
-    module_path = "openjarvis.core.registry"
+    module_path = "ethan.core.registry"
     for reg_name, registry_cls in by_name.items():
         try:
             count = len(registry_cls.keys())

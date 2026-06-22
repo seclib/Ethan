@@ -1,12 +1,12 @@
 [package]
-name = "openjarvis-tools"
+name = "ethan-tools"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-openjarvis-core = { path = "../openjarvis-core" }
-openjarvis-engine = { path = "../openjarvis-engine" }
-openjarvis-security = { path = "../openjarvis-security" }
+ethan-core = { path = "../ethan-core" }
+ethan-engine = { path = "../ethan-engine" }
+ethan-security = { path = "../ethan-security" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 #[pyclass(name = "McpServer")]
 pub struct PyMcpServer {
-    inner: openjarvis_mcp::McpServer,
+    inner: ethan_mcp::McpServer,
 }
 
 #[pymethods]
@@ -14,7 +14,7 @@ impl PyMcpServer {
     #[new]
     fn new(executor: &PyToolExecutor) -> Self {
         Self {
-            inner: openjarvis_mcp::McpServer::new(Arc::clone(&executor.inner)),
+            inner: ethan_mcp::McpServer::new(Arc::clone(&executor.inner)),
         }
     }
 

@@ -8,10 +8,10 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-from openjarvis.connectors._stubs import Document
-from openjarvis.core.registry import ConnectorRegistry, ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.connectors._stubs import Document
+from ethan.core.registry import ConnectorRegistry, ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 # ---------------------------------------------------------------------------
 # Section definitions: ordered list of (section_name, connector_ids)
@@ -472,7 +472,7 @@ class DigestCollectTool(BaseTool):
 
     def execute(self, **params: Any) -> ToolResult:
         # Ensure connectors are registered
-        import openjarvis.connectors  # noqa: F401
+        import ethan.connectors  # noqa: F401
 
         sources: List[str] = params.get("sources", [])
         hours_back: float = params.get("hours_back", 24)

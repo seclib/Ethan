@@ -15,9 +15,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.evals.core.scorer import Scorer
-from openjarvis.evals.core.types import EvalRecord
-from openjarvis.evals.scorers._checklist import ChecklistScorer, normalize_str
+from ethan.evals.core.scorer import Scorer
+from ethan.evals.core.types import EvalRecord
+from ethan.evals.scorers._checklist import ChecklistScorer, normalize_str
 
 LOGGER = logging.getLogger(__name__)
 

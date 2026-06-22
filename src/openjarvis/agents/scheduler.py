@@ -7,11 +7,11 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any
 
-from openjarvis.core.events import EventType
+from ethan.core.events import EventType
 
 if TYPE_CHECKING:
-    from openjarvis.agents.executor import AgentExecutor
-    from openjarvis.agents.manager import AgentManager
+    from ethan.agents.executor import AgentExecutor
+    from ethan.agents.manager import AgentManager
 
 logger = logging.getLogger(__name__)
 

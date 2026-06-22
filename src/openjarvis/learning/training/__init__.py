@@ -1,7 +1,7 @@
 """Training data extraction and fine-tuning pipelines for trace-driven learning."""
 
-from openjarvis.learning.training.data import TrainingDataMiner
-from openjarvis.learning.training.lora import (
+from ethan.learning.training.data import TrainingDataMiner
+from ethan.learning.training.lora import (
     HAS_TORCH,
     LoRATrainer,
     LoRATrainingConfig,

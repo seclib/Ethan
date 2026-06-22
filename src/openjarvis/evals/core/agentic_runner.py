@@ -20,9 +20,9 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from openjarvis.evals.core.environment import TaskEnvironmentError
-from openjarvis.evals.core.event_recorder import AgentEvent, EventRecorder, EventType
-from openjarvis.evals.core.trace import QueryTrace, TurnTrace
+from ethan.evals.core.environment import TaskEnvironmentError
+from ethan.evals.core.event_recorder import AgentEvent, EventRecorder, EventType
+from ethan.evals.core.trace import QueryTrace, TurnTrace
 
 LOGGER = logging.getLogger(__name__)
 
@@ -551,7 +551,7 @@ class AgenticRunner:
             if turn.cost_usd is None and (
                 turn.input_tokens > 0 or turn.output_tokens > 0
             ):
-                from openjarvis.evals.core.pricing import compute_turn_cost
+                from ethan.evals.core.pricing import compute_turn_cost
 
                 turn.cost_usd = compute_turn_cost(
                     model, turn.input_tokens, turn.output_tokens

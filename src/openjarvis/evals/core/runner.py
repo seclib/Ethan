@@ -25,12 +25,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from openjarvis.evals.core.backend import InferenceBackend
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.export import _hardware_info_dict
-from openjarvis.evals.core.scorer import Scorer
-from openjarvis.evals.core.tracker import ResultTracker
-from openjarvis.evals.core.types import (
+from ethan.evals.core.backend import InferenceBackend
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.export import _hardware_info_dict
+from ethan.evals.core.scorer import Scorer
+from ethan.evals.core.tracker import ResultTracker
+from ethan.evals.core.types import (
     EvalRecord,
     EvalResult,
     MetricStats,
@@ -39,12 +39,12 @@ from openjarvis.evals.core.types import (
 )
 
 try:
-    from openjarvis.telemetry.efficiency import compute_efficiency
+    from ethan.telemetry.efficiency import compute_efficiency
 except ImportError:  # pragma: no cover
     compute_efficiency = None  # type: ignore[assignment]
 
 try:
-    from openjarvis.telemetry.efficiency import estimate_model_flops_per_token
+    from ethan.telemetry.efficiency import estimate_model_flops_per_token
 except ImportError:  # pragma: no cover
     estimate_model_flops_per_token = None  # type: ignore[assignment]
 
@@ -127,7 +127,7 @@ class EvalRunner:
         # LifelongAgentBench).  The base DatasetProvider always defines a
         # default iter_episodes() that wraps each record in its own episode,
         # so hasattr() is always True — we must check for a real override.
-        from openjarvis.evals.core.dataset import DatasetProvider as _DP
+        from ethan.evals.core.dataset import DatasetProvider as _DP
 
         try:
             _overrides_episodes = (
@@ -329,7 +329,7 @@ class EvalRunner:
                 trace_data=full.get("trace_data"),
                 framework=full.get(
                     "framework",
-                    getattr(self._backend, "framework_name", "openjarvis"),
+                    getattr(self._backend, "framework_name", "ethan"),
                 ),
                 framework_commit=full.get(
                     "framework_commit",
@@ -497,7 +497,7 @@ class EvalRunner:
                 estimated_flops=estimated_flops,
                 trace_data=full.get("trace_data"),
                 # Spec §6.2 extended fields for cross-framework comparison
-                framework=full.get("framework", "openjarvis"),
+                framework=full.get("framework", "ethan"),
                 framework_commit=full.get("framework_commit", ""),
                 tool_calls=int(full.get("tool_calls", 0)),
                 turn_count=int(full.get("turn_count", 0)),
@@ -508,7 +508,7 @@ class EvalRunner:
                 record_id=record.record_id,
                 model_answer="",
                 error=str(exc),
-                framework=getattr(self._backend, "framework_name", "openjarvis"),
+                framework=getattr(self._backend, "framework_name", "ethan"),
                 framework_commit=getattr(self._backend, "framework_commit_value", "")
                 or "",
                 tool_calls=0,
@@ -543,7 +543,7 @@ class EvalRunner:
         # overrides create_task_env.  The DatasetProvider base class provides a
         # default implementation that returns None, so hasattr() is always True —
         # we must check for a real override to avoid calling env.reset() on None.
-        from openjarvis.evals.core.dataset import DatasetProvider
+        from ethan.evals.core.dataset import DatasetProvider
 
         has_task_env = (
             type(self._dataset).create_task_env is not DatasetProvider.create_task_env
@@ -792,7 +792,7 @@ class EvalRunner:
                 # Spec §6.2 extended fields. framework/commit are constant
                 # per backend, so the last turn's value is correct. tool_calls
                 # / turn_count come from the interactive loop itself.
-                framework=full.get("framework", "openjarvis"),
+                framework=full.get("framework", "ethan"),
                 framework_commit=full.get("framework_commit", ""),
                 tool_calls=int(full.get("tool_calls", 0)),
                 turn_count=len(all_responses),
@@ -808,7 +808,7 @@ class EvalRunner:
                 model_answer="",
                 error=str(exc),
                 scoring_metadata={"interactive": True, "error": str(exc)},
-                framework=getattr(self._backend, "framework_name", "openjarvis"),
+                framework=getattr(self._backend, "framework_name", "ethan"),
                 framework_commit=getattr(self._backend, "framework_commit_value", "")
                 or "",
                 tool_calls=0,
@@ -1283,7 +1283,7 @@ def _summary_to_dict(
     # In addition to the existing rich schema, emit framework / commit /
     # per-metric stats so framework-comparison `table_gen.load_results`
     # can parse this file as a `_SummarySchema` row.
-    fwk = "openjarvis"
+    fwk = "ethan"
     fwk_commit = ""
     if results:
         for r in results:

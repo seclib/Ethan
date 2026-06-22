@@ -1,6 +1,6 @@
 """HTTP route: ``POST /api/research`` — agentic research over the knowledge store.
 
-Drives :class:`openjarvis.agents.research_loop.ResearchAgent` and streams a
+Drives :class:`ethan.agents.research_loop.ResearchAgent` and streams a
 custom SSE event schema back to the client:
 
 * ``search_call``     — about to invoke ``HybridSearch.search`` (with arguments)
@@ -31,17 +31,17 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from openjarvis.agents.research_loop import (
+from ethan.agents.research_loop import (
     DEFAULT_PLANNER_MODEL,
     ResearchAgent,
 )
-from openjarvis.connectors.embeddings import OllamaEmbedder
-from openjarvis.connectors.hybrid_search import HybridSearch
-from openjarvis.connectors.store import KnowledgeStore
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.types import TelemetryRecord
-from openjarvis.engine.ollama import OllamaEngine
-from openjarvis.telemetry.store import TelemetryStore
+from ethan.connectors.embeddings import OllamaEmbedder
+from ethan.connectors.hybrid_search import HybridSearch
+from ethan.connectors.store import KnowledgeStore
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.types import TelemetryRecord
+from ethan.engine.ollama import OllamaEngine
+from ethan.telemetry.store import TelemetryStore
 
 logger = logging.getLogger(__name__)
 

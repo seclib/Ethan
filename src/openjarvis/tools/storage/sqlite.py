@@ -7,9 +7,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.events import EventType, get_event_bus
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage._stubs import (
+from ethan.core.events import EventType, get_event_bus
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage._stubs import (
     MemoryBackend,
     MemoryBackendUnavailable,
     RetrievalResult,
@@ -36,13 +36,13 @@ class SQLiteMemory(MemoryBackend):
 
     def __init__(self, db_path: str | Path = "") -> None:
         if not db_path:
-            from openjarvis.core.config import DEFAULT_CONFIG_DIR
+            from ethan.core.config import DEFAULT_CONFIG_DIR
 
             db_path = str(DEFAULT_CONFIG_DIR / "memory.db")
 
         self._db_path = str(db_path)
 
-        from openjarvis._rust_bridge import get_rust_module
+        from ethan._rust_bridge import get_rust_module
 
         # The Rust backend is mandatory and there is no Python fallback. When
         # the extension is missing from *this* venv, ``get_rust_module`` raises
@@ -106,7 +106,7 @@ class SQLiteMemory(MemoryBackend):
         if not query.strip():
             return []
 
-        from openjarvis._rust_bridge import retrieval_results_from_json
+        from ethan._rust_bridge import retrieval_results_from_json
 
         results = retrieval_results_from_json(
             self._rust_impl.retrieve(query, top_k),

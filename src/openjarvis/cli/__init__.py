@@ -1,59 +1,59 @@
-"""Command-line interface for OpenJarvis (Click-based)."""
+"""Command-line interface for Ethan (Click-based)."""
 
 from __future__ import annotations
 
 import click
 
-import openjarvis
-from openjarvis.cli._bootstrap import bootstrap_cmd
-from openjarvis.cli.add_cmd import add
-from openjarvis.cli.agent_cmd import agent
-from openjarvis.cli.ask import ask
-from openjarvis.cli.bench_cmd import bench
-from openjarvis.cli.channel_cmd import channel
-from openjarvis.cli.channels_cmd import channels
-from openjarvis.cli.chat_cmd import chat
-from openjarvis.cli.compose_cmd import compose
-from openjarvis.cli.config_cmd import config
-from openjarvis.cli.connect_cmd import connect
-from openjarvis.cli.daemon_cmd import restart, start, status, stop
-from openjarvis.cli.digest_cmd import digest
-from openjarvis.cli.doctor_cmd import doctor
-from openjarvis.cli.eval_cmd import eval_group
-from openjarvis.cli.feedback_cmd import feedback_group
-from openjarvis.cli.gateway_cmd import gateway
-from openjarvis.cli.host_cmd import host
-from openjarvis.cli.init_cmd import init
-from openjarvis.cli.memory_cmd import memory
-from openjarvis.cli.mine_cmd import mine
-from openjarvis.cli.model import model
-from openjarvis.cli.operators_cmd import operators
-from openjarvis.cli.optimize_cmd import optimize_group
-from openjarvis.cli.pearl_cmd import pearl
-from openjarvis.cli.quickstart_cmd import quickstart
-from openjarvis.cli.registry_cmd import registry
-from openjarvis.cli.scan_cmd import scan
-from openjarvis.cli.scheduler_cmd import scheduler
-from openjarvis.cli.self_update_cmd import self_update
-from openjarvis.cli.serve import serve
-from openjarvis.cli.skill_cmd import skill
-from openjarvis.cli.telemetry_cmd import telemetry
-from openjarvis.cli.tool_cmd import tool
-from openjarvis.cli.vault_cmd import vault
-from openjarvis.cli.workflow_cmd import workflow
+import ethan
+from ethan.cli._bootstrap import bootstrap_cmd
+from ethan.cli.add_cmd import add
+from ethan.cli.agent_cmd import agent
+from ethan.cli.ask import ask
+from ethan.cli.bench_cmd import bench
+from ethan.cli.channel_cmd import channel
+from ethan.cli.channels_cmd import channels
+from ethan.cli.chat_cmd import chat
+from ethan.cli.compose_cmd import compose
+from ethan.cli.config_cmd import config
+from ethan.cli.connect_cmd import connect
+from ethan.cli.daemon_cmd import restart, start, status, stop
+from ethan.cli.digest_cmd import digest
+from ethan.cli.doctor_cmd import doctor
+from ethan.cli.eval_cmd import eval_group
+from ethan.cli.feedback_cmd import feedback_group
+from ethan.cli.gateway_cmd import gateway
+from ethan.cli.host_cmd import host
+from ethan.cli.init_cmd import init
+from ethan.cli.memory_cmd import memory
+from ethan.cli.mine_cmd import mine
+from ethan.cli.model import model
+from ethan.cli.operators_cmd import operators
+from ethan.cli.optimize_cmd import optimize_group
+from ethan.cli.pearl_cmd import pearl
+from ethan.cli.quickstart_cmd import quickstart
+from ethan.cli.registry_cmd import registry
+from ethan.cli.scan_cmd import scan
+from ethan.cli.scheduler_cmd import scheduler
+from ethan.cli.self_update_cmd import self_update
+from ethan.cli.serve import serve
+from ethan.cli.skill_cmd import skill
+from ethan.cli.telemetry_cmd import telemetry
+from ethan.cli.tool_cmd import tool
+from ethan.cli.vault_cmd import vault
+from ethan.cli.workflow_cmd import workflow
 
 
 @click.group(
-    help="OpenJarvis — modular AI assistant backend",
+    help="Ethan — modular AI assistant backend",
     invoke_without_command=True,
 )
-@click.version_option(version=openjarvis.__version__, prog_name="jarvis")
+@click.version_option(version=ethan.__version__, prog_name="jarvis")
 @click.option("--verbose", is_flag=True, default=False, help="Enable debug logging")
 @click.option("--quiet", is_flag=True, default=False, help="Suppress non-error output")
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
     """Top-level CLI group."""
-    from openjarvis.cli.log_config import setup_logging
+    from ethan.cli.log_config import setup_logging
 
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -70,7 +70,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
     if not quiet and ctx.invoked_subcommand and not research_mode_active:
         import threading
 
-        from openjarvis.cli._version_check import check_for_updates
+        from ethan.cli._version_check import check_for_updates
 
         # Run the PyPI version poll off the hot path: on a cache miss it does
         # a blocking urlopen (up to 3s) that otherwise delays every command,
@@ -86,7 +86,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool) -> None:
 
     # First-run guard — routes bare `jarvis` to chat or init.
     if ctx.invoked_subcommand is None:
-        from openjarvis.cli._first_run import check_and_route
+        from ethan.cli._first_run import check_and_route
 
         check_and_route(ctx)
 
@@ -134,7 +134,7 @@ cli.add_command(digest, "digest")
 # `jarvis serve`. Invoking `jarvis deep-research-setup` without the deps still
 # errors clearly on demand.
 try:
-    from openjarvis.cli.deep_research_setup_cmd import deep_research_setup
+    from ethan.cli.deep_research_setup_cmd import deep_research_setup
 
     cli.add_command(deep_research_setup, "deep-research-setup")
     cli.add_command(deep_research_setup, "research")
@@ -147,14 +147,14 @@ cli.add_command(bootstrap_cmd, "_bootstrap")
 
 # Gateway CLI commands (lazy import to avoid pulling starlette)
 try:
-    from openjarvis.cli.auth_cmd import auth
+    from ethan.cli.auth_cmd import auth
 
     cli.add_command(auth, "auth")
 except ImportError:
     pass
 
 try:
-    from openjarvis.cli.tunnel_cmd import tunnel
+    from ethan.cli.tunnel_cmd import tunnel
 
     cli.add_command(tunnel, "tunnel")
 except ImportError:

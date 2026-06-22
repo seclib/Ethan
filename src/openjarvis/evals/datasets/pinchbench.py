@@ -18,9 +18,9 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.splits import apply_split
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.splits import apply_split
+from ethan.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ class PinchBenchDataset(DatasetProvider):
         self._judge_model = judge_model
 
     def create_task_env(self, record: EvalRecord):
-        from openjarvis.evals.execution.pinchbench_env import PinchBenchTaskEnv
+        from ethan.evals.execution.pinchbench_env import PinchBenchTaskEnv
 
         return PinchBenchTaskEnv(
             record,

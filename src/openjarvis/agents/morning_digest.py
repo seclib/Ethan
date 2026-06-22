@@ -11,17 +11,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.agents.digest_store import DigestArtifact, DigestStore
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.agents.digest_store import DigestArtifact, DigestStore
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall
 
 
 def _load_persona(persona_name: str) -> str:
     """Load a persona prompt file by name."""
     search_paths = [
-        Path("configs/openjarvis/prompts/personas") / f"{persona_name}.md",
-        Path.home() / ".openjarvis" / "prompts" / "personas" / f"{persona_name}.md",
+        Path("configs/ethan/prompts/personas") / f"{persona_name}.md",
+        Path.home() / ".ethan" / "prompts" / "personas" / f"{persona_name}.md",
     ]
     for p in search_paths:
         if p.exists():
@@ -169,7 +169,7 @@ class MorningDigestAgent(ToolUsingAgent):
         quality_score = 0.0
         evaluator_feedback = ""
         try:
-            from openjarvis.agents.digest_evaluator import DigestEvaluator
+            from ethan.agents.digest_evaluator import DigestEvaluator
 
             evaluator = DigestEvaluator(self._engine, self._model)
             quality_score, evaluator_feedback = evaluator.evaluate(
@@ -202,7 +202,7 @@ class MorningDigestAgent(ToolUsingAgent):
         tts_text = re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", tts_text)
         tts_text = tts_text.strip()
 
-        output_dir = str(Path.home() / ".openjarvis" / "digests")
+        output_dir = str(Path.home() / ".ethan" / "digests")
         tts_call = ToolCall(
             id="digest-tts-1",
             name="text_to_speech",

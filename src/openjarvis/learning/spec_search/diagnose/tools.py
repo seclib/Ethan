@@ -1,7 +1,7 @@
 """Diagnostic tools exposed to the teacher in the diagnose phase.
 
 All tools are **read-only** relative to the user's config. They do not mutate
-``~/.openjarvis/config.toml``, agent prompts, or tool descriptions.
+``~/.ethan/config.toml``, agent prompts, or tool descriptions.
 
 Tools that execute code (``run_student_on_task``, ``run_self_on_task``) append
 new traces to ``TraceStore`` as a side effect. These traces are tagged with
@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openjarvis.learning.spec_search.diagnose.types import DiagnosticTool
+from ethan.learning.spec_search.diagnose.types import DiagnosticTool
 
 
 def build_diagnostic_tools(
@@ -37,7 +37,7 @@ def build_diagnostic_tools(
     trace_store :
         A ``TraceStore`` instance for trace queries.
     config :
-        Dict with ``config_path`` (Path) and ``openjarvis_home`` (Path).
+        Dict with ``config_path`` (Path) and ``ethan_home`` (Path).
     benchmark_samples :
         List of ``PersonalBenchmarkSample`` objects.
     student_runner :
@@ -51,7 +51,7 @@ def build_diagnostic_tools(
     session_id :
         Current session id for tagging traces.
     """
-    openjarvis_home = config["openjarvis_home"]
+    ethan_home = config["ethan_home"]
 
     # ------------------------------------------------------------------
     # list_traces
@@ -178,7 +178,7 @@ def build_diagnostic_tools(
     # get_agent_prompt
     # ------------------------------------------------------------------
     def _get_agent_prompt(agent_name: str) -> str:
-        prompt_path = openjarvis_home / "agents" / agent_name / "system_prompt.md"
+        prompt_path = ethan_home / "agents" / agent_name / "system_prompt.md"
         try:
             return prompt_path.read_text(encoding="utf-8")
         except FileNotFoundError:
@@ -188,7 +188,7 @@ def build_diagnostic_tools(
     # get_tool_description
     # ------------------------------------------------------------------
     def _get_tool_description(tool_name: str) -> str:
-        desc_path = openjarvis_home / "tools" / "descriptions.toml"
+        desc_path = ethan_home / "tools" / "descriptions.toml"
         try:
             content = desc_path.read_text(encoding="utf-8")
             # Simple TOML parsing for the description field
@@ -210,7 +210,7 @@ def build_diagnostic_tools(
     # ------------------------------------------------------------------
     def _list_available_tools() -> str:
         # Read from the on-disk descriptions.toml
-        desc_path = openjarvis_home / "tools" / "descriptions.toml"
+        desc_path = ethan_home / "tools" / "descriptions.toml"
         tools_list = []
         try:
             content = desc_path.read_text(encoding="utf-8")
@@ -417,7 +417,7 @@ def build_diagnostic_tools(
         ),
         DiagnosticTool(
             name="get_current_config",
-            description="Read the current OpenJarvis config.toml.",
+            description="Read the current Ethan config.toml.",
             parameters={"type": "object", "properties": {}},
             fn=_get_current_config,
         ),

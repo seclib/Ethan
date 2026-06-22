@@ -14,12 +14,12 @@ def _get_manager():
     """Get or create the AgentManager singleton."""
     from pathlib import Path
 
-    from openjarvis.agents.manager import AgentManager
-    from openjarvis.core.config import load_config
+    from ethan.agents.manager import AgentManager
+    from ethan.core.config import load_config
 
     config = load_config()
     db_path = config.agent_manager.db_path or str(
-        Path("~/.openjarvis/agents.db").expanduser()
+        Path("~/.ethan/agents.db").expanduser()
     )
     return AgentManager(db_path=db_path)
 
@@ -272,8 +272,8 @@ def search(agent_id: str, query: str, limit: int) -> None:
     """Cross-session search across agent traces."""
     console = Console(stderr=True)
     try:
-        from openjarvis.core.config import load_config
-        from openjarvis.traces.store import TraceStore
+        from ethan.core.config import load_config
+        from ethan.traces.store import TraceStore
 
         config = load_config()
         mgr = _get_manager()
@@ -281,7 +281,7 @@ def search(agent_id: str, query: str, limit: int) -> None:
         if not agent:
             console.print(f"[red]Agent not found: {agent_id}[/red]")
             return
-        store = TraceStore(config.traces.db_path or "~/.openjarvis/traces.db")
+        store = TraceStore(config.traces.db_path or "~/.ethan/traces.db")
         results = store.search(query, agent=agent["name"], limit=limit)
         if not results:
             console.print("[dim]No results.[/dim]")
@@ -302,7 +302,7 @@ def templates() -> None:
     """List available agent templates."""
     console = Console(stderr=True)
     try:
-        from openjarvis.agents.manager import AgentManager
+        from ethan.agents.manager import AgentManager
 
         tpls = AgentManager.list_templates()
         if not tpls:
@@ -327,7 +327,7 @@ def templates() -> None:
 
 def _get_system():
     """Build a JarvisSystem for CLI commands that need scheduler/executor."""
-    from openjarvis.system import SystemBuilder
+    from ethan.system import SystemBuilder
 
     try:
         return SystemBuilder().build()
@@ -367,7 +367,7 @@ def _run_tick_with_live_trace(executor, agent_id: str, console: Console) -> None
     are always torn down in the ``finally`` so a second invocation in the
     same process doesn't double-print.
     """
-    from openjarvis.core.events import EventType
+    from ethan.core.events import EventType
 
     bus = getattr(executor, "_bus", None)
 
@@ -407,7 +407,7 @@ def _run_tick_with_live_trace(executor, agent_id: str, console: Console) -> None
 @agent.command()
 def launch():
     """Interactive agent launcher."""
-    from openjarvis.agents.manager import AgentManager as _AM
+    from ethan.agents.manager import AgentManager as _AM
 
     templates = _AM.list_templates()
     click.echo("Available templates:")
@@ -626,7 +626,7 @@ def learning(agent_id, trigger_run):
 
     if trigger_run:
         click.echo(f'Triggering learning for "{agent_data["name"]}"...')
-        from openjarvis.core.events import EventType, get_event_bus
+        from ethan.core.events import EventType, get_event_bus
 
         bus = get_event_bus()
         bus.publish(EventType.AGENT_LEARNING_STARTED, {"agent_id": agent_id})
@@ -661,8 +661,8 @@ def trace(agent_id, run_number, limit):
     """Show step-by-step trace of agent ticks."""
     import datetime
 
-    from openjarvis.core.config import load_config
-    from openjarvis.traces.store import TraceStore
+    from ethan.core.config import load_config
+    from ethan.traces.store import TraceStore
 
     manager = _get_manager()
     agent_data = manager.get_agent(agent_id)
@@ -671,7 +671,7 @@ def trace(agent_id, run_number, limit):
         raise SystemExit(1)
 
     config = load_config()
-    store = TraceStore(config.traces.db_path or "~/.openjarvis/traces.db")
+    store = TraceStore(config.traces.db_path or "~/.ethan/traces.db")
     traces = store.list_traces(agent=agent_id, limit=limit)
 
     if not traces:
@@ -762,7 +762,7 @@ def watch(agent_id):
     """Live feed of agent activity."""
     import signal
 
-    from openjarvis.core.events import EventType, get_event_bus
+    from ethan.core.events import EventType, get_event_bus
 
     click.echo("Watching agent events... (press Ctrl+C to stop)")
     bus = get_event_bus()

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.events import EventType, get_event_bus
-from openjarvis.core.registry import MemoryRegistry
-from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
+from ethan.core.events import EventType, get_event_bus
+from ethan.core.registry import MemoryRegistry
+from ethan.tools.storage._stubs import MemoryBackend, RetrievalResult
 
 
 def reciprocal_rank_fusion(

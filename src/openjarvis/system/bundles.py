@@ -6,19 +6,19 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from openjarvis.agents._stubs import BaseAgent
-    from openjarvis.agents.executor import AgentExecutor
-    from openjarvis.agents.manager import AgentManager
-    from openjarvis.agents.scheduler import AgentScheduler
-    from openjarvis.scheduler.scheduler import TaskScheduler
-    from openjarvis.scheduler.store import SchedulerStore
-    from openjarvis.security.audit import AuditLogger
-    from openjarvis.security.boundary import BoundaryGuard
-    from openjarvis.security.capabilities import CapabilityPolicy
-    from openjarvis.telemetry.gpu_monitor import GpuMonitor
-    from openjarvis.telemetry.store import TelemetryStore
-    from openjarvis.traces.collector import TraceCollector
-    from openjarvis.traces.store import TraceStore
+    from ethan.agents._stubs import BaseAgent
+    from ethan.agents.executor import AgentExecutor
+    from ethan.agents.manager import AgentManager
+    from ethan.agents.scheduler import AgentScheduler
+    from ethan.scheduler.scheduler import TaskScheduler
+    from ethan.scheduler.store import SchedulerStore
+    from ethan.security.audit import AuditLogger
+    from ethan.security.boundary import BoundaryGuard
+    from ethan.security.capabilities import CapabilityPolicy
+    from ethan.telemetry.gpu_monitor import GpuMonitor
+    from ethan.telemetry.store import TelemetryStore
+    from ethan.traces.collector import TraceCollector
+    from ethan.traces.store import TraceStore
 
 
 @dataclass

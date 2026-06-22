@@ -1,4 +1,4 @@
-"""High-level Python SDK for OpenJarvis."""
+"""High-level Python SDK for Ethan."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import openjarvis
-from openjarvis.core.config import JarvisConfig, load_config
-from openjarvis.core.events import EventBus
-from openjarvis.core.types import Message, Role
-from openjarvis.engine._discovery import get_engine
-from openjarvis.system import JarvisSystem, SystemBuilder
-from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
-from openjarvis.telemetry.store import TelemetryStore
+import ethan
+from ethan.core.config import JarvisConfig, load_config
+from ethan.core.events import EventBus
+from ethan.core.types import Message, Role
+from ethan.engine._discovery import get_engine
+from ethan.system import JarvisSystem, SystemBuilder
+from ethan.telemetry.instrumented_engine import InstrumentedEngine
+from ethan.telemetry.store import TelemetryStore
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,14 @@ class MemoryHandle:
         if self._backend is not None:
             return self._backend
 
-        import openjarvis.tools.storage  # noqa: F401
-        from openjarvis.core.registry import MemoryRegistry
+        import ethan.tools.storage  # noqa: F401
+        from ethan.core.registry import MemoryRegistry
 
         key = self._config.memory.default_backend
         if not MemoryRegistry.contains(key):
             # Register built-in backends
             try:
-                from openjarvis.tools.storage.sqlite import SQLiteMemory  # noqa: F401
+                from ethan.tools.storage.sqlite import SQLiteMemory  # noqa: F401
             except ImportError:
                 pass
 
@@ -61,8 +61,8 @@ class MemoryHandle:
         chunk_overlap: int = 64,
     ) -> Dict[str, Any]:
         """Index a file or directory into memory."""
-        from openjarvis.tools.storage.chunking import ChunkConfig
-        from openjarvis.tools.storage.ingest import ingest_path
+        from ethan.tools.storage.chunking import ChunkConfig
+        from ethan.tools.storage.ingest import ingest_path
 
         backend = self._get_backend()
         cfg = ChunkConfig(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
@@ -122,11 +122,11 @@ class MemoryHandle:
 
 
 class Jarvis:
-    """High-level OpenJarvis SDK.
+    """High-level Ethan SDK.
 
     Usage::
 
-        from openjarvis import Jarvis
+        from ethan import Jarvis
 
         with Jarvis() as j:
             response = j.ask("Hello, what can you do?")
@@ -190,8 +190,8 @@ class Jarvis:
 
     @property
     def version(self) -> str:
-        """Return the OpenJarvis version string."""
-        return openjarvis.__version__
+        """Return the Ethan version string."""
+        return ethan.__version__
 
     def _ensure_engine(self) -> None:
         """Lazily initialize the inference engine."""
@@ -200,7 +200,7 @@ class Jarvis:
 
         # Import engines to trigger registration
         try:
-            import openjarvis.engine  # noqa: F401
+            import ethan.engine  # noqa: F401
         except ImportError:
             pass
 
@@ -215,7 +215,7 @@ class Jarvis:
         self._resolved_engine_key, engine = resolved
 
         # Apply security guardrails
-        from openjarvis.security import setup_security
+        from ethan.security import setup_security
 
         sec = setup_security(self._config, engine, self._bus)
         engine = sec.engine
@@ -226,7 +226,7 @@ class Jarvis:
         energy_monitor = None
         if self._config.telemetry.gpu_metrics:
             try:
-                from openjarvis.telemetry.energy_monitor import create_energy_monitor
+                from ethan.telemetry.energy_monitor import create_energy_monitor
 
                 energy_monitor = create_energy_monitor(
                     prefer_vendor=self._config.telemetry.energy_vendor or None,
@@ -450,9 +450,9 @@ class Jarvis:
         channel: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Run an agent and return the result dict."""
-        import openjarvis.agents  # noqa: F401
-        from openjarvis.agents._stubs import AgentContext
-        from openjarvis.core.registry import AgentRegistry
+        import ethan.agents  # noqa: F401
+        from ethan.agents._stubs import AgentContext
+        from ethan.core.registry import AgentRegistry
 
         if not AgentRegistry.contains(agent_name):
             raise ValueError(
@@ -465,8 +465,8 @@ class Jarvis:
         # Build tools
         tool_objects: List[Any] = []
         if tools:
-            import openjarvis.tools  # noqa: F401
-            from openjarvis.cli.ask import _build_tools
+            import ethan.tools  # noqa: F401
+            from ethan.cli.ask import _build_tools
 
             tool_objects = _build_tools(
                 tools,
@@ -509,8 +509,8 @@ class Jarvis:
                 }
             )
             # Ensure digest agent always has its required tools
-            from openjarvis.tools.digest_collect import DigestCollectTool
-            from openjarvis.tools.text_to_speech import TextToSpeechTool
+            from ethan.tools.digest_collect import DigestCollectTool
+            from ethan.tools.text_to_speech import TextToSpeechTool
 
             digest_tools = [DigestCollectTool(), TextToSpeechTool()]
             existing = agent_kwargs.get("tools", [])
@@ -522,8 +522,8 @@ class Jarvis:
         # Context injection
         if context and self._config.agent.context_from_memory:
             try:
-                from openjarvis.cli.ask import _get_memory_backend
-                from openjarvis.tools.storage.context import (
+                from ethan.cli.ask import _get_memory_backend
+                from ethan.tools.storage.context import (
                     ContextConfig,
                     inject_context,
                 )
@@ -570,8 +570,8 @@ class Jarvis:
     ) -> List[Message]:
         """Inject memory context into messages."""
         try:
-            from openjarvis.cli.ask import _get_memory_backend
-            from openjarvis.tools.storage.context import ContextConfig, inject_context
+            from ethan.cli.ask import _get_memory_backend
+            from ethan.tools.storage.context import ContextConfig, inject_context
 
             backend = _get_memory_backend(self._config)
             if backend is not None:
@@ -592,7 +592,7 @@ class Jarvis:
 
     def list_engines(self) -> List[str]:
         """Return a list of registered engine keys."""
-        from openjarvis.core.registry import EngineRegistry
+        from ethan.core.registry import EngineRegistry
 
         return list(EngineRegistry.keys())
 

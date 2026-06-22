@@ -16,7 +16,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_PID_FILE = str(Path.home() / ".openjarvis" / "slack-daemon.pid")
+_PID_FILE = str(Path.home() / ".ethan" / "slack-daemon.pid")
 
 
 def _to_slack_fmt(text: str) -> str:
@@ -48,9 +48,9 @@ def run_slack_daemon(
     from slack_bolt import App
     from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-    from openjarvis.agents.deep_research import DeepResearchAgent
-    from openjarvis.engine.ollama import OllamaEngine
-    from openjarvis.server.agent_manager_routes import (
+    from ethan.agents.deep_research import DeepResearchAgent
+    from ethan.engine.ollama import OllamaEngine
+    from ethan.server.agent_manager_routes import (
         _build_deep_research_tools,
     )
 
@@ -148,7 +148,7 @@ def start_slack_daemon(
         [
             sys.executable,
             "-m",
-            "openjarvis.channels.slack_daemon",
+            "ethan.channels.slack_daemon",
             "--bot-token",
             bot_token,
             "--app-token",

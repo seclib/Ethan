@@ -6,7 +6,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from openjarvis.evals.core.display import (
+from ethan.evals.core.display import (
     print_accuracy_panel,
     print_compact_table,
     print_energy_table,
@@ -14,7 +14,7 @@ from openjarvis.evals.core.display import (
     print_latency_table,
     print_trace_summary,
 )
-from openjarvis.evals.core.types import MetricStats, RunSummary
+from ethan.evals.core.types import MetricStats, RunSummary
 
 
 def _make_summary(**overrides) -> RunSummary:

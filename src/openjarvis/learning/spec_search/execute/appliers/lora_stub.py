@@ -9,13 +9,13 @@ See spec §4.1.
 
 from __future__ import annotations
 
-from openjarvis.learning.spec_search.execute.base import (
+from ethan.learning.spec_search.execute.base import (
     ApplyContext,
     ApplyResult,
     EditApplier,
     ValidationResult,
 )
-from openjarvis.learning.spec_search.models import Edit, EditOp
+from ethan.learning.spec_search.models import Edit, EditOp
 
 
 class LoraStubApplier(EditApplier):

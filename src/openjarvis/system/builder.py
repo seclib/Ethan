@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 from typing import Any, List, Optional
 
-from openjarvis.core.config import JarvisConfig, load_config
-from openjarvis.core.events import EventBus, get_event_bus
-from openjarvis.engine._stubs import InferenceEngine
-from openjarvis.system.core import JarvisSystem
-from openjarvis.tools._stubs import BaseTool, ToolExecutor
+from ethan.core.config import JarvisConfig, load_config
+from ethan.core.events import EventBus, get_event_bus
+from ethan.engine._stubs import InferenceEngine
+from ethan.system.core import JarvisSystem
+from ethan.tools._stubs import BaseTool, ToolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ class SystemBuilder:
         energy_monitor = None
         if telemetry_enabled and config.telemetry.gpu_metrics:
             try:
-                from openjarvis.telemetry.energy_monitor import (
+                from ethan.telemetry.energy_monitor import (
                     create_energy_monitor,
                 )
 
@@ -142,7 +142,7 @@ class SystemBuilder:
 
             if energy_monitor is None:
                 try:
-                    from openjarvis.telemetry.gpu_monitor import GpuMonitor
+                    from ethan.telemetry.gpu_monitor import GpuMonitor
 
                     if GpuMonitor.available():
                         gpu_monitor = GpuMonitor(
@@ -151,13 +151,13 @@ class SystemBuilder:
                 except ImportError:
                     pass
 
-        from openjarvis.security import setup_security
+        from ethan.security import setup_security
 
         sec = setup_security(config, engine, bus)
         engine = sec.engine
 
         if telemetry_enabled:
-            from openjarvis.telemetry.instrumented_engine import (
+            from ethan.telemetry.instrumented_engine import (
                 InstrumentedEngine,
             )
 
@@ -189,7 +189,7 @@ class SystemBuilder:
             try:
                 from pathlib import Path
 
-                from openjarvis.skills.manager import SkillManager
+                from ethan.skills.manager import SkillManager
 
                 skill_manager = SkillManager(
                     bus, capability_policy=sec.capability_policy
@@ -220,7 +220,7 @@ class SystemBuilder:
         trace_store = None
         if traces_enabled:
             try:
-                from openjarvis.traces.store import TraceStore
+                from ethan.traces.store import TraceStore
 
                 trace_store = TraceStore(config.traces.db_path)
             except Exception:
@@ -234,10 +234,10 @@ class SystemBuilder:
             try:
                 from pathlib import Path
 
-                from openjarvis.agents.manager import AgentManager
+                from ethan.agents.manager import AgentManager
 
                 am_db = config.agent_manager.db_path or str(
-                    Path("~/.openjarvis/agents.db").expanduser()
+                    Path("~/.ethan/agents.db").expanduser()
                 )
                 agent_manager = AgentManager(db_path=am_db)
             except Exception as exc:
@@ -247,13 +247,13 @@ class SystemBuilder:
         agent_scheduler = None
         if agent_manager is not None:
             try:
-                from openjarvis.agents.executor import AgentExecutor
-                from openjarvis.agents.scheduler import AgentScheduler
+                from ethan.agents.executor import AgentExecutor
+                from ethan.agents.scheduler import AgentScheduler
 
                 _trace_store = None
                 if config.traces.enabled:
                     try:
-                        from openjarvis.traces.store import TraceStore
+                        from ethan.traces.store import TraceStore
 
                         _trace_store = TraceStore(config.traces.db_path)
                     except Exception:
@@ -278,7 +278,7 @@ class SystemBuilder:
         speech_enabled = self._speech if self._speech is not None else True
         if speech_enabled:
             try:
-                from openjarvis.speech._discovery import get_speech_backend
+                from ethan.speech._discovery import get_speech_backend
 
                 speech_backend = get_speech_backend(config)
             except Exception as exc:
@@ -336,7 +336,7 @@ class SystemBuilder:
                 )
             return engine, key
 
-        from openjarvis.engine._discovery import get_engine
+        from ethan.engine._discovery import get_engine
 
         pref = config.intelligence.preferred_engine
         key = self._engine_key or pref or config.engine.default
@@ -374,7 +374,7 @@ class SystemBuilder:
 
     def _setup_telemetry(self, config, bus):
         try:
-            from openjarvis.telemetry.store import TelemetryStore
+            from ethan.telemetry.store import TelemetryStore
 
             store = TelemetryStore(db_path=config.telemetry.db_path)
             store.subscribe_to_bus(bus)
@@ -385,8 +385,8 @@ class SystemBuilder:
 
     def _resolve_memory(self, config):
         try:
-            import openjarvis.tools.storage  # noqa: F401 -- trigger registration
-            from openjarvis.core.registry import MemoryRegistry
+            import ethan.tools.storage  # noqa: F401 -- trigger registration
+            from ethan.core.registry import MemoryRegistry
 
             key = config.memory.default_backend
             if MemoryRegistry.contains(key):
@@ -400,9 +400,9 @@ class SystemBuilder:
             return None
         key = config.channel.default_channel
         try:
-            import openjarvis.channels  # noqa: F401 -- trigger registration
-            from openjarvis.core.registry import ChannelRegistry
-            from openjarvis.system._channel_kwargs import build_channel_kwargs
+            import ethan.channels  # noqa: F401 -- trigger registration
+            from ethan.core.registry import ChannelRegistry
+            from ethan.system._channel_kwargs import build_channel_kwargs
 
             if not key or not ChannelRegistry.contains(key):
                 return None
@@ -416,7 +416,7 @@ class SystemBuilder:
         self, config, engine, model, memory_backend, channel_backend=None
     ):
         """Resolve tool instances via MCPServer (primary) + external MCP servers."""
-        from openjarvis.mcp.server import MCPServer
+        from ethan.mcp.server import MCPServer
 
         internal_server = MCPServer()
         for tool in internal_server.get_tools():
@@ -500,7 +500,7 @@ class SystemBuilder:
         if not sandbox_enabled:
             return None
         try:
-            from openjarvis.sandbox.runner import ContainerRunner
+            from ethan.sandbox.runner import ContainerRunner
 
             return ContainerRunner(
                 image=config.sandbox.image,
@@ -520,19 +520,19 @@ class SystemBuilder:
         if not scheduler_enabled:
             return None, None
         try:
-            from openjarvis.scheduler.store import SchedulerStore
+            from ethan.scheduler.store import SchedulerStore
 
             db_path = config.scheduler.db_path or str(
                 config.hardware.platform  # unused, just for fallback
             )
             if not config.scheduler.db_path:
-                from openjarvis.core.config import DEFAULT_CONFIG_DIR
+                from ethan.core.config import DEFAULT_CONFIG_DIR
 
                 db_path = str(DEFAULT_CONFIG_DIR / "scheduler.db")
 
             store = SchedulerStore(db_path=db_path)
 
-            from openjarvis.scheduler.scheduler import TaskScheduler
+            from ethan.scheduler.scheduler import TaskScheduler
 
             sched = TaskScheduler(
                 store,
@@ -551,7 +551,7 @@ class SystemBuilder:
         if not workflow_enabled:
             return None
         try:
-            from openjarvis.workflow.engine import WorkflowEngine
+            from ethan.workflow.engine import WorkflowEngine
 
             return WorkflowEngine(
                 bus=bus,
@@ -569,7 +569,7 @@ class SystemBuilder:
         if not sessions_enabled:
             return None
         try:
-            from openjarvis.sessions.session import SessionStore
+            from ethan.sessions.session import SessionStore
 
             return SessionStore(
                 db_path=config.sessions.db_path,
@@ -585,12 +585,12 @@ class SystemBuilder:
         if not config.learning.training_enabled:
             return None
         try:
-            from openjarvis.core.config import DEFAULT_CONFIG_DIR
-            from openjarvis.learning.learning_orchestrator import (
+            from ethan.core.config import DEFAULT_CONFIG_DIR
+            from ethan.learning.learning_orchestrator import (
                 LearningOrchestrator,
             )
-            from openjarvis.learning.training.lora import LoRATrainingConfig
-            from openjarvis.traces.store import TraceStore
+            from ethan.learning.training.lora import LoRATrainingConfig
+            from ethan.traces.store import TraceStore
 
             trace_store = TraceStore(db_path=config.traces.db_path)
             config_dir = DEFAULT_CONFIG_DIR / "agent_configs"
@@ -621,9 +621,9 @@ class SystemBuilder:
         """
         import json
 
-        from openjarvis.mcp.client import MCPClient
-        from openjarvis.mcp.transport import StdioTransport, StreamableHTTPTransport
-        from openjarvis.tools.mcp_adapter import MCPToolProvider
+        from ethan.mcp.client import MCPClient
+        from ethan.mcp.transport import StdioTransport, StreamableHTTPTransport
+        from ethan.tools.mcp_adapter import MCPToolProvider
 
         cfg = json.loads(server_cfg) if isinstance(server_cfg, str) else server_cfg
         name = cfg.get("name", "<unnamed>")

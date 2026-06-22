@@ -22,9 +22,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.core.registry import ConnectorRegistry
-from openjarvis.tools._stubs import ToolSpec
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.core.registry import ConnectorRegistry
+from ethan.tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants

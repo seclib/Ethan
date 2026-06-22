@@ -9,8 +9,8 @@ from __future__ import annotations
 import io
 from typing import List
 
-from openjarvis.core.registry import TTSRegistry
-from openjarvis.speech.tts import TTSBackend, TTSResult
+from ethan.core.registry import TTSRegistry
+from ethan.speech.tts import TTSBackend, TTSResult
 
 
 @TTSRegistry.register("kokoro")

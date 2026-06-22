@@ -14,9 +14,9 @@ from typing import AsyncGenerator
 
 from fastapi.responses import StreamingResponse
 
-from openjarvis.agents._stubs import AgentContext, BaseAgent
-from openjarvis.core.events import Event, EventBus, EventType
-from openjarvis.server.models import (
+from ethan.agents._stubs import AgentContext, BaseAgent
+from ethan.core.events import Event, EventBus, EventType
+from ethan.server.models import (
     ChatCompletionChunk,
     ChatCompletionRequest,
     DeltaMessage,
@@ -116,7 +116,7 @@ class AgentStreamBridge:
         ctx = AgentContext()
         # Build conversation context from prior messages
         if len(self._request.messages) > 1:
-            from openjarvis.core.types import Message, Role
+            from ethan.core.types import Message, Role
 
             for m in self._request.messages[:-1]:
                 role = Role(m.role) if m.role in {r.value for r in Role} else Role.USER
@@ -190,7 +190,7 @@ class AgentStreamBridge:
             except Exception as exc:
                 import logging
 
-                logger = logging.getLogger("openjarvis.server")
+                logger = logging.getLogger("ethan.server")
                 logger.error("Agent stream error: %s", exc, exc_info=True)
 
                 error_str = str(exc)
@@ -247,8 +247,8 @@ class AgentStreamBridge:
                 # Re-stream using the engine for real token delivery.
                 # Build the same messages the agent used for its final turn.
                 try:
-                    from openjarvis.core.types import Message as MsgType
-                    from openjarvis.core.types import Role as RoleType
+                    from ethan.core.types import Message as MsgType
+                    from ethan.core.types import Role as RoleType
 
                     replay_messages = []
                     for m in self._request.messages:
@@ -285,7 +285,7 @@ class AgentStreamBridge:
                 except Exception as stream_exc:
                     import logging as _logging
 
-                    _logger = _logging.getLogger("openjarvis.server")
+                    _logger = _logging.getLogger("ethan.server")
                     _logger.warning(
                         "Real streaming failed, falling back to word replay: %s",
                         stream_exc,

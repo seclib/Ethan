@@ -1,4 +1,4 @@
-# src/openjarvis/mining/_metrics.py
+# src/ethan/mining/_metrics.py
 """Pearl/vLLM Prometheus → MiningStats adapter.
 
 The original v1 design expected Pearl gateway metrics on ``:8339/metrics``.
@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time
 
-from openjarvis.mining._stubs import MiningStats
+from ethan.mining._stubs import MiningStats
 
 log = logging.getLogger(__name__)
 

@@ -14,10 +14,10 @@ import subprocess
 import uuid
 from typing import Any, Dict, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, BaseAgent
-from openjarvis.core.events import EventBus
-from openjarvis.core.types import ToolResult
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.agents._stubs import AgentContext, AgentResult, BaseAgent
+from ethan.core.events import EventBus
+from ethan.core.types import ToolResult
+from ethan.engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class ContainerRunner:
     Parameters
     ----------
     image:
-        Docker image to run.  Defaults to ``openjarvis-sandbox:latest``.
+        Docker image to run.  Defaults to ``ethan-sandbox:latest``.
     timeout:
         Maximum execution time in seconds.
     mount_allowlist_path:
@@ -43,7 +43,7 @@ class ContainerRunner:
         Container runtime binary name (``docker`` or ``podman``).
     """
 
-    DEFAULT_IMAGE = "openjarvis-sandbox:latest"
+    DEFAULT_IMAGE = "ethan-sandbox:latest"
     DEFAULT_TIMEOUT = 300
 
     def __init__(
@@ -65,12 +65,12 @@ class ContainerRunner:
     def _load_allowlist(self):
         """Load mount allowlist if configured."""
         if not self._mount_allowlist_path:
-            from openjarvis.sandbox.mount_security import (
+            from ethan.sandbox.mount_security import (
                 MountAllowlist,
             )
 
             return MountAllowlist()
-        from openjarvis.sandbox.mount_security import (
+        from ethan.sandbox.mount_security import (
             load_mount_allowlist,
         )
 
@@ -96,7 +96,7 @@ class ContainerRunner:
         """Validate mounts against the allowlist."""
         if not mounts:
             return []
-        from openjarvis.sandbox.mount_security import (
+        from ethan.sandbox.mount_security import (
             validate_mounts,
         )
 
@@ -117,7 +117,7 @@ class ContainerRunner:
             "--name",
             container_name,
             "--label",
-            "openjarvis-sandbox=true",
+            "ethan-sandbox=true",
             "--network",
             "none",
             "-i",
@@ -253,7 +253,7 @@ class ContainerRunner:
                     "ps",
                     "-aq",
                     "--filter",
-                    "label=openjarvis-sandbox=true",
+                    "label=ethan-sandbox=true",
                 ],
                 capture_output=True,
                 text=True,

@@ -18,8 +18,8 @@ def list_tools() -> None:
     console = Console(stderr=True)
     try:
         # Trigger tool registration by importing the tools module
-        import openjarvis.tools  # noqa: F401
-        from openjarvis.core.registry import ToolRegistry
+        import ethan.tools  # noqa: F401
+        from ethan.core.registry import ToolRegistry
 
         keys = sorted(ToolRegistry.keys())
         if not keys:
@@ -63,8 +63,8 @@ def inspect(tool_name: str) -> None:
     console = Console(stderr=True)
     try:
         # Trigger tool registration by importing the tools module
-        import openjarvis.tools  # noqa: F401
-        from openjarvis.core.registry import ToolRegistry
+        import ethan.tools  # noqa: F401
+        from ethan.core.registry import ToolRegistry
 
         if not ToolRegistry.contains(tool_name):
             console.print(f"[red]Tool not found: {tool_name}[/red]")

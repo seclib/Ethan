@@ -10,15 +10,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 # Re-use the shared browser session from the browser module.
 # This is imported at module level so tests can patch
-# ``openjarvis.tools.browser_axtree._session``.
+# ``ethan.tools.browser_axtree._session``.
 try:
-    from openjarvis.tools.browser import _session
+    from ethan.tools.browser import _session
 except Exception:  # pragma: no cover — optional dependency
     _session = None  # type: ignore[assignment]
 

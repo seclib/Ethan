@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Literal, Optional, Tuple
 
-from openjarvis.core.config import MemoryFilesConfig, SystemPromptConfig
+from ethan.core.config import MemoryFilesConfig, SystemPromptConfig
 
 PromptCacheSegment = Literal["frozen_prefix", "dynamic_suffix"]
 
@@ -262,7 +262,7 @@ class SystemPromptBuilder:
         """Resolve persona_name to effective file paths.
         - "" (empty) -> use mf's existing paths (global default, unchanged)
         - "none"      -> empty paths (opt-out, no persona injected)
-        - "<name>"    -> ~/.openjarvis/personas/<name>/{SOUL,MEMORY,USER}.md
+        - "<name>"    -> ~/.ethan/personas/<name>/{SOUL,MEMORY,USER}.md
         """
         if not mf.persona_name:
             return mf
@@ -279,7 +279,7 @@ class SystemPromptBuilder:
                 f"Invalid persona name {name!r}: must be a simple "
                 "identifier (no path separators or '..')."
             )
-        base = Path.home() / ".openjarvis" / "personas" / name
+        base = Path.home() / ".ethan" / "personas" / name
         return MemoryFilesConfig(
             soul_path=str(base / "SOUL.md"),
             memory_path=str(base / "MEMORY.md"),

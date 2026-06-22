@@ -53,13 +53,13 @@ class SkillBenchmarkConfig:
     max_samples: Optional[int] = None
     output_dir: Path = field(default_factory=lambda: Path("docs/superpowers/results/"))
     skills_dir: Path = field(
-        default_factory=lambda: Path("~/.openjarvis/skills/").expanduser()
+        default_factory=lambda: Path("~/.ethan/skills/").expanduser()
     )
     overlay_dir_dspy: Path = field(
-        default_factory=lambda: Path("~/.openjarvis/learning/skills-dspy/").expanduser()
+        default_factory=lambda: Path("~/.ethan/learning/skills-dspy/").expanduser()
     )
     overlay_dir_gepa: Path = field(
-        default_factory=lambda: Path("~/.openjarvis/learning/skills-gepa/").expanduser()
+        default_factory=lambda: Path("~/.ethan/learning/skills-gepa/").expanduser()
     )
 
 
@@ -107,7 +107,7 @@ class SkillBenchmarkRunner:
         # An "empty" overlay dir for the skills_on condition.  We point at
         # a known-empty subdirectory under the output dir so SkillManager
         # finds zero overlays even if the user happens to have populated
-        # the default ~/.openjarvis/learning/skills/ tree.
+        # the default ~/.ethan/learning/skills/ tree.
         self._empty_overlay_dir = (
             Path(self._config.output_dir).expanduser() / "_skills_on_empty_overlays"
         )
@@ -155,7 +155,7 @@ class SkillBenchmarkRunner:
         Separate from `_backend_kwargs_for_condition` so the kwarg logic
         can be tested without instantiating an engine.
         """
-        from openjarvis.evals.backends.jarvis_agent import JarvisAgentBackend
+        from ethan.evals.backends.jarvis_agent import JarvisAgentBackend
 
         kw = self._backend_kwargs_for_condition(condition)
         return JarvisAgentBackend(
@@ -187,11 +187,11 @@ class SkillBenchmarkRunner:
         shim so tests can monkeypatch it without instantiating an
         engine or running real benchmark tasks.
         """
-        from openjarvis.evals.backends.jarvis_direct import JarvisDirectBackend
-        from openjarvis.evals.core.runner import EvalRunner
-        from openjarvis.evals.core.types import RunConfig
-        from openjarvis.evals.datasets.pinchbench import PinchBenchDataset
-        from openjarvis.evals.scorers.pinchbench import PinchBenchScorer
+        from ethan.evals.backends.jarvis_direct import JarvisDirectBackend
+        from ethan.evals.core.runner import EvalRunner
+        from ethan.evals.core.types import RunConfig
+        from ethan.evals.datasets.pinchbench import PinchBenchDataset
+        from ethan.evals.scorers.pinchbench import PinchBenchScorer
 
         backend = self._build_backend_for_condition(condition)
 

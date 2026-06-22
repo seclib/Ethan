@@ -5,15 +5,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List, Optional, Protocol
 
 if TYPE_CHECKING:
-    from openjarvis.core.config import JarvisConfig
-    from openjarvis.core.events import EventBus
-    from openjarvis.engine._stubs import InferenceEngine
-    from openjarvis.security.capabilities import CapabilityPolicy
-    from openjarvis.sessions.session import SessionStore
-    from openjarvis.tools._stubs import BaseTool
-    from openjarvis.tools.storage._stubs import MemoryBackend
-    from openjarvis.traces.collector import TraceCollector
-    from openjarvis.traces.store import TraceStore
+    from ethan.core.config import JarvisConfig
+    from ethan.core.events import EventBus
+    from ethan.engine._stubs import InferenceEngine
+    from ethan.security.capabilities import CapabilityPolicy
+    from ethan.sessions.session import SessionStore
+    from ethan.tools._stubs import BaseTool
+    from ethan.tools.storage._stubs import MemoryBackend
+    from ethan.traces.collector import TraceCollector
+    from ethan.traces.store import TraceStore
 
 
 class OrchestratorDeps(Protocol):

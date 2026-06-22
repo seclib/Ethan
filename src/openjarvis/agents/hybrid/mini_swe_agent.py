@@ -45,21 +45,21 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.agents._stubs import AgentContext
-from openjarvis.agents.hybrid._base import (
+from ethan.agents._stubs import AgentContext
+from ethan.agents.hybrid._base import (
     LocalCloudAgent,
     _bump_cloud_calls,
     _bump_local_calls,
     _record_event,
 )
-from openjarvis.agents.hybrid._prices import (
+from ethan.agents.hybrid._prices import (
     cost as estimate_cost,
 )
-from openjarvis.agents.hybrid._prices import (
+from ethan.agents.hybrid._prices import (
     is_gpt5_family,
     supports_temperature,
 )
-from openjarvis.core.registry import AgentRegistry
+from ethan.core.registry import AgentRegistry
 
 # Gemini's FunctionDeclaration.parameters expects a Schema-shaped dict (or
 # Schema object) with capitalized type strings ("OBJECT", "STRING"). The

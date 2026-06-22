@@ -1,4 +1,4 @@
-"""Read background-work state from ``~/.openjarvis/.state/``.
+"""Read background-work state from ``~/.ethan/.state/``.
 
 Pure-function reader used by the chat banner, completion-notification
 dispatcher, and ``jarvis doctor``.  No side effects — safe to call
@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
 
-from openjarvis.core import config
+from ethan.core import config
 
 
 @dataclass(slots=True)

@@ -30,7 +30,7 @@ Scheduling
 The agent self-registers a 5am daily cron task when ``register_cron`` is
 called from your app startup:
 
-    from openjarvis.agents.proactive_agent import register_cron
+    from ethan.agents.proactive_agent import register_cron
     register_cron(scheduler, notification_channel_id="your-channel-id")
 """
 
@@ -41,11 +41,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
-from openjarvis.core.config import load_config
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import Message, Role, ToolCall
-from openjarvis.tools.approval_store import (
+from ethan.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
+from ethan.core.config import load_config
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import Message, Role, ToolCall
+from ethan.tools.approval_store import (
     DECISION_ALWAYS_APPROVE,
     DECISION_ALWAYS_DENY,
     STATUS_APPROVED,
@@ -53,7 +53,7 @@ from openjarvis.tools.approval_store import (
     TIER_TRIVIAL,
     ApprovalStore,
 )
-from openjarvis.tools.proactive_tools import get_store
+from ethan.tools.proactive_tools import get_store
 
 _SYSTEM_PROMPT = """You are a proactive personal assistant agent. You have already collected
 data from the user's connected sources (email, messages, calendar). Your job is to:
@@ -209,7 +209,7 @@ def _build_notification_channel(channel_spec: str) -> Optional[Any]:
 
     # iMessage: wrap send_imessage() in a minimal BaseChannel-compatible shim
     if channel_type == "imessage":
-        from openjarvis.channels._stubs import (
+        from ethan.channels._stubs import (
             BaseChannel,
             ChannelStatus,
         )
@@ -229,7 +229,7 @@ def _build_notification_channel(channel_spec: str) -> Optional[Any]:
             def send(
                 self, channel: str, content: str, *, conversation_id: str = ""
             ) -> bool:
-                from openjarvis.channels.imessage_daemon import send_imessage
+                from ethan.channels.imessage_daemon import send_imessage
 
                 return send_imessage(self._handle, content)
 
@@ -246,8 +246,8 @@ def _build_notification_channel(channel_spec: str) -> Optional[Any]:
 
     # All other channel types: look up in ChannelRegistry
     try:
-        import openjarvis.channels  # noqa: F401  trigger registration
-        from openjarvis.core.registry import ChannelRegistry
+        import ethan.channels  # noqa: F401  trigger registration
+        from ethan.core.registry import ChannelRegistry
 
         if ChannelRegistry.contains(channel_type):
             channel_cls = ChannelRegistry.get(channel_type)
@@ -299,9 +299,9 @@ class ProactiveAgent(ToolUsingAgent):
         )
         self._notification_channel = notification_channel
 
-        from openjarvis.tools.channel_tools import ChannelSendTool
-        from openjarvis.tools.digest_collect import DigestCollectTool
-        from openjarvis.tools.proactive_tools import (
+        from ethan.tools.channel_tools import ChannelSendTool
+        from ethan.tools.digest_collect import DigestCollectTool
+        from ethan.tools.proactive_tools import (
             CheckPermissionTool,
             ExecutePendingActionsTool,
             GetPendingActionsTool,
@@ -342,8 +342,8 @@ class ProactiveAgent(ToolUsingAgent):
         return self._approval_store
 
     def _build_system_prompt(self) -> str:
-        user_md = _load_md_file(Path.home() / ".openjarvis" / "USER.md")
-        memory_md = _load_md_file(Path.home() / ".openjarvis" / "MEMORY.md")
+        user_md = _load_md_file(Path.home() / ".ethan" / "USER.md")
+        memory_md = _load_md_file(Path.home() / ".ethan" / "MEMORY.md")
         now = datetime.now()
         context_block = ""
         if user_md or memory_md:
@@ -413,7 +413,7 @@ class ProactiveAgent(ToolUsingAgent):
         # human can diagnose "Nothing to report" without re-running the
         # whole agent.  Best-effort; never fail the run because of logging.
         try:
-            from openjarvis.core.config import DEFAULT_CONFIG_DIR
+            from ethan.core.config import DEFAULT_CONFIG_DIR
 
             log_dir = DEFAULT_CONFIG_DIR / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)

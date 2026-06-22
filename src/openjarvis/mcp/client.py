@@ -5,9 +5,9 @@ from __future__ import annotations
 import itertools
 from typing import Any, Dict, List
 
-from openjarvis.mcp.protocol import MCPError, MCPRequest, MCPResponse
-from openjarvis.mcp.transport import MCPTransport
-from openjarvis.tools._stubs import ToolSpec
+from ethan.mcp.protocol import MCPError, MCPRequest, MCPResponse
+from ethan.mcp.transport import MCPTransport
+from ethan.tools._stubs import ToolSpec
 
 
 class MCPClient:
@@ -56,7 +56,7 @@ class MCPClient:
         params = {
             "protocolVersion": "2025-03-26",
             "capabilities": {},
-            "clientInfo": {"name": "openjarvis", "version": "0.1.0"},
+            "clientInfo": {"name": "ethan", "version": "0.1.0"},
         }
         response = self._send("initialize", params)
         self._initialized = True

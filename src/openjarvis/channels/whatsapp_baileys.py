@@ -15,14 +15,14 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from openjarvis.channels._stubs import (
+from ethan.channels._stubs import (
     BaseChannel,
     ChannelHandler,
     ChannelMessage,
     ChannelStatus,
 )
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.registry import ChannelRegistry
+from ethan.core.events import EventBus, EventType
+from ethan.core.registry import ChannelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ if not _BRIDGE_SRC.exists():
     )
 
 # Default runtime directory (npm install + auth state).
-_DEFAULT_RUNTIME_DIR = Path.home() / ".openjarvis" / "whatsapp_baileys_bridge"
+_DEFAULT_RUNTIME_DIR = Path.home() / ".ethan" / "whatsapp_baileys_bridge"
 
 
 @ChannelRegistry.register("whatsapp_baileys")
@@ -51,7 +51,7 @@ class WhatsAppBaileysChannel(BaseChannel):
     ----------
     auth_dir:
         Directory for Baileys auth state persistence.  Defaults to
-        ``~/.openjarvis/whatsapp_baileys_bridge/auth``.
+        ``~/.ethan/whatsapp_baileys_bridge/auth``.
     assistant_name:
         Display name used by the assistant in conversations.
     assistant_has_own_number:

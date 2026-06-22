@@ -16,8 +16,8 @@ import time
 import urllib.request
 from pathlib import Path
 
-from openjarvis.core.config import HardwareInfo
-from openjarvis.core.registry import MinerRegistry
+from ethan.core.config import HardwareInfo
+from ethan.core.registry import MinerRegistry
 
 from . import _install
 from ._constants import (
@@ -47,7 +47,7 @@ def _sidecar_path() -> Path:
 
 def _log_dir() -> Path:
     """Return the logs directory. Override in tests."""
-    return Path.home() / ".openjarvis" / "logs" / "mining"
+    return Path.home() / ".ethan" / "logs" / "mining"
 
 
 def _parse_gateway_metrics(text: str, *, provider_id: str) -> MiningStats:
@@ -204,7 +204,7 @@ class CpuPearlProvider(MiningProvider):
 def ensure_registered() -> None:
     """Idempotently register CpuPearlProvider in MinerRegistry.
 
-    Called once at import time from ``openjarvis.mining.__init__``. Tests that
+    Called once at import time from ``ethan.mining.__init__``. Tests that
     rely on the autouse registry-clear fixture in ``tests/conftest.py`` must
     call this from a fixture or test body to re-register after the clear.
     """

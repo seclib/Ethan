@@ -15,11 +15,11 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 
-from openjarvis.core.config import load_config
+from ethan.core.config import load_config
 
 if TYPE_CHECKING:
-    from openjarvis.bench._stubs import BenchmarkResult
-from openjarvis.engine import get_engine
+    from ethan.bench._stubs import BenchmarkResult
+from ethan.engine import get_engine
 
 logger = logging.getLogger(__name__)
 
@@ -209,9 +209,9 @@ def run(
     config = load_config()
 
     # Import and register benchmarks
-    from openjarvis.bench import ensure_registered
-    from openjarvis.bench._stubs import BenchmarkSuite
-    from openjarvis.core.registry import BenchmarkRegistry
+    from ethan.bench import ensure_registered
+    from ethan.bench._stubs import BenchmarkSuite
+    from ethan.core.registry import BenchmarkRegistry
 
     ensure_registered()
 
@@ -256,7 +256,7 @@ def run(
     energy_monitor = None
     if config.telemetry.gpu_metrics or needs_energy:
         try:
-            from openjarvis.telemetry.energy_monitor import create_energy_monitor
+            from ethan.telemetry.energy_monitor import create_energy_monitor
 
             energy_monitor = create_energy_monitor(
                 prefer_vendor=config.telemetry.energy_vendor or None,
@@ -273,11 +273,11 @@ def run(
         )
         is_darwin_arm = platform.system() == "Darwin" and platform.machine() == "arm64"
         extra_hint = (
-            "openjarvis[energy-apple]"
+            "ethan[energy-apple]"
             if is_darwin_arm
-            else "openjarvis[gpu-metrics]"
+            else "ethan[gpu-metrics]"
             if platform.system() == "Linux"
-            else "openjarvis[energy-all]"
+            else "ethan[energy-all]"
         )
         extra_name = extra_hint.split("[")[1].rstrip("]")
         msg = (
@@ -294,7 +294,7 @@ def run(
                     cwd=setup_script.parent.parent,
                     check=True,
                 )
-                from openjarvis.telemetry.energy_monitor import create_energy_monitor
+                from ethan.telemetry.energy_monitor import create_energy_monitor
 
                 energy_monitor = create_energy_monitor(
                     prefer_vendor=config.telemetry.energy_vendor or None,
@@ -426,7 +426,7 @@ def skills(
     from rich.console import Console
     from rich.table import Table
 
-    from openjarvis.evals.skill_benchmark import (
+    from ethan.evals.skill_benchmark import (
         SkillBenchmarkConfig,
         SkillBenchmarkRunner,
     )

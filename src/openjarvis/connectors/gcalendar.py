@@ -1,6 +1,6 @@
 """Google Calendar connector — event sync via the Calendar REST API v3.
 
-Uses OAuth 2.0 tokens stored locally (see :mod:`openjarvis.connectors.oauth`).
+Uses OAuth 2.0 tokens stored locally (see :mod:`ethan.connectors.oauth`).
 All network calls are isolated in module-level functions (``_gcal_api_*``)
 to make them trivially mockable in tests.
 """
@@ -12,9 +12,9 @@ from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.connectors.google_auth import call_with_refresh
-from openjarvis.connectors.oauth import (
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.connectors.google_auth import call_with_refresh
+from ethan.connectors.oauth import (
     GOOGLE_ALL_SCOPES,
     build_google_auth_url,
     delete_tokens,
@@ -22,9 +22,9 @@ from openjarvis.connectors.oauth import (
     resolve_google_credentials,
     save_tokens,
 )
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
-from openjarvis.tools._stubs import ToolSpec
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
+from ethan.tools._stubs import ToolSpec
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -240,7 +240,7 @@ class GCalendarConnector(BaseConnector):
     ----------
     credentials_path:
         Path to the JSON file where OAuth tokens are stored.  Defaults to
-        ``~/.openjarvis/connectors/gcalendar.json``.
+        ``~/.ethan/connectors/gcalendar.json``.
     """
 
     connector_id = "gcalendar"

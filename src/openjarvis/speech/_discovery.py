@@ -6,8 +6,8 @@ import os
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from openjarvis.core.config import JarvisConfig
-    from openjarvis.speech._stubs import SpeechBackend
+    from ethan.core.config import JarvisConfig
+    from ethan.speech._stubs import SpeechBackend
 
 # Priority order: local first, then cloud
 DISCOVERY_ORDER = [
@@ -22,7 +22,7 @@ def _create_backend(
     config: "JarvisConfig",
 ) -> Optional["SpeechBackend"]:
     """Try to instantiate a speech backend by registry key."""
-    from openjarvis.core.registry import SpeechRegistry
+    from ethan.core.registry import SpeechRegistry
 
     if not SpeechRegistry.contains(key):
         return None
@@ -59,7 +59,7 @@ def get_speech_backend(config: "JarvisConfig") -> Optional["SpeechBackend"]:
     priority order and returns the first healthy one.
     """
     # Trigger registration of built-in backends
-    import openjarvis.speech  # noqa: F401
+    import ethan.speech  # noqa: F401
 
     backend_key = config.speech.backend
 

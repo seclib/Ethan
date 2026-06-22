@@ -6,18 +6,18 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from openjarvis.core.events import EventBus
-from openjarvis.security._stubs import BaseScanner
-from openjarvis.security.audit import AuditLogger
-from openjarvis.security.file_policy import (
+from ethan.core.events import EventBus
+from ethan.security._stubs import BaseScanner
+from ethan.security.audit import AuditLogger
+from ethan.security.file_policy import (
     DEFAULT_SENSITIVE_PATTERNS,
     filter_sensitive_paths,
     is_sensitive_file,
 )
-from openjarvis.security.guardrails import GuardrailsEngine, SecurityBlockError
-from openjarvis.security.scanner import PIIScanner, SecretScanner
-from openjarvis.security.ssrf import check_ssrf, is_private_ip
-from openjarvis.security.types import (
+from ethan.security.guardrails import GuardrailsEngine, SecurityBlockError
+from ethan.security.scanner import PIIScanner, SecretScanner
+from ethan.security.ssrf import check_ssrf, is_private_ip
+from ethan.security.types import (
     RedactionMode,
     ScanFinding,
     ScanResult,
@@ -75,7 +75,7 @@ def setup_security(
     cap_policy = None
     if config.security.capabilities.enabled:
         try:
-            from openjarvis.security.capabilities import CapabilityPolicy
+            from ethan.security.capabilities import CapabilityPolicy
 
             cap_policy = CapabilityPolicy(
                 policy_path=config.security.capabilities.policy_path or None,

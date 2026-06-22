@@ -9,8 +9,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from openjarvis.core.types import Message, Role
-from openjarvis.server.models import (
+from ethan.core.types import Message, Role
+from ethan.server.models import (
     ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -44,7 +44,7 @@ def _to_messages(chat_messages) -> list[Message]:
 
 
 def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message]:
-    """Prepend OpenJarvis's identity system prompt when the client omits one.
+    """Prepend Ethan's identity system prompt when the client omits one.
 
     The desktop UI's chat backend posts only user/assistant turns to
     ``/v1/chat/completions`` (see ``frontend/.../Chat/InputArea.tsx``), so
@@ -71,11 +71,11 @@ def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message
         if app_config is not None:
             prompt = app_config.agent.default_system_prompt or ""
         else:
-            from openjarvis.core.config import load_config
+            from ethan.core.config import load_config
 
             prompt = load_config().agent.default_system_prompt or ""
     except Exception:
-        logging.getLogger("openjarvis.server").debug(
+        logging.getLogger("ethan.server").debug(
             "Identity system prompt resolution failed; "
             "serving request without identity grounding",
             exc_info=True,
@@ -105,7 +105,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         and request_body.messages
     ):
         try:
-            from openjarvis.tools.storage.context import ContextConfig, inject_context
+            from ethan.tools.storage.context import ContextConfig, inject_context
 
             # Extract query from the last user message
             query_text = ""
@@ -129,7 +129,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 )
                 # Rebuild request messages from enriched Message objects
                 if len(enriched) > len(messages):
-                    from openjarvis.server.models import ChatMessage
+                    from ethan.server.models import ChatMessage
 
                     new_msgs = []
                     for msg in enriched:
@@ -143,7 +143,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                         )
                     request_body.messages = new_msgs
         except Exception:
-            logging.getLogger("openjarvis.server").debug(
+            logging.getLogger("ethan.server").debug(
                 "Memory context injection failed",
                 exc_info=True,
             )
@@ -157,7 +157,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
             break
     if query_text_for_complexity:
         try:
-            from openjarvis.learning.routing.complexity import (
+            from ethan.learning.routing.complexity import (
                 adjust_tokens_for_model,
                 score_complexity,
             )
@@ -177,7 +177,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
             if suggested > request_body.max_tokens:
                 request_body.max_tokens = suggested
         except Exception:
-            logging.getLogger("openjarvis.server").debug(
+            logging.getLogger("ethan.server").debug(
                 "Complexity analysis failed",
                 exc_info=True,
             )
@@ -257,8 +257,8 @@ def _handle_direct(
     if req.tools:
         kwargs["tools"] = req.tools
     if bus:
-        from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
-        from openjarvis.telemetry.wrapper import instrumented_generate
+        from ethan.telemetry.instrumented_engine import InstrumentedEngine
+        from ethan.telemetry.wrapper import instrumented_generate
 
         # `app.state.engine` may already be an InstrumentedEngine (the
         # common case when telemetry is wired in). If we then wrap it
@@ -363,7 +363,7 @@ def _handle_agent(
     ``traces.db`` stayed empty and spec_search's cold-start gate
     (``check_readiness``, min 20 traces) could never open.
     """
-    from openjarvis.agents._stubs import AgentContext
+    from ethan.agents._stubs import AgentContext
 
     # Build context from prior messages
     ctx = AgentContext()
@@ -381,7 +381,7 @@ def _handle_agent(
         agent._model = model
     try:
         if trace_store is not None:
-            from openjarvis.traces.collector import TraceCollector
+            from ethan.traces.collector import TraceCollector
 
             collector = TraceCollector(agent, store=trace_store, bus=bus)
             result = collector.run(input_text, context=ctx)
@@ -402,7 +402,7 @@ def _handle_agent(
     if audio_path:
         from pathlib import Path
 
-        from openjarvis.server.models import AudioMeta
+        from ethan.server.models import AudioMeta
 
         if Path(audio_path).exists():
             audio_meta = AudioMeta(url="/api/digest/audio")
@@ -445,7 +445,7 @@ async def _handle_stream_tools(
     tool_calls) — identical to the prior plain-stream behaviour, so this never
     regresses non-tool-capable engines.
     """
-    from openjarvis.server.cloud_router import is_cloud_model
+    from ethan.server.cloud_router import is_cloud_model
 
     messages = _to_messages(req.messages)
     messages = _ensure_identity_prompt(messages, app_config)
@@ -491,7 +491,7 @@ async def _handle_stream_tools(
         except Exception as exc:
             import logging
 
-            logging.getLogger("openjarvis.server").error(
+            logging.getLogger("ethan.server").error(
                 "Tool stream error: %s",
                 exc,
                 exc_info=True,
@@ -555,7 +555,7 @@ async def _handle_stream(
     """
     import time
 
-    from openjarvis.server.cloud_router import (
+    from ethan.server.cloud_router import (
         is_cloud_model,
         stream_cloud,
         stream_local,
@@ -610,7 +610,7 @@ async def _handle_stream(
                 # accidentally matched.
                 _use_local_fallback = False
                 try:
-                    from openjarvis.engine.multi import MultiEngine
+                    from ethan.engine.multi import MultiEngine
 
                     _inner = getattr(engine, "_inner", engine)
                     if isinstance(_inner, MultiEngine):
@@ -647,7 +647,7 @@ async def _handle_stream(
             # display them instead of silently failing.
             import logging
 
-            logging.getLogger("openjarvis.server").error(
+            logging.getLogger("ethan.server").error(
                 "Stream error: %s",
                 exc,
                 exc_info=True,
@@ -672,7 +672,7 @@ async def _handle_stream(
         # the response). Mirrors the agent path so streamed chats also
         # populate traces.db.
         if trace_store is not None and full_content:
-            from openjarvis.traces.collector import record_response_trace
+            from ethan.traces.collector import record_response_trace
 
             record_response_trace(
                 trace_store,
@@ -725,7 +725,7 @@ async def list_models(request: Request) -> ModelListResponse:
     Cloud models are not included here — they live in the Cloud Models tab
     of the UI and are selected there, not from this endpoint.
     """
-    from openjarvis.server.cloud_router import is_cloud_model, list_local_models
+    from ethan.server.cloud_router import is_cloud_model, list_local_models
 
     # Prefer engine.list_models() so mock engines work in tests.
     # Filter out any cloud model IDs that may appear via MultiEngine.
@@ -823,8 +823,8 @@ async def reload_cloud_engine(request: Request):
     import os
     from pathlib import Path
 
-    # Re-read ~/.openjarvis/cloud-keys.env and update the running process env.
-    keys_path = Path.home() / ".openjarvis" / "cloud-keys.env"
+    # Re-read ~/.ethan/cloud-keys.env and update the running process env.
+    keys_path = Path.home() / ".ethan" / "cloud-keys.env"
     if keys_path.exists():
         for raw_line in keys_path.read_text().splitlines():
             line = raw_line.strip()
@@ -834,8 +834,8 @@ async def reload_cloud_engine(request: Request):
 
     # Try to build a fresh CloudEngine.
     try:
-        from openjarvis.engine.cloud import CloudEngine
-        from openjarvis.engine.multi import MultiEngine
+        from ethan.engine.cloud import CloudEngine
+        from ethan.engine.multi import MultiEngine
 
         cloud = CloudEngine()
         if not cloud.health():
@@ -877,9 +877,9 @@ async def savings(request: Request):
     Only includes telemetry from the current server session so that
     counters start at zero each time a new model + agent is launched.
     """
-    from openjarvis.core.config import DEFAULT_CONFIG_DIR
-    from openjarvis.server.savings import compute_savings, savings_to_dict
-    from openjarvis.telemetry.aggregator import TelemetryAggregator
+    from ethan.core.config import DEFAULT_CONFIG_DIR
+    from ethan.server.savings import compute_savings, savings_to_dict
+    from ethan.telemetry.aggregator import TelemetryAggregator
 
     db_path = DEFAULT_CONFIG_DIR / "telemetry.db"
     if not db_path.exists():
@@ -934,8 +934,8 @@ async def reset_telemetry():
     that the savings dashboard and leaderboard submissions start
     fresh with corrected values.
     """
-    from openjarvis.core.config import DEFAULT_CONFIG_DIR
-    from openjarvis.telemetry.aggregator import TelemetryAggregator
+    from ethan.core.config import DEFAULT_CONFIG_DIR
+    from ethan.telemetry.aggregator import TelemetryAggregator
 
     db_path = DEFAULT_CONFIG_DIR / "telemetry.db"
     if not db_path.exists():
@@ -1030,7 +1030,7 @@ async def channel_status(request: Request):
 @router.get("/v1/security/scan")
 async def security_scan():
     """Run a read-only security environment audit and return findings."""
-    from openjarvis.cli.scan_cmd import PrivacyScanner
+    from ethan.cli.scan_cmd import PrivacyScanner
 
     scanner = PrivacyScanner()
     results = scanner.run_all()

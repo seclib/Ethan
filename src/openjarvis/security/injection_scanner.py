@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import List
 
-from openjarvis.security.types import ScanFinding, ThreatLevel
+from ethan.security.types import ScanFinding, ThreatLevel
 
 # Threat level ordering for comparison
 _THREAT_ORDER = [
@@ -125,14 +125,14 @@ class InjectionScanner:
             (re.compile(pat), name, level, desc)
             for pat, name, level, desc in _INJECTION_PATTERNS
         ]
-        from openjarvis._rust_bridge import get_rust_module
+        from ethan._rust_bridge import get_rust_module
 
         _rust = get_rust_module()
         self._rust_impl = _rust.InjectionScanner()
 
     def scan(self, text: str) -> InjectionScanResult:
         """Scan text for injection patterns — always via Rust backend."""
-        from openjarvis._rust_bridge import injection_result_from_json
+        from ethan._rust_bridge import injection_result_from_json
 
         return injection_result_from_json(self._rust_impl.scan(text))
 

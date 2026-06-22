@@ -6,7 +6,7 @@ from collections import deque
 from typing import TYPE_CHECKING, Dict, List, Set
 
 if TYPE_CHECKING:
-    from openjarvis.skills.types import SkillManifest
+    from ethan.skills.types import SkillManifest
 
 
 class DependencyCycleError(Exception):

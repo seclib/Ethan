@@ -6,18 +6,18 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from openjarvis.agents._stubs import AgentResult
-from openjarvis.agents.errors import (
+from ethan.agents._stubs import AgentResult
+from ethan.agents.errors import (
     AgentTickError,
     EscalateError,
     FatalError,
     classify_error,
     retry_delay,
 )
-from openjarvis.core.events import EventBus, EventType
+from ethan.core.events import EventBus, EventType
 
 if TYPE_CHECKING:
-    from openjarvis.agents.manager import AgentManager
+    from ethan.agents.manager import AgentManager
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class AgentExecutor:
         tools: list[str] | None = None,
     ) -> Any:
         """Run a one-shot agent turn with no lifecycle tracking."""
-        from openjarvis.core.registry import AgentRegistry
+        from ethan.core.registry import AgentRegistry
 
         agent_cls = AgentRegistry.get(agent_type)
         agent = agent_cls(
@@ -253,7 +253,7 @@ class AgentExecutor:
 
     def _invoke_agent(self, agent: dict) -> AgentResult:
         """Invoke the actual agent run. Tests mock this method."""
-        from openjarvis.agents import AgentRegistry
+        from ethan.agents import AgentRegistry
 
         agent_type = agent.get("agent_type", "monitor_operative")
         agent_cls = AgentRegistry.get(agent_type)
@@ -287,8 +287,8 @@ class AgentExecutor:
         router_policy_key = config.get("router_policy")
         if router_policy_key and self._system:
             try:
-                from openjarvis.core.registry import RouterPolicyRegistry
-                from openjarvis.learning.routing.router import (
+                from ethan.core.registry import RouterPolicyRegistry
+                from ethan.learning.routing.router import (
                     build_routing_context,
                 )
 
@@ -312,14 +312,14 @@ class AgentExecutor:
         tool_instances: list[Any] = []
         if tool_names:
             try:
-                from openjarvis.server.agent_manager_routes import (
+                from ethan.server.agent_manager_routes import (
                     _ensure_registries_populated,
                 )
 
                 _ensure_registries_populated()
             except ImportError:
                 pass
-            from openjarvis.core.registry import ToolRegistry
+            from ethan.core.registry import ToolRegistry
 
             for tname in tool_names:
                 if ToolRegistry.contains(tname):
@@ -409,7 +409,7 @@ class AgentExecutor:
             # longer apply to CLI calls only (#376).
             cfg = getattr(self._system, "config", None)
             if cfg is not None and _accepts("prompt_builder"):
-                from openjarvis.prompt.builder import SystemPromptBuilder
+                from ethan.prompt.builder import SystemPromptBuilder
 
                 state_kwargs["prompt_builder"] = SystemPromptBuilder(
                     agent_template=getattr(
@@ -504,7 +504,7 @@ class AgentExecutor:
             )
 
         # Build AgentContext with memory results from FTS5 backend
-        from openjarvis.agents._stubs import AgentContext
+        from ethan.agents._stubs import AgentContext
 
         agent_ctx = AgentContext()
         memory_results = []
@@ -516,7 +516,7 @@ class AgentExecutor:
             and self._system.config.agent.context_from_memory
         ):
             try:
-                from openjarvis.tools.storage.context import (
+                from ethan.tools.storage.context import (
                     ContextConfig,
                     format_context,
                 )
@@ -592,7 +592,7 @@ class AgentExecutor:
         """Build structured error detail for trace metadata."""
         import traceback
 
-        from openjarvis.agents.errors import (
+        from ethan.agents.errors import (
             EscalateError,
             FatalError,
             suggest_action,
@@ -754,7 +754,7 @@ class AgentExecutor:
         trace_steps: list[dict[str, Any]],
     ) -> None:
         """Persist an execution trace to the trace store."""
-        from openjarvis.core.types import StepType, Trace, TraceStep
+        from ethan.core.types import StepType, Trace, TraceStep
 
         steps = []
         for s in trace_steps:

@@ -6,13 +6,13 @@ import html
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.events import EventBus
-from openjarvis.skills.dependency import validate_dependencies
-from openjarvis.skills.executor import SkillExecutor, SkillResult
-from openjarvis.skills.loader import discover_skills
-from openjarvis.skills.tool_adapter import SkillTool
-from openjarvis.skills.types import SkillManifest
-from openjarvis.tools._stubs import BaseTool, ToolExecutor
+from ethan.core.events import EventBus
+from ethan.skills.dependency import validate_dependencies
+from ethan.skills.executor import SkillExecutor, SkillResult
+from ethan.skills.loader import discover_skills
+from ethan.skills.tool_adapter import SkillTool
+from ethan.skills.types import SkillManifest
+from ethan.tools._stubs import BaseTool, ToolExecutor
 
 
 class SkillManager:
@@ -39,9 +39,9 @@ class SkillManager:
         self._tool_executor: Optional[ToolExecutor] = None
         if overlay_dir is None:
             # Try to read from config first; fall back to the default
-            # ~/.openjarvis/learning/skills/ if config can't be loaded.
+            # ~/.ethan/learning/skills/ if config can't be loaded.
             try:
-                from openjarvis.core.config import load_config
+                from ethan.core.config import load_config
 
                 cfg = load_config()
                 cfg_dir = getattr(
@@ -54,7 +54,7 @@ class SkillManager:
             except Exception:
                 pass
             if overlay_dir is None:
-                overlay_dir = Path("~/.openjarvis/learning/skills/").expanduser()
+                overlay_dir = Path("~/.ethan/learning/skills/").expanduser()
         self._overlay_dir = Path(overlay_dir).expanduser()
 
     # ------------------------------------------------------------------
@@ -97,11 +97,11 @@ class SkillManager:
 
         For each skill, look for ``<overlay_dir>/<skill-name>/optimized.toml``.
         If present, override the manifest description and stash few-shot
-        examples under ``manifest.metadata.openjarvis.few_shot``.
+        examples under ``manifest.metadata.ethan.few_shot``.
 
         Bad overlays are silently ignored — they should not break discovery.
         """
-        from openjarvis.skills.overlay import SkillOverlayLoader
+        from ethan.skills.overlay import SkillOverlayLoader
 
         loader = SkillOverlayLoader(self._overlay_dir)
         for name, manifest in self._skills.items():
@@ -112,9 +112,9 @@ class SkillManager:
                 manifest.description = overlay.description
             if overlay.few_shot:
                 new_metadata = dict(manifest.metadata) if manifest.metadata else {}
-                oj = dict(new_metadata.get("openjarvis", {}) or {})
+                oj = dict(new_metadata.get("ethan", {}) or {})
                 oj["few_shot"] = list(overlay.few_shot)
-                new_metadata["openjarvis"] = oj
+                new_metadata["ethan"] = oj
                 manifest.metadata = new_metadata
 
     # ------------------------------------------------------------------
@@ -213,12 +213,12 @@ class SkillManager:
     def get_few_shot_examples(self) -> List[str]:
         """Return formatted few-shot example strings ready for system prompt.
 
-        Pulls from ``manifest.metadata.openjarvis.few_shot`` for every
+        Pulls from ``manifest.metadata.ethan.few_shot`` for every
         registered skill.  Returns one formatted string per example.
         """
         examples: List[str] = []
         for name, manifest in self._skills.items():
-            oj = manifest.metadata.get("openjarvis", {}) if manifest.metadata else {}
+            oj = manifest.metadata.get("ethan", {}) if manifest.metadata else {}
             few_shot = oj.get("few_shot", []) or []
             for ex in few_shot:
                 if not isinstance(ex, dict):
@@ -245,14 +245,14 @@ class SkillManager:
 
         For each recurring sequence found by :class:`SkillDiscovery`, write
         a TOML skill manifest into *output_dir* (default
-        ``~/.openjarvis/skills/discovered/``).  Returns a list of dicts with
+        ``~/.ethan/skills/discovered/``).  Returns a list of dicts with
         ``name`` and ``path`` for each manifest written.
 
         Names are normalized to spec-compliant kebab-case (lowercase with
         hyphens, no underscores) so the resulting manifests load cleanly
         through the discovery walker.
         """
-        from openjarvis.learning.agents.skill_discovery import SkillDiscovery
+        from ethan.learning.agents.skill_discovery import SkillDiscovery
 
         traces = trace_store.list_traces(limit=10000)
         discovery = SkillDiscovery(
@@ -262,7 +262,7 @@ class SkillManager:
         discovered = discovery.analyze_traces(traces)
 
         if output_dir is None:
-            output_dir = Path("~/.openjarvis/skills/discovered/").expanduser()
+            output_dir = Path("~/.ethan/skills/discovered/").expanduser()
         output_dir = Path(output_dir).expanduser()
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -310,7 +310,7 @@ class SkillManager:
         # Escape backslashes and double quotes for basic TOML strings
         description = description.replace("\\", "\\\\").replace('"', '\\"')
         lines.append(f'description = "{description}"')
-        lines.append('author = "openjarvis (auto-discovered)"')
+        lines.append('author = "ethan (auto-discovered)"')
         lines.append('tags = ["auto-discovered"]')
         lines.append("")
 
@@ -375,7 +375,7 @@ class SkillManager:
         manifest's ``name`` field equals ``name``.
         """
         if roots is None:
-            roots = [Path("~/.openjarvis/skills/").expanduser(), Path("./skills")]
+            roots = [Path("~/.ethan/skills/").expanduser(), Path("./skills")]
 
         matches: List[Path] = []
         for root in roots:
@@ -393,7 +393,7 @@ class SkillManager:
                     continue
                 # Fall back to parsed manifest name
                 try:
-                    from openjarvis.skills.loader import load_skill_directory
+                    from ethan.skills.loader import load_skill_directory
 
                     manifest = load_skill_directory(candidate)
                     if manifest is not None and manifest.name == name:

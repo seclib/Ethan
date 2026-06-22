@@ -6,11 +6,11 @@ import logging
 import time
 from typing import Any, List
 
-from openjarvis.bench._stats import compute_stats
-from openjarvis.bench._stubs import BaseBenchmark, BenchmarkResult
-from openjarvis.core.registry import BenchmarkRegistry
-from openjarvis.core.types import Message, Role
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.bench._stats import compute_stats
+from ethan.bench._stubs import BaseBenchmark, BenchmarkResult
+from ethan.core.registry import BenchmarkRegistry
+from ethan.core.types import Message, Role
+from ethan.engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 """PinchBench grading helpers and scorer.
 
-Provides transcript translation (OpenJarvis events → PinchBench format),
+Provides transcript translation (Ethan events → PinchBench format),
 automated grading (exec of embedded Python), LLM judge grading, and
 hybrid combination. Used by PinchBenchTaskEnv.run_tests() and the
 standalone PinchBenchScorer.
@@ -15,14 +15,14 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from openjarvis.evals.core.event_recorder import EventType
-from openjarvis.evals.core.scorer import LLMJudgeScorer
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.event_recorder import EventType
+from ethan.evals.core.scorer import LLMJudgeScorer
+from ethan.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Tool name mapping: OpenJarvis name → PinchBench-expected name
+# Tool name mapping: Ethan name → PinchBench-expected name
 # ---------------------------------------------------------------------------
 _TOOL_NAME_MAP: Dict[str, str] = {
     "file_read": "read_file",

@@ -5,8 +5,8 @@ from __future__ import annotations
 import tempfile
 from typing import List, Optional
 
-from openjarvis.core.registry import SpeechRegistry
-from openjarvis.speech._stubs import Segment, SpeechBackend, TranscriptionResult
+from ethan.core.registry import SpeechRegistry
+from ethan.speech._stubs import Segment, SpeechBackend, TranscriptionResult
 
 try:
     from faster_whisper import WhisperModel

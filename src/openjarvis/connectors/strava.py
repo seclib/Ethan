@@ -12,9 +12,9 @@ from typing import Any, Dict, Iterator, Optional
 
 import httpx
 
-from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
-from openjarvis.core.registry import ConnectorRegistry
+from ethan.connectors._stubs import BaseConnector, Document, SyncStatus
+from ethan.core.config import DEFAULT_CONFIG_DIR
+from ethan.core.registry import ConnectorRegistry
 
 _STRAVA_API_BASE = "https://www.strava.com/api/v3"
 _STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
@@ -86,7 +86,7 @@ class StravaConnector(BaseConnector):
         """Return Strava OAuth authorization URL."""
         from urllib.parse import urlencode
 
-        from openjarvis.connectors.oauth import (
+        from ethan.connectors.oauth import (
             get_client_credentials,
             get_provider_for_connector,
         )
@@ -109,7 +109,7 @@ class StravaConnector(BaseConnector):
 
     def handle_callback(self, code: str) -> None:
         """Exchange authorization code for tokens and save."""
-        from openjarvis.connectors.oauth import (
+        from ethan.connectors.oauth import (
             _CONNECTORS_DIR,
             _exchange_token,
             get_client_credentials,

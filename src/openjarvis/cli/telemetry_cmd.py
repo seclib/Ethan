@@ -10,8 +10,8 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from openjarvis.core.config import load_config
-from openjarvis.telemetry.aggregator import TelemetryAggregator
+from ethan.core.config import load_config
+from ethan.telemetry.aggregator import TelemetryAggregator
 
 
 def _get_aggregator() -> TelemetryAggregator:

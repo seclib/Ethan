@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional, Tuple
 
-from openjarvis.evals.core.scorer import LLMJudgeScorer
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.scorer import LLMJudgeScorer
+from ethan.evals.core.types import EvalRecord
 
 _JUDGE_PROMPT = """You are evaluating a scientific question answer.
 

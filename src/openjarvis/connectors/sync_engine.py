@@ -21,9 +21,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from openjarvis.connectors._stubs import BaseConnector
-from openjarvis.connectors.pipeline import IngestionPipeline
-from openjarvis.core.config import DEFAULT_CONFIG_DIR
+from ethan.connectors._stubs import BaseConnector
+from ethan.connectors.pipeline import IngestionPipeline
+from ethan.core.config import DEFAULT_CONFIG_DIR
 
 # ---------------------------------------------------------------------------
 # DDL

@@ -1,6 +1,6 @@
 //! Configuration loading and TOML deserialization.
 //!
-//! Rust translation of `src/openjarvis/core/config.py`.
+//! Rust translation of `src/ethan/core/config.py`.
 //! All config structs use `#[serde(default)]` for backward compatibility.
 
 use crate::error::ConfigError;
@@ -8,12 +8,12 @@ use crate::hardware::{detect_hardware, recommend_engine, HardwareInfo};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Default config directory: `~/.openjarvis/`
+/// Default config directory: `~/.ethan/`
 pub fn default_config_dir() -> PathBuf {
-    dirs_home().join(".openjarvis")
+    dirs_home().join(".ethan")
 }
 
-/// Default config file path: `~/.openjarvis/config.toml`
+/// Default config file path: `~/.ethan/config.toml`
 pub fn default_config_path() -> PathBuf {
     default_config_dir().join("config.toml")
 }
@@ -775,7 +775,7 @@ pub struct SandboxConfig {
     pub wasm_memory_limit_mb: i64,
 }
 
-fn default_sandbox_image() -> String { "openjarvis-sandbox:latest".into() }
+fn default_sandbox_image() -> String { "ethan-sandbox:latest".into() }
 fn default_sandbox_timeout() -> i64 { 300 }
 fn default_max_concurrent() -> i64 { 5 }
 fn default_docker() -> String { "docker".into() }
@@ -860,7 +860,7 @@ pub struct OperatorsConfig {
     pub auto_activate: String,
 }
 
-fn default_operators_dir() -> String { "~/.openjarvis/operators".into() }
+fn default_operators_dir() -> String { "~/.ethan/operators".into() }
 
 // ---------------------------------------------------------------------------
 // Channel configs (kept minimal — channels stay in Python)
@@ -884,7 +884,7 @@ pub struct ChannelConfig {
 // Top-level JarvisConfig
 // ---------------------------------------------------------------------------
 
-/// Top-level configuration for OpenJarvis.
+/// Top-level configuration for Ethan.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JarvisConfig {
     #[serde(skip)]

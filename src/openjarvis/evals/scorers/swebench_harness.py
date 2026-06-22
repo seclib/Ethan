@@ -49,8 +49,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from openjarvis.evals.core.scorer import Scorer
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.scorer import Scorer
+from ethan.evals.core.types import EvalRecord
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +334,7 @@ def _harness_cache_dir() -> Path:
     if home:
         cache = Path(home) / ".swebench-cache"
     else:
-        cache = Path(tempfile.gettempdir()) / "openjarvis-swebench-cache"
+        cache = Path(tempfile.gettempdir()) / "ethan-swebench-cache"
     cache.mkdir(parents=True, exist_ok=True)
     return cache
 
@@ -343,10 +343,10 @@ def _find_report(cache: Path, instance_id: str, run_id: str) -> Optional[Dict[st
     """Find the harness's report JSON for one instance.
 
     swebench writes ``<model_name_or_path>.<run_id>.json`` inside the
-    subprocess CWD. We use ``model_name_or_path="openjarvis-harness"``;
+    subprocess CWD. We use ``model_name_or_path="ethan-harness"``;
     ``run_id`` is built by :func:`_build_run_id`.
     """
-    fname = f"openjarvis-harness.{run_id}.json"
+    fname = f"ethan-harness.{run_id}.json"
     p = cache / fname
     if not p.exists():
         return None
@@ -417,7 +417,7 @@ def _run_harness(
     # globs by filename. If a prior subprocess crashed mid-run (or was
     # killed by timeout) and left a stale JSON, we'd silently read that
     # old verdict as the current result. Delete it up front.
-    stale = cache / f"openjarvis-harness.{run_id}.json"
+    stale = cache / f"ethan-harness.{run_id}.json"
     if stale.exists():
         try:
             stale.unlink()
@@ -429,7 +429,7 @@ def _run_harness(
         preds_path = tmp_path / "predictions.jsonl"
         preds_path.write_text(json.dumps({
             "instance_id": instance_id,
-            "model_name_or_path": "openjarvis-harness",
+            "model_name_or_path": "ethan-harness",
             "model_patch": patch,
         }) + "\n")
 

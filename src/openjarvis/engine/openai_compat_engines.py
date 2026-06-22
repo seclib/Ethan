@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from openjarvis.core.registry import EngineRegistry
-from openjarvis.engine._openai_compat import _OpenAICompatibleEngine
+from ethan.core.registry import EngineRegistry
+from ethan.engine._openai_compat import _OpenAICompatibleEngine
 
 _ENGINES = {
     "vllm": ("VLLMEngine", "http://localhost:8000", "/v1"),

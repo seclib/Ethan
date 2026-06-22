@@ -22,7 +22,7 @@ def config() -> None:
 
 def _get_config_path(path: str | None) -> Path:
     """Determine the config path from argument or environment."""
-    from openjarvis.core.config import DEFAULT_CONFIG_PATH
+    from ethan.core.config import DEFAULT_CONFIG_PATH
 
     if path:
         return Path(path)
@@ -31,7 +31,7 @@ def _get_config_path(path: str | None) -> Path:
 
 def _show_hardware_info(console: Console, show_recommendations: bool = True) -> None:
     """Display detected hardware information."""
-    from openjarvis.core.config import detect_hardware, recommend_engine
+    from ethan.core.config import detect_hardware, recommend_engine
 
     hardware = detect_hardware()
 
@@ -67,7 +67,7 @@ def _show_hardware_info(console: Console, show_recommendations: bool = True) -> 
 
 def _show_config_template(console: Console, config_path: Path) -> None:
     """Show default config template when config file doesn't exist."""
-    from openjarvis.core.config import (
+    from ethan.core.config import (
         DEFAULT_CONFIG_DIR,
         detect_hardware,
         generate_default_toml,
@@ -87,7 +87,7 @@ def _show_config_template(console: Console, config_path: Path) -> None:
 
 def _show_loaded_config(console: Console, config_path: Path, as_json: bool) -> None:
     """Show the loaded effective configuration from config.toml."""
-    from openjarvis.core.config import load_config
+    from ethan.core.config import load_config
 
     console.print(f"[dim]Loading config from: {config_path}[/dim]")
 
@@ -187,7 +187,7 @@ def _show_json_config(console: Console, config_path: Path) -> None:
 
 def _show_hardware(console: Console) -> None:
     """Show detected hardware information with recommended engine and model."""
-    from openjarvis.core.config import (
+    from ethan.core.config import (
         detect_hardware,
         recommend_engine,
         recommend_model,
@@ -319,7 +319,7 @@ def set_config(key: str, value: str) -> None:
     """Set a configuration value (e.g. jarvis config set engine.ollama.host URL)."""
     import tomlkit
 
-    from openjarvis.core.config import DEFAULT_CONFIG_DIR, validate_config_key
+    from ethan.core.config import DEFAULT_CONFIG_DIR, validate_config_key
 
     console = Console(stderr=True)
 

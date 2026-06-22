@@ -1,4 +1,4 @@
-"""Check for newer OpenJarvis releases on PyPI."""
+"""Check for newer Ethan releases on PyPI."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_CACHE_PATH = Path("~/.openjarvis/version-check.json").expanduser()
+_CACHE_PATH = Path("~/.ethan/version-check.json").expanduser()
 _CACHE_TTL = 86400  # 24 hours
-_PYPI_API = "https://pypi.org/pypi/openjarvis/json"
+_PYPI_API = "https://pypi.org/pypi/ethan/json"
 
 
 def _config_path() -> Path:
@@ -21,7 +21,7 @@ def _config_path() -> Path:
     override = os.environ.get("OPENJARVIS_CONFIG")
     if override:
         return Path(override).expanduser()
-    return Path("~/.openjarvis/config.toml").expanduser()
+    return Path("~/.ethan/config.toml").expanduser()
 
 
 # Commands that surface the "new version available" nudge. We deliberately
@@ -114,9 +114,9 @@ def check_for_updates(command_name: str) -> None:
 
 
 def _do_check() -> None:
-    import openjarvis
+    import ethan
 
-    current = openjarvis.__version__
+    current = ethan.__version__
     latest = _get_latest_version(current)
     if latest is None:
         return
@@ -125,11 +125,11 @@ def _do_check() -> None:
 
     try:
         if Version(latest) > Version(current):
-            from openjarvis.cli._install_detect import detect_install
+            from ethan.cli._install_detect import detect_install
 
             cmd = detect_install().upgrade_command
             sys.stderr.write(
-                f"\033[33mA new version of OpenJarvis is available "
+                f"\033[33mA new version of Ethan is available "
                 f"(v{current} → v{latest})\n"
                 f"Update: {cmd}\n"
                 f"Or run: jarvis self-update\033[0m\n\n"

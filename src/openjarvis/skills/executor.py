@@ -7,10 +7,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from openjarvis.core.events import EventBus, EventType
-from openjarvis.core.types import ToolCall, ToolResult
-from openjarvis.skills.types import SkillManifest
-from openjarvis.tools._stubs import ToolExecutor
+from ethan.core.events import EventBus, EventType
+from ethan.core.types import ToolCall, ToolResult
+from ethan.skills.types import SkillManifest
+from ethan.tools._stubs import ToolExecutor
 
 
 @dataclass(slots=True)

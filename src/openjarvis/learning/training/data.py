@@ -15,8 +15,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, List
 
-from openjarvis.core.types import StepType, Trace
-from openjarvis.learning.routing._utils import classify_query
+from ethan.core.types import StepType, Trace
+from ethan.learning.routing._utils import classify_query
 
 
 class TrainingDataMiner:

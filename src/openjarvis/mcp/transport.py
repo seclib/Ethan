@@ -6,10 +6,10 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, List, Optional
 
-from openjarvis.mcp.protocol import MCPRequest, MCPResponse
+from ethan.mcp.protocol import MCPRequest, MCPResponse
 
 if TYPE_CHECKING:
-    from openjarvis.mcp.server import MCPServer
+    from ethan.mcp.server import MCPServer
 
 
 class MCPTransport(ABC):

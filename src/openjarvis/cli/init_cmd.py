@@ -11,11 +11,11 @@ from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
 
-from openjarvis.cli._banner import print_banner
-from openjarvis.cli._bootstrap import detect_cloud_keys
-from openjarvis.cli.model import find_model_spec, hf_download, ollama_pull
-from openjarvis.cli.scan_cmd import PrivacyScanner
-from openjarvis.core.config import (
+from ethan.cli._banner import print_banner
+from ethan.cli._bootstrap import detect_cloud_keys
+from ethan.cli.model import find_model_spec, hf_download, ollama_pull
+from ethan.cli.scan_cmd import PrivacyScanner
+from ethan.core.config import (
     DEFAULT_CONFIG_DIR,
     DEFAULT_CONFIG_PATH,
     _available_memory_gb,
@@ -305,7 +305,7 @@ def init(
     preset: Optional[str] = None,
     from_bare_jarvis: bool = False,
 ) -> None:
-    """Detect hardware and generate ~/.openjarvis/config.toml."""
+    """Detect hardware and generate ~/.ethan/config.toml."""
     print_banner(quiet=(ctx.obj or {}).get("quiet", False))
     console = Console()
 
@@ -328,14 +328,14 @@ def init(
     # Handle --preset: copy a starter config and return early
     if preset:
         examples_dir = (
-            Path(__file__).resolve().parents[2] / "configs" / "openjarvis" / "examples"
+            Path(__file__).resolve().parents[2] / "configs" / "ethan" / "examples"
         )
         # Also check installed package location
         if not examples_dir.exists():
             examples_dir = (
                 Path(__file__).resolve().parents[3]
                 / "configs"
-                / "openjarvis"
+                / "ethan"
                 / "examples"
             )
         preset_path = examples_dir / f"{preset}.toml"

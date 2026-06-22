@@ -10,10 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from openjarvis.core.registry import RouterPolicyRegistry
-from openjarvis.core.types import RoutingContext
-from openjarvis.learning._stubs import RouterPolicy
-from openjarvis.learning.routing._utils import classify_query
+from ethan.core.registry import RouterPolicyRegistry
+from ethan.core.types import RoutingContext
+from ethan.learning._stubs import RouterPolicy
+from ethan.learning.routing._utils import classify_query
 
 logger = logging.getLogger(__name__)
 

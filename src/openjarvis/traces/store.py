@@ -7,8 +7,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any, List, Optional
 
-from openjarvis.core.events import Event, EventBus, EventType
-from openjarvis.core.types import StepType, Trace, TraceStep
+from ethan.core.events import Event, EventBus, EventType
+from ethan.core.types import StepType, Trace, TraceStep
 
 _CREATE_TRACES = """\
 CREATE TABLE IF NOT EXISTS traces (
@@ -83,7 +83,7 @@ class TraceStore:
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
         if self._db_path != ":memory:":
-            from openjarvis.security.file_utils import secure_create
+            from ethan.security.file_utils import secure_create
 
             secure_create(Path(self._db_path))
         # check_same_thread=False is safe with WAL mode.  The

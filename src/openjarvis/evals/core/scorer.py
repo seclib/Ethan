@@ -5,8 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Tuple
 
-from openjarvis.evals.core.backend import InferenceBackend
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.backend import InferenceBackend
+from ethan.evals.core.types import EvalRecord
 
 
 class Scorer(ABC):

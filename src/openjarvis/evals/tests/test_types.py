@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openjarvis.evals.core.types import (
+from ethan.evals.core.types import (
     BenchmarkConfig,
     DefaultsConfig,
     EvalRecord,

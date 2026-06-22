@@ -5,8 +5,8 @@
 use crate::loop_guard::LoopGuard;
 use crate::traits::OjAgent;
 use crate::utils::strip_think_tags;
-use openjarvis_core::{AgentContext, AgentResult, OpenJarvisError, Role, ToolResult};
-use openjarvis_tools::executor::ToolExecutor;
+use ethan_core::{AgentContext, AgentResult, EthanError, Role, ToolResult};
+use ethan_tools::executor::ToolExecutor;
 use rig::agent::AgentBuilder;
 use rig::completion::request::{Chat, CompletionModel};
 use std::collections::HashMap;
@@ -54,7 +54,7 @@ impl<M: CompletionModel + 'static> OjAgent for OrchestratorAgent<M> {
         &self,
         input: &str,
         context: Option<&AgentContext>,
-    ) -> Result<AgentResult, OpenJarvisError> {
+    ) -> Result<AgentResult, EthanError> {
         let history: Vec<rig::completion::message::Message> = context
             .map(|ctx| {
                 ctx.conversation
@@ -83,7 +83,7 @@ impl<M: CompletionModel + 'static> OjAgent for OrchestratorAgent<M> {
             .chat(input, history)
             .await
             .map_err(|e| {
-                OpenJarvisError::Agent(openjarvis_core::error::AgentError::Execution(
+                EthanError::Agent(ethan_core::error::AgentError::Execution(
                     e.to_string(),
                 ))
             })?;

@@ -13,7 +13,7 @@ from typing import List
 
 import yaml
 
-from openjarvis.skills.sources.base import ResolvedSkill, SourceResolver
+from ethan.skills.sources.base import ResolvedSkill, SourceResolver
 
 LOGGER = logging.getLogger(__name__)
 

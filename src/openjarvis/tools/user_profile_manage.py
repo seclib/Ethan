@@ -5,16 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 
 @ToolRegistry.register("user_profile_manage")
 class UserProfileManageTool(BaseTool):
     """Manage persistent user profile (USER.md)."""
 
-    def __init__(self, user_path: Path | str = "~/.openjarvis/USER.md") -> None:
+    def __init__(self, user_path: Path | str = "~/.ethan/USER.md") -> None:
         self._user_path = Path(user_path).expanduser()
 
     @property

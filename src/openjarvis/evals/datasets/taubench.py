@@ -1,6 +1,6 @@
 """TauBench V2 dataset provider — multi-turn customer service benchmark.
 
-Wraps the tau2-bench framework for evaluation within OpenJarvis.
+Wraps the tau2-bench framework for evaluation within Ethan.
 Supports airline, retail, and telecom domains.
 
 Reference: https://github.com/sierra-research/tau2-bench
@@ -15,9 +15,9 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from openjarvis.evals.core.dataset import DatasetProvider
-from openjarvis.evals.core.splits import apply_split
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.dataset import DatasetProvider
+from ethan.evals.core.splits import apply_split
+from ethan.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
@@ -256,7 +256,7 @@ class TauBenchDataset(DatasetProvider):
 
     def create_task_env(self, record: EvalRecord):
         """Create a TauBench task environment for evaluation."""
-        from openjarvis.evals.execution.taubench_env import TauBenchTaskEnv
+        from ethan.evals.execution.taubench_env import TauBenchTaskEnv
 
         return TauBenchTaskEnv(
             record,

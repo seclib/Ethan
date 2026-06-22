@@ -1,9 +1,9 @@
 """OpenCodeAgent -- wraps the `opencode` coding agent via its headless HTTP server.
 
 Spawns ``opencode serve`` (https://opencode.ai) and drives a session over its
-HTTP API, configured to use OpenJarvis's local engine through an
+HTTP API, configured to use Ethan's local engine through an
 OpenAI-compatible provider. This keeps coding-agent work local-first: opencode
-handles the agentic loop / tools, OpenJarvis supplies the model.
+handles the agentic loop / tools, Ethan supplies the model.
 
 opencode is an external binary (install: ``npm i -g opencode-ai`` or
 ``brew install anomalyco/tap/opencode``). It is not bundled; :meth:`run`
@@ -22,11 +22,11 @@ import time
 from pathlib import Path
 from typing import Any, List, Optional
 
-from openjarvis.agents._stubs import AgentContext, AgentResult, BaseAgent
-from openjarvis.core.events import EventBus
-from openjarvis.core.registry import AgentRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.agents._stubs import AgentContext, AgentResult, BaseAgent
+from ethan.core.events import EventBus
+from ethan.core.registry import AgentRegistry
+from ethan.core.types import ToolResult
+from ethan.engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def is_opencode_available() -> bool:
 
 
 def _derive_openai_base_url(engine: Any) -> str:
-    """Best-effort OpenAI-compatible base URL for an OpenJarvis engine.
+    """Best-effort OpenAI-compatible base URL for an Ethan engine.
 
     HTTP engines (Ollama, vLLM, llama.cpp, SGLang, LM Studio, …) expose a
     ``_host`` and serve an OpenAI-compatible API at ``<host>/v1``. Engines are
@@ -81,7 +81,7 @@ def _extract_text(parts: List[dict]) -> str:
 
 
 def _extract_tool_results(parts: List[dict]) -> List[ToolResult]:
-    """Map opencode ``tool`` parts to OpenJarvis ToolResults (best-effort)."""
+    """Map opencode ``tool`` parts to Ethan ToolResults (best-effort)."""
     results: List[ToolResult] = []
     for p in parts:
         if not isinstance(p, dict) or p.get("type") != "tool":
@@ -107,7 +107,7 @@ class OpenCodeAgent(BaseAgent):
     """Agent that delegates coding tasks to a local ``opencode`` server.
 
     The ``engine`` is used to wire opencode at an OpenAI-compatible provider so
-    inference runs on OpenJarvis's selected local model. ``agent`` selects
+    inference runs on Ethan's selected local model. ``agent`` selects
     opencode's built-in agent: ``build`` (full access) or ``plan`` (read-only).
     """
 
@@ -126,7 +126,7 @@ class OpenCodeAgent(BaseAgent):
         max_tokens: Optional[int] = None,
         workspace: str = "",
         agent: str = "build",
-        provider_id: str = "openjarvis",
+        provider_id: str = "ethan",
         provider_base_url: str = "",
         model_id: str = "",
         api_key: str = "",
@@ -193,7 +193,7 @@ class OpenCodeAgent(BaseAgent):
             cfg["provider"] = {
                 self._provider_id: {
                     "npm": "@ai-sdk/openai-compatible",
-                    "name": "OpenJarvis Local",
+                    "name": "Ethan Local",
                     "options": options,
                     "models": {self._model_id: {"name": self._model_id}},
                 }
@@ -215,7 +215,7 @@ class OpenCodeAgent(BaseAgent):
         # opencode.json into the user's workspace.
         import tempfile
 
-        self._config_dir = tempfile.mkdtemp(prefix="openjarvis-opencode-")
+        self._config_dir = tempfile.mkdtemp(prefix="ethan-opencode-")
         config_path = Path(self._config_dir) / "opencode.json"
         config_path.write_text(json.dumps(self._build_config(), indent=2), "utf-8")
         env = dict(os.environ)

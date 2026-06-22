@@ -15,9 +15,9 @@ from typing import Any
 
 import click
 
-from openjarvis.core.config import HardwareInfo, detect_hardware, load_config
-from openjarvis.core.registry import MinerRegistry
-from openjarvis.mining._constants import (
+from ethan.core.config import HardwareInfo, detect_hardware, load_config
+from ethan.core.registry import MinerRegistry
+from ethan.mining._constants import (
     DEFAULT_GATEWAY_METRICS_PORT,
     DEFAULT_GATEWAY_RPC_PORT,
     DEFAULT_PEARL_MODEL,
@@ -25,22 +25,22 @@ from openjarvis.mining._constants import (
     PEARL_IMAGE_TAG,
     SIDECAR_PATH,
 )
-from openjarvis.mining._discovery import (
+from ethan.mining._discovery import (
     check_disk_free,
     check_docker_available,
     check_pearld_reachable,
     check_wallet_address_format,
     detect_for_engine_model,
 )
-from openjarvis.mining._docker import PearlDockerLauncher
-from openjarvis.mining._metrics import parse_gateway_metrics
-from openjarvis.mining._models import (
+from ethan.mining._docker import PearlDockerLauncher
+from ethan.mining._metrics import parse_gateway_metrics
+from ethan.mining._models import (
     get_pearl_model_spec,
     iter_pearl_model_specs,
     pearl_variant_for_base_model,
 )
-from openjarvis.mining._stubs import Sidecar
-from openjarvis.mining.vllm_pearl import ensure_registered as ensure_vllm_registered
+from ethan.mining._stubs import Sidecar
+from ethan.mining.vllm_pearl import ensure_registered as ensure_vllm_registered
 
 
 def _detect_hardware() -> HardwareInfo:
@@ -57,11 +57,11 @@ def _docker_from_env():
 
 def _ensure_providers_registered() -> None:
     ensure_vllm_registered()
-    from openjarvis.mining.cpu_pearl import ensure_registered as ensure_cpu_registered
+    from ethan.mining.cpu_pearl import ensure_registered as ensure_cpu_registered
 
     ensure_cpu_registered()
     try:
-        from openjarvis.mining.apple_mps_pearl import (
+        from ethan.mining.apple_mps_pearl import (
             ensure_registered as ensure_mps_registered,
         )
 
@@ -469,7 +469,7 @@ def init(
             err=True,
         )
 
-    from openjarvis.core.config import DEFAULT_CONFIG_PATH
+    from ethan.core.config import DEFAULT_CONFIG_PATH
 
     config_path = Path(os.environ.get("OPENJARVIS_CONFIG", DEFAULT_CONFIG_PATH))
     config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1002,7 +1002,7 @@ def logs(tail_n: int, follow: bool) -> None:
     client = _docker_from_env()
     launcher = PearlDockerLauncher(client=client)
     try:
-        launcher._container = client.containers.get("openjarvis-pearl-miner")
+        launcher._container = client.containers.get("ethan-pearl-miner")
     except Exception as exc:  # noqa: BLE001
         raise click.ClickException(f"no mining container: {exc}") from exc
     click.echo(launcher.get_logs(tail=tail_n))

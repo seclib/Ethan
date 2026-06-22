@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from openjarvis.channels._stubs import BaseChannel
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
+from ethan.channels._stubs import BaseChannel
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
 
 
 @ToolRegistry.register("channel_send")

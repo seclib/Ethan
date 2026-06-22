@@ -25,8 +25,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from openjarvis.evals.core.scorer import Scorer
-from openjarvis.evals.core.types import EvalRecord
+from ethan.evals.core.scorer import Scorer
+from ethan.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ shim returns 0 for all token counts. Throughput and energy benchmarks
 will reflect this limitation.
 
 Usage:
-    uvicorn openjarvis.engine.apple_fm_shim:app \
+    uvicorn ethan.engine.apple_fm_shim:app \
         --host 127.0.0.1 --port 8079
 """
 

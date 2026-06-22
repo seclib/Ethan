@@ -14,7 +14,7 @@ import logging
 import re
 from typing import Callable, Optional
 
-from openjarvis.learning.spec_search.models import Edit, EditOp
+from ethan.learning.spec_search.models import Edit, EditOp
 
 logger = logging.getLogger(__name__)
 

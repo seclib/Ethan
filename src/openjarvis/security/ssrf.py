@@ -77,7 +77,7 @@ def check_ssrf(url: str) -> Optional[str]:
     guard is security-critical, so it must never be silently skipped — or
     crash with ``ImportError`` — merely because Rust was not built.
     """
-    from openjarvis._rust_bridge import RUST_AVAILABLE, get_rust_module
+    from ethan._rust_bridge import RUST_AVAILABLE, get_rust_module
 
     if RUST_AVAILABLE:
         return get_rust_module().check_ssrf(url)

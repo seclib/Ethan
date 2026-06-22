@@ -6,11 +6,11 @@ import logging
 import time
 from typing import Any, List, Optional
 
-from openjarvis.bench._stats import compute_stats
-from openjarvis.bench._stubs import BaseBenchmark, BenchmarkResult
-from openjarvis.core.registry import BenchmarkRegistry
-from openjarvis.core.types import Message, Role
-from openjarvis.engine._stubs import InferenceEngine
+from ethan.bench._stats import compute_stats
+from ethan.bench._stubs import BaseBenchmark, BenchmarkResult
+from ethan.core.registry import BenchmarkRegistry
+from ethan.core.types import Message, Role
+from ethan.engine._stubs import InferenceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class EnergyBenchmark(BaseBenchmark):
         energy_method = ""
 
         if energy_monitor is not None:
-            from openjarvis.telemetry.steady_state import SteadyStateDetector
+            from ethan.telemetry.steady_state import SteadyStateDetector
 
             detector = SteadyStateDetector()
             energy_method = getattr(energy_monitor, "energy_method", lambda: "")()

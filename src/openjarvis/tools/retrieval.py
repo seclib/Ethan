@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from openjarvis.core.registry import ToolRegistry
-from openjarvis.core.types import ToolResult
-from openjarvis.tools._stubs import BaseTool, ToolSpec
-from openjarvis.tools.storage._stubs import MemoryBackend
-from openjarvis.tools.storage.context import format_context
+from ethan.core.registry import ToolRegistry
+from ethan.core.types import ToolResult
+from ethan.tools._stubs import BaseTool, ToolSpec
+from ethan.tools.storage._stubs import MemoryBackend
+from ethan.tools.storage.context import format_context
 
 
 @ToolRegistry.register("retrieval")

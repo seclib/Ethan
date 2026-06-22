@@ -1,9 +1,9 @@
-"""MCP (Model Context Protocol) layer for OpenJarvis."""
+"""MCP (Model Context Protocol) layer for Ethan."""
 
-from openjarvis.mcp.client import MCPClient
-from openjarvis.mcp.protocol import MCPError, MCPNotification, MCPRequest, MCPResponse
-from openjarvis.mcp.server import MCPServer
-from openjarvis.mcp.transport import (
+from ethan.mcp.client import MCPClient
+from ethan.mcp.protocol import MCPError, MCPNotification, MCPRequest, MCPResponse
+from ethan.mcp.server import MCPServer
+from ethan.mcp.transport import (
     InProcessTransport,
     MCPTransport,
     SSETransport,
