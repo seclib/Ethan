@@ -1,5 +1,5 @@
 # LLM-Guided Spec Search — quickstart configuration
-# Copy to ~/.openjarvis/config.toml and run:
+# Copy to ~/.ethan/config.toml and run:
 #   python -m openjarvis_examples.spec_search_quickstart
 #
 # This config has two parts:

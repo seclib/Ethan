@@ -1,5 +1,5 @@
 # Deep Research Agent — multi-hop research across your indexed documents
-# Copy to ~/.openjarvis/config.toml
+# Copy to ~/.ethan/config.toml
 #
 # First index your documents:
 #   jarvis memory index ./docs/

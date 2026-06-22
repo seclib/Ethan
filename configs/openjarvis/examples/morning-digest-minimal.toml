@@ -1,6 +1,6 @@
 # Morning Digest — Minimal setup (just Ollama + Gmail)
 # The simplest possible config to get a working digest.
-# Copy to ~/.openjarvis/config.toml
+# Copy to ~/.ethan/config.toml
 #
 # Requirements:
 #   - Ollama installed with any model

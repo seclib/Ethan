@@ -1,5 +1,5 @@
 # Scheduled Monitor — persistent agent that runs on a schedule
-# Copy to ~/.openjarvis/config.toml
+# Copy to ~/.ethan/config.toml
 #
 # The operative agent maintains state across runs, making it ideal for:
 # - Daily email/inbox monitoring

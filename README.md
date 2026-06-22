@@ -1,6 +1,6 @@
 # Ethan OS
 
-AI Platform built on top of OpenJarvis.
+AI Platform built on top of Ethan.
 
 ## Architecture
 

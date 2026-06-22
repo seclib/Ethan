@@ -53,45 +53,45 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.backend
       target: python-builder
-    image: openjarvis/backend:dev
-    container_name: openjarvis-backend-dev
+    image: ethan/backend:dev
+    container_name: ethan-backend-dev
     networks:
       - jarvis-network
     ports:
-      - "${OPENJARVIS_PORT:-8000}:8000"
+      - "${ETHAN_PORT:-8000}:8000"
       - "5678:5678"
     environment:
-      - OPENJARVIS_API_KEY=${OPENJARVIS_API_KEY:-dev-key-change-me}
-      - OPENJARVIS_HOME=/etc/openjarvis
-      - OPENJARVIS_CONFIG=/etc/openjarvis/config.toml
-      - OPENJARVIS_LOG_LEVEL=${OPENJARVIS_LOG_LEVEL:-debug}
-      - OPENJARVIS_DEV_MODE=true
-      - OPENJARVIS_ENGINE_DEFAULT=${OPENJARVIS_ENGINE_DEFAULT:-ollama}
+      - ETHAN_API_KEY=${ETHAN_API_KEY:-dev-key-change-me}
+      - ETHAN_HOME=/etc/ethan
+      - ETHAN_CONFIG=/etc/ethan/config.toml
+      - ETHAN_LOG_LEVEL=${ETHAN_LOG_LEVEL:-debug}
+      - ETHAN_DEV_MODE=true
+      - ETHAN_ENGINE_DEFAULT=${ETHAN_ENGINE_DEFAULT:-ollama}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      - OPENJARVIS_DATABASE_URL=${OPENJARVIS_DATABASE_URL:-sqlite:////var/lib/openjarvis/memory/openjarvis.db}
-      - OPENJARVIS_WORKSPACE=/workspace
-      - OPENJARVIS_UPLOADS=/var/lib/openjarvis/uploads
-      - OPENJARVIS_CACHE=/var/lib/openjarvis/cache
-      - OPENJARVIS_MODELS=/var/lib/openjarvis/models
+      - ETHAN_DATABASE_URL=${ETHAN_DATABASE_URL:-sqlite:////var/lib/ethan/memory/ethan.db}
+      - ETHAN_WORKSPACE=/workspace
+      - ETHAN_UPLOADS=/var/lib/ethan/uploads
+      - ETHAN_CACHE=/var/lib/ethan/cache
+      - ETHAN_MODELS=/var/lib/ethan/models
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONDEVMODE=1
     volumes:
       # Code source monté pour hot reload
       - ./src:/app/src
-      - ./configs:/etc/openjarvis:ro
+      - ./configs:/etc/ethan:ro
       - ./pyproject.toml:/app/pyproject.toml
       - ./README.md:/app/README.md
       # Volumes persistants
-      - jarvis-logs:/var/log/openjarvis
+      - jarvis-logs:/var/log/ethan
       - jarvis-workspace:/workspace
-      - jarvis-memory:/var/lib/openjarvis/memory
-      - jarvis-uploads:/var/lib/openjarvis/uploads
-      - jarvis-cache:/var/lib/openjarvis/cache
-      - jarvis-models:/var/lib/openjarvis/models
+      - jarvis-memory:/var/lib/ethan/memory
+      - jarvis-uploads:/var/lib/ethan/uploads
+      - jarvis-cache:/var/lib/ethan/cache
+      - jarvis-models:/var/lib/ethan/models
     depends_on:
       ollama:
         condition: service_healthy
@@ -115,7 +115,7 @@ services:
   # ===========================================================================
   frontend:
     image: node:22-slim
-    container_name: openjarvis-frontend-dev
+    container_name: ethan-frontend-dev
     networks:
       - jarvis-network
     ports:
@@ -151,7 +151,7 @@ services:
   # ===========================================================================
   postgres:
     image: postgres:16-alpine
-    container_name: openjarvis-postgres-dev
+    container_name: ethan-postgres-dev
     networks:
       - jarvis-network
     ports:
@@ -159,8 +159,8 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-openjarvis}
-      - POSTGRES_USER=${POSTGRES_USER:-openjarvis}
+      - POSTGRES_DB=${POSTGRES_DB:-ethan}
+      - POSTGRES_USER=${POSTGRES_USER:-ethan}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
     healthcheck:
@@ -181,7 +181,7 @@ services:
   # ===========================================================================
   chromadb:
     image: chromadb/chroma:latest
-    container_name: openjarvis-chromadb-dev
+    container_name: ethan-chromadb-dev
     networks:
       - jarvis-network
     ports:
@@ -210,7 +210,7 @@ services:
   # ===========================================================================
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: openjarvis-qdrant-dev
+    container_name: ethan-qdrant-dev
     networks:
       - jarvis-network
     ports:
@@ -239,7 +239,7 @@ services:
   # ===========================================================================
   redis:
     image: redis:7-alpine
-    container_name: openjarvis-redis-dev
+    container_name: ethan-redis-dev
     networks:
       - jarvis-network
     ports:
@@ -271,7 +271,7 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: openjarvis-ollama-dev
+    container_name: ethan-ollama-dev
     networks:
       - jarvis-network
     ports:
