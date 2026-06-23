@@ -7,9 +7,12 @@ from urllib.request import Request, urlopen
 BASE = os.environ.get("ETHAN_API", "http://localhost:8000")
 
 
-def send(msg):
+def send(msg, session_id=None):
     t0 = time.time()
-    data = json.dumps({"content": msg}).encode()
+    body = {"content": msg}
+    if session_id:
+        body["session_id"] = session_id
+    data = json.dumps(body).encode()
     req = Request(f"{BASE}/message", data=data, headers={"Content-Type": "application/json"}, method="POST")
     with urlopen(req, timeout=10) as r:
         payload = json.loads(r.read())

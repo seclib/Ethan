@@ -1,36 +1,34 @@
-"""ETHAN run — agent-like task execution mode."""
+"""ETHAN think — structured reasoning mode."""
 
 import sys
 import time
 from cli.core import colors as clr
-from cli.core.loading import StepProgress
+from cli.core.loading import StepProgress, Thinker
 from cli.core.intent import PromptIntelligence
 
 try:
     from cli.registry import register
 
-    @register("run")
-    def cmd_run(args):
+    @register("think")
+    def cmd_think(args):
         verbose = "--verbose" in args
         quiet = "--quiet" in args
-        resume = "--continue" in args
         task = " ".join([a for a in args if not a.startswith("-")])
         if not task:
-            print(clr.warn("Usage: ethan run <task>"))
+            print(clr.warn("Usage: ethan think <task>"))
             return
-        RunExecutor(task, verbose=verbose, quiet=quiet, resume=resume).run()
+        ThinkRunner(task, verbose=verbose, quiet=quiet).run()
 except ImportError:
-    def cmd_run(args):
+    def cmd_think(args):
         task = " ".join(args)
-        RunExecutor(task).run()
+        ThinkRunner(task).run()
 
 
-class RunExecutor:
-    def __init__(self, task: str, verbose: bool = False, quiet: bool = False, resume: bool = False):
+class ThinkRunner:
+    def __init__(self, task: str, verbose: bool = False, quiet: bool = False):
         self.task = task
         self.verbose = verbose
         self.quiet = quiet
-        self.resume = resume
 
     def run(self):
         if self.quiet:
@@ -39,24 +37,23 @@ class RunExecutor:
 
         # Plan phase
         print()
-        print(clr.section(f"Plan  ◇  {self.task[:40]}"))
+        print(clr.section("Plan generated"))
         intent = PromptIntelligence.classify(self.task)
         steps = self._make_steps(self.task)
         est = max(5, len(steps) * 10)
-        print(f"  Goal:     {clr.C.WHITE}{self.task}{clr.C.RESET}")
-        print(f"  Strategy: Sequential ({len(steps)} steps)")
+        print(f"  Goal:    {clr.C.WHITE}{self.task}{clr.C.RESET}")
+        print(f"  Steps:   {len(steps)}")
         print(f"  Duration: est. {est // 60}m {est % 60}s")
         print()
         for i, s in enumerate(steps, 1):
-            print(f"  {i}.  {s}")
+            label = s if not self.verbose else s
+            print(f"  {i}.  {label}")
 
         # Execute phase
         print()
-        if self.resume:
-            print(clr.info("Resuming from previous state..."))
         progress = StepProgress()
         progress.begin("Executing", total=len(steps))
-        for step in steps:
+        for i, step in enumerate(steps, 1):
             progress.step(step)
         progress.complete("Complete")
 
@@ -78,7 +75,7 @@ class RunExecutor:
         intent = PromptIntelligence.classify(task)
         if intent.kind == "intent":
             target = intent.params.get("target", "task")
-            return [f"Analyze {target}", f"Prepare {target}", f"Execute {target}", f"Verify {target}"]
+            return [f"Analyze {target}", f"Execute {target}", f"Report status"]
         if intent.kind == "smart_cmd":
-            return [f"Run: {task}", "Validate output", "Report result"]
+            return [f"Run: {task}", "Verify result"]
         return [f"Process: {task}", "Confirm success"]
