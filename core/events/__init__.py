@@ -1,98 +1,120 @@
-# Jarvis OS — Event System
-# Système d'événements asynchrones pour la communication entre composants
+"""Event System — ADR-1007
+
+Architecture événementielle pour découplage et observabilité.
+"""
+
+from __future__ import annotations
 
 import asyncio
 import logging
-import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine
+from typing import Any, Dict, List
+from uuid import uuid4
+
 
 logger = logging.getLogger(__name__)
 
 
-class EventPriority(Enum):
-    """Priorité des événements."""
-    LOW = 0
-    NORMAL = 1
-    HIGH = 2
-    CRITICAL = 3
+class EventType(str, Enum):
+    """Types d'événements du système."""
+
+    # System events
+    SYSTEM_STARTUP = "system.startup"
+    SYSTEM_SHUTDOWN = "system.shutdown"
+
+    # Capability events
+    CAPABILITY_STARTED = "capability.started"
+    CAPABILITY_COMPLETED = "capability.completed"
+    CAPABILITY_FAILED = "capability.failed"
+
+    # Memory events
+    MEMORY_STORED = "memory.stored"
+    MEMORY_RETRIEVED = "memory.retrieved"
+
+    # Agent events
+    AGENT_CREATED = "agent.created"
+    AGENT_DESTROYED = "agent.destroyed"
+
+    # User events
+    USER_INPUT_RECEIVED = "user.input.received"
+    USER_RESPONSE_GENERATED = "user.response.generated"
+
+    # Security events
+    SECURITY_AUDIT = "security.audit"
 
 
 @dataclass
 class Event:
-    """Événement standardisé."""
-    type: str
-    data: dict[str, Any] = field(default_factory=dict)
-    source: str = ""
-    priority: EventPriority = EventPriority.NORMAL
-    timestamp: float = field(default_factory=time.time)
-    id: str = ""
+    """Événement métier."""
+
+    id: str = field(default_factory=lambda: str(uuid4()))
+    type: EventType = EventType.SYSTEM_STARTUP
+    source: str = "system"
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    data: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-EventHandler = Callable[[Event], Coroutine[Any, Any, None]]
+class EventHandler(ABC):
+    """Interface abstraite pour les handlers d'événements."""
+
+    @abstractmethod
+    async def handle(self, event: Event) -> None:
+        """Traiter un événement."""
+        pass
 
 
 class EventBus:
-    """Bus d'événements asynchrone.
+    """Bus d'événements central pour communication asynchrone."""
 
-    Permet la communication découplée entre composants via :
-    - Publish/Subscribe
-    - Filtrage par type d'événement
-    - Priorités
-    - Async handlers
-    """
+    def __init__(self, record_history: bool = True):
+        self._handlers: Dict[EventType, List[EventHandler]] = {}
+        self._history: List[Event] = []
+        self._record_history = record_history
 
-    def __init__(self):
-        self._handlers: dict[str, list[EventHandler]] = {}
-        self._wildcard_handlers: list[EventHandler] = []
+    async def publish(self, event: Event) -> None:
+        """Publier un événement à tous les subscribers."""
+        if self._record_history:
+            self._history.append(event)
 
-    def subscribe(self, event_type: str, handler: EventHandler) -> None:
-        """Subscribe to a specific event type."""
+        handlers = self._handlers.get(event.type, [])
+        if not handlers:
+            return
+
+        logger.debug(f"Publishing event {event.type} to {len(handlers)} handlers")
+
+        # Exécuter tous les handlers en parallèle
+        tasks = [handler.handle(event) for handler in handlers]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def subscribe(self, event_type: EventType, handler: EventHandler) -> None:
+        """Souscrire un handler à un type d'événement."""
         if event_type not in self._handlers:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
-        logger.debug(f"Subscribed handler for event: {event_type}")
+        logger.debug(f"Handler subscribed to {event_type}")
 
-    def subscribe_all(self, handler: EventHandler) -> None:
-        """Subscribe to all events."""
-        self._wildcard_handlers.append(handler)
+    async def unsubscribe(self, event_type: EventType, handler: EventHandler) -> None:
+        """Désouscrire un handler d'un type d'événement."""
+        if event_type in self._handlers:
+            try:
+                self._handlers[event_type].remove(handler)
+                logger.debug(f"Handler unsubscribed from {event_type}")
+            except ValueError:
+                pass
 
-    def unsubscribe(self, event_type: str, handler: EventHandler) -> bool:
-        """Unsubscribe from an event type."""
-        if event_type in self._handlers and handler in self._handlers[event_type]:
-            self._handlers[event_type].remove(handler)
-            return True
-        return False
+    def get_history(self, event_type: EventType | None = None) -> List[Event]:
+        """Récupérer l'historique des événements."""
+        if event_type is None:
+            return self._history.copy()
+        return [e for e in self._history if e.type == event_type]
 
-    async def publish(self, event: Event) -> None:
-        """Publish an event to all subscribers."""
-        tasks = []
-
-        # Notify type-specific handlers
-        if event.type in self._handlers:
-            for handler in self._handlers[event.type]:
-                tasks.append(self._safe_call(handler, event))
-
-        # Notify wildcard handlers
-        for handler in self._wildcard_handlers:
-            tasks.append(self._safe_call(handler, event))
-
-        # Run all handlers concurrently
-        if tasks:
-            await asyncio.gather(*tasks)
-
-    async def _safe_call(self, handler: EventHandler, event: Event) -> None:
-        """Call a handler safely, catching exceptions."""
-        try:
-            await handler(event)
-        except Exception as e:
-            logger.error(f"Event handler error for {event.type}: {e}")
-
-    def clear(self) -> None:
-        """Clear all handlers."""
-        self._handlers.clear()
-        self._wildcard_handlers.clear()
+    def clear_history(self) -> None:
+        """Vider l'historique des événements."""
+        self._history.clear()
 
 
 # Global event bus instance

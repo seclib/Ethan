@@ -1,6 +1,7 @@
 """Example: Utilisation de la couche d'orchestration"""
 
 from core.capabilities import CapabilityContext, CapabilityStatus
+from core.context.intent import Intent
 from core.orchestration import CapabilityRegistry, Executor, Observer, Planner
 from core.safety import SafetyValidator
 
@@ -20,7 +21,13 @@ async def main():
     safety = SafetyValidator()
 
     # 4. Exécuter un flux complet
+    from core.context.intent import IntentRouter
+    router = IntentRouter()
+
     user_input = "Analyze this code and suggest improvements"
+
+    # Normaliser via IntentRouter (ADR-1003)
+    intent = await router.parse("text", user_input)
 
     # Validation Safety
     from core.safety import SafetyContext
@@ -42,7 +49,7 @@ async def main():
     )
 
     # Planning
-    plan = planner.build(user_input)
+    plan = planner.build(intent)
     print(f"Plan: {len(plan.steps)} steps")
 
     # Execution

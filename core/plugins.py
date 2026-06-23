@@ -1,174 +1,114 @@
-# Jarvis OS — Plugin Loader
-# Système de chargement et gestion des plugins
+"""Plugin System — ADR-1008
 
-import importlib
+Système de découverte et de chargement automatique des plugins.
+Permet l'extension du système sans modifier le core.
+"""
+
+from __future__ import annotations
+
+import importlib.util
 import logging
-import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-
-import yaml
+from typing import Dict, List, Optional, Type, Any
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
-class PluginManifest:
-    """Manifeste d'un plugin."""
+class PluginMetadata:
+    """Metadata d'un plugin."""
     name: str
     version: str
-    description: str = ""
-    author: str = ""
-    license: str = "Apache-2.0"
-    capabilities: list[str] = field(default_factory=list)
-    dependencies: dict[str, list[str]] = field(default_factory=dict)
-    config: dict[str, Any] = field(default_factory=dict)
-    entrypoint: str = "main.py"
-    path: Path | None = None
+    description: str
+    author: str
+    capabilities: List[str] = field(default_factory=list)
+    dependencies: List[str] = field(default_factory=list)
 
 
-@dataclass
-class Plugin:
-    """Plugin chargé."""
-    manifest: PluginManifest
-    module: Any = None
-    instance: Any = None
-    enabled: bool = True
-    path: Path | None = None
+class PluginContext:
+    """Contexte fourni au plugin lors de l'initialisation."""
+    def __init__(self, config: Dict[str, Any], event_bus: Any = None):
+        self.config = config
+        self.event_bus = event_bus
 
 
-class PluginManager:
-    """Gestionnaire de plugins.
+class Plugin(ABC):
+    """Interface abstraite pour tous les plugins."""
 
-    Découvre, charge et gère les plugins depuis le répertoire plugins/.
-    Chaque plugin doit avoir :
-    - plugin.yaml : Manifeste
-    - main.py     : Point d'entrée
-    """
+    @abstractmethod
+    def get_metadata(self) -> PluginMetadata:
+        """Retourner les metadata du plugin."""
+        pass
 
-    def __init__(self, plugins_dir: str | Path = "plugins"):
-        self.plugins_dir = Path(plugins_dir)
-        self._plugins: dict[str, Plugin] = {}
-        self._capabilities: dict[str, str] = {}  # capability -> plugin name
+    @abstractmethod
+    async def initialize(self, context: PluginContext) -> None:
+        """Initialiser le plugin."""
+        pass
 
-    def discover(self) -> list[PluginManifest]:
-        """Discover all plugins in the plugins directory."""
-        manifests = []
-        if not self.plugins_dir.exists():
-            logger.warning(f"Plugins directory not found: {self.plugins_dir}")
-            return manifests
+    @abstractmethod
+    async def shutdown(self) -> None:
+        """Nettoyer le plugin."""
+        pass
 
-        for entry in sorted(self.plugins_dir.iterdir()):
-            if not entry.is_dir():
-                continue
-            manifest_path = entry / "plugin.yaml"
-            if not manifest_path.exists():
+
+class PluginRegistry:
+    """Registre central des plugins."""
+
+    def __init__(self):
+        self._plugins: Dict[str, Plugin] = {}
+        self._metadata: Dict[str, PluginMetadata] = {}
+
+    async def discover(self, plugin_dirs: List[Path]):
+        """Découvrir les plugins dans les répertoires spécifiés."""
+        for plugin_dir in plugin_dirs:
+            if not plugin_dir.exists():
+                logger.warning(f"Plugin directory {plugin_dir} does not exist")
                 continue
 
-            try:
-                with open(manifest_path) as f:
-                    data = yaml.safe_load(f)
-                manifest = PluginManifest(**data, path=entry)
-                manifests.append(manifest)
-                logger.info(f"Discovered plugin: {manifest.name} v{manifest.version}")
-            except Exception as e:
-                logger.error(f"Failed to load plugin manifest {manifest_path}: {e}")
+            # Cherche tous les fichiers .py dans les sous-répertoires
+            for plugin_file in plugin_dir.rglob("*.py"):
+                try:
+                    await self._load_plugin_from_file(plugin_file)
+                except Exception as e:
+                    logger.error(f"Failed to load plugin from {plugin_file}: {e}")
 
-        return manifests
+    async def _load_plugin_from_file(self, path: Path):
+        """Import dynamique d'un plugin depuis un fichier."""
+        module_name = path.stem if path.name != "__init__.py" else path.parent.name
+        
+        spec = importlib.util.spec_from_file_location(module_name, str(path))
+        if spec is None or spec.loader is None:
+            return
 
-    def load(self, name: str) -> Plugin | None:
-        """Load a specific plugin by name."""
-        manifest_path = self.plugins_dir / name / "plugin.yaml"
-        if not manifest_path.exists():
-            logger.error(f"Plugin '{name}' not found")
-            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        try:
-            with open(manifest_path) as f:
-                data = yaml.safe_load(f)
-            manifest = PluginManifest(**data)
+        # Cherche la première classe qui hérite de Plugin et n'est pas la classe Plugin elle-même
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if isinstance(attr, type) and issubclass(attr, Plugin) and attr is not Plugin:
+                try:
+                    plugin_instance = attr()
+                    metadata = plugin_instance.get_metadata()
+                    self._plugins[metadata.name] = plugin_instance
+                    self._metadata[metadata.name] = metadata
+                    logger.info(f"Discovered plugin: {metadata.name} (v{metadata.version})")
+                    return
+                except Exception as e:
+                    logger.error(f"Failed to instantiate plugin class {attr_name} in {path}: {e}")
 
-            # Import the plugin module
-            module_name = f"plugins.{name}.main"
-            try:
-                module = importlib.import_module(module_name)
-            except ImportError:
-                module = None
-
-            plugin = Plugin(
-                manifest=manifest,
-                module=module,
-                path=self.plugins_dir / name,
-            )
-
-            # Register capabilities
-            for cap in manifest.capabilities:
-                self._capabilities[cap] = name
-
-            self._plugins[name] = plugin
-            logger.info(f"Loaded plugin: {manifest.name} v{manifest.version}")
-            return plugin
-
-        except Exception as e:
-            logger.error(f"Failed to load plugin '{name}': {e}")
-            return None
-
-    def load_all(self) -> list[Plugin]:
-        """Discover and load all plugins."""
-        plugins = []
-        for manifest in self.discover():
-            plugin = self.load(manifest.name)
-            if plugin:
-                plugins.append(plugin)
-        return plugins
-
-    def get(self, name: str) -> Plugin | None:
-        """Get a loaded plugin by name."""
+    def get_plugin(self, name: str) -> Optional[Plugin]:
+        """Récupérer un plugin par son nom."""
         return self._plugins.get(name)
 
-    def get_by_capability(self, capability: str) -> Plugin | None:
-        """Get the plugin that provides a specific capability."""
-        plugin_name = self._capabilities.get(capability)
-        if plugin_name:
-            return self.get(plugin_name)
-        return None
+    def get_metadata(self, name: str) -> Optional[PluginMetadata]:
+        """Récupérer les metadata d'un plugin."""
+        return self._metadata.get(name)
 
-    def list_plugins(self) -> list[str]:
-        """List all loaded plugins."""
+    def list_plugins(self) -> List[str]:
+        """Lister tous les plugins découverts."""
         return list(self._plugins.keys())
 
-    def list_capabilities(self) -> list[str]:
-        """List all available capabilities."""
-        return list(self._capabilities.keys())
-
-    def enable(self, name: str) -> bool:
-        """Enable a plugin."""
-        if name in self._plugins:
-            self._plugins[name].enabled = True
-            return True
-        return False
-
-    def disable(self, name: str) -> bool:
-        """Disable a plugin."""
-        if name in self._plugins:
-            self._plugins[name].enabled = False
-            return True
-        return False
-
-    def is_loaded(self, name: str) -> bool:
-        """Check if a plugin is loaded."""
-        return name in self._plugins
-
-    def unload(self, name: str) -> bool:
-        """Unload a plugin."""
-        if name in self._plugins:
-            plugin = self._plugins.pop(name)
-            for cap in plugin.manifest.capabilities:
-                self._capabilities.pop(cap, None)
-            return True
-        return False
-
-
-# Global plugin manager instance
-manager = PluginManager()
+    def __len__(self) -> int:
+        return len(self._plugins)
