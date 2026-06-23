@@ -1,4 +1,4 @@
-el"""Event schema — Core data model for all NATS events."""
+"""Event schema — Core data model for all NATS events."""
 
 from __future__ import annotations
 
@@ -114,3 +114,10 @@ class EventType:
 
     # Audit
     AUDIT = "audit"
+
+    # Learning (Phase 4)
+    LEARNING_INSIGHT = "learning.insight"
+    LEARNING_PATTERN = "learning.pattern"
+    RULE_PROPOSAL = "learning.rule_proposal"
+    SELF_MODEL_UPDATED = "learning.self_model_updated"
+    SYSTEM_IMPROVEMENT_SUGGESTION = "learning.improvement_suggestion"

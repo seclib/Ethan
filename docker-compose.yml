@@ -5,9 +5,9 @@ services:
     image: nats:2.10-alpine
     container_name: ethan-nats
     ports:
-      - "4222:4222"     # Client
-      - "8222:8222"     # HTTP management
-      - "6222:6222"     # Cluster
+      - "4222:4222"
+      - "8222:8222"
+      - "6222:6222"
     command: ["-js"]
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "4222"]
@@ -82,6 +82,7 @@ services:
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: INFO
+      ENABLE_LEARNING: "true"
     depends_on:
       nats:
         condition: service_healthy
@@ -154,6 +155,25 @@ services:
       nats:
         condition: service_healthy
     command: python modules/reflective/main.py
+
+  learning:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-learning
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python kernel/learning/bootstrap.py
 
 volumes:
   postgres_data:

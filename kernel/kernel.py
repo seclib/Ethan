@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from kernel.bus.interface import EventBus
 from kernel.goals.manager import GoalManager
+from kernel.learning.engine import LearningEngine
 from kernel.registry.module_registry import ModuleRegistry, ModuleManifest
 from kernel.scheduler.scheduler import Scheduler
 from kernel.state.postgres_state import PostgresPersistentState
@@ -18,17 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class CognitiveKernel:
-    """Event orchestrator — no business logic, only routing.
-
-    Lifecycle:
-        start() → running → stop()
-
-    Core responsibilities:
-        - subscribe wildcard events
-        - dispatch to registry modules
-        - sync state (Redis + PostgreSQL)
-        - forward goal events to GoalManager
-    """
+    """Event orchestrator — no business logic, only routing."""
 
     def __init__(
         self,
@@ -38,6 +29,7 @@ class CognitiveKernel:
         registry: ModuleRegistry,
         goals: GoalManager,
         scheduler: Scheduler,
+        learning: Optional[LearningEngine] = None,
     ):
         self.bus = bus
         self.redis = redis
@@ -45,10 +37,10 @@ class CognitiveKernel:
         self.registry = registry
         self.goals = goals
         self.scheduler = scheduler
+        self.learning = learning
         self._running = False
 
     async def start(self) -> None:
-        """Boot kernel: connect bus, register modules, subscribe events."""
         if self._running:
             logger.warning("Kernel already running")
             return
@@ -57,34 +49,32 @@ class CognitiveKernel:
         logger.info("Cognitive Kernel starting")
 
         await self.bus.subscribe("kernel.>", self._on_system_event, queue="kernel-system")
-        logger.info("Subscribed to kernel.>")
-
         await self.bus.subscribe("goal.>", self._on_goal_event, queue="kernel-goals")
-        logger.info("Subscribed to goal.>")
-
         await self.bus.subscribe("module.>", self._on_module_event, queue="kernel-dispatch")
-        logger.info("Subscribed to module.>")
-
         await self.bus.subscribe("intent.>", self._on_intent_event, queue="kernel-intents")
-        logger.info("Subscribed to intent.>")
-
         await self._register_builtin_modules()
         await self.scheduler.start()
+
+        if self.learning:
+            await self.learning.start()
+            logger.info("Learning Engine started")
 
         await self.bus.publish("system.kernel.started", Event(
             type=EventType.SYSTEM_KERNEL_STARTED,
             source="kernel",
-            data={"version": "0.3.0"},
+            data={"version": "0.4.0", "phase": "4.0"},
         ))
         logger.info("Cognitive Kernel started")
 
     async def stop(self) -> None:
-        """Graceful shutdown."""
         if not self._running:
             return
 
         self._running = False
         logger.info("Cognitive Kernel stopping")
+
+        if self.learning:
+            await self.learning.stop()
 
         await self.bus.publish("system.kernel.stopping", Event(
             type="system.kernel.stopping",
@@ -97,7 +87,6 @@ class CognitiveKernel:
         logger.info("Cognitive Kernel stopped")
 
     async def register_module(self, module_id: str, capabilities: List[str]) -> None:
-        """Register module in registry and PostgreSQL."""
         manifest = ModuleManifest(
             id=module_id,
             name=module_id,
@@ -110,7 +99,6 @@ class CognitiveKernel:
         logger.info(f"Module registered: {module_id} capabilities={capabilities}")
 
     async def dispatch_event(self, event: Event) -> None:
-        """Dispatch event to matching modules via registry."""
         if not self._running:
             logger.warning("Kernel not running, cannot dispatch")
             return
@@ -140,11 +128,9 @@ class CognitiveKernel:
             ))
 
     async def handle_event(self, event: Event) -> None:
-        """Public entry — route through dispatch."""
         await self.dispatch_event(event)
 
     async def _register_builtin_modules(self) -> None:
-        """Register built-in modules idempotently."""
         builtins = [
             ("module-executive", ["handle.intent"]),
             ("module-planner", ["handle.task"]),
@@ -158,11 +144,9 @@ class CognitiveKernel:
                 pass
 
     async def _on_system_event(self, event: Event) -> None:
-        """Handle system events."""
         logger.debug("System event: %s", event.type)
 
     async def _on_goal_event(self, event: Event) -> None:
-        """Forward goal lifecycle events to GoalManager."""
         try:
             event_type = event.type
             goal_id = event.data.get("goal_id")
@@ -181,11 +165,9 @@ class CognitiveKernel:
             logger.error("Goal handling failed: %s", e)
 
     async def _on_module_event(self, event: Event) -> None:
-        """Handle module responses."""
         logger.debug("Module event: %s from %s", event.type, event.source)
 
     async def _on_intent_event(self, event: Event) -> None:
-        """Handle intent events — create goal and dispatch."""
         try:
             goal = await self.goals.create(
                 user_id=event.metadata.get("user_id", "anonymous"),
@@ -199,7 +181,6 @@ class CognitiveKernel:
             logger.error("Intent handling failed: %s", e, exc_info=True)
 
     async def _sync_state(self, event: Event) -> None:
-        """Sync event to Redis + PostgreSQL."""
         try:
             payload = event.dict()
             await self.redis.set(f"event:{event.id}", payload, ttl=3600)

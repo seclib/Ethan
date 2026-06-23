@@ -13,6 +13,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from kernel.bus.nats_bus import NatsEventBus
 from kernel.goals.manager import GoalManager
 from kernel.kernel import CognitiveKernel
+from kernel.learning.engine import LearningEngine
+from kernel.learning.modeler import SelfModelUpdater
+from kernel.learning.store import ExperienceStore
+from kernel.learning.detector import PatternDetector
+from kernel.learning.generator import RuleGenerator
 from kernel.registry.module_registry import ModuleRegistry
 from kernel.scheduler.scheduler import Scheduler
 from kernel.state.postgres_state import PostgresPersistentState
@@ -23,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Start the Cognitive Kernel."""
-    # Configuration from environment
+    """Start the Cognitive Kernel with optional Learning Engine."""
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     database_url = os.getenv(
@@ -32,27 +36,32 @@ async def main():
         "postgresql://ethan:ethan_dev_pass@localhost:5432/ethan",
     )
     log_level = os.getenv("LOG_LEVEL", "INFO")
+    enable_learning = os.getenv("ENABLE_LEARNING", "false").lower() == "true"
 
-    # Setup logging
     setup_logging(log_level)
-    logger.info("Cognitive Kernel bootstrapping...")
+    logger.info("Cognitive Kernel bootstrapping... learning=%s", enable_learning)
 
-    # Initialize infrastructure
     bus = NatsEventBus()
     redis = RedisLiveState(redis_url)
     pg = PostgresPersistentState(database_url)
 
-    # Connect to infrastructure
     await bus.connect(nats_url)
     await redis.connect()
     await pg.connect()
 
-    # Initialize subsystems
     scheduler = Scheduler(bus)
     registry = ModuleRegistry(bus, pg, redis)
     goals = GoalManager(bus, pg, redis)
 
-    # Create and start kernel
+    learning = None
+    if enable_learning:
+        store = ExperienceStore(redis, pg)
+        detector = PatternDetector(threshold=3)
+        generator = RuleGenerator()
+        modeler = SelfModelUpdater(redis)
+        learning = LearningEngine(bus, store, detector, generator, modeler)
+        logger.info("Learning Engine initialized")
+
     kernel = CognitiveKernel(
         bus=bus,
         redis=redis,
@@ -60,11 +69,11 @@ async def main():
         registry=registry,
         goals=goals,
         scheduler=scheduler,
+        learning=learning,
     )
 
     await kernel.start()
 
-    # Handle shutdown signals
     loop = asyncio.get_event_loop()
     stop = asyncio.Future()
 
@@ -75,16 +84,13 @@ async def main():
                 lambda: asyncio.ensure_future(_shutdown(kernel, stop)),
             )
         except NotImplementedError:
-            # Windows compatibility
             signal.signal(sig, lambda s, f: asyncio.ensure_future(_shutdown(kernel, stop)))
 
-    # Keep running until shutdown
     await stop
     logger.info("Kernel bootstrap complete, awaiting shutdown")
 
 
 async def _shutdown(kernel: CognitiveKernel, stop: asyncio.Future):
-    """Graceful shutdown."""
     logger.info("Shutdown signal received")
     await kernel.stop()
     if not stop.done():
