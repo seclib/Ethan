@@ -17,6 +17,7 @@ from kernel.autonomy.healing import SelfHealingSystem
 from kernel.autonomy.idle import IdleStateIntelligence
 from kernel.autonomy.scheduler import PriorityScheduler
 from kernel.autonomy.weakness import WeaknessDetector
+from kernel.bootstrap.bootstrapper import SystemBootstrapper
 from kernel.bus.nats_bus import NatsEventBus
 from kernel.goals.manager import GoalManager
 from kernel.kernel import CognitiveKernel
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Start the Cognitive Kernel with optional Learning + Meta-Cognition + Autonomy."""
+    """Start the Cognitive Kernel with optional Learning + Meta-Cognition + Autonomy + Bootstrap."""
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     database_url = os.getenv(
@@ -63,6 +64,10 @@ async def main():
     await bus.connect(nats_url)
     await redis.connect()
     await pg.connect()
+
+    # Run system bootstrap (integrity check + repair)
+    bootstrapper = SystemBootstrapper(bus, redis, pg)
+    await bootstrapper.run()
 
     scheduler = Scheduler(bus)
     registry = ModuleRegistry(bus, pg, redis)

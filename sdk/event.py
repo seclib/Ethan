@@ -104,6 +104,7 @@ class EventType:
     SYSTEM_MODULE_UNREGISTERED = "system.module.unregistered"
     SYSTEM_ERROR = "system.error"
     SYSTEM_OPTIMIZED = "system.optimized"
+    SYSTEM_BOOTSTRAP_COMPLETED = "system.bootstrap.completed"
 
     # Goals
     GOAL_CREATED = "goal.created"
@@ -142,3 +143,10 @@ class EventType:
     AUTONOMY_CYCLE_COMPLETED = "autonomy.cycle.completed"
     SELF_HEAL_TRIGGERED = "autonomy.self_heal.triggered"
     IDLE_DETECTED = "autonomy.idle.detected"
+
+    # Bootstrap (Phase 8)
+    BOOTSTRAP_INTEGRITY_CHECK = "bootstrap.integrity.check"
+    BOOTSTRAP_INTEGRITY_COMPLETED = "bootstrap.integrity.completed"
+    BOOTSTRAP_REPAIR_REQUESTED = "bootstrap.repair.requested"
+    BOOTSTRAP_CONFIG_PROPOSED = "bootstrap.config.proposed"
+    BOOTSTRAP_CONFIG_APPLIED = "bootstrap.config.applied"

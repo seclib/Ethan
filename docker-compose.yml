@@ -215,6 +215,20 @@ services:
         condition: service_healthy
     command: python kernel/autonomy/bootstrap.py
 
+  ui:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.ui
+    container_name: ethan-ui
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    command: streamlit run ethan-ui/app.py --server.port 8501 --server.address 0.0.0.0
+
 volumes:
   postgres_data:
   redis_data:
