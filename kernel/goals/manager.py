@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class GoalStep:
     """Single step in a goal's cognitive chain."""
     module: str
-    status: str = "pending"  # pending | running | completed | failed | skipped
+    status: str = "pending"
     result: Optional[Dict[str, Any]] = None
     duration_ms: Optional[float] = None
     retry_count: int = 0
@@ -51,6 +51,22 @@ class GoalManager:
         self.pg = pg
         self.redis = redis
 
+    async def handle_event(self, event: Event) -> None:
+        """Route goal lifecycle events from the Kernel."""
+        event_type = event.type
+        goal_id = event.data.get("goal_id")
+        if event_type == EventType.GOAL_CREATED:
+            await self.create(
+                user_id=event.metadata.get("user_id", "anonymous"),
+                intent=event.data.get("intent", {}),
+                session_id=event.metadata.get("session_id", ""),
+                trace_id=event.metadata.get("trace_id", ""),
+            )
+        elif event_type == EventType.GOAL_COMPLETED and goal_id:
+            await self.complete(goal_id)
+        elif event_type == EventType.GOAL_FAILED and goal_id:
+            await self.fail(goal_id, event.data.get("error", ""))
+
     async def create(
         self, user_id: str, intent: Dict[str, Any],
         session_id: str = "", trace_id: str = "",
@@ -70,18 +86,15 @@ class GoalManager:
             trace_id=trace_id,
         )
 
-        # Persist to PostgreSQL
         row = await self.pg.create_goal(user_id, intent)
         goal.id = row["id"]
 
-        # Cache in Redis (72h TTL)
         await self.redis.set_goal(goal.id, {
             "status": goal.status,
             "user_id": goal.user_id,
             "chain": [s.__dict__ for s in goal.chain],
         })
 
-        # Emit goal.created event
         await self.bus.publish(EventType.GOAL_CREATED, Event(
             type=EventType.GOAL_CREATED,
             source="goal-manager",
@@ -105,7 +118,6 @@ class GoalManager:
             duration_ms=duration_ms,
         )
 
-        # Update in PostgreSQL
         await self.pg.insert("goal_steps", {
             "goal_id": goal_id,
             "module": module,
@@ -114,7 +126,6 @@ class GoalManager:
             "duration_ms": duration_ms,
         })
 
-        # Update cache in Redis
         goal_data = await self.redis.get_goal(goal_id)
         if goal_data:
             goal_data["chain"].append(step.__dict__)

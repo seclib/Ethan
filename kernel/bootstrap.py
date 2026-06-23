@@ -86,7 +86,7 @@ async def main():
 async def _shutdown(kernel: CognitiveKernel, stop: asyncio.Future):
     """Graceful shutdown."""
     logger.info("Shutdown signal received")
-    await kernel.shutdown()
+    await kernel.stop()
     if not stop.done():
         stop.set_result(None)
 
