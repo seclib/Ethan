@@ -10,9 +10,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from kernel.autonomy.controller import AutonomyLoopController
 from kernel.autonomy.curiosity import CuriosityEngine
 from kernel.autonomy.environment import EnvironmentAnalyzer
-from kernel.autonomy.engine import AutonomyEngine
+from kernel.autonomy.healing import SelfHealingSystem
+from kernel.autonomy.idle import IdleStateIntelligence
+from kernel.autonomy.scheduler import PriorityScheduler
 from kernel.autonomy.weakness import WeaknessDetector
 from kernel.bus.nats_bus import NatsEventBus
 from kernel.goals.manager import GoalManager
@@ -95,14 +98,8 @@ async def main():
         curiosity = CuriosityEngine()
         weakness = WeaknessDetector()
         environment = EnvironmentAnalyzer()
-        autonomy = AutonomyEngine(
-            bus=bus,
-            redis=redis,
-            curiosity=curiosity,
-            weakness=weakness,
-            environment=environment,
-        )
-        logger.info("Autonomy Engine initialized")
+        autonomy = AutonomyLoopController(bus=bus, redis=redis)
+        logger.info("Autonomy Loop Controller initialized")
 
     kernel = CognitiveKernel(
         bus=bus,

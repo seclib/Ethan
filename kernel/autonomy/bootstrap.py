@@ -9,12 +9,14 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from kernel.autonomy.controller import AutonomyLoopController
 from kernel.autonomy.curiosity import CuriosityEngine
 from kernel.autonomy.environment import EnvironmentAnalyzer
-from kernel.autonomy.engine import AutonomyEngine
+from kernel.autonomy.healing import SelfHealingSystem
+from kernel.autonomy.idle import IdleStateIntelligence
+from kernel.autonomy.scheduler import PriorityScheduler
 from kernel.autonomy.weakness import WeaknessDetector
 from kernel.bus.nats_bus import NatsEventBus
-from kernel.state.postgres_state import PostgresPersistentState
 from kernel.state.redis_state import RedisLiveState
 from kernel.telemetry.logger import setup_logging
 
@@ -26,35 +28,33 @@ async def main():
 
     bus = NatsEventBus()
     redis = RedisLiveState(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-    pg = PostgresPersistentState(os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@localhost:5432/ethan"))
 
     await bus.connect(os.getenv("NATS_URL", "nats://localhost:4222"))
     await redis.connect()
-    await pg.connect()
 
+    scheduler = PriorityScheduler()
+    idle = IdleStateIntelligence(bus, redis)
+    healing = SelfHealingSystem(bus, redis)
     curiosity = CuriosityEngine()
     weakness = WeaknessDetector()
     environment = EnvironmentAnalyzer()
+    controller = AutonomyLoopController(bus, redis)
 
-    engine = AutonomyEngine(
-        bus=bus,
-        redis=redis,
-        curiosity=curiosity,
-        weakness=weakness,
-        environment=environment,
-    )
-
-    await engine.start()
+    await idle.start()
+    await healing.start()
+    await controller.start()
+    logger.info("Autonomy Service started")
 
     try:
         await asyncio.Event().wait()
     except asyncio.CancelledError:
         pass
     finally:
-        await engine.stop()
+        await controller.stop()
+        await healing.stop()
+        await idle.stop()
         await bus.close()
         await redis.close()
-        await pg.close()
 
 
 if __name__ == "__main__":

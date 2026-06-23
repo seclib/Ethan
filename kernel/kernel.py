@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from kernel.autonomy.engine import AutonomyEngine
+from kernel.autonomy.controller import AutonomyLoopController
 from kernel.bus.interface import EventBus
 from kernel.goals.manager import GoalManager
 from kernel.learning.engine import LearningEngine
@@ -33,7 +33,7 @@ class CognitiveKernel:
         scheduler: Scheduler,
         learning: Optional[LearningEngine] = None,
         metacognition: Optional[MetaCognitionEngine] = None,
-        autonomy: Optional[AutonomyEngine] = None,
+        autonomy: Optional[AutonomyLoopController] = None,
     ):
         self.bus = bus
         self.redis = redis
@@ -74,9 +74,9 @@ class CognitiveKernel:
             logger.info("Autonomy Engine started")
 
         await self.bus.publish("system.kernel.started", Event(
-            type=EventType.SYSTEM_KERNEL_STARTED,
+            type="system.kernel.started",
             source="kernel",
-            data={"version": "0.6.0", "phase": "6.0"},
+            data={"version": "0.7.0", "phase": "7.0"},
         ))
         logger.info("Cognitive Kernel started")
 

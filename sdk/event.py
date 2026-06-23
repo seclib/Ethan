@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 
@@ -61,6 +61,7 @@ class EventType:
     # Intents
     INTENT_USER = "intent.user"
     INTENT_RESPONSE = "intent.response"
+    TASK_EXECUTED = "task.executed"
 
     # Task lifecycle (Phase 0.3)
     TASK_CREATED = "task.created"
@@ -102,6 +103,7 @@ class EventType:
     SYSTEM_MODULE_REGISTERED = "system.module.registered"
     SYSTEM_MODULE_UNREGISTERED = "system.module.unregistered"
     SYSTEM_ERROR = "system.error"
+    SYSTEM_OPTIMIZED = "system.optimized"
 
     # Goals
     GOAL_CREATED = "goal.created"
@@ -110,6 +112,7 @@ class EventType:
     GOAL_PROPOSED = "goal.proposed"
     GOAL_PRIORITIZED = "goal.prioritized"
     EXPLORATION_GOAL_CREATED = "goal.exploration.created"
+    NEW_GOAL_CREATED = "autonomy.goal.created"
 
     # Schedule
     SCHEDULE_TRIGGER = "schedule.trigger"
@@ -133,3 +136,9 @@ class EventType:
 
     # Autonomous Goals (Phase 6)
     AUTONOMOUS_GOAL_GENERATED = "autonomy.goal_generated"
+
+    # Autonomy Loop (Phase 7)
+    AUTONOMY_CYCLE_STARTED = "autonomy.cycle.started"
+    AUTONOMY_CYCLE_COMPLETED = "autonomy.cycle.completed"
+    SELF_HEAL_TRIGGERED = "autonomy.self_heal.triggered"
+    IDLE_DETECTED = "autonomy.idle.detected"
