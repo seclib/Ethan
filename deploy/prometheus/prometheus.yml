@@ -1,71 +1,22 @@
-# =============================================================================
-# Prometheus — Configuration
-# =============================================================================
-# Documentation: https://prometheus.io/docs/prometheus/latest/configuration/
-
 global:
-  scrape_interval: 15s      # Scrape toutes les 15s
-  evaluation_interval: 15s  # Évalue les règles toutes les 15s
-  external_labels:
-    cluster: openjarvis
-    environment: production
+  scrape_interval: 15s
+  evaluation_interval: 15s
 
-# Alertmanager (optionnel)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets:
-#           - alertmanager:9093
-
-# Règles d'alerte
-rule_files:
-  - /etc/prometheus/alerts.yml
-
-# Scrape configs
 scrape_configs:
-  # ─── Prometheus lui-même ───────────────────────────────────────────
-  - job_name: 'prometheus'
+  - job_name: 'ethan-kernel'
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['kernel:9090']
+        labels:
+          service: cognitive-kernel
 
-  # ─── Backend Ethan ────────────────────────────────────────────
-  - job_name: 'openjarvis-backend'
+  - job_name: 'ethan-api'
     static_configs:
-      - targets: ['backend:8000']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
+      - targets: ['api:8000']
+        labels:
+          service: api-gateway
 
-  # ─── Traefik ──────────────────────────────────────────────────────
-  - job_name: 'traefik'
+  - job_name: 'nats'
     static_configs:
-      - targets: ['traefik:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-
-  # ─── Redis ────────────────────────────────────────────────────────
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-
-  # ─── PostgreSQL ───────────────────────────────────────────────────
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-
-  # ─── cAdvisor (Docker containers) ─────────────────────────────────
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-
-  # ─── Node Exporter (host metrics) ─────────────────────────────────
-  - job_name: 'node'
-    static_configs:
-      - targets: ['node-exporter:9100']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
+      - targets: ['nats:8222']
+        labels:
+          service: nats

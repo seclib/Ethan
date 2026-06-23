@@ -1,0 +1,1 @@
+"""Goal Manager — Goal lifecycle, decomposition, event emission."""

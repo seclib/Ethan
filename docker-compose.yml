@@ -1,274 +1,160 @@
-# =============================================================================
-# docker-compose.yml — Ethan OS (Baseline)
-# =============================================================================
-#
-# Architecture de base pour Ethan OS.
-# Services core uniquement : backend + frontend.
-#
-# Usage:
-#   cp .env.example .env
-#   docker compose up --build
-#
-# Extensions:
-#   - docker-compose.dev.yml   : Services data/AI (redis, postgres, ollama, etc.)
-#   - docker-compose.prod.yml  : Monitoring (prometheus, grafana, traefik)
-#
-# Exemples:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up
-# =============================================================================
+version: "3.8"
 
-# ── Networks ──────────────────────────────────────────────────────────────────
-networks:
-  ethan-network:
-    name: ethan-network
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-
-# ── Volumes ───────────────────────────────────────────────────────────────────
-volumes:
-  # Core application data
-  ethan-logs:
-    name: ethan-logs
-  ethan-config:
-    name: ethan-config
-  ethan-cache:
-    name: ethan-cache
-  ethan-workspace:
-    name: ethan-workspace
-  # AI infrastructure volumes
-  redis-data:
-    name: redis-data
-  postgres-data:
-    name: postgres-data
-  qdrant-data:
-    name: qdrant-data
-  ollama-models:
-    name: ollama-models
-
-# ── Services ──────────────────────────────────────────────────────────────────
 services:
-  # ===========================================================================
-  # Backend — Ethan API (FastAPI + Rust)
-  # ===========================================================================
-  backend:
-    build:
-      context: .
-      dockerfile: deploy/docker/Dockerfile.backend
-    image: ethan/backend:latest
-    container_name: ethan-backend
-    hostname: backend
-    networks:
-      - ethan-network
+  nats:
+    image: nats:2.10-alpine
+    container_name: ethan-nats
     ports:
-      - "${ETHAN_PORT:-8000}:8000"
-    environment:
-      # Core
-      - ETHAN_API_KEY=${ETHAN_API_KEY:?ETHAN_API_KEY is required}
-      - ETHAN_HOME=/etc/ethan
-      - ETHAN_CONFIG=/etc/ethan/config.toml
-      - ETHAN_LOG_LEVEL=${ETHAN_LOG_LEVEL:-info}
-      - ETHAN_DEV_MODE=${ETHAN_DEV_MODE:-false}
-
-      # Engine
-      - ETHAN_ENGINE_DEFAULT=${ETHAN_ENGINE_DEFAULT:-ollama}
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://localhost:11434}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
-
-      # Database
-      - ETHAN_DATABASE_URL=${ETHAN_DATABASE_URL:-sqlite:////var/lib/ethan/memory/ethan.db}
-
-      # Paths
-      - ETHAN_WORKSPACE=/workspace
-      - ETHAN_UPLOADS=/var/lib/ethan/uploads
-      - ETHAN_CACHE=/var/lib/ethan/cache
-      - ETHAN_MODELS=/var/lib/ethan/models
-    volumes:
-      - ethan-config:/etc/ethan:ro
-      - ethan-logs:/var/log/ethan
-      - ethan-workspace:/workspace
-      - ethan-cache:/var/lib/ethan/cache
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
+      - "4222:4222"     # Client
+      - "8222:8222"     # HTTP management
+      - "6222:6222"     # Cluster
+    command: ["-js"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-    stop_grace_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      test: ["CMD", "nc", "-z", "localhost", "4222"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # ===========================================================================
-  # Frontend — Interface Web (Nginx)
-  # ===========================================================================
-  frontend:
-    build:
-      context: .
-      dockerfile: deploy/docker/Dockerfile.frontend
-    image: ethan/frontend:latest
-    container_name: ethan-frontend
-    hostname: frontend
-    networks:
-      - ethan-network
-    ports:
-      - "${NGINX_PORT:-3000}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-  # ==========================================================================
-  # Redis — Cache, événements, mémoire court-terme
-  # ==========================================================================
   redis:
     image: redis:7-alpine
     container_name: ethan-redis
-    hostname: redis
-    networks:
-      - ethan-network
-    # Pas de port exposé publiquement – uniquement interne
-    # ports:
-    #   - "${REDIS_PORT:-6379}:6379"
+    ports:
+      - "6379:6379"
     volumes:
-      - redis-data:/data
-    environment:
-      - REDIS_PERSISTENCE=${REDIS_PERSISTENCE:-false}
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 5s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-  # ==========================================================================
-  # PostgreSQL — Base de données structurée
-  # ==========================================================================
+
   postgres:
     image: postgres:16-alpine
     container_name: ethan-postgres
-    hostname: postgres
-    networks:
-      - ethan-network
-    # Pas de port exposé publiquement – uniquement interne
-    # ports:
-    #   - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    depends_on:
-      redis:
-        condition: service_healthy
+    ports:
+      - "5432:5432"
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-ethan}
-      - POSTGRES_USER=${POSTGRES_USER:-ethan}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ethan} -d ${POSTGRES_DB:-ethan}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-  # ==========================================================================
-  # Qdrant — Vector database (production)
-  # ==========================================================================
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: ethan-qdrant
-    hostname: qdrant
-    networks:
-      - ethan-network
-    # Pas de port exposé publiquement – uniquement interne
-    # ports:
-    #   - "${QDRANT_PORT:-6333}:6333"
-    #   - "${QDRANT_GRPC_PORT:-6334}:6334"
+      POSTGRES_USER: ethan
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ethan_dev_pass}
+      POSTGRES_DB: ethan
     volumes:
-      - qdrant-data:/qdrant/storage
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ethan"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: ethan-api
+    ports:
+      - "8000:8000"
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
     depends_on:
+      nats:
+        condition: service_healthy
       postgres:
         condition: service_healthy
-    environment:
-      - QDRANT__SERVICE__HTTP_PORT=6333
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    healthcheck:
-      test: ["CMD-SHELL", "grep -q '00000000:18BD' /proc/net/tcp"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-  # ==========================================================================
-  # Ollama — LLM local
-  # ==========================================================================
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ethan-ollama
-    hostname: ollama
-    networks:
-      - ethan-network
-    # Pas de port exposé publiquement – uniquement interne
-    # ports:
-    #   - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama-models:/root/.ollama
-    depends_on:
-      qdrant:
+      redis:
         condition: service_healthy
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
-      - OLLAMA_DEBUG=${OLLAMA_DEBUG:-0}
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      timeout: 3s
+      retries: 3
+
+  kernel:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-kernel
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python kernel/bootstrap.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  module-executive:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-module-executive
+    environment:
+      NATS_URL: nats://nats:4222
+      MODULE_ID: executive-v1
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+    command: python modules/executive/main.py
+
+  module-planner:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-module-planner
+    environment:
+      NATS_URL: nats://nats:4222
+      MODULE_ID: planner-v1
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+    command: python modules/planner/main.py
+
+  module-memory:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-module-memory
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      MODULE_ID: memory-v1
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python modules/memory/main.py
+
+  module-reflective:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-module-reflective
+    environment:
+      NATS_URL: nats://nats:4222
+      MODULE_ID: reflective-v1
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+    command: python modules/reflective/main.py
+
+volumes:
+  postgres_data:
+  redis_data:

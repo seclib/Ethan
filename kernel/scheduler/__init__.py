@@ -1,0 +1,1 @@
+"""Scheduler — Background tasks and event triggers."""

@@ -1,0 +1,1 @@
+"""Executive Module — Entry-level cognitive module that parses intents and creates tasks."""

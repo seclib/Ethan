@@ -1,0 +1,1 @@
+"""Example cognitive module — logs events and echoes responses."""

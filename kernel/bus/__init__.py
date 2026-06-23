@@ -1,0 +1,1 @@
+"""Event Bus — NATS-based async communication."""
