@@ -107,6 +107,9 @@ class EventType:
     GOAL_CREATED = "goal.created"
     GOAL_COMPLETED = "goal.completed"
     GOAL_FAILED = "goal.failed"
+    GOAL_PROPOSED = "goal.proposed"
+    GOAL_PRIORITIZED = "goal.prioritized"
+    EXPLORATION_GOAL_CREATED = "goal.exploration.created"
 
     # Schedule
     SCHEDULE_TRIGGER = "schedule.trigger"
@@ -121,3 +124,12 @@ class EventType:
     RULE_PROPOSAL = "learning.rule_proposal"
     SELF_MODEL_UPDATED = "learning.self_model_updated"
     SYSTEM_IMPROVEMENT_SUGGESTION = "learning.improvement_suggestion"
+
+    # Meta-Cognition (Phase 5)
+    STRATEGY_SELECTED = "meta.strategy_selected"
+    COGNITIVE_MODE_CHANGED = "meta.mode_changed"
+    MODULE_PRIORITY_UPDATED = "meta.priority_updated"
+    THINKING_DEPTH_ADJUSTED = "meta.depth_adjusted"
+
+    # Autonomous Goals (Phase 6)
+    AUTONOMOUS_GOAL_GENERATED = "autonomy.goal_generated"

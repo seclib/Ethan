@@ -10,6 +10,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from kernel.autonomy.curiosity import CuriosityEngine
+from kernel.autonomy.environment import EnvironmentAnalyzer
+from kernel.autonomy.engine import AutonomyEngine
+from kernel.autonomy.weakness import WeaknessDetector
 from kernel.bus.nats_bus import NatsEventBus
 from kernel.goals.manager import GoalManager
 from kernel.kernel import CognitiveKernel
@@ -18,6 +22,11 @@ from kernel.learning.modeler import SelfModelUpdater
 from kernel.learning.store import ExperienceStore
 from kernel.learning.detector import PatternDetector
 from kernel.learning.generator import RuleGenerator
+from kernel.metacognition.engine import MetaCognitionEngine
+from kernel.metacognition.load import CognitiveLoadManager
+from kernel.metacognition.prioritizer import ModulePrioritizer
+from kernel.metacognition.strategy import DecisionStrategySelector
+from kernel.metacognition.trace import ThoughtTraceAnalyzer
 from kernel.registry.module_registry import ModuleRegistry
 from kernel.scheduler.scheduler import Scheduler
 from kernel.state.postgres_state import PostgresPersistentState
@@ -28,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Start the Cognitive Kernel with optional Learning Engine."""
+    """Start the Cognitive Kernel with optional Learning + Meta-Cognition + Autonomy."""
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     database_url = os.getenv(
@@ -37,9 +46,12 @@ async def main():
     )
     log_level = os.getenv("LOG_LEVEL", "INFO")
     enable_learning = os.getenv("ENABLE_LEARNING", "false").lower() == "true"
+    enable_metacognition = os.getenv("ENABLE_METACOGNITION", "false").lower() == "true"
+    enable_autonomy = os.getenv("ENABLE_AUTONOMY", "false").lower() == "true"
 
     setup_logging(log_level)
-    logger.info("Cognitive Kernel bootstrapping... learning=%s", enable_learning)
+    logger.info("Cognitive Kernel bootstrapping... learning=%s metacognition=%s autonomy=%s",
+                enable_learning, enable_metacognition, enable_autonomy)
 
     bus = NatsEventBus()
     redis = RedisLiveState(redis_url)
@@ -62,6 +74,36 @@ async def main():
         learning = LearningEngine(bus, store, detector, generator, modeler)
         logger.info("Learning Engine initialized")
 
+    metacognition = None
+    if enable_metacognition:
+        strategy = DecisionStrategySelector()
+        load_manager = CognitiveLoadManager()
+        prioritizer = ModulePrioritizer()
+        trace_analyzer = ThoughtTraceAnalyzer()
+        metacognition = MetaCognitionEngine(
+            bus=bus,
+            redis=redis,
+            strategy=strategy,
+            load_manager=load_manager,
+            prioritizer=prioritizer,
+            trace_analyzer=trace_analyzer,
+        )
+        logger.info("Meta-Cognition Engine initialized")
+
+    autonomy = None
+    if enable_autonomy:
+        curiosity = CuriosityEngine()
+        weakness = WeaknessDetector()
+        environment = EnvironmentAnalyzer()
+        autonomy = AutonomyEngine(
+            bus=bus,
+            redis=redis,
+            curiosity=curiosity,
+            weakness=weakness,
+            environment=environment,
+        )
+        logger.info("Autonomy Engine initialized")
+
     kernel = CognitiveKernel(
         bus=bus,
         redis=redis,
@@ -70,6 +112,8 @@ async def main():
         goals=goals,
         scheduler=scheduler,
         learning=learning,
+        metacognition=metacognition,
+        autonomy=autonomy,
     )
 
     await kernel.start()

@@ -6,9 +6,11 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
+from kernel.autonomy.engine import AutonomyEngine
 from kernel.bus.interface import EventBus
 from kernel.goals.manager import GoalManager
 from kernel.learning.engine import LearningEngine
+from kernel.metacognition.engine import MetaCognitionEngine
 from kernel.registry.module_registry import ModuleRegistry, ModuleManifest
 from kernel.scheduler.scheduler import Scheduler
 from kernel.state.postgres_state import PostgresPersistentState
@@ -30,6 +32,8 @@ class CognitiveKernel:
         goals: GoalManager,
         scheduler: Scheduler,
         learning: Optional[LearningEngine] = None,
+        metacognition: Optional[MetaCognitionEngine] = None,
+        autonomy: Optional[AutonomyEngine] = None,
     ):
         self.bus = bus
         self.redis = redis
@@ -38,6 +42,8 @@ class CognitiveKernel:
         self.goals = goals
         self.scheduler = scheduler
         self.learning = learning
+        self.metacognition = metacognition
+        self.autonomy = autonomy
         self._running = False
 
     async def start(self) -> None:
@@ -59,10 +65,18 @@ class CognitiveKernel:
             await self.learning.start()
             logger.info("Learning Engine started")
 
+        if self.metacognition:
+            await self.metacognition.start()
+            logger.info("Meta-Cognition Engine started")
+
+        if self.autonomy:
+            await self.autonomy.start()
+            logger.info("Autonomy Engine started")
+
         await self.bus.publish("system.kernel.started", Event(
             type=EventType.SYSTEM_KERNEL_STARTED,
             source="kernel",
-            data={"version": "0.4.0", "phase": "4.0"},
+            data={"version": "0.6.0", "phase": "6.0"},
         ))
         logger.info("Cognitive Kernel started")
 
@@ -75,6 +89,12 @@ class CognitiveKernel:
 
         if self.learning:
             await self.learning.stop()
+
+        if self.metacognition:
+            await self.metacognition.stop()
+
+        if self.autonomy:
+            await self.autonomy.stop()
 
         await self.bus.publish("system.kernel.stopping", Event(
             type="system.kernel.stopping",

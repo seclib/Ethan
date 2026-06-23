@@ -1,0 +1,1 @@
+"""Meta-Cognition Layer — Controls how ETHAN thinks."""

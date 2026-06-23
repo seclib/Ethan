@@ -83,6 +83,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: INFO
       ENABLE_LEARNING: "true"
+      ENABLE_METACOGNITION: "true"
+      ENABLE_AUTONOMY: "true"
     depends_on:
       nats:
         condition: service_healthy
@@ -174,6 +176,44 @@ services:
       redis:
         condition: service_healthy
     command: python kernel/learning/bootstrap.py
+
+  metacognition:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-metacognition
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python kernel/metacognition/bootstrap.py
+
+  autonomy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-autonomy
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python kernel/autonomy/bootstrap.py
 
 volumes:
   postgres_data:
