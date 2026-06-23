@@ -1,0 +1,21 @@
+[Unit]
+Description=ETHAN Cognitive OS — user service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/AI/Ethan
+
+# Start: launch Docker Compose stack
+ExecStart=/usr/bin/docker compose -f docker-compose.yml up -d
+
+# Stop: tear down cleanly
+ExecStop=/usr/bin/docker compose -f docker-compose.yml down
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

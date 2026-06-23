@@ -1,0 +1,29 @@
+[Unit]
+Description=ETHAN Cognitive OS — backend service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/fatsio/AI/Ethan
+
+# Start: launch Docker Compose stack
+ExecStart=/usr/bin/docker compose -f docker-compose.yml up -d
+
+# Stop: tear down cleanly
+ExecStop=/usr/bin/docker compose -f docker-compose.yml down
+
+# Health: quick check
+ExecReload=/usr/bin/docker compose -f docker-compose.yml restart
+
+Restart=on-failure
+RestartSec=10
+
+# Security
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

@@ -1,11 +1,4 @@
-"""ETHAN Daemon — lightweight background state cache.
-
-Behavior:
-- start: forks to background, polls /state every interval, caches to ~/.ethan/cache.json
-- stop: SIGTERM daemon via PID file
-- status: prints daemon status + cached state summary
-"""
-
+"""ETHAN daemon — lightweight background state cache."""
 import json
 import os
 import signal
@@ -19,29 +12,25 @@ CACHE_DIR = os.path.expanduser("~/.ethan")
 PID_FILE = os.path.join(CACHE_DIR, "ethan-daemon.pid")
 CACHE_FILE = os.path.join(CACHE_DIR, "cache.json")
 LOG_FILE = os.path.join(CACHE_DIR, "daemon.log")
+DEFAULT_INTERVAL = 5
 
-DEFAULT_INTERVAL = 5  # seconds
 
-
-def _log(msg: str) -> None:
+def _log(msg):
     ts = datetime.now().isoformat(timespec="seconds")
     line = f"[{ts}] {msg}"
     with open(LOG_FILE, "a") as f:
         f.write(line + "\n")
 
 
-def _cache_write(state: dict) -> None:
-    payload = {
-        "ts": datetime.now().isoformat(),
-        "state": state,
-    }
+def _cache_write(state):
+    payload = {"ts": datetime.now().isoformat(), "state": state}
     tmp = CACHE_FILE + ".tmp"
     with open(tmp, "w") as f:
         json.dump(payload, f)
     os.replace(tmp, CACHE_FILE)
 
 
-def _cache_read() -> dict | None:
+def _cache_read():
     if not os.path.exists(CACHE_FILE):
         return None
     try:
@@ -51,12 +40,12 @@ def _cache_read() -> dict | None:
         return None
 
 
-def _pid_write() -> None:
+def _pid_write():
     with open(PID_FILE, "w") as f:
         f.write(str(os.getpid()))
 
 
-def _pid_read() -> int | None:
+def _pid_read():
     if not os.path.exists(PID_FILE):
         return None
     try:
@@ -66,26 +55,24 @@ def _pid_read() -> int | None:
         return None
 
 
-def _pid_remove() -> None:
+def _pid_remove():
     try:
         os.remove(PID_FILE)
     except FileNotFoundError:
         pass
 
 
-def _is_running(pid: int | None) -> bool:
+def _is_running(pid):
     if pid is None:
         return False
     try:
         os.kill(pid, 0)
         return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
+    except (ProcessLookupError, PermissionError):
         return False
 
 
-def _fetch_state() -> dict | None:
+def _fetch_state():
     try:
         with urlopen(f"{API}/state", timeout=3) as r:
             return json.loads(r.read())
@@ -93,12 +80,11 @@ def _fetch_state() -> dict | None:
         return None
 
 
-def _daemon_loop(interval: int) -> None:
+def _daemon_loop(interval):
     signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
     signal.signal(signal.SIGINT, lambda *a: sys.exit(0))
     _pid_write()
     _log("daemon started")
-
     while True:
         state = _fetch_state()
         if state:
@@ -106,11 +92,10 @@ def _daemon_loop(interval: int) -> None:
         time.sleep(interval)
 
 
-def cmd_start(args: list) -> None:
+def cmd_start(args):
     import argparse
-
     parser = argparse.ArgumentParser(prog="ethan daemon start")
-    parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL, help="Poll interval (seconds)")
+    parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL)
     ns = parser.parse_args(args)
 
     pid = _pid_read()
@@ -134,12 +119,13 @@ def cmd_start(args: list) -> None:
         _daemon_loop(ns.interval)
 
 
-def cmd_stop(args: list) -> None:
+def cmd_stop(args):
     pid = _pid_read()
     if not _is_running(pid):
         print("daemon not running")
         _pid_remove()
         return
+    assert pid is not None
     try:
         os.kill(pid, signal.SIGTERM)
         time.sleep(0.3)
@@ -153,7 +139,7 @@ def cmd_stop(args: list) -> None:
         _pid_remove()
 
 
-def cmd_status(args: list) -> None:
+def cmd_status(args):
     pid = _pid_read()
     if _is_running(pid):
         print(f"daemon: running (pid {pid})")
@@ -164,7 +150,6 @@ def cmd_status(args: list) -> None:
     if cache:
         ts = cache.get("ts", "?")
         s = cache.get("state", {})
-        age = datetime.now().isoformat()
         print(f"cache:   {ts}")
         print(f"mode:    {s.get('mode','?')}")
         print(f"goal:    {s.get('active_goal','none')}")
