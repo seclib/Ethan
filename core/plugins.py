@@ -1,114 +1,116 @@
-"""Plugin System — ADR-1008
+"""ETHAN Plugin Architecture — formal contract definition.
 
-Système de découverte et de chargement automatique des plugins.
-Permet l'extension du système sans modifier le core.
+A plugin is a self-contained module with declared metadata, capabilities,
+commands, memory hooks, and event subscriptions.
+
+Discovery paths (in order):
+  1. Built-in:   cli/plugins/<name>/
+  2. User:       ~/.local/share/ethan/plugins/<name>/
+  3. System:     /etc/ethan/plugins/<name>/        (if exists)
+
+Isolation:
+  - Each plugin runs in its own Python process
+  - Plugins communicate via NATS only (no direct imports)
+  - Plugin crash does not affect kernel
+
+Hot-loading:
+  - plugins/ directory is watched for changes
+  - New plugins are loaded on the fly
+  - Removed plugins are unregistered
+  - No restart required
 """
 
-from __future__ import annotations
+ETHAN_PLUGIN_API = "2"
 
-import importlib.util
-import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Optional, Type, Any
+# Full plugin metadata schema
+ETHAN_PLUGIN_SCHEMA = {
+    "name": "string (required)",
+    "version": "semver (required)",
+    "api_version": "string (required, must match ETHAN_PLUGIN_API)",
+    "description": "string (optional)",
+    "author": "string (optional)",
+    "license": "string (optional)",
 
-logger = logging.getLogger(__name__)
+    # 1. Capability declarations
+    "capabilities": [
+        {
+            "name": "string",
+            "version": "semver",
+            "inputs": ["event.type"],
+            "outputs": ["event.type"],
+            "state_reads": ["redis:key:*"],
+            "state_writes": ["redis:key:*"],
+            "dependencies": [],
+            "shared": False,
+        }
+    ],
 
-@dataclass
-class PluginMetadata:
-    """Metadata d'un plugin."""
-    name: str
-    version: str
-    description: str
-    author: str
-    capabilities: List[str] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)
+    # 2. CLI commands
+    "commands": {
+        "command_name": {
+            "help": "description",
+            "handler": "function_name",  # in plugin.py
+            "args": [{"name": "...", "type": "str", "help": "..."}],
+        }
+    },
 
+    # 3. Memory hooks
+    "memory_hooks": {
+        "on_store": "function_name",     # called before store
+        "on_recall": "function_name",    # called after recall
+        "on_delete": "function_name",    # called before delete
+        "on_semantic_query": "function_name",
+    },
 
-class PluginContext:
-    """Contexte fourni au plugin lors de l'initialisation."""
-    def __init__(self, config: Dict[str, Any], event_bus: Any = None):
-        self.config = config
-        self.event_bus = event_bus
+    # 4. Event subscriptions (NATS)
+    "subscriptions": {
+        "ethan.intent.user": "handle_intent",
+        "ethan.planner.plan.created": "handle_plan",
+        "ethan.executor.task.completed": "handle_result",
+    },
 
+    # 5. Dependencies
+    "dependencies": [],
+}
 
-class Plugin(ABC):
-    """Interface abstraite pour tous les plugins."""
+# Example minimal plugin.py
+EXAMPLE_PLUGIN = """
+'''Example plugin.'''
+ETHAN_PLUGIN = {
+    "name": "my-plugin",
+    "version": "1.0.0",
+    "api_version": "2",
+    "description": "Does something useful",
+    "capabilities": [
+        {
+            "name": "myplugin.action",
+            "version": "1.0.0",
+            "module": "my-plugin",
+            "inputs": ["myplugin.action.request"],
+            "outputs": ["myplugin.action.complete"],
+            "state_reads": [],
+            "state_writes": [],
+            "dependencies": [],
+            "shared": False,
+        }
+    ],
+    "commands": {
+        "myaction": {
+            "help": "Run my action",
+            "handler": "cmd_myaction",
+            "args": [{"name": "arg", "type": "str", "help": "some argument"}],
+        }
+    },
+    "memory_hooks": {},
+    "subscriptions": {
+        "myplugin.action.request": "handle_action",
+    },
+    "dependencies": [],
+}
 
-    @abstractmethod
-    def get_metadata(self) -> PluginMetadata:
-        """Retourner les metadata du plugin."""
-        pass
+def cmd_myaction(args):
+    print("myaction:", args)
 
-    @abstractmethod
-    async def initialize(self, context: PluginContext) -> None:
-        """Initialiser le plugin."""
-        pass
-
-    @abstractmethod
-    async def shutdown(self) -> None:
-        """Nettoyer le plugin."""
-        pass
-
-
-class PluginRegistry:
-    """Registre central des plugins."""
-
-    def __init__(self):
-        self._plugins: Dict[str, Plugin] = {}
-        self._metadata: Dict[str, PluginMetadata] = {}
-
-    async def discover(self, plugin_dirs: List[Path]):
-        """Découvrir les plugins dans les répertoires spécifiés."""
-        for plugin_dir in plugin_dirs:
-            if not plugin_dir.exists():
-                logger.warning(f"Plugin directory {plugin_dir} does not exist")
-                continue
-
-            # Cherche tous les fichiers .py dans les sous-répertoires
-            for plugin_file in plugin_dir.rglob("*.py"):
-                try:
-                    await self._load_plugin_from_file(plugin_file)
-                except Exception as e:
-                    logger.error(f"Failed to load plugin from {plugin_file}: {e}")
-
-    async def _load_plugin_from_file(self, path: Path):
-        """Import dynamique d'un plugin depuis un fichier."""
-        module_name = path.stem if path.name != "__init__.py" else path.parent.name
-        
-        spec = importlib.util.spec_from_file_location(module_name, str(path))
-        if spec is None or spec.loader is None:
-            return
-
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        # Cherche la première classe qui hérite de Plugin et n'est pas la classe Plugin elle-même
-        for attr_name in dir(module):
-            attr = getattr(module, attr_name)
-            if isinstance(attr, type) and issubclass(attr, Plugin) and attr is not Plugin:
-                try:
-                    plugin_instance = attr()
-                    metadata = plugin_instance.get_metadata()
-                    self._plugins[metadata.name] = plugin_instance
-                    self._metadata[metadata.name] = metadata
-                    logger.info(f"Discovered plugin: {metadata.name} (v{metadata.version})")
-                    return
-                except Exception as e:
-                    logger.error(f"Failed to instantiate plugin class {attr_name} in {path}: {e}")
-
-    def get_plugin(self, name: str) -> Optional[Plugin]:
-        """Récupérer un plugin par son nom."""
-        return self._plugins.get(name)
-
-    def get_metadata(self, name: str) -> Optional[PluginMetadata]:
-        """Récupérer les metadata d'un plugin."""
-        return self._metadata.get(name)
-
-    def list_plugins(self) -> List[str]:
-        """Lister tous les plugins découverts."""
-        return list(self._plugins.keys())
-
-    def __len__(self) -> int:
-        return len(self._plugins)
+def handle_action(event):
+    print("got event:", event)
+"""

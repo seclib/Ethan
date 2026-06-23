@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import nats
 
 from api.routers import message as message_router
+from api.routers import state as state_router
 from kernel.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(message_router.router)
+app.include_router(state_router.router)
 
 
 @app.on_event("startup")

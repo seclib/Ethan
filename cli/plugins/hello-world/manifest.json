@@ -1,0 +1,26 @@
+{
+  "name": "hello-world",
+  "version": "1.0.0",
+  "api_version": "2",
+  "description": "Example hello world plugin",
+  "capabilities": [
+    {
+      "name": "hello.greet",
+      "version": "1.0.0",
+      "module": "hello-world",
+      "inputs": ["hello.greet.request"],
+      "outputs": ["hello.greet.complete"]
+    }
+  ],
+  "commands": {
+    "hello": {
+      "help": "Say hello",
+      "handler": "cmd_hello",
+      "args": [{"name": "name", "type": "str", "help": "Who to greet"}]
+    }
+  },
+  "subscriptions": {},
+  "memory_hooks": {},
+  "permissions": ["state:read:hello:*"],
+  "dependencies": {}
+}
