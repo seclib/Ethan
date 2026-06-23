@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=ETHAN CLI
+Comment=ETHAN Cognitive OS command interface
+Exec=x-terminal-emulator -e ethan chat
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;AI;System;
+StartupNotify=true
