@@ -1,5 +1,6 @@
 """ETHAN plugins — list/manage extensions."""
-from registry import register, discover_commands, COMMANDS
+from cli.registry import register, discover_commands, COMMANDS
+from cli.core.ux import UX
 
 
 @register("plugins")

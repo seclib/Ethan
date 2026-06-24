@@ -1,9 +1,8 @@
 site_name: Ethan
-site_url: https://ethan.github.io/Ethan/
 site_description: Personal AI, On Personal Devices
 site_author: Ethan Contributors
-repo_url: https://github.com/ethan/Ethan
-repo_name: ethan/Ethan
+repo_url: https://github.com/seclib/Ethan
+repo_name: seclib/Ethan
 edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2026 Ethan Contributors
@@ -135,9 +134,9 @@ extra:
   version:
     default: v1.0.0
   algolia:
-    app_id: ""       # Fill after DocSearch approval
-    api_key: ""      # Search-only key
-    index_name: ""   # e.g. "openjarvis"
+    app_id: "" # Fill after DocSearch approval
+    api_key: "" # Search-only key
+    index_name: "" # e.g. "openjarvis"
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/ethan/Ethan

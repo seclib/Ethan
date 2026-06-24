@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 
 from cli.core import colors as clr
+from cli.core.errors import format_error, api_unreachable, timeout, EthanError
 from cli.core import memory as mem
 from cli.core.logging import log as logs_log
 from cli.core.client import send, alive
@@ -120,9 +121,17 @@ def show_chat(args):
             response_text = send_with_typing(msg, session_id)
             latency = int((time.time() - start) * 1000)
             logs_log("chat:" + msg[:60], "ok", latency)
+        except ValueError as e:
+            logs_log("chat:" + msg[:60], "error", 0, str(e))
+            print(clr.error(str(e), suggestion="type a message or /exit to quit"))
+            continue
+        except ConnectionError as e:
+            logs_log("chat:" + msg[:60], "error", 0, str(e))
+            print(clr.error("API unreachable", "ethan daemon may be stopped", "try: ethan daemon start"))
+            continue
         except Exception as e:
             logs_log("chat:" + msg[:60], "error", 0, str(e))
-            print(clr.error(str(e)))
+            print(clr.error("Unexpected error", str(e), "try: ethan chat"))
             continue
 
         # Show memory hint once per session when context is loaded

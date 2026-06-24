@@ -1,6 +1,7 @@
 """ETHAN status — system state."""
-from registry import register
-from core.client import alive, get_state
+from cli.registry import register
+from cli.core.client import alive, get_state
+from cli.core.ux import UX
 
 
 @register("status")

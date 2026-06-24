@@ -1,9 +1,11 @@
 """ETHAN service — systemd service management."""
 import subprocess
 import sys
-from registry import register
+from cli.registry import register
+from cli.core.ux import UX
 
 SERVICE_NAME = "ethan"
+KNOWN_SERVICE_SUBS = ["start", "stop", "restart", "status"]
 
 
 def _systemctl(args, user=True, check=True):

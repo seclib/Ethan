@@ -1,6 +1,7 @@
 """ETHAN logs — query structured logs."""
-from registry import register
-from core import logging as logs
+from cli.registry import register
+from cli.core import logging as logs
+from cli.core.ux import UX
 
 
 @register("logs")

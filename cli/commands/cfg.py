@@ -1,6 +1,10 @@
 """ETHAN config — view & manage configuration."""
-from registry import register
-from core import config as cfg
+from cli.registry import register
+from cli.core import config as cfg
+from cli.core.ux import UX
+
+
+KNOWN_CONFIG_SUBS = ["get", "set", "reset"]
 
 
 @register("config")
@@ -30,5 +34,7 @@ def cmd_config(args):
         print("config reset to defaults")
         return 0
 
-    print("usage: ethan config [get <key>|set <key> <value>|reset]")
+    suggestion = UX.suggest_command(args[0], KNOWN_CONFIG_SUBS)
+    msg = f"Did you mean? {suggestion}" if suggestion else "usage: ethan config [get <key>|set <key> <value>|reset]"
+    print(f"Unknown subcommand: {args[0]}\n  {msg}")
     return 1

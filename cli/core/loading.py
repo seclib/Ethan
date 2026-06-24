@@ -1,5 +1,8 @@
 """ETHAN Loading States — spinner, step-based progress, thinking indicator, cancellation.
 
+Thread-safe: all spinner/thinker operations use threading.Event for clean shutdown.
+No zombie threads: _run() catches exceptions, stop() uses Event + timeout.
+
 Usage:
     from core.loading import Spinner, StepProgress, Thinker
 
@@ -27,7 +30,11 @@ from cli.core import colors as clr
 
 
 class Spinner:
-    """Animated spinner with hint text."""
+    """Animated spinner with hint text.
+
+    Uses threading.Event for clean stop. _run() is wrapped in try/except
+    so that an unhandled exception never leaves a zombie thread.
+    """
 
     STYLES = {
         "dots": "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏",
@@ -46,40 +53,57 @@ class Spinner:
         self._phase = 0
         self._text = ""
         self._lock = threading.Lock()
+        self._stop_event = threading.Event()
 
     def start(self, hint: str = ""):
+        """Start spinner animation."""
+        if self._thread is not None and self._thread.is_alive():
+            return
         with self._lock:
             self._text = hint
             self._running = True
             self._phase = 0
+            self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
     def stop(self):
+        """Stop spinner and clear the line."""
         with self._lock:
             self._running = False
-        if self._thread:
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
             self._thread.join(timeout=0.5)
+            if self._thread.is_alive():
+                # Thread still alive after timeout — detach (daemon=True)
+                self._thread = None
+        else:
             self._thread = None
         sys.stdout.write("\r" + " " * 60 + "\r")
         sys.stdout.flush()
 
     def cancel(self):
+        """Stop and show cancellation message."""
         self.stop()
         sys.stdout.write(f"{clr.C.RED}{clr.I.CROSS} Cancelled{clr.C.RESET}\n")
         sys.stdout.flush()
 
     def _run(self):
-        while True:
-            with self._lock:
-                if not self._running:
-                    break
-                text = self._text
-            frame = self.frames[self._phase % len(self.frames)]
-            sys.stdout.write(f"\r{clr.C.PURPLE}{frame}{clr.C.RESET}  {text}")
-            sys.stdout.flush()
-            self._phase += 1
-            time.sleep(0.08)
+        """Spinner loop with exception safety."""
+        try:
+            while not self._stop_event.is_set():
+                with self._lock:
+                    if not self._running:
+                        break
+                    text = self._text
+                frame = self.frames[self._phase % len(self.frames)]
+                sys.stdout.write(f"\r{clr.C.PURPLE}{frame}{clr.C.RESET}  {text}")
+                sys.stdout.flush()
+                self._phase += 1
+                time.sleep(0.08)
+        except Exception:
+            # Silently recover — spinner is non-critical
+            pass
 
 
 class StepProgress:
@@ -123,7 +147,11 @@ class StepProgress:
 
 
 class Thinker:
-    """Thinking indicator for LLM/planning phases."""
+    """Thinking indicator for LLM/planning phases.
+
+    Uses its own Spinner internally. update() safely recreates the spinner
+    thread if it has finished.
+    """
 
     def __init__(self):
         self._phase = ""
@@ -136,16 +164,16 @@ class Thinker:
         self._spinner.start(f"■ {phase}...")
 
     def update(self, phase: str):
+        """Update the thinking phase label."""
         self._phase = phase
+        # Stop previous spinner rendering
         self._spinner.stop()
         sys.stdout.write(f"\r  {clr.C.GREEN}✓{clr.C.RESET} {self._phase}...")
         sys.stdout.flush()
         time.sleep(0.05)
-        self._spinner._text = f"■ {phase}..."
-        self._spinner._running = True
-        if not self._spinner._thread:
-            self._spinner._thread = threading.Thread(target=self._spinner._run, daemon=True)
-            self._spinner._thread.start()
+        # Start new spinner for next phase
+        self._spinner = Spinner("dots")  # Fresh spinner (new thread)
+        self._spinner.start(f"■ {phase}...")
 
     def done(self):
         self._spinner.stop()

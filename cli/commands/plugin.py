@@ -1,6 +1,10 @@
 """ETHAN plugin — install, remove, list, discover external plugins."""
-from registry import register
-from plugin_manager import install, remove, list_installed, discover
+from cli.registry import register
+from cli.core.ux import UX
+from cli.plugin_manager import install, remove, list_installed, discover
+
+
+KNOWN_PLUGIN_SUBS = ["install", "remove", "list"]
 
 
 @register("plugin")
@@ -29,6 +33,8 @@ def cmd_plugin(args):
             return 1
         remove(sub_args[0])
     else:
-        print(f"Unknown subcommand: {sub}")
+        suggestion = UX.suggest_command(sub, KNOWN_PLUGIN_SUBS)
+        msg = f"Did you mean? {suggestion}" if suggestion else "try: ethan plugin <install|remove|list>"
+        print(f"Unknown subcommand: {sub}\n  {msg}")
         return 1
     return 0

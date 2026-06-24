@@ -1,6 +1,7 @@
 """ETHAN suggest — smart suggestions."""
-from registry import register
-from core import memory as mem
+from cli.registry import register
+from cli.core import memory as mem
+from cli.core.ux import UX
 
 
 @register("suggest")

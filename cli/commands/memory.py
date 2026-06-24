@@ -1,6 +1,10 @@
 """ETHAN memory — history management."""
-from registry import register
-from core import memory as mem
+from cli.registry import register
+from cli.core import memory as mem
+from cli.core.ux import UX
+
+
+KNOWN_MEMORY_SUBS = ["recent", "frequent"]
 
 
 @register("memory")
@@ -14,5 +18,7 @@ def cmd_memory(args):
         for e in mem.frequent(n):
             print("  " + e["text"] + "  x" + str(e["count"]))
     else:
-        print("usage: ethan memory [recent|frequent] [N]")
+        suggestion = UX.suggest_command(args[0], KNOWN_MEMORY_SUBS)
+        msg = f"Did you mean? {suggestion}" if suggestion else "usage: ethan memory [recent|frequent] [N]"
+        print(f"Unknown subcommand: {args[0]}\n  {msg}")
     return 0

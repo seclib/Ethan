@@ -1,6 +1,7 @@
 """ETHAN daemon — background cache control."""
-from registry import register
-from core import daemon as daemon_core
+from cli.registry import register
+from cli.core import daemon as daemon_core
+from cli.core.ux import UX
 
 
 @register("daemon")
