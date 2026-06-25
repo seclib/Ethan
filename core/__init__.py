@@ -1,14 +1,7 @@
-# Jarvis OS — Core Layer
-# Bibliothèques fondamentales pour la plateforme
-#
-# Ce module contient les composants essentiels :
-#   - agents    : Moteur d'agents IA
-#   - llm       : Abstraction des fournisseurs LLM
-#   - memory    : Système de mémoire unifié
-#   - planner   : Planificateur de tâches
-#   - scheduler : Planificateur de jobs
-#   - context   : Gestion de contexte
-#   - events    : Système d'événements
-#   - auth      : Authentification & RBAC
-#   - config    : Configuration
-#   - security  : Sécurité
+"""Cognitive Kernel — Phase 0.2
+
+Ethan Cognitive Operating System Kernel.
+Orchestrates cognitive modules via NATS event bus.
+"""
+
+__version__ = "0.2.0"

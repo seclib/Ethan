@@ -1,3 +1,17 @@
+# ETHAN — Cognitive Runtime
+
+> **Architecture** : 4 couches, 1 règle — une couche ne traverse pas les barrières.
+>
+> - `core` — Cerveau. Zéro UI. Zéro IO direct. Expose gRPC.
+> - `cli` — Terminal UI. Zéro logique cognitive. Client gRPC uniquement.
+> - `plugins` — Extensions. Process indépendants. Connectés via NATS.
+> - `interfaces` — Ponts vers le monde extérieur (API, Desktop, Shell, WebUI, MCP).
+> - `infra` — Infrastructure système (Docker, K8s, systemd, scripts).
+>
+> Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour la documentation complète.
+
+---
+
 # ETHAN CORE DAEMON — Cognitive Operating System Runtime
 
 **Version** : 1.0.0  

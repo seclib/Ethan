@@ -1,1 +1,0 @@
-"""Module Registry — Discover and manage cognitive modules."""
