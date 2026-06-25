@@ -16,16 +16,29 @@ from core.types.event import Event
 EventHandler = Callable[[Event], Coroutine[Any, Any, None]]
 
 
-@dataclass
 class Subscription:
     """Représente un abonnement actif à un sujet."""
-    id: str
-    pattern: str
-    handler: EventHandler
+
+    def __init__(
+        self,
+        id: str,
+        pattern: str,
+        handler: EventHandler,
+        bus: EventBus | None = None,
+    ):
+        self.id = id
+        self.pattern = pattern
+        self.handler = handler
+        self._bus = bus
+        self._active = True
+
+    @property
+    def is_active(self) -> bool:
+        return self._active
 
     async def unsubscribe(self) -> None:
         """Se désabonne du sujet."""
-        ...
+        self._active = False
 
 
 class EventBus(ABC):
