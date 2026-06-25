@@ -5,6 +5,13 @@ from cli.core import colors as clr
 from cli.core.discovery import registry
 
 
+def cmd_help(args):
+    """Show ETHAN help."""
+    topic = args[0] if args else None
+    show_help(topic)
+    return 0
+
+
 def show_help(topic=None):
     if topic:
         show_topic(topic)

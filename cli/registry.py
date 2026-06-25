@@ -1,22 +1,64 @@
 """ETHAN command registry — fully automatic discovery.
 
-No hardcoded imports. Commands register themselves via @register().
+Uses cli.core.discovery.CommandRegistry as the single source of truth.
+@register() delegates to the global registry instance.
+dispatch() resolves commands via registry.get().
 """
 import importlib.util
 import signal
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from cli.core import colors as clr
+from cli.core.discovery import registry, Command
 
-COMMANDS = {}
+_COMMAND_TIMEOUT = 300  # 5 minutes default
 
 
-def register(name):
+class TimeoutError(Exception):
+    """Raised when a command exceeds the timeout."""
+
+
+def _timeout_handler(signum, frame):
+    raise TimeoutError(f"Command timed out after {_COMMAND_TIMEOUT}s")
+
+
+def register(name: str, group: str = "core", description: str = "", usage: str = ""):
+    """Register a CLI command handler.
+
+    Registers the command in the global CommandRegistry (via @register decorator)
+    and stores the handler in a lookup dict for dispatch.
+
+    Usage:
+        @register("status")
+        def cmd_status(args):
+            ...
+    """
     def decorator(fn):
-        COMMANDS[name] = fn
+        # Register in discovery registry for help/suggest
+        existing = registry.get(name)
+        if not existing:
+            registry.register(Command(
+                name=name,
+                group=group,
+                description=description or fn.__doc__ or name,
+                usage=usage or f"ethan {name}",
+            ))
+        # Store handler for dispatch in the function itself
+        fn._ethan_cmd_name = name
+        COMMAND_HANDLERS[name] = fn
         return fn
     return decorator
+
+
+# Handler lookup (separate from CommandRegistry metadata)
+COMMAND_HANDLERS: dict[str, Callable] = {}
+
+
+def _get_handler(name: str) -> Callable | None:
+    """Resolve a command handler by name."""
+    return COMMAND_HANDLERS.get(name)
 
 
 def _load_module(path):
@@ -37,10 +79,29 @@ def _load_module(path):
         spec.loader.exec_module(mod)
     except Exception:
         return
+    
+    # Auto-detect functions named cmd_* as command handlers
+    for attr_name in dir(mod):
+        if attr_name.startswith("cmd_") and not attr_name.startswith("cmd__"):
+            fn = getattr(mod, attr_name)
+            if callable(fn):
+                cmd_name = attr_name[4:]  # remove "cmd_" prefix
+                if cmd_name not in COMMAND_HANDLERS:
+                    COMMAND_HANDLERS[cmd_name] = fn
+                    # Also register in discovery registry if not already there
+                    if registry.get(cmd_name) is None:
+                        registry.register(Command(
+                            name=cmd_name,
+                            group="core",
+                            description=fn.__doc__ or cmd_name,
+                            usage=f"ethan {cmd_name}",
+                        ))
+    
     # Plugins may also register via ETHAN_PLUGIN dict
     if hasattr(mod, "ETHAN_PLUGIN"):
         for name, cmd in mod.ETHAN_PLUGIN.get("commands", {}).items():
-            COMMANDS[name] = cmd["handler"]
+            if isinstance(cmd, dict) and "handler" in cmd:
+                COMMAND_HANDLERS[name] = cmd["handler"]
 
 
 def discover_commands():
@@ -71,18 +132,6 @@ def discover_commands():
             _load_module(path)
 
 
-
-_COMMAND_TIMEOUT = 300  # 5 minutes default
-
-
-class TimeoutError(Exception):
-    """Raised when a command exceeds the timeout."""
-
-
-def _timeout_handler(signum, frame):
-    raise TimeoutError(f"Command timed out after {_COMMAND_TIMEOUT}s")
-
-
 def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
     """Dispatch argv[0] as a command name, argv[1:] as args.
 
@@ -93,23 +142,23 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
                  Only applies on Linux (SIGALRM).
     """
     from cli.core.errors import format_error, unknown_command
-    
+
     if not argv:
         print("ETHAN toolchain")
-        print("Commands:", " ".join(sorted(COMMANDS)))
+        print("Commands:", " ".join(sorted(c.name for c in registry.list_commands())))
         return 0
     cmd = argv[0]
     args = argv[1:]
-    fn = COMMANDS.get(cmd)
+    fn = _get_handler(cmd)
     if not fn:
         from cli.core.ux import UX
-        suggestion = UX.suggest_command(cmd, list(COMMANDS.keys()))
+        suggestion = UX.suggest_command(cmd, [c.name for c in registry.list_commands()])
         if suggestion:
             print(format_error(unknown_command(cmd, f"Did you mean? {suggestion}")))
         else:
             print(format_error(unknown_command(cmd)))
         return 1
-    
+
     # Normal execution (no debug trap)
     if not _debug:
         # Set timeout via SIGALRM (Unix only)
@@ -139,7 +188,7 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
                 signal.alarm(0)
                 if old_handler:
                     signal.signal(signal.SIGALRM, old_handler)
-    
+
     # Debug mode: self-healing loop
     from cli.core.debug_trap import DebugTrap
     from cli.core.error_classifier import ErrorClassifier
@@ -147,39 +196,39 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
     from cli.core.self_heal import SelfHealer
     from cli.core.retest_runner import RetestRunner
     from cli.core.debug_ui import DebugUI
-    
+
     trap = DebugTrap(fn, args)
     exit_code = trap.execute()
-    
+
     if exit_code == 0:
         return 0
-    
+
     if not trap.should_heal():
         return exit_code
-    
+
     # Classify error
     classifier = ErrorClassifier()
     classification = classifier.classify(trap.exception, trap.stdout)
-    
+
     # Map to fix
     fix_map = FixMap()
     recipe = fix_map.lookup(classification)
-    
+
     # Show diagnosis
     print(DebugUI.show_diagnosis(classification, recipe, recipe.auto_patch is not None))
-    
+
     # Try auto-fix if available
     if recipe.auto_patch:
         healer = SelfHealer()
         patch_result = healer.apply(recipe.auto_patch, trap.get_context())
-        
+
         if patch_result.success:
             print(f"  {clr.C.GREEN}✓ {patch_result.message}{clr.C.RESET}")
-            
+
             # Re-test
             runner = RetestRunner([cmd] + args, max_retries=1)
             runner.set_recipe(recipe)
-            
+
             if runner.should_retry(recipe):
                 retry_result = runner.retry()
                 print(DebugUI.show_retry_result(retry_result))
@@ -187,7 +236,7 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
                     return 0
         else:
             print(f"  {clr.C.RED}✗ Auto-fix failed: {patch_result.message}{clr.C.RESET}")
-    
+
     # Manual escalation
     print(DebugUI.show_manual_escalation(recipe))
     return exit_code

@@ -92,7 +92,7 @@ def _pid_remove():
 
 
 def _is_running(pid):
-    if pid is None:
+    if pid is None or not isinstance(pid, int) or pid <= 0:
         return False
     try:
         os.kill(pid, 0)

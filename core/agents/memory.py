@@ -1,68 +1,96 @@
-"""Memory Agent — Gestion de la mémoire persistante"""
+"""Memory Agent — Module de gestion de la mémoire.
+
+Responsabilités :
+- Stocke et récupère des événements
+- Gère les sessions
+- Indexe pour recherche sémantique (via VectorStore)
+
+Communication :
+- Reçoit : ethan.memory.store.request, ethan.memory.recall.request
+- Publie : ethan.memory.store.complete, ethan.memory.recall.complete
+"""
+
+from __future__ import annotations
 
 import logging
 from typing import Any
 
 from core.agents.base import Agent, AgentConfig
-from core.events import Event
+from core.memory.interface import MemoryStore
+from core.types.event import Event, EventType
+from core.types.result import Result
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryAgent(Agent):
-    """Agent spécialisé dans la gestion de la mémoire persistante."""
+    """Agent mémoire — gestion du stockage et de la récupération."""
 
-    def __init__(self, **kwargs):
-        config = AgentConfig(
-            name="memory",
-            description="Gestion de la mémoire persistante et vectorielle",
-            **kwargs
-        )
-        super().__init__(config)
+    def __init__(self, config: AgentConfig, bus=None, store: MemoryStore | None = None):
+        super().__init__(config, bus)
+        self._store = store
+
+    async def _on_init(self) -> None:
+        logger.info("Memory agent initializing...")
+        if self._store:
+            await self._store.connect()
 
     async def _subscribe_events(self) -> None:
-        self.bus.subscribe("memory:store", self._handle_store)
-        self.bus.subscribe("memory:retrieve", self._handle_retrieve)
-        self.bus.subscribe("memory:search", self._handle_search)
+        await self.subscribe("ethan.memory.store", self._handle_store)
+        await self.subscribe("ethan.memory.recall", self._handle_recall)
 
     async def _handle_store(self, event: Event) -> None:
-        result = await self.run({"action": "store", **event.data})
-        await self.publish("memory:stored", result)
+        """Stocke une valeur en mémoire."""
+        namespace = event.payload.get("namespace", "default")
+        key = event.payload.get("key", "")
+        value = event.payload.get("value")
+        ttl = event.payload.get("ttl")
 
-    async def _handle_retrieve(self, event: Event) -> None:
-        result = await self.run({"action": "retrieve", **event.data})
-        await self.publish("memory:retrieved", result)
+        if not self._store:
+            logger.warning("No memory store configured")
+            return
 
-    async def _handle_search(self, event: Event) -> None:
-        result = await self.run({"action": "search", **event.data})
-        await self.publish("memory:searched", result)
+        try:
+            await self._store.store(namespace, key, value, ttl=ttl)
+            await self.publish(
+                EventType.MEMORY_STORE_COMPLETE,
+                {"namespace": namespace, "key": key, "status": "stored"},
+                correlation_id=event.correlation_id,
+            )
+            logger.debug(f"Stored: {namespace}:{key}")
+        except Exception as e:
+            logger.error(f"Failed to store {namespace}:{key}: {e}")
 
-    async def run(self, input_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        data = input_data or {}
-        action = data.get("action", "store")
-        key = data.get("key", "")
-        value = data.get("value", "")
-        namespace = data.get("namespace", "default")
-        query = data.get("query", "")
+    async def _handle_recall(self, event: Event) -> None:
+        """Récupère une valeur de la mémoire."""
+        namespace = event.payload.get("namespace", "default")
+        key = event.payload.get("key")
+        query = event.payload.get("query")  # Pour recherche sémantique
 
-        if action == "store":
-            prompt = f"""Summarize this information for memory storage:
-Key: {key}
-Value: {value}
-Namespace: {namespace}
-Provide a concise summary (max 200 words)."""
-            summary = await self.think(prompt)
-            return {"action": "store", "key": key, "summary": summary, "namespace": namespace}
+        if not self._store:
+            logger.warning("No memory store configured")
+            return
 
-        elif action == "retrieve":
-            return {"action": "retrieve", "key": key, "namespace": namespace}
+        try:
+            if query:
+                # Recherche sémantique
+                results = await self._store.search(namespace, query)
+                await self.publish(
+                    EventType.MEMORY_RECALL_COMPLETE,
+                    {"namespace": namespace, "query": query, "results": results},
+                    correlation_id=event.correlation_id,
+                )
+            elif key:
+                # Récupération par clé
+                value = await self._store.get(namespace, key)
+                await self.publish(
+                    EventType.MEMORY_RECALL_COMPLETE,
+                    {"namespace": namespace, "key": key, "value": value},
+                    correlation_id=event.correlation_id,
+                )
+        except Exception as e:
+            logger.error(f"Failed to recall from {namespace}:{key}: {e}")
 
-        elif action == "search":
-            prompt = f"""Analyze this search query and extract key concepts:
-Query: {query}
-Namespace: {namespace}
-Provide search keywords and expected result type."""
-            analysis = await self.think(prompt)
-            return {"action": "search", "query": query, "analysis": analysis, "namespace": namespace}
-
-        return {"action": action, "status": "unknown_action"}
+    async def run(self, input_data=None) -> Result:
+        """Point d'entrée standalone."""
+        return Result.ok(data={"status": "memory ready"})

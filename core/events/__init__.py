@@ -1,6 +1,10 @@
-"""Event System — ADR-1007
+"""Event System — ADR-1007 (Backward Compatible)
 
-Architecture événementielle pour découplage et observabilité.
+Ce module reste importable pour la rétrocompatibilité.
+Il réexporte les nouveaux types depuis core/types et core/bus.
+
+Les anciennes importations continuent de fonctionner :
+    from core.events import Event, EventType, EventBus, EventHandler
 """
 
 from __future__ import annotations
@@ -8,58 +12,21 @@ from __future__ import annotations
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List
-from uuid import uuid4
 
+from core.bus.memory import InMemoryBus
+from core.types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
-
-class EventType(str, Enum):
-    """Types d'événements du système."""
-
-    # System events
-    SYSTEM_STARTUP = "system.startup"
-    SYSTEM_SHUTDOWN = "system.shutdown"
-
-    # Capability events
-    CAPABILITY_STARTED = "capability.started"
-    CAPABILITY_COMPLETED = "capability.completed"
-    CAPABILITY_FAILED = "capability.failed"
-
-    # Memory events
-    MEMORY_STORED = "memory.stored"
-    MEMORY_RETRIEVED = "memory.retrieved"
-
-    # Agent events
-    AGENT_CREATED = "agent.created"
-    AGENT_DESTROYED = "agent.destroyed"
-
-    # User events
-    USER_INPUT_RECEIVED = "user.input.received"
-    USER_RESPONSE_GENERATED = "user.response.generated"
-
-    # Security events
-    SECURITY_AUDIT = "security.audit"
-
-
-@dataclass
-class Event:
-    """Événement métier."""
-
-    id: str = field(default_factory=lambda: str(uuid4()))
-    type: EventType = EventType.SYSTEM_STARTUP
-    source: str = "system"
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    data: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
+# ─── Rétrocompatibilité : EventHandler (ABC) ──────────────────────
 
 class EventHandler(ABC):
-    """Interface abstraite pour les handlers d'événements."""
+    """Interface abstraite pour les handlers d'événements.
+    
+    Rétrocompatible avec l'ancienne API.
+    Utilisation recommandée : utiliser directement les callbacks du bus.
+    """
 
     @abstractmethod
     async def handle(self, event: Event) -> None:
@@ -67,38 +34,43 @@ class EventHandler(ABC):
         pass
 
 
+# ─── Rétrocompatibilité : EventBus (existant) ─────────────────────
+
 class EventBus:
-    """Bus d'événements central pour communication asynchrone."""
+    """Bus d'événements central (ancienne API, rétrocompatible).
+
+    Fonctionne comme un wrapper autour de InMemoryBus.
+    Les nouvelles implémentations devraient utiliser directement
+    core.bus.interface.EventBus.
+    """
 
     def __init__(self, record_history: bool = True):
+        self._inner = InMemoryBus(record_history=record_history)
         self._handlers: Dict[EventType, List[EventHandler]] = {}
-        self._history: List[Event] = []
         self._record_history = record_history
 
     async def publish(self, event: Event) -> None:
-        """Publier un événement à tous les subscribers."""
-        if self._record_history:
-            self._history.append(event)
-
+        """Publie un événement à tous les subscribers."""
+        # Anciens handlers enregistrés via subscribe()
         handlers = self._handlers.get(event.type, [])
-        if not handlers:
-            return
+        for handler in handlers:
+            try:
+                await handler.handle(event)
+            except Exception as e:
+                logger.error(f"Handler error: {e}", exc_info=True)
 
-        logger.debug(f"Publishing event {event.type} to {len(handlers)} handlers")
-
-        # Exécuter tous les handlers en parallèle
-        tasks = [handler.handle(event) for handler in handlers]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # Nouveaux handlers dans l'InMemoryBus
+        await self._inner.publish(event.type.value, event)
 
     async def subscribe(self, event_type: EventType, handler: EventHandler) -> None:
-        """Souscrire un handler à un type d'événement."""
+        """Souscrit un handler à un type d'événement (ancienne API)."""
         if event_type not in self._handlers:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
         logger.debug(f"Handler subscribed to {event_type}")
 
     async def unsubscribe(self, event_type: EventType, handler: EventHandler) -> None:
-        """Désouscrire un handler d'un type d'événement."""
+        """Désouscrit un handler (ancienne API)."""
         if event_type in self._handlers:
             try:
                 self._handlers[event_type].remove(handler)
@@ -107,15 +79,28 @@ class EventBus:
                 pass
 
     def get_history(self, event_type: EventType | None = None) -> List[Event]:
-        """Récupérer l'historique des événements."""
+        """Récupère l'historique des événements."""
         if event_type is None:
-            return self._history.copy()
-        return [e for e in self._history if e.type == event_type]
+            return self._inner.get_history()
+        return self._inner.get_history(event_type.value)
 
     def clear_history(self) -> None:
-        """Vider l'historique des événements."""
-        self._history.clear()
+        """Vide l'historique des événements."""
+        self._inner.clear_history()
+
+    @property
+    def inner_bus(self) -> InMemoryBus:
+        """Accède au bus interne InMemoryBus."""
+        return self._inner
 
 
-# Global event bus instance
+# Instance globale (rétrocompatible)
 bus = EventBus()
+
+__all__ = [
+    "Event",
+    "EventType",
+    "EventBus",
+    "EventHandler",
+    "bus",
+]

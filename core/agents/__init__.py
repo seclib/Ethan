@@ -22,15 +22,32 @@ Communication:
 """
 
 from .base import Agent, AgentConfig, AgentStatus, AgentRegistry
-from .planner import PlannerAgent
-from .research import ResearchAgent
-from .developer import DeveloperAgent
-from .memory import MemoryAgent
-from .vision import VisionAgent
-from .voice import VoiceAgent
-from .browser import BrowserAgent
-from .automation import AutomationAgent
-from .security import SecurityAgent
+
+# Imports conditionnels pour la rétrocompatibilité
+try:
+    from .planner import PlannerAgent
+except ImportError:
+    PlannerAgent = None  # type: ignore
+
+try:
+    from .research import ResearchAgent
+except ImportError:
+    ResearchAgent = None  # type: ignore
+
+try:
+    from .developer import DeveloperAgent
+except ImportError:
+    DeveloperAgent = None  # type: ignore
+
+try:
+    from .memory import MemoryAgent
+except ImportError:
+    MemoryAgent = None  # type: ignore
+
+try:
+    from .vision import VisionAgent
+except ImportError:
+    VisionAgent = None  # type: ignore
 
 __all__ = [
     "Agent",
@@ -42,8 +59,4 @@ __all__ = [
     "DeveloperAgent",
     "MemoryAgent",
     "VisionAgent",
-    "VoiceAgent",
-    "BrowserAgent",
-    "AutomationAgent",
-    "SecurityAgent",
 ]
