@@ -1,0 +1,32 @@
+[Unit]
+Description=ETHAN Plugin Executor
+Documentation=https://github.com/seclib/Ethan/docs
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m plugins.sandbox.runtime
+Restart=on-failure
+RestartSec=5s
+User=ethan
+Group=ethan
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/ethan /var/log/ethan /var/cache/ethan
+
+# Resources
+MemoryMax=1G
+CPUQuota=100%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ethan-plugins
+
+[Install]
+WantedBy=multi-user.target

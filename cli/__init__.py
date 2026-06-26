@@ -1,1 +1,0 @@
-# ETHAN unified CLI package root

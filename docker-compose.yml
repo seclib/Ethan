@@ -1,6 +1,7 @@
 version: "3.8"
 
 services:
+  # ── Infrastructure Services ─────────────────────────────────────────
   nats:
     image: nats:2.10-alpine
     container_name: ethan-nats
@@ -9,11 +10,30 @@ services:
       - "8222:8222"
       - "6222:6222"
     command: ["-js"]
+    volumes:
+      - nats_data:/data
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "4222"]
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 2s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
@@ -27,6 +47,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 2s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres:
     image: postgres:16-alpine
@@ -37,6 +74,7 @@ services:
       POSTGRES_USER: ethan
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ethan_dev_pass}
       POSTGRES_DB: ethan
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -45,7 +83,69 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── Runtime Controller (ONLY this manages Docker) ───────────────────
+  runtime:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.runtime
+    container_name: ethan-runtime
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runtime_data:/data
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Application Services ────────────────────────────────────────────
   api:
     build:
       context: .
@@ -65,12 +165,29 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
       interval: 10s
       timeout: 3s
       retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   kernel:
     build:
@@ -93,16 +210,34 @@ services:
       redis:
         condition: service_healthy
     command: python kernel/bootstrap.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
       timeout: 3s
       retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── Cognitive Modules ───────────────────────────────────────────────
   module-executive:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
+      dockerfile: deploy/Dockerfile.module
     container_name: ethan-module-executive
     environment:
       NATS_URL: nats://nats:4222
@@ -111,12 +246,27 @@ services:
     depends_on:
       nats:
         condition: service_healthy
-    command: python modules/executive/main.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   module-planner:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
+      dockerfile: deploy/Dockerfile.module
     container_name: ethan-module-planner
     environment:
       NATS_URL: nats://nats:4222
@@ -125,12 +275,27 @@ services:
     depends_on:
       nats:
         condition: service_healthy
-    command: python modules/planner/main.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   module-memory:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
+      dockerfile: deploy/Dockerfile.module
     container_name: ethan-module-memory
     environment:
       NATS_URL: nats://nats:4222
@@ -142,12 +307,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python modules/memory/main.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   module-reflective:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
+      dockerfile: deploy/Dockerfile.module
     container_name: ethan-module-reflective
     environment:
       NATS_URL: nats://nats:4222
@@ -156,17 +336,33 @@ services:
     depends_on:
       nats:
         condition: service_healthy
-    command: python modules/reflective/main.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  learning:
+  module-learning:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
-    container_name: ethan-learning
+      dockerfile: deploy/Dockerfile.module
+    container_name: ethan-module-learning
     environment:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      MODULE_ID: learning-v1
       LOG_LEVEL: INFO
     depends_on:
       nats:
@@ -175,17 +371,33 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python kernel/learning/bootstrap.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+        reservations:
+          cpus: '0.3'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  metacognition:
+  module-metacognition:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
-    container_name: ethan-metacognition
+      dockerfile: deploy/Dockerfile.module
+    container_name: ethan-module-metacognition
     environment:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      MODULE_ID: metacognition-v1
       LOG_LEVEL: INFO
     depends_on:
       nats:
@@ -194,17 +406,33 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python kernel/metacognition/bootstrap.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  autonomy:
+  module-autonomy:
     build:
       context: .
-      dockerfile: deploy/Dockerfile.kernel
-    container_name: ethan-autonomy
+      dockerfile: deploy/Dockerfile.module
+    container_name: ethan-module-autonomy
     environment:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
+      MODULE_ID: autonomy-v1
       LOG_LEVEL: INFO
     depends_on:
       nats:
@@ -213,8 +441,53 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python kernel/autonomy/bootstrap.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── LLM Providers (Optional) ────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ethan-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    profiles:
+      - llm
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Web UI ──────────────────────────────────────────────────────────
   ui:
     build:
       context: .
@@ -227,8 +500,39 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    command: streamlit run ethan-ui/app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  postgres_data:
+  nats_data:
+    driver: local
   redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  runtime_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  ethan-core:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

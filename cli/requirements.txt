@@ -1,0 +1,20 @@
+# ETHAN CLI Dependencies
+# Python >= 3.10
+
+# Core dependencies
+nats-py>=2.6.0
+redis>=5.0.0
+asyncpg>=0.29.0
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.5.0
+
+# CLI dependencies
+click>=8.1.0
+rich>=13.7.0
+prompt-toolkit>=3.0.43
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+requests>=2.31.0

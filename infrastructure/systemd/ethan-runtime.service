@@ -1,0 +1,17 @@
+[Unit]
+Description=ETHAN Runtime — Docker Controller
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ethan-runtime
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

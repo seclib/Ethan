@@ -1,0 +1,13 @@
+# ETHAN Plugins Configuration
+# Path: /etc/ethan/plugins.yaml
+
+nats_url: nats://localhost:4222
+
+sandbox:
+  enabled: true
+  timeout_seconds: 30
+
+builtin:
+  - security
+  - browser
+  - twitter

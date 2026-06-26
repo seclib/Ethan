@@ -1,25 +1,6 @@
-"""Planner Module — Transforme les goals en plans exécutables."""
+"""ETHAN Core — Planner Module"""
 
-from .planner import PlannerModule
-from .types import Goal, Plan, Task, TaskDAG, PlanState, TaskState, Priority
-from .goal_manager import GoalManager
-from .decomposer import TaskDecomposer
-from .dag import DAGBuilder
-from .optimizer import PlanOptimizer
-from .checkpoint import CheckpointManager
+from .planner import Planner, Plan, Goal
 
-__all__ = [
-    "PlannerModule",
-    "GoalManager",
-    "TaskDecomposer",
-    "DAGBuilder",
-    "PlanOptimizer",
-    "CheckpointManager",
-    "Goal",
-    "Plan",
-    "Task",
-    "TaskDAG",
-    "PlanState",
-    "TaskState",
-    "Priority",
-]
+__version__ = "1.0.0"
+__all__ = ["Planner", "Plan", "Goal"]

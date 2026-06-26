@@ -2,13 +2,45 @@
 
 > **Architecture** : 4 couches, 1 règle — une couche ne traverse pas les barrières.
 >
-> - `core` — Cerveau. Zéro UI. Zéro IO direct. Expose gRPC.
+> - `core` — Cerveau. Zéro UI. Zéro IO direct. Zéro dépendance OS/CLI. Expose gRPC.
 > - `cli` — Terminal UI. Zéro logique cognitive. Client gRPC uniquement.
 > - `plugins` — Extensions. Process indépendants. Connectés via NATS.
 > - `interfaces` — Ponts vers le monde extérieur (API, Desktop, Shell, WebUI, MCP).
 > - `infra` — Infrastructure système (Docker, K8s, systemd, scripts).
 >
 > Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour la documentation complète.
+
+## ETHAN Core — Kernel Isolé
+
+`core/` est un **kernel IA totalement isolé** :
+
+| Règle | Status |
+|-------|--------|
+| Pas d'import `cli/` | ✅ |
+| Pas d'import `interfaces/` | ✅ |
+| Pas d'import `plugins/` | ✅ |
+| Pas de `os.getenv()` | ✅ |
+| Pas de `sys.path` hacking | ✅ |
+| Pas de `signal` handling | ✅ |
+| Pas de `print()` / `input()` | ✅ |
+
+**API exposée** :
+- **gRPC** (port 50051) — `ProcessEvent`, `GetState`, `ExecuteTask`, `HealthCheck`
+- **Python API** — `CognitiveKernel` injecté via dépendances
+
+**Structure** :
+```
+core/
+├── api/          # Contrats gRPC + Python
+├── kernel/       # Moteur (engine, router, lifecycle)
+├── bus/          # EventBus (ABC + NATS + Memory)
+├── registry/     # Registres (modules, capabilities, schémas)
+├── state/        # StateBackend (ABC + Redis + PostgreSQL)
+├── modules/      # ModuleInterface (ABC + dataclasses)
+├── types/        # Types purs (Event, Goal, Plan, Result)
+├── config/       # Configuration injectée (pas os.getenv)
+└── main.py       # Entrypoint (reçoit config, pas d'OS dep)
+```
 
 ---
 

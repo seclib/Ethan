@@ -1,11 +1,6 @@
-"""ETHAN Core — Event Bus Layer.
+"""ETHAN Core — Event Bus Module"""
 
-Bus d'événements abstrait pour la communication inter-modules.
-Support NATS en production, InMemory en développement/tests.
-"""
+from .nats_bus import NATSBus, Event
 
-from .interface import EventBus, Subscription
-from .memory import InMemoryBus
-from .nats import NATSBus
-
-__all__ = ["EventBus", "Subscription", "InMemoryBus", "NATSBus"]
+__version__ = "1.0.0"
+__all__ = ["NATSBus", "Event"]
