@@ -16,6 +16,7 @@ from interfaces.cli.session import SessionManager, Session
 from interfaces.cli.ui.prompt import get_prompt
 from interfaces.cli.ui.renderer import render_user_message, render_assistant_message, render_error
 from interfaces.cli.commands.parser import parse_command, COMMANDS
+from interfaces.cli.core.triggers import check_triggers, trigger_registry
 
 
 def repl_loop():
@@ -77,6 +78,14 @@ def handle_command(input_str: str, session: Session, client: RuntimeClient, sess
 
 def handle_message(content: str, session: Session, client: RuntimeClient, session_manager: SessionManager):
     """Handle user message."""
+    # Vérifier les triggers/presets
+    trigger_result = check_triggers(content)
+    if trigger_result is not None:
+        print(f"\n  ⚡ Trigger: {trigger_result}\n")
+        # Exécuter la commande associée
+        handle_command(f"/run {trigger_result}", session, client, session_manager)
+        return
+
     # Save user message
     session.add_message("user", content)
     

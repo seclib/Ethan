@@ -16,6 +16,7 @@ import nats
 
 from api.routers import message as message_router
 from api.routers import state as state_router
+from api.routers.internal import router as internal_router, init_modules
 from kernel.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ app.add_middleware(
 
 app.include_router(message_router.router)
 app.include_router(state_router.router)
+app.include_router(internal_router)
 
 
 @app.on_event("startup")
@@ -50,6 +52,9 @@ async def startup():
     nc = await nats.connect(nats_url, name="api-gateway")
     message_router.set_nats_client(nc)
     logger.info("API Gateway connected to NATS")
+
+    # Initialiser les nouveaux modules (Audit, Budget, Facts, Approval, SkillLab)
+    init_modules(pg_conn=None)
 
 
 @app.on_event("shutdown")
