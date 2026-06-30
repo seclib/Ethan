@@ -357,7 +357,7 @@ phase_binaries() {
 
     # Install Python dependencies
     log_info "Installing Python dependencies..."
-    if [ -f "$ETHAN_SOURCE_DIR/cli/requirements.txt" ]; then
+    if [ -f "$ETHAN_SOURCE_DIR/interfaces/cli/requirements.txt" ]; then
         pip3 install --break-system-packages -r "$ETHAN_SOURCE_DIR/cli/requirements.txt" 2>&1 | tail -1 || log_warn "pip install had warnings"
         log_ok "Python dependencies installed"
     else

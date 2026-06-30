@@ -557,6 +557,18 @@ class FactStore:
         self, from_fact_id: str, to_fact_id: str, relation_type: FactRelationType
     ) -> FactRelation:
         """Crée une relation entre deux faits."""
+        return self._link(from_fact_id, to_fact_id, relation_type)
+
+    def add_relation(
+        self, from_fact_id: str, to_fact_id: str, relation_type: FactRelationType
+    ) -> FactRelation:
+        """Alias pour link()."""
+        return self._link(from_fact_id, to_fact_id, relation_type)
+
+    def _link(
+        self, from_fact_id: str, to_fact_id: str, relation_type: FactRelationType
+    ) -> FactRelation:
+        """Implémentation interne de la création de relation."""
         rel = FactRelation(
             from_fact_id=from_fact_id,
             to_fact_id=to_fact_id,

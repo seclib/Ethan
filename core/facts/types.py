@@ -17,6 +17,24 @@ class FactStatus(StrEnum):
     NEEDS_REVIEW = "needs_review"
     ARCHIVED = "archived"
     CONTRADICTED = "contradicted"
+    CONTROVERSIAL = "controversial"
+
+
+class DecayPolicy(StrEnum):
+    """Politique de décroissance de la saillance d'un fait au fil du temps.
+
+    NONE       → jamais de decay
+    VERY_SLOW  → ~2 ans (identité, croyances)
+    SLOW       → ~1 an (contraintes, relations)
+    MEDIUM     → ~3 mois (préférences, habitudes)
+    FAST       → ~2 semaines (objectifs, tâches)
+    """
+
+    NONE = "none"
+    VERY_SLOW = "very_slow"
+    SLOW = "slow"
+    MEDIUM = "medium"
+    FAST = "fast"
 
 
 class FactCategory(StrEnum):
@@ -75,6 +93,7 @@ class Fact:
     importance: float = 0.5
     source: str = "system"
     source_event_id: str = ""
+    decay_policy: DecayPolicy = DecayPolicy.MEDIUM
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
     last_seen_at: datetime = field(default_factory=datetime.utcnow)

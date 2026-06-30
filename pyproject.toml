@@ -189,6 +189,75 @@ packages = ["src/openjarvis"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "core"
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 1 — Core kernel indépendant"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = [
+    "legacy",
+    "interfaces",
+    "plugins",
+    "examples",
+    "tests",
+]
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 2 — Core agents n'importe que core.* sans core.agents entre eux"
+type = "forbidden"
+source_modules = ["core.agents"]
+forbidden_modules = [
+    "legacy",
+    "interfaces",
+    "plugins",
+    "examples",
+]
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 3 — Core bus ne dépend pas des implémentations LLM/skills"
+type = "forbidden"
+source_modules = ["core.bus"]
+forbidden_modules = [
+    "core.llm",
+    "core.skills",
+    "core.facts",
+    "core.cost",
+    "core.agents",
+    "core.planner",
+    "core.executive",
+    "core.orchestrator",
+]
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 4 — Legacy n'importe pas les nouveaux modules core"
+type = "forbidden"
+source_modules = ["legacy"]
+forbidden_modules = [
+    "core.facts",
+    "core.cost.budget",
+    "core.cost.tracker",
+    "core.approval",
+]
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 5 — Interfaces n'importent que core, jamais legacy"
+type = "forbidden"
+source_modules = ["interfaces"]
+forbidden_modules = [
+    "legacy",
+]
+
+[[tool.importlinter.contracts]]
+name = "RÈGLE 6 — Plugins n'importent pas legacy"
+type = "forbidden"
+source_modules = ["plugins"]
+forbidden_modules = [
+    "legacy",
+    "core.legacy",
+]
 markers = [
     "amd: requires AMD GPU",
     "apple: requires Apple Silicon",
@@ -226,4 +295,5 @@ select = ["E", "F", "I", "W"]
 [dependency-groups]
 dev = [
     "maturin>=1.12.6",
+    "import-linter>=2.1",
 ]

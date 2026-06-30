@@ -6,7 +6,14 @@ Mémoire structurée parallèle au stockage événementiel existant.
 """
 
 from .store import FactStore
-from .types import Fact, FactObservation, FactRelation, FactStatus, FactCategory
+from .types import Fact, FactObservation, FactRelation, FactStatus, FactCategory, DecayPolicy
+from .ingest import MemoryIngest, IngestResult
+from .retrieval import MemoryRetrieval, ScoredFact
 
-__version__ = "1.0.0"
-__all__ = ["FactStore", "Fact", "FactObservation", "FactRelation", "FactStatus", "FactCategory"]
+__version__ = "1.1.0"
+__all__ = [
+    "FactStore", "Fact", "FactObservation", "FactRelation",
+    "FactStatus", "FactCategory", "DecayPolicy",
+    "MemoryIngest", "IngestResult",
+    "MemoryRetrieval", "ScoredFact",
+]
