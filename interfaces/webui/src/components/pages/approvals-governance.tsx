@@ -1,7 +1,17 @@
 "use client";
 
 import { useStore } from "@/lib/store";
-import type { Approval } from "@/lib/store";
+
+interface ApprovalItem {
+  id: string;
+  projectId: string;
+  stepId: string;
+  description: string;
+  risk: "low" | "medium" | "high";
+  budget: number;
+  requestedBy: string;
+  createdAt: string;
+}
 
 const HISTORY: { id: string; decision: "approved" | "rejected"; description: string; date: string }[] = [
   { id: "a-001", decision: "approved", description: "Déployer staging", date: "14:20" },
@@ -10,7 +20,10 @@ const HISTORY: { id: string; decision: "approved" | "rejected"; description: str
 ];
 
 export function ApprovalsGovernancePage() {
-  const { approvals, addApproval, resolveApproval } = useStore();
+  const store = useStore();
+  const approvals: ApprovalItem[] = (store as any).approvals ?? [];
+  const addApproval = (store as any).addApproval;
+  const resolveApproval = (store as any).resolveApproval;
 
   return (
     <div className="page-approvals">

@@ -8,16 +8,15 @@ if (typeof window !== "undefined") {
     });
   }
 }
-import { TopNav } from "@/components/layout/top-nav";
+import { TopBar } from "@/components/layout/top-bar";
+import { Sidebar } from "@/components/layout/sidebar";
+import { ContextMenu } from "@/components/layout/context-menu";
 import { AppShell } from "@/components/layout/app-shell";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { Atmosphere } from "@/components/ui/atmosphere";
-import { ChapterIndicator } from "@/components/ui/chapter-indicator";
-import { MissionControlTrigger } from "@/components/ui/mission-control-trigger";
-import { RoomsNavigation } from "@/components/navigation/rooms-navigation";
-import { MissionControl } from "@/components/navigation/mission-control";
 import { ToastProvider } from "@/components/ui/toast";
+import { KeyboardListener } from "@/components/layout/keyboard-listener";
 
 export const metadata: Metadata = {
   title: "ETHAN Cognitive OS",
@@ -39,15 +38,18 @@ export default function RootLayout({
       <body className="antialiased">
         <ErrorBoundary>
           <Atmosphere />
-          <TopNav />
-          <ToastProvider>
-          <AppShell>{children}</AppShell>
-        </ToastProvider>
+          <TopBar />
+          <div className="app-layout">
+            <Sidebar />
+            <div className="app-layout-body">
+              <ToastProvider>
+                <AppShell>{children}</AppShell>
+              </ToastProvider>
+            </div>
+          </div>
           <CommandPalette />
-          <ChapterIndicator />
-          <MissionControlTrigger />
-          <RoomsNavigation />
-          <MissionControl />
+          <ContextMenu />
+          <KeyboardListener />
         </ErrorBoundary>
       </body>
     </html>

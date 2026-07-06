@@ -1,102 +1,74 @@
 "use client";
 
-import { useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { useCallback } from "react";
+import { useStore, NAV_ITEMS, GROUP_LABELS, type AppPage, type NavGroup } from "@/lib/store";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import {
-  LayoutDashboard,
-  MessageSquare,
-  Radio,
-  Target,
-  Bug,
-  FileText,
-  DollarSign,
-  Lightbulb,
-  CheckSquare,
-  FlaskConical,
-  Menu,
-  X,
-  Sun,
-  Moon,
-} from "lucide-react";
-
-const navItems = [
-  { id: "mission-control" as const, label: "Mission Control", icon: LayoutDashboard },
-  { id: "chat" as const, label: "Chat", icon: MessageSquare },
-  { id: "goals" as const, label: "Goals", icon: Target },
-  { id: "memory" as const, label: "Memory", icon: Lightbulb },
-  { id: "skills" as const, label: "Skills", icon: FlaskConical },
-  { id: "monitor" as const, label: "Monitor", icon: Radio },
-  { id: "approvals" as const, label: "Approvals", icon: CheckSquare },
-];
 
 export function Sidebar() {
   const isMobile = useMediaQuery("(max-width: 1023px)");
-  const { sidebarOpen, toggleSidebar, currentPage, setPage, theme, toggleTheme } = useStore();
+  const { sidebarOpen, toggleSidebar, currentPage, setPage, openContextMenu } = useStore();
+
+  const handleContext = useCallback(
+    (e: React.MouseEvent, page: AppPage) => {
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, page);
+    },
+    [openContextMenu]
+  );
 
   return (
     <>
       {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={toggleSidebar}
-        />
+      {sidebarOpen && isMobile && (
+        <div className="sidebar-mobile-overlay" onClick={toggleSidebar} />
       )}
 
       <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-surface transition-all duration-300",
-          sidebarOpen ? "w-60 translate-x-0" : "-translate-x-full lg:w-16 lg:translate-x-0"
-        )}
+        className="sidebar"
+        data-expanded={sidebarOpen || undefined}
+        data-mobile={isMobile || undefined}
       >
         {/* Header */}
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
-          {sidebarOpen && (
-            <span className="text-lg font-bold text-ethan-400">
-              ETHAN <span className="text-text-dim font-normal">OS</span>
-            </span>
-          )}
-          <button
-            onClick={toggleSidebar}
-            className="rounded-lg p-1.5 text-text-dim hover:bg-surface-2 hover:text-text transition-colors"
-          >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        <div className="sidebar-header">
+          <span className="sidebar-brand">◆ ETHAN</span>
+          <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle (⌘B)">
+            {sidebarOpen ? "✕" : "☰"}
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setPage(id)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                currentPage === id
-                  ? "bg-ethan-500/20 text-ethan-400"
-                  : "text-text-dim hover:bg-surface-2 hover:text-text"
-              )}
-              title={sidebarOpen ? undefined : label}
-            >
-              <Icon size={18} />
-              {sidebarOpen && <span>{label}</span>}
-            </button>
-          ))}
+        {/* Nav list (flat) */}
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => {
+            const active = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                className="sidebar-item"
+                data-active={active || undefined}
+                onClick={() => setPage(item.id)}
+                onContextMenu={(e) => handleContext(e, item.id)}
+                title={sidebarOpen ? undefined : item.label}
+              >
+                <span className="sidebar-item-icon">{item.icon}</span>
+                {sidebarOpen && (
+                  <>
+                    <span className="sidebar-item-label">{item.label}</span>
+                    <span className="sidebar-item-shortcut">{item.shortcut}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 space-y-2">
-          <button
-            onClick={toggleTheme}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-text-dim hover:bg-surface-2 hover:text-text transition-colors"
-            title={sidebarOpen ? undefined : "Theme"}
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            {sidebarOpen && <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
-          </button>
+        <div className="sidebar-footer">
+          <span className="sidebar-status online">●</span>
           {sidebarOpen && (
-            <p className="text-xs text-text-dim px-3">ETHAN Cognitive OS v0.1</p>
+            <>
+              <span className="sidebar-version">ETHAN v2.4.1</span>
+              <span className="sidebar-help" onClick={() => setPage("settings")}>⚙</span>
+            </>
           )}
         </div>
       </aside>

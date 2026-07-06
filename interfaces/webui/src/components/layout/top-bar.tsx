@@ -1,51 +1,37 @@
 "use client";
 
-import { useStore } from "@/lib/store";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useStore, getBreadcrumbs, PAGE_TITLES, type AppPage } from "@/lib/store";
+
+const STATUS_LABELS: Record<string, string> = {
+  open: "ONLINE",
+  connecting: "CONNECTING",
+  closed: "OFFLINE",
+};
 
 export function TopBar() {
-  const { currentPage, setPage, sidebarOpen, toggleSidebar, theme, toggleTheme, approvals } = useStore();
-  const { status } = useWebSocket("ws://localhost:8000/ws", "system.health");
-
-  const pages = [
-    { id: "mission-control" as const, label: "Mission Control", icon: "◆" },
-    { id: "goals" as const, label: "Goals", icon: "◎" },
-    { id: "memory" as const, label: "Memory", icon: "◈" },
-    { id: "skills" as const, label: "Skills", icon: "⚙" },
-    { id: "monitor" as const, label: "Monitor", icon: "◉" },
-    { id: "approvals" as const, label: "Approvals", icon: "⚠" },
-    { id: "chat" as const, label: "Chat", icon: "💬" },
-  ];
+  const { sidebarOpen, toggleSidebar, currentPage, setPage, theme, toggleTheme } = useStore();
+  const title = PAGE_TITLES[currentPage];
 
   return (
     <header className="top-bar">
       <div className="top-bar-left">
-        <button className="top-bar-btn" onClick={toggleSidebar} title="Toggle sidebar">
-          ☰
+        <button className="top-bar-btn" onClick={toggleSidebar} title="Toggle sidebar (⌘B)">
+          {sidebarOpen ? "←" : "→"}
         </button>
         <span className="top-bar-brand">◆ ETHAN</span>
-        <span className={`top-bar-status ${status}`}>
+        <span className="top-bar-status open">
           <span className="status-dot" />
-          {status === "open" ? "ONLINE" : status === "connecting" ? "CONNECTING" : "OFFLINE"}
+          ONLINE
         </span>
       </div>
 
-      <nav className="top-bar-nav">
-        {pages.map((p) => (
-          <button
-            key={p.id}
-            className={`top-bar-nav-item ${currentPage === p.id ? "active" : ""}`}
-            onClick={() => setPage(p.id)}
-          >
-            {p.icon} {p.label}
-            {p.id === "approvals" && approvals.length > 0 && (
-              <span className="nav-badge">{approvals.length}</span>
-            )}
-          </button>
-        ))}
+      {/* Breadcrumb simple */}
+      <nav className="top-bar-breadcrumbs">
+        <span className="bc-current">{title}</span>
       </nav>
 
       <div className="top-bar-right">
+        <span className="top-bar-uptime">⏱ 14h22</span>
         <button className="top-bar-btn" onClick={toggleTheme} title="Toggle theme">
           {theme === "dark" ? "☀" : "☾"}
         </button>

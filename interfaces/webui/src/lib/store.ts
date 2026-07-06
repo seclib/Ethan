@@ -1,16 +1,90 @@
 import { create } from "zustand";
-import { api, type SystemState, type Event, type Goal } from "./api";
+import { persist } from "@/lib/persistence";
 
 export type AppPage =
-  | "mission-control"
-  | "goals"
+  | "dashboard"
+  | "assistant"
+  | "knowledge"
   | "memory"
-  | "skills"
-  | "monitor"
-  | "approvals"
-  | "chat"
-  | "config";
+  | "agents"
+  | "planner"
+  | "models"
+  | "providers"
+  | "plugins"
+  | "tools"
+  | "documents"
+  | "settings"
+  | "logs"
+  | "terminal";
 
+export type NavGroup = "observer" | "cognition" | "extensions" | "system";
+
+export interface NavItem {
+  id: AppPage;
+  label: string;
+  icon: string;
+  group: NavGroup;
+  shortcut: string;
+  breadcrumb: string[];
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  { id: "dashboard",  label: "Dashboard",  icon: "◉", group: "observer",    shortcut: "⌘1", breadcrumb: ["Dashboard"] },
+  { id: "assistant",  label: "Assistant",  icon: "💬", group: "observer",    shortcut: "⌘2", breadcrumb: ["Assistant"] },
+  { id: "knowledge",  label: "Knowledge",  icon: "◈", group: "observer",    shortcut: "⌘3", breadcrumb: ["Knowledge"] },
+  { id: "memory",     label: "Memory",     icon: "◆", group: "observer",    shortcut: "⌘4", breadcrumb: ["Memory"] },
+  { id: "agents",     label: "Agents",     icon: "⚡", group: "cognition",   shortcut: "⌘5", breadcrumb: ["Agents"] },
+  { id: "planner",    label: "Planner",    icon: "📋", group: "cognition",   shortcut: "⌘6", breadcrumb: ["Planner"] },
+  { id: "models",     label: "Models",     icon: "🤖", group: "cognition",   shortcut: "⌘7", breadcrumb: ["Models"] },
+  { id: "providers",  label: "Providers",  icon: "🔌", group: "cognition",   shortcut: "⌘8", breadcrumb: ["Providers"] },
+  { id: "plugins",    label: "Plugins",    icon: "🧩", group: "extensions",  shortcut: "⌘9", breadcrumb: ["Plugins"] },
+  { id: "tools",      label: "Tools",      icon: "🛠",  group: "extensions", shortcut: "⌘0", breadcrumb: ["Tools"] },
+  { id: "documents",  label: "Documents",  icon: "📄", group: "extensions", shortcut: "⌘-", breadcrumb: ["Documents"] },
+  { id: "settings",   label: "Settings",   icon: "⚙",  group: "system",     shortcut: "⌘,", breadcrumb: ["Settings"] },
+  { id: "logs",       label: "Logs",       icon: "📜", group: "system",     shortcut: "⌘L", breadcrumb: ["Logs"] },
+  { id: "terminal",   label: "Terminal",   icon: "⌨",  group: "system",     shortcut: "⌘`", breadcrumb: ["Terminal"] },
+];
+
+export const GROUP_LABELS: Record<NavGroup, string> = {
+  observer: "Observer",
+  cognition: "Cognition",
+  extensions: "Extensions",
+  system: "System",
+};
+
+const ITEM_MAP = Object.fromEntries(NAV_ITEMS.map((i) => [i.id, i]));
+
+// ───────── Page titles ─────────
+export const PAGE_TITLES: Record<AppPage, string> = {
+  dashboard: "Dashboard",
+  assistant: "Assistant",
+  knowledge: "Knowledge",
+  memory: "Memory",
+  agents: "Agents",
+  planner: "Planner",
+  models: "Models",
+  providers: "Providers",
+  plugins: "Plugins",
+  tools: "Tools",
+  documents: "Documents",
+  settings: "Settings",
+  logs: "Logs",
+  terminal: "Terminal",
+};
+
+export function getBreadcrumbs(page: AppPage): string[] {
+  return ITEM_MAP[page]?.breadcrumb ?? [PAGE_TITLES[page]];
+}
+
+// ───────── Context menu ─────────
+export interface ContextMenuState {
+  open: boolean;
+  x: number;
+  y: number;
+  page: AppPage | null;
+}
+
+// ───────── Inspector ─────────
 interface InspectorState {
   open: boolean;
   type: "goal" | "mission" | "skill" | "fact" | "event" | null;
@@ -18,89 +92,51 @@ interface InspectorState {
   data: unknown | null;
 }
 
+// ───────── Store ─────────
 interface AppState {
-  state: SystemState | null;
-  stateLoading: boolean;
-  stateError: string | null;
-  fetchState: () => Promise<void>;
-
-  events: Event[];
-  eventsLoading: boolean;
-  fetchEvents: () => Promise<void>;
-
-  goals: Goal[];
-  goalsLoading: boolean;
-  fetchGoals: () => Promise<void>;
-
   sidebarOpen: boolean;
   toggleSidebar: () => void;
   currentPage: AppPage;
   setPage: (page: AppPage) => void;
   theme: "dark" | "light";
   toggleTheme: () => void;
-
+  contextMenu: ContextMenuState;
+  openContextMenu: (x: number, y: number, page: AppPage) => void;
+  closeContextMenu: () => void;
   inspector: InspectorState;
   openInspector: (type: InspectorState["type"], id: string, data?: unknown) => void;
   closeInspector: () => void;
-
-  approvals: Approval[];
-  addApproval: (a: Approval) => void;
-  resolveApproval: (id: string, approved: boolean) => void;
 }
 
-export interface Approval {
-  id: string;
-  projectId: string;
-  stepId: string;
-  description: string;
-  risk: "low" | "medium" | "high";
-  budget: number;
-  requestedBy: string;
-  createdAt: string;
-}
+const savedPage = () => {
+  try {
+    const raw = localStorage.getItem("ethan:page");
+    if (raw && ITEM_MAP[raw as AppPage]) return raw as AppPage;
+  } catch {}
+  return "dashboard" as AppPage;
+};
+
+const savedSidebar = () => {
+  try {
+    const raw = localStorage.getItem("ethan:sidebar");
+    return raw !== "false";
+  } catch {}
+  return true;
+};
 
 export const useStore = create<AppState>((set) => ({
-  state: null,
-  stateLoading: false,
-  stateError: null,
-  fetchState: async () => {
-    set({ stateLoading: true, stateError: null });
-    try {
-      const state = await api.getState();
-      set({ state, stateLoading: false });
-    } catch (e) {
-      set({ stateError: (e as Error).message, stateLoading: false });
-    }
+  sidebarOpen: savedSidebar(),
+  toggleSidebar: () =>
+    set((s) => {
+      const next = !s.sidebarOpen;
+      try { localStorage.setItem("ethan:sidebar", String(next)); } catch {}
+      return { sidebarOpen: next };
+    }),
+  currentPage: savedPage(),
+  setPage: (page) => {
+    try { localStorage.setItem("ethan:page", page); } catch {}
+    set({ currentPage: page });
   },
-
-  events: [],
-  eventsLoading: false,
-  fetchEvents: async () => {
-    set({ eventsLoading: true });
-    try {
-      const { events } = await api.getEvents();
-      set({ events, eventsLoading: false });
-    } catch {
-      set({ eventsLoading: false });
-    }
-  },
-
-  goals: [],
-  goalsLoading: false,
-  fetchGoals: async () => {
-    set({ goalsLoading: true });
-    try {
-      const { goals } = await api.getGoals();
-      set({ goals, goalsLoading: false });
-    } catch {
-      set({ goalsLoading: false });
-    }
-  },
-
-  sidebarOpen: true,
-  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  currentPage: "mission-control",
-  setPage: (page) => set({ currentPage: page }),
   theme: "dark",
   toggleTheme: () =>
     set((s) => {
@@ -110,17 +146,12 @@ export const useStore = create<AppState>((set) => ({
       }
       return { theme: next };
     }),
-
+  contextMenu: { open: false, x: 0, y: 0, page: null },
+  openContextMenu: (x, y, page) => set({ contextMenu: { open: true, x, y, page } }),
+  closeContextMenu: () => set({ contextMenu: { open: false, x: 0, y: 0, page: null } }),
   inspector: { open: false, type: null, id: null, data: null },
   openInspector: (type, id, data) =>
     set({ inspector: { open: true, type, id, data: data ?? null } }),
   closeInspector: () =>
     set({ inspector: { open: false, type: null, id: null, data: null } }),
-
-  approvals: [],
-  addApproval: (a) => set((s) => ({ approvals: [...s.approvals, a] })),
-  resolveApproval: (id, approved) =>
-    set((s) => ({
-      approvals: s.approvals.filter((a) => a.id !== id),
-    })),
 }));

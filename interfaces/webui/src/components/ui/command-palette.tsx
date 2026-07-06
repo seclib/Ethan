@@ -4,16 +4,20 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore, AppPage } from "@/lib/store";
 
 const COMMANDS: { id: string; label: string; icon: string; page?: AppPage; action?: () => void }[] = [
-  { id: "mc", label: "Mission Control", icon: "◆", page: "mission-control" },
-  { id: "goals", label: "Goals & Missions", icon: "◎", page: "goals" },
-  { id: "memory", label: "Memory Explorer", icon: "◈", page: "memory" },
-  { id: "skills", label: "Skills Lab", icon: "⚙", page: "skills" },
-  { id: "monitor", label: "System Monitor", icon: "◉", page: "monitor" },
-  { id: "approvals", label: "Approvals & Governance", icon: "⚠", page: "approvals" },
-  { id: "chat", label: "Chat", icon: "💬", page: "chat" },
-  { id: "new-goal", label: "Nouveau Goal", icon: "➕", page: "goals" },
-  { id: "new-mission", label: "Nouvelle Mission", icon: "🚀", page: "goals" },
-  { id: "new-skill", label: "Nouvelle Skill", icon: "🔧", page: "skills" },
+  { id: "dashboard", label: "Dashboard", icon: "◉", page: "dashboard" },
+  { id: "assistant", label: "Assistant", icon: "💬", page: "assistant" },
+  { id: "knowledge", label: "Knowledge", icon: "◈", page: "knowledge" },
+  { id: "memory", label: "Memory", icon: "◆", page: "memory" },
+  { id: "agents", label: "Agents", icon: "⚡", page: "agents" },
+  { id: "planner", label: "Planner", icon: "📋", page: "planner" },
+  { id: "models", label: "Models", icon: "🤖", page: "models" },
+  { id: "providers", label: "Providers", icon: "🔌", page: "providers" },
+  { id: "plugins", label: "Plugins", icon: "🧩", page: "plugins" },
+  { id: "tools", label: "Tools", icon: "🛠", page: "tools" },
+  { id: "documents", label: "Documents", icon: "📄", page: "documents" },
+  { id: "settings", label: "Settings", icon: "⚙", page: "settings" },
+  { id: "logs", label: "Logs", icon: "📜", page: "logs" },
+  { id: "terminal", label: "Terminal", icon: "⌨", page: "terminal" },
 ];
 
 export function CommandPalette() {
