@@ -1,6 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Sparkline } from "@/components/widgets/sparkline";
 
 interface MetricCardProps {
   title: string;
@@ -10,8 +12,10 @@ interface MetricCardProps {
   icon?: ReactNode;
   sparkline?: number[];
   progress?: number;
+  href?: string;
   onClick?: () => void;
   className?: string;
+  dragHandleProps?: Record<string, unknown>;
 }
 
 export function MetricCard({
@@ -22,9 +26,13 @@ export function MetricCard({
   icon,
   sparkline,
   progress,
+  href,
   onClick,
   className = "",
+  dragHandleProps,
 }: MetricCardProps) {
+  const router = useRouter();
+
   const statusColors = {
     normal: "border-green-500/30 bg-green-500/5",
     warning: "border-yellow-500/30 bg-yellow-500/5",
@@ -43,6 +51,14 @@ export function MetricCard({
     na: "—",
   };
 
+  const handleClick = () => {
+    if (href) {
+      router.push(href);
+    } else if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <div
       className={`
@@ -51,7 +67,15 @@ export function MetricCard({
         ${statusColors[status]}
         ${className}
       `}
-      onClick={onClick}
+      onClick={handleClick}
+      role={href ? "link" : "button"}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") handleClick();
+      }}
+      data-testid="metric-card"
+      data-status={status}
+      {...dragHandleProps}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -65,14 +89,8 @@ export function MetricCard({
       </div>
 
       {sparkline && sparkline.length > 1 && (
-        <div className="mt-3 h-8 flex items-end gap-0.5">
-          {sparkline.map((val, i) => (
-            <div
-              key={i}
-              className="flex-1 bg-blue-500/50 rounded-sm transition-all duration-300"
-              style={{ height: `${Math.min(100, Math.max(5, val))}%` }}
-            />
-          ))}
+        <div className="mt-3 h-8">
+          <Sparkline data={sparkline} />
         </div>
       )}
 

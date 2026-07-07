@@ -13,9 +13,10 @@ interface NetworkData {
 interface NetworkCardProps {
   data: NetworkData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function NetworkCard({ data, loading }: NetworkCardProps) {
+export function NetworkCard({ data, loading, sparkline }: NetworkCardProps) {
   if (loading || !data) {
     return <MetricCard title="Network" value="—" status="loading" />;
   }
@@ -33,7 +34,8 @@ export function NetworkCard({ data, loading }: NetworkCardProps) {
       unit={`${data.bandwidth} Mbps`}
       status={getStatus(data.errors, data.latency)}
       icon="🌐"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/system?tab=network"
     />
   );
 }

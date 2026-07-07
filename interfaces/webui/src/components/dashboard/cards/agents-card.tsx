@@ -10,9 +10,10 @@ interface AgentStatus {
 interface AgentsCardProps {
   data: AgentStatus[] | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function AgentsCard({ data, loading }: AgentsCardProps) {
+export function AgentsCard({ data, loading, sparkline }: AgentsCardProps) {
   if (loading || !data) {
     return <MetricCard title="Agents" value="—" status="loading" />;
   }
@@ -34,7 +35,8 @@ export function AgentsCard({ data, loading }: AgentsCardProps) {
       unit={errors > 0 ? `${errors} error(s)` : "active"}
       status={getStatus(active, errors)}
       icon="🤖"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/agents"
     />
   );
 }

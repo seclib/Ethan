@@ -13,9 +13,10 @@ interface McpData {
 interface McpCardProps {
   data: McpData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function McpCard({ data, loading }: McpCardProps) {
+export function McpCard({ data, loading, sparkline }: McpCardProps) {
   if (loading || !data) {
     return <MetricCard title="MCP" value="—" status="loading" />;
   }
@@ -34,7 +35,8 @@ export function McpCard({ data, loading }: McpCardProps) {
       status={getStatus(data.successRate)}
       icon="🔧"
       progress={data.successRate}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/tools"
     />
   );
 }

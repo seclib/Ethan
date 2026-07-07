@@ -13,9 +13,10 @@ interface KnowledgeData {
 interface KnowledgeCardProps {
   data: KnowledgeData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function KnowledgeCard({ data, loading }: KnowledgeCardProps) {
+export function KnowledgeCard({ data, loading, sparkline }: KnowledgeCardProps) {
   if (loading || !data) {
     return <MetricCard title="Knowledge" value="—" status="loading" />;
   }
@@ -35,7 +36,8 @@ export function KnowledgeCard({ data, loading }: KnowledgeCardProps) {
       status={getStatus(contextPercent)}
       icon="🧠"
       progress={contextPercent}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/knowledge"
     />
   );
 }

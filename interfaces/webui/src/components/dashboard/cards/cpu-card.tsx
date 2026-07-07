@@ -15,9 +15,10 @@ interface CpuData {
 interface CpuCardProps {
   data: CpuData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function CpuCard({ data, loading }: CpuCardProps) {
+export function CpuCard({ data, loading, sparkline }: CpuCardProps) {
   if (loading || !data) {
     return <MetricCard title="CPU" value="—" status="loading" />;
   }
@@ -32,10 +33,11 @@ export function CpuCard({ data, loading }: CpuCardProps) {
     <MetricCard
       title="CPU"
       value={`${data.usage}%`}
+      unit={`${data.cores} cores`}
       status={getStatus(data.usage)}
       icon="⚡"
-      sparkline={[data.usage, data.usage * 0.9, data.usage * 1.1, data.usage * 0.95, data.usage]}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/system?tab=cpu"
     />
   );
 }

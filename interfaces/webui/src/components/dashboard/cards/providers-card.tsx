@@ -11,9 +11,10 @@ interface ProviderStatus {
 interface ProvidersCardProps {
   data: ProviderStatus[] | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function ProvidersCard({ data, loading }: ProvidersCardProps) {
+export function ProvidersCard({ data, loading, sparkline }: ProvidersCardProps) {
   if (loading || !data) {
     return <MetricCard title="Providers" value="—" status="loading" />;
   }
@@ -35,7 +36,8 @@ export function ProvidersCard({ data, loading }: ProvidersCardProps) {
       unit={`${avgLatency.toFixed(0)}ms avg`}
       status={getStatus(connected)}
       icon="🔌"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/providers"
     />
   );
 }

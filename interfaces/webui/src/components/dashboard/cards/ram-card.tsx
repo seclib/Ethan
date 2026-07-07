@@ -14,9 +14,10 @@ interface RamData {
 interface RamCardProps {
   data: RamData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function RamCard({ data, loading }: RamCardProps) {
+export function RamCard({ data, loading, sparkline }: RamCardProps) {
   if (loading || !data) {
     return <MetricCard title="RAM" value="—" status="loading" />;
   }
@@ -36,7 +37,8 @@ export function RamCard({ data, loading }: RamCardProps) {
       status={getStatus(usedPercent)}
       icon="💾"
       progress={usedPercent}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/system?tab=ram"
     />
   );
 }

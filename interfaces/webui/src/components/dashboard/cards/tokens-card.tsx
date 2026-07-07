@@ -13,9 +13,10 @@ interface TokensData {
 interface TokensCardProps {
   data: TokensData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function TokensCard({ data, loading }: TokensCardProps) {
+export function TokensCard({ data, loading, sparkline }: TokensCardProps) {
   if (loading || !data) {
     return <MetricCard title="Tokens" value="—" status="loading" />;
   }
@@ -35,7 +36,8 @@ export function TokensCard({ data, loading }: TokensCardProps) {
       status={getStatus(usedPercent)}
       icon="🔤"
       progress={usedPercent}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/assistant?tab=tokens"
     />
   );
 }

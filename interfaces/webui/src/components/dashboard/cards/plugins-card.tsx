@@ -11,9 +11,10 @@ interface PluginStatus {
 interface PluginsCardProps {
   data: PluginStatus[] | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function PluginsCard({ data, loading }: PluginsCardProps) {
+export function PluginsCard({ data, loading, sparkline }: PluginsCardProps) {
   if (loading || !data) {
     return <MetricCard title="Plugins" value="—" status="loading" />;
   }
@@ -35,7 +36,8 @@ export function PluginsCard({ data, loading }: PluginsCardProps) {
       unit={errors > 0 ? `${errors} inactive` : "loaded"}
       status={getStatus(active, errors)}
       icon="🧩"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/plugins"
     />
   );
 }

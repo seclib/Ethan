@@ -12,9 +12,10 @@ interface CoreData {
 interface CoreCardProps {
   data: CoreData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function CoreCard({ data, loading }: CoreCardProps) {
+export function CoreCard({ data, loading, sparkline }: CoreCardProps) {
   if (loading || !data) {
     return <MetricCard title="Core" value="—" status="loading" />;
   }
@@ -32,7 +33,8 @@ export function CoreCard({ data, loading }: CoreCardProps) {
       unit={`v${data.version}`}
       status={getStatus(data.status)}
       icon="⚙️"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/system"
     />
   );
 }

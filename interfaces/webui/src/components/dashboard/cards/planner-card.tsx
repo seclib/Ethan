@@ -12,9 +12,10 @@ interface PlannerData {
 interface PlannerCardProps {
   data: PlannerData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function PlannerCard({ data, loading }: PlannerCardProps) {
+export function PlannerCard({ data, loading, sparkline }: PlannerCardProps) {
   if (loading || !data) {
     return <MetricCard title="Planner" value="—" status="loading" />;
   }
@@ -35,7 +36,8 @@ export function PlannerCard({ data, loading }: PlannerCardProps) {
       status={getStatus(progress)}
       icon="📋"
       progress={progress}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/planner"
     />
   );
 }

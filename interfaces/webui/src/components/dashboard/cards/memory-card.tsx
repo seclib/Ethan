@@ -13,9 +13,10 @@ interface MemoryData {
 interface MemoryCardProps {
   data: MemoryData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function MemoryCard({ data, loading }: MemoryCardProps) {
+export function MemoryCard({ data, loading, sparkline }: MemoryCardProps) {
   if (loading || !data) {
     return <MetricCard title="Memory" value="—" status="loading" />;
   }
@@ -34,7 +35,8 @@ export function MemoryCard({ data, loading }: MemoryCardProps) {
       status={getStatus(data.hitRate)}
       icon="💾"
       progress={data.hitRate}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/memory"
     />
   );
 }

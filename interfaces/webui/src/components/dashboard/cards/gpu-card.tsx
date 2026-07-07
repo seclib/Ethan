@@ -15,9 +15,10 @@ interface GpuData {
 interface GpuCardProps {
   data: GpuData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function GpuCard({ data, loading }: GpuCardProps) {
+export function GpuCard({ data, loading, sparkline }: GpuCardProps) {
   if (loading || !data) {
     return <MetricCard title="GPU" value="—" status="loading" />;
   }
@@ -37,7 +38,8 @@ export function GpuCard({ data, loading }: GpuCardProps) {
       status={getStatus(data.utilization)}
       icon="🎮"
       progress={data.utilization}
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/system?tab=gpu"
     />
   );
 }

@@ -12,9 +12,10 @@ interface EventsData {
 interface EventsCardProps {
   data: EventsData | null;
   loading?: boolean;
+  sparkline?: number[];
 }
 
-export function EventsCard({ data, loading }: EventsCardProps) {
+export function EventsCard({ data, loading, sparkline }: EventsCardProps) {
   if (loading || !data) {
     return <MetricCard title="Events" value="—" status="loading" />;
   }
@@ -32,7 +33,8 @@ export function EventsCard({ data, loading }: EventsCardProps) {
       unit={`${data.rate}/s`}
       status={getStatus(data.errors, data.warnings)}
       icon="📡"
-      onClick={() => {}}
+      sparkline={sparkline}
+      href="/logs?filter=events"
     />
   );
 }
