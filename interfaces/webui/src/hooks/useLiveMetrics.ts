@@ -2,68 +2,119 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function useLiveMetrics<T>(url: string, initial: T[], intervalMs = 2000) {
-  const [data, setData] = useState<T[]>(initial);
-  const [connected, setConnected] = useState(false);
-  const timerRef = useRef<number | null>(null);
+interface MetricData {
+  timestamp: number;
+  value: number | string | object;
+}
+
+export function useLiveMetric<T>(
+  endpoint: string,
+  interval: number = 1000
+): { data: T | null; error: Error | null; loading: boolean } {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    let mounted = true;
+    let retryTimeout: NodeJS.Timeout;
 
-    async function connect() {
+    const connect = () => {
+      if (!mounted) return;
+
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error("No stream");
-        const decoder = new TextDecoder();
-        let buffer = "";
+        const eventSource = new EventSource(endpoint);
+        eventSourceRef.current = eventSource;
 
-        while (!cancelled) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+        eventSource.onopen = () => {
+          retryCountRef.current = 0;
+        };
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const evt = JSON.parse(line) as T;
-              setData((prev) => {
-                const next = [...prev, evt];
-                return next.length > 200 ? next.slice(-200) : next;
-              });
-              if (!connected) setConnected(true);
-            } catch {
-              // ignore parse errors
-            }
+        eventSource.onmessage = (event) => {
+          if (!mounted) return;
+          try {
+            const parsed = JSON.parse(event.data) as T;
+            setData(parsed);
+            setError(null);
+            setLoading(false);
+          } catch (e) {
+            console.error("Failed to parse metric data:", e);
           }
-        }
-      } catch {
-        // retry after delay
-        timerRef.current = window.setTimeout(() => connect(), 3000);
+        };
+
+        eventSource.onerror = () => {
+          if (!mounted) return;
+          setError(new Error("Connection lost"));
+          eventSource.close();
+          
+          // Retry with exponential backoff
+          retryCountRef.current++;
+          const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000);
+          retryTimeout = setTimeout(connect, delay);
+        };
+      } catch (e) {
+        if (!mounted) return;
+        setError(new Error("Failed to connect"));
+        setLoading(false);
       }
-    }
+    };
 
     connect();
 
-    // fallback poll if no SSE
-    timerRef.current = window.setInterval(() => {
-      fetch(url)
-        .then((r) => r.json())
-        .then((json) => {
-          if (Array.isArray(json)) setData(json);
-        })
-        .catch(() => {});
-    }, intervalMs);
+    return () => {
+      mounted = false;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [endpoint]);
+
+  return { data, error, loading };
+}
+
+export function usePollingMetric<T>(
+  fetchFn: () => Promise<T>,
+  interval: number = 2000
+): { data: T | null; error: Error | null; loading: boolean } {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const fetchData = async () => {
+      try {
+        const result = await fetchFn();
+        if (mounted) {
+          setData(result);
+          setError(null);
+          setLoading(false);
+        }
+      } catch (e) {
+        if (mounted) {
+          setError(e as Error);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    timeoutId = setInterval(fetchData, interval);
 
     return () => {
-      cancelled = true;
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (timerRef.current) clearInterval(timerRef.current);
+      mounted = false;
+      if (timeoutId) {
+        clearInterval(timeoutId);
+      }
     };
-  }, [url, intervalMs, connected]);
+  }, [fetchFn, interval]);
 
-  return { data, connected };
+  return { data, error, loading };
 }
