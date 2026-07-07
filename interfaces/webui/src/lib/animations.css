@@ -1,0 +1,233 @@
+/* ═══════════════════════════════════════════════════════════════
+   ETHAN Animation System
+   Inspirations: Jarvis-OS, Windows 11, Arc Browser, Linear, Raycast
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ───────── Keyframes ───────── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes toast-enter {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes drag-start {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.03);
+    opacity: 0.8;
+  }
+}
+
+@keyframes drop-complete {
+  0% {
+    transform: scale(1.03);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(0.98);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes widget-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes value-update {
+  0% {
+    background: rgba(59, 130, 246, 0.2);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* ───────── Utility Classes ───────── */
+
+.animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+
+.animate-fade-out {
+  animation: fade-out 150ms ease-in forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-down {
+  animation: slide-down 150ms ease-in forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hover lift for cards */
+.hover-lift {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Stagger for lists */
+.stagger-item {
+  animation: slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Skeleton shimmer */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shimmer 1500ms infinite;
+}
+
+/* Toast */
+.toast {
+  animation: toast-enter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-exit {
+  animation: toast-exit 200ms ease-in forwards;
+}
+
+.toast-progress {
+  animation: toast-progress 5s linear forwards;
+}
+
+/* Drag & drop */
+.card-dragging {
+  animation: drag-start 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.card-drop-target {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.08);
+  transition: all 100ms ease-out;
+}
+
+.card-dropped {
+  animation: drop-complete 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Widget appear */
+.widget-appear {
+  animation: widget-appear 400ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Value update flash */
+.value-updated {
+  animation: value-update 150ms ease-in-out;
+}
+
+/* ───────── Accessibility ───────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

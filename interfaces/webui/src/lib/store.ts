@@ -1,3 +1,19 @@
+/**
+ * @deprecated Ce module legacy est remplacé par les stores individuels :
+ *   - stores/ui.store.ts      → useUIStore
+ *   - stores/auth.store.ts    → useAuthStore
+ *   - stores/agents.store.ts  → useAgentsStore
+ *   - stores/goals.store.ts   → useGoalsStore
+ *   - stores/missions.store.ts → useMissionsStore
+ *   - stores/memory.store.ts  → useMemoryStore
+ *   - stores/skills.store.ts  → useSkillsStore
+ *   - stores/flux.store.ts    → useFluxStore
+ *
+ * Les composants qui importent ce fichier fonctionnent encore, mais sont
+ * candidats à la migration vers les nouveaux stores.
+ * @see src/WEBUI_ARCHITECTURE.md pour le plan de migration complet.
+ */
+
 import { create } from "zustand";
 import { persist } from "@/lib/persistence";
 
@@ -54,7 +70,6 @@ export const GROUP_LABELS: Record<NavGroup, string> = {
 
 const ITEM_MAP = Object.fromEntries(NAV_ITEMS.map((i) => [i.id, i]));
 
-// ───────── Page titles ─────────
 export const PAGE_TITLES: Record<AppPage, string> = {
   dashboard: "Dashboard",
   assistant: "Assistant",
@@ -76,7 +91,6 @@ export function getBreadcrumbs(page: AppPage): string[] {
   return ITEM_MAP[page]?.breadcrumb ?? [PAGE_TITLES[page]];
 }
 
-// ───────── Context menu ─────────
 export interface ContextMenuState {
   open: boolean;
   x: number;
@@ -84,7 +98,6 @@ export interface ContextMenuState {
   page: AppPage | null;
 }
 
-// ───────── Inspector ─────────
 interface InspectorState {
   open: boolean;
   type: "goal" | "mission" | "skill" | "fact" | "event" | null;
@@ -92,7 +105,6 @@ interface InspectorState {
   data: unknown | null;
 }
 
-// ───────── Store ─────────
 interface AppState {
   sidebarOpen: boolean;
   toggleSidebar: () => void;

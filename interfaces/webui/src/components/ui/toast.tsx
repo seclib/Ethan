@@ -1,46 +1,72 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui.store";
 
-type Toast = {
-  id: number;
-  kind: "info" | "success" | "warning" | "error";
+function Toast({ id, type, message, duration = 5000 }: {
+  id: string;
+  type: "info" | "success" | "warning" | "error";
   message: string;
-};
+  duration?: number;
+}) {
+  const removeToast = useUIStore((state) => state.removeToast);
 
-type ToastContextValue = {
-  toast: (kind: Toast["kind"], message: string) => void;
-};
+  React.useEffect(() => {
+    if (duration > 0) {
+      const timer = setTimeout(() => {
+        removeToast(id);
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [id, duration, removeToast]);
 
-const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
+  const icons = {
+    info: "ℹ",
+    success: "✓",
+    warning: "⚠",
+    error: "✗",
+  };
 
-export function useToast() {
-  return useContext(ToastContext);
-}
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<Toast[]>([]);
-  const counter = useRef(0);
-
-  const toast = useCallback((kind: Toast["kind"], message: string) => {
-    const id = ++counter.current;
-    setItems((prev) => [...prev, { id, kind, message }]);
-    setTimeout(() => {
-      setItems((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  }, []);
+  const colors = {
+    info: "border-accent text-accent",
+    success: "border-green-500 text-green-400",
+    warning: "border-amber-500 text-amber-400",
+    error: "border-red-500 text-red-400",
+  };
 
   return (
-    <ToastContext.Provider value={{ toast }}>
-      {children}
-      <div className="toast-stack">
-        {items.map((t) => (
-          <div key={t.id} className={`toast toast--${t.kind}`}>
-            <span className="toast-dot" />
-            <span className="toast-msg">{t.message}</span>
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
+    <div
+      className={cn(
+        "toast flex items-center gap-3 p-4 rounded-lg border bg-background shadow-lg",
+        "animate-in slide-in-from-top-2 duration-300",
+        colors[type]
+      )}
+    >
+      <span className="text-lg">{icons[type]}</span>
+      <p className="flex-1 text-sm">{message}</p>
+      <button
+        onClick={() => removeToast(id)}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+      >
+        ✕
+      </button>
+    </div>
   );
 }
+
+function ToastContainer() {
+  const toasts = useUIStore((state) => state.toasts);
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+      {toasts.map((toast) => (
+        <Toast key={toast.id} {...toast} />
+      ))}
+    </div>
+  );
+}
+
+export { Toast, ToastContainer };

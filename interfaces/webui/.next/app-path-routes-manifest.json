@@ -1,7 +1,7 @@
 {
   "/_not-found/page": "/_not-found",
-  "/agents/page": "/agents",
   "/config/page": "/config",
+  "/agents/page": "/agents",
   "/flux/page": "/flux",
   "/memory/page": "/memory",
   "/page": "/",

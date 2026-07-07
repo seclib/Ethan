@@ -1,6 +1,8 @@
 @import "tailwindcss/preflight";
 @import "tailwindcss/utilities";
 
+@import "@/lib/animations.css";
+
 :root {
   --bg-0: #0f172a;
   --bg-1: #1e293b;

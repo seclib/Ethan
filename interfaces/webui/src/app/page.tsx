@@ -2,7 +2,7 @@
 
 import { useStore } from "@/lib/store";
 import { DashboardPage } from "@/components/pages/dashboard";
-import { AssistantPage } from "@/components/pages/assistant";
+import AssistantPage from "@/components/pages/assistant";
 import { KnowledgePage } from "@/components/pages/knowledge";
 import { MemoryPage } from "@/components/pages/memory";
 import { AgentsPage } from "@/components/pages/agents";
