@@ -13,11 +13,12 @@ interface SidebarItem {
 }
 
 const navigationItems: SidebarItem[] = [
-  { id: "home", label: "Home", icon: "🏠", href: "/" },
+  { id: "home", label: "Home", icon: "🏠", href: "/", group: "Core" },
   { id: "agents", label: "Agents", icon: "🤖", href: "/agents", group: "Core" },
-  { id: "goals", label: "Goals", icon: "🎯", href: "/goals", group: "Core" },
+  { id: "missions", label: "Missions", icon: "🎯", href: "/missions", group: "Core" },
+  { id: "goals", label: "Goals", icon: "🏆", href: "/goals", group: "Core" },
   { id: "memory", label: "Memory", icon: "💾", href: "/memory", group: "Core" },
-  { id: "skills", label: "Skills", icon: "⚡", href: "/skills", group: "Core" },
+  { id: "skills", label: "Skills", icon: "⚡", href: "/skills/lab", group: "Core" },
   { id: "flux", label: "Flux", icon: "📊", href: "/flux", group: "Monitor" },
   { id: "settings", label: "Settings", icon: "⚙️", href: "/settings", group: "System" },
 ];
@@ -33,7 +34,6 @@ function Sidebar() {
       )}
     >
       <div className="flex h-full flex-col">
-        {/* Header */}
         <div className="flex h-14 items-center justify-between border-b px-4">
           {sidebarExpanded && (
             <span className="font-mono text-sm font-semibold text-accent">
@@ -49,7 +49,6 @@ function Sidebar() {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3">
           {(() => {
             const groups = navigationItems.reduce((acc, item) => {
@@ -91,7 +90,6 @@ function Sidebar() {
           })()}
         </nav>
 
-        {/* Footer */}
         <div className="border-t p-3">
           <div className="flex items-center gap-3 rounded-md px-3 py-2">
             <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">

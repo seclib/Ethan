@@ -9,8 +9,11 @@ interface UIState {
 
   // Inspector
   inspectorOpen: boolean;
+  inspector: { type: "agent" | "goal" | "mission" | null; id: string | null };
   toggleInspector: () => void;
   setInspectorOpen: (open: boolean) => void;
+  openInspector: (type: "agent" | "goal" | "mission", id: string) => void;
+  closeInspector: () => void;
 
   // Command Palette
   commandPaletteOpen: boolean;
@@ -46,8 +49,11 @@ export const useUIStore = create<UIState>()(
 
       // Inspector
       inspectorOpen: false,
+      inspector: { type: null, id: null },
       toggleInspector: () => set((state) => ({ inspectorOpen: !state.inspectorOpen })),
       setInspectorOpen: (open) => set({ inspectorOpen: open }),
+      openInspector: (type, id) => set({ inspectorOpen: true, inspector: { type, id } }),
+      closeInspector: () => set({ inspectorOpen: false, inspector: { type: null, id: null } }),
 
       // Command Palette
       commandPaletteOpen: false,

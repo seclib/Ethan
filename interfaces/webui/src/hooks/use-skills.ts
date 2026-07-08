@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useSkillsStore } from "@/stores/skills.store";
 import { skillsService } from "@/services/skills.service";

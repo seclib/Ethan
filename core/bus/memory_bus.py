@@ -233,3 +233,7 @@ class InMemoryBus(EventBus):
             Liste des événements correspondants
         """
         return [e for e in self._history if e.type.value == event_type]
+
+
+# Alias pour compatibilité
+MemoryEventBus = InMemoryBus

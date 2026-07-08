@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect } from "react";
 import { useAgentsStore } from "@/stores/agents.store";
 

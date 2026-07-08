@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -23,17 +25,17 @@ type CommandHandler interface {
 
 // Command represents a client request
 type Command struct {
-	Type       string                 `json:"type"`
-	SessionID  string                 `json:"session_id"`
-	Timestamp  string                 `json:"timestamp,omitempty"`
-	Payload    map[string]interface{} `json:"payload"`
+	Type      string                 `json:"type"`
+	SessionID string                 `json:"session_id"`
+	Timestamp string                 `json:"timestamp,omitempty"`
+	Payload   map[string]interface{} `json:"payload"`
 }
 
 // Response represents a server response
 type Response struct {
-	Type       string                 `json:"type"`
-	SessionID  string                 `json:"session_id"`
-	Payload    map[string]interface{} `json:"payload"`
+	Type      string                 `json:"type"`
+	SessionID string                 `json:"session_id"`
+	Payload   map[string]interface{} `json:"payload"`
 }
 
 // NewServer creates a new Unix socket server
@@ -48,19 +50,28 @@ func NewServer(socketPath string, handler CommandHandler) *Server {
 func (s *Server) Start() error {
 	// Remove existing socket
 	os.Remove(s.socketPath)
-	
+
 	// Create socket
 	listener, err := net.Listen("unix", s.socketPath)
 	if err != nil {
 		return fmt.Errorf("failed to create socket: %w", err)
 	}
 	defer listener.Close()
-	
-	// Set permissions (0660 - owner and group can read/write)
-	os.Chmod(s.socketPath, 0660)
-	
+
+	// Set permissions (0660 - owner and ethan group can read/write).
+	if grp, err := user.LookupGroup("ethan"); err == nil {
+		if gid, err := strconv.Atoi(grp.Gid); err == nil {
+			if err := os.Chown(s.socketPath, 0, gid); err != nil {
+				fmt.Printf("✗ Failed to set socket group: %v\n", err)
+			}
+		}
+	}
+	if err := os.Chmod(s.socketPath, 0660); err != nil {
+		fmt.Printf("✗ Failed to set socket permissions: %v\n", err)
+	}
+
 	fmt.Printf("✓ Socket server listening on %s\n", s.socketPath)
-	
+
 	// Accept connections
 	for {
 		conn, err := listener.Accept()
@@ -68,7 +79,7 @@ func (s *Server) Start() error {
 			fmt.Printf("✗ Accept error: %v\n", err)
 			continue
 		}
-		
+
 		go s.handleConnection(conn)
 	}
 }
@@ -76,10 +87,10 @@ func (s *Server) Start() error {
 // handleConnection handles a single client connection
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
-	
+
 	// Set read timeout
 	conn.SetReadDeadline(time.Now().Add(30 * time.Second))
-	
+
 	// Decode command
 	var cmd Command
 	decoder := json.NewDecoder(conn)
@@ -87,10 +98,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 		s.sendError(conn, cmd.SessionID, "INVALID_REQUEST", "Malformed JSON", err.Error())
 		return
 	}
-	
+
 	// Handle command
 	resp := s.handler.HandleCommand(&cmd)
-	
+
 	// Send response
 	encoder := json.NewEncoder(conn)
 	if err := encoder.Encode(resp); err != nil {

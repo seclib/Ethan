@@ -1,55 +1,112 @@
 "use client";
 
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import * as React from "react";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-interface KPICardProps {
-  label: string;
-  value: string;
+interface KpiCardProps {
+  title: string;
+  value: string | number;
   unit?: string;
-  trend?: number;
-  sparkline?: number[];
-  accent?: "blue" | "green" | "gold" | "red" | "purple";
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string;
+  sparklineData?: number[];
+  icon?: string;
+  onClick?: () => void;
+  className?: string;
 }
 
-const ACCENT_MAP = {
-  blue: { bar: "var(--accent)", bg: "var(--accent-soft)" },
-  green: { bar: "var(--green)", bg: "var(--green-soft)" },
-  gold: { bar: "var(--gold)", bg: "var(--gold-soft)" },
-  red: { bar: "var(--red)", bg: "var(--red-soft)" },
-  purple: { bar: "var(--purple)", bg: "var(--purple-soft)" },
-};
+export function KpiCard({
+  title,
+  value,
+  unit,
+  trend,
+  trendValue,
+  sparklineData,
+  icon,
+  onClick,
+  className,
+}: KpiCardProps) {
+  const trendColors = {
+    up: "text-green-500",
+    down: "text-red-500",
+    neutral: "text-muted-foreground",
+  };
 
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const w = 120;
-  const h = 32;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(" ");
+  const trendIcons = {
+    up: "↑",
+    down: "↓",
+    neutral: "→",
+  };
+
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="kpi-sparkline">
-      <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={pts} />
-    </svg>
+    <Card
+      className={cn(
+        "p-6 transition-all duration-200 hover:shadow-lg",
+        onClick && "cursor-pointer hover:border-primary/50",
+        className
+      )}
+      onClick={onClick}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <div className="flex items-baseline gap-2 mt-2">
+            <p className="text-3xl font-bold">{value}</p>
+            {unit && <p className="text-sm text-muted-foreground">{unit}</p>}
+          </div>
+          {trend && trendValue && (
+            <div className={cn("flex items-center gap-1 mt-2 text-sm", trendColors[trend])}>
+              <span>{trendIcons[trend]}</span>
+              <span>{trendValue}</span>
+            </div>
+          )}
+        </div>
+        {icon && <div className="text-3xl">{icon}</div>}
+      </div>
+
+      {sparklineData && sparklineData.length > 1 && (
+        <div className="mt-4 h-12">
+          <Sparkline data={sparklineData} />
+        </div>
+      )}
+    </Card>
   );
 }
 
-export function KPICard({ label, value, unit, trend, sparkline, accent = "blue" }: KPICardProps) {
-  const colors = ACCENT_MAP[accent];
-  const [points, setPoints] = useLocalStorage<number[]>(`kpi:sparkline:${label}`, sparkline || []);
+// Simple sparkline component using SVG
+function Sparkline({ data }: { data: number[] }) {
+  const width = 200;
+  const height = 48;
+  const padding = 2;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const points = data
+    .map((value, index) => {
+      const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+      const y = height - padding - ((value - min) / range) * (height - 2 * padding);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const lastValue = data[data.length - 1];
+  const firstValue = data[0];
+  const trend = lastValue > firstValue ? "up" : lastValue < firstValue ? "down" : "neutral";
+
+  const strokeColor = trend === "up" ? "#10b981" : trend === "down" ? "#ef4444" : "#64748b";
 
   return (
-    <div className="kpi-card" style={{ borderColor: colors.bar }}>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">
-        {value}
-        {unit && <span className="kpi-unit">{unit}</span>}
-      </div>
-      {trend !== undefined && (
-        <div className="kpi-trend" data-up={trend >= 0}>
-          {trend >= 0 ? "↑" : "↓"} {Math.abs(trend).toFixed(1)}%
-        </div>
-      )}
-      {points.length > 1 && <Sparkline data={points} color={colors.bar} />}
-    </div>
+    <svg width={width} height={height} className="w-full h-full">
+      <polyline
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth="2"
+        points={points}
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
   );
 }

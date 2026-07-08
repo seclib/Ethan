@@ -13,6 +13,7 @@ from core.bus.memory_bus import MemoryEventBus
 from core.kernel.engine import CognitiveKernel
 from core.registry.module import ModuleRegistry
 from core.state.interface import StateBackend
+from core.state.memory_backend import MemoryStateBackend
 
 
 logger = logging.getLogger(__name__)

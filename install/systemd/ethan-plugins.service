@@ -1,0 +1,34 @@
+[Unit]
+Description=ETHAN Plugin Executor
+Documentation=https://github.com/seclib/Ethan/docs
+After=network-online.target ethan-core.service
+Wants=network-online.target ethan-core.service
+
+[Service]
+Type=simple
+User=ethan
+Group=ethan
+
+Environment="PYTHONPATH=@ETHAN_ROOT@"
+Environment="PYTHONDONTWRITEBYTECODE=1"
+WorkingDirectory=@ETHAN_ROOT@
+
+ExecStart=/usr/local/bin/ethan-plugins
+
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/ethan /var/log/ethan /var/cache/ethan
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ethan-plugins
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect } from "react";
 import { useMissionsStore } from "@/stores/missions.store";
 import { missionsService } from "@/services/missions.service";

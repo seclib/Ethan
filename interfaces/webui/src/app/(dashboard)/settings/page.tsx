@@ -12,29 +12,21 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="p-6">
-            <h3 className="font-semibold">LLM Configuration</h3>
-            <p className="text-sm text-muted-foreground mt-2">Model, temperature, max tokens</p>
-          </div>
+        <Card className="p-6">
+          <h3 className="font-semibold">LLM Configuration</h3>
+          <p className="text-sm text-muted-foreground mt-2">Model, temperature, max tokens</p>
         </Card>
-        <Card>
-          <div className="p-6">
-            <h3 className="font-semibold">Permissions & Governance</h3>
-            <p className="text-sm text-muted-foreground mt-2">Access levels, approval modes</p>
-          </div>
+        <Card className="p-6">
+          <h3 className="font-semibold">Permissions & Governance</h3>
+          <p className="text-sm text-muted-foreground mt-2">Access levels, approval modes</p>
         </Card>
-        <Card>
-          <div className="p-6">
-            <h3 className="font-semibold">Budget</h3>
-            <p className="text-sm text-muted-foreground mt-2">Daily limits, cost tracking</p>
-          </div>
+        <Card className="p-6">
+          <h3 className="font-semibold">Budget</h3>
+          <p className="text-sm text-muted-foreground mt-2">Daily limits, cost tracking</p>
         </Card>
-        <Card>
-          <div className="p-6">
-            <h3 className="font-semibold">System</h3>
-            <p className="text-sm text-muted-foreground mt-2">Theme, language, notifications</p>
-          </div>
+        <Card className="p-6">
+          <h3 className="font-semibold">System</h3>
+          <p className="text-sm text-muted-foreground mt-2">Theme, language, notifications</p>
         </Card>
       </div>
     </div>

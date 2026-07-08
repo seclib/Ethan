@@ -1,6 +1,102 @@
 {
   "version": 4,
   "routes": {
+    "/missions": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/missions",
+      "dataRoute": "/missions.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/settings": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/settings",
+      "dataRoute": "/settings.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/skills/lab": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/skills/lab",
+      "dataRoute": "/skills/lab.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/login": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/login",
+      "dataRoute": "/login.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/flux": {
       "experimentalBypassFor": [
         {
@@ -50,7 +146,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/skills": {
+    "/goals": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -63,8 +159,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/skills",
-      "dataRoute": "/skills.rsc",
+      "srcRoute": "/goals",
+      "dataRoute": "/goals.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -74,7 +170,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/memory": {
+    "/agents": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -87,8 +183,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/memory",
-      "dataRoute": "/memory.rsc",
+      "srcRoute": "/agents",
+      "dataRoute": "/agents.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -122,6 +218,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/register": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/register",
+      "dataRoute": "/register.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/": {
       "experimentalBypassFor": [
         {
@@ -146,7 +266,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/agents": {
+    "/memory/facts": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -159,8 +279,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/agents",
-      "dataRoute": "/agents.rsc",
+      "srcRoute": "/memory/facts",
+      "dataRoute": "/memory/facts.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -174,8 +294,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "4e820ea5fbdaf337b8f07c52a3924c15",
-    "previewModeSigningKey": "53b12ef0cfd42eadf96a5b5019912b7fd5c943e55eff6870afae34a48717b807",
-    "previewModeEncryptionKey": "b8125e94b01bb2aa3e338968eefa11b8299153e6047d7c4ff1d6c8e71ffcb8b1"
+    "previewModeId": "942f724bb0c42c55b9b51fe745b7eb6f",
+    "previewModeSigningKey": "dcff47340b4f438da4be3451f46f128573d36b4d1f1791ae245fb9bff5900e88",
+    "previewModeEncryptionKey": "ddaa8f9c33fbfa295cf70f5f4a9a46788104135768b1489546a384aa889d7e1f"
   }
 }

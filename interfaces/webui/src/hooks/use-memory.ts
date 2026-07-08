@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import { useMemoryStore } from "@/stores/memory.store";
 import { memoryService } from "@/services/memory.service";

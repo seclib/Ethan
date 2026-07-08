@@ -1,20 +1,20 @@
 "use client";
 
 import { useStore } from "@/lib/store";
-import { DashboardPage } from "@/components/pages/dashboard";
-import AssistantPage from "@/components/pages/assistant";
-import { KnowledgePage } from "@/components/pages/knowledge";
-import { MemoryPage } from "@/components/pages/memory";
-import { AgentsPage } from "@/components/pages/agents";
-import { PlannerPage } from "@/components/pages/planner";
-import { ModelsPage } from "@/components/pages/models";
-import { ProvidersPage } from "@/components/pages/providers";
-import { PluginsPage } from "@/components/pages/plugins";
-import { ToolsPage } from "@/components/pages/tools";
-import { DocumentsPage } from "@/components/pages/documents";
-import { SettingsPage } from "@/components/pages/settings";
-import { LogsPage } from "@/components/pages/logs";
-import { TerminalPage } from "@/components/pages/terminal";
+import { DashboardPage } from "@/components/legacy-pages/dashboard";
+import AssistantPage from "@/components/legacy-pages/assistant";
+import { KnowledgePage } from "@/components/legacy-pages/knowledge";
+import { MemoryPage } from "@/components/legacy-pages/memory";
+import { AgentsPage } from "@/components/legacy-pages/agents";
+import { PlannerPage } from "@/components/legacy-pages/planner";
+import { ModelsPage } from "@/components/legacy-pages/models";
+import { ProvidersPage } from "@/components/legacy-pages/providers";
+import { PluginsPage } from "@/components/legacy-pages/plugins";
+import { ToolsPage } from "@/components/legacy-pages/tools";
+import { DocumentsPage } from "@/components/legacy-pages/documents";
+import { SettingsPage } from "@/components/legacy-pages/settings";
+import { LogsPage } from "@/components/legacy-pages/logs";
+import { TerminalPage } from "@/components/legacy-pages/terminal";
 
 const pages: Record<string, React.FC> = {
   dashboard: DashboardPage,

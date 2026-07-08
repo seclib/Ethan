@@ -1,4 +1,4 @@
- v6import * as React from "react";
+import * as React from "react";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { Topbar } from "@/components/layouts/topbar";
 

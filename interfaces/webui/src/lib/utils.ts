@@ -29,6 +29,18 @@ export function formatRelativeTime(dateString: string): string {
 }
 
 /**
+ * Format time to HH:MM:SS
+ * @deprecated Use formatDuration for milliseconds or formatRelativeTime for dates
+ */
+export function formatTime(seconds: number | string): string {
+  const num = typeof seconds === "string" ? parseFloat(seconds) : seconds;
+  const h = Math.floor(num / 3600);
+  const m = Math.floor((num % 3600) / 60);
+  const s = Math.floor(num % 60);
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/**
  * Format duration in milliseconds to human readable string
  */
 export function formatDuration(ms: number): string {
@@ -104,32 +116,62 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Get status color
+ * Get status color as Badge variant
  */
-export function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    idle: "text-gray-400",
-    running: "text-green-400",
-    paused: "text-yellow-400",
-    error: "text-red-400",
-    stopped: "text-gray-500",
-    pending: "text-gray-400",
-    active: "text-blue-400",
-    completed: "text-green-400",
-    failed: "text-red-400",
-    cancelled: "text-gray-500",
-    skipped: "text-gray-500",
-    planning: "text-purple-400",
-    waiting_approval: "text-yellow-400",
-    candidate: "text-blue-400",
-    stale: "text-yellow-400",
-    archived: "text-gray-500",
-    superseded: "text-gray-400",
-    conflicted: "text-red-400",
-    needs_review: "text-yellow-400",
+export function getStatusColor(status: string): "default" | "success" | "warning" | "error" | "info" | "dim" {
+  const map: Record<string, "default" | "success" | "warning" | "error" | "info" | "dim"> = {
+    idle: "default",
+    running: "success",
+    paused: "warning",
+    error: "error",
+    stopped: "dim",
+    pending: "default",
+    active: "info",
+    completed: "success",
+    failed: "error",
+    cancelled: "dim",
+    skipped: "dim",
+    planning: "info",
+    waiting_approval: "warning",
+    candidate: "info",
+    stale: "warning",
+    archived: "dim",
+    superseded: "default",
+    conflicted: "error",
+    needs_review: "warning",
   };
 
-  return colors[status] || "text-gray-400";
+  return map[status] || "default";
+}
+
+/**
+ * Get status color as CSS class
+ * @deprecated Use getStatusColor for Badge variant
+ */
+export function statusColor(status: string): "default" | "success" | "warning" | "error" | "info" | "dim" {
+  const colors: Record<string, "default" | "success" | "warning" | "error" | "info" | "dim"> = {
+    idle: "default",
+    running: "success",
+    paused: "warning",
+    error: "error",
+    stopped: "dim",
+    pending: "default",
+    active: "info",
+    completed: "success",
+    failed: "error",
+    cancelled: "dim",
+    skipped: "dim",
+    planning: "info",
+    waiting_approval: "warning",
+    candidate: "info",
+    stale: "warning",
+    archived: "dim",
+    superseded: "default",
+    conflicted: "error",
+    needs_review: "warning",
+  };
+
+  return colors[status] || "default";
 }
 
 /**
@@ -151,6 +193,14 @@ export function getPriorityColor(priority: string): string {
  */
 export function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Format date to locale string
+ * @deprecated Use formatRelativeTime or native toLocaleDateString
+ */
+export function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString();
 }
 
 /**

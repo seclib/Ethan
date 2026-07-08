@@ -57,16 +57,46 @@
       "namedRegex": "^/flux(?:/)?$"
     },
     {
-      "page": "/memory",
-      "regex": "^/memory(?:/)?$",
+      "page": "/goals",
+      "regex": "^/goals(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/memory(?:/)?$"
+      "namedRegex": "^/goals(?:/)?$"
     },
     {
-      "page": "/skills",
-      "regex": "^/skills(?:/)?$",
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/skills(?:/)?$"
+      "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/memory/facts",
+      "regex": "^/memory/facts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/memory/facts(?:/)?$"
+    },
+    {
+      "page": "/missions",
+      "regex": "^/missions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/missions(?:/)?$"
+    },
+    {
+      "page": "/register",
+      "regex": "^/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/register(?:/)?$"
+    },
+    {
+      "page": "/settings",
+      "regex": "^/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/settings(?:/)?$"
+    },
+    {
+      "page": "/skills/lab",
+      "regex": "^/skills/lab(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/skills/lab(?:/)?$"
     }
   ],
   "dataRoutes": [],

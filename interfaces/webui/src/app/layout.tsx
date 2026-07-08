@@ -2,6 +2,7 @@ import * as React from "react";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { WebSocketProvider } from "@/providers/websocket-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 import type { Metadata } from "next";
 
 // Import global styles
@@ -28,7 +29,9 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <WebSocketProvider>
-              {children}
+              <AuthProvider>
+                {children}
+              </AuthProvider>
             </WebSocketProvider>
           </QueryProvider>
         </ThemeProvider>
