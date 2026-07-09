@@ -1,32 +1,54 @@
 "use client";
 
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-interface BadgeProps {
-  children: React.ReactNode;
-  variant?: "success" | "warning" | "error" | "info" | "dim" | "default";
-  className?: string;
+const badgeVariants = cva(
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors duration-100",
+  {
+    variants: {
+      variant: {
+        default: "bg-elevated text-foreground-secondary",
+        primary: "bg-accent-600/10 text-accent-600",
+        success: "bg-success-500/10 text-success-600",
+        warning: "bg-warning-500/10 text-warning-600",
+        error: "bg-error-500/10 text-error-600",
+        info: "bg-info-500/10 text-info-600",
+        dim: "bg-line-1 text-foreground-tertiary",
+      },
+      size: {
+        sm: "px-2 py-0 text-[10px]",
+        md: "px-2.5 py-0.5 text-xs",
+        lg: "px-3 py-1 text-sm",
+      },
+      dot: {
+        true: "before:inline-block before:w-1.5 before:h-1.5 before:rounded-full before:bg-current",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "md",
+    },
+  }
+);
+
+export interface BadgeProps
+  extends React.ComponentProps<"span">,
+    VariantProps<typeof badgeVariants> {
+  dot?: boolean;
 }
 
-const variants: Record<string, string> = {
-  success: "bg-green-500/20 text-green-400 border-green-500/30",
-  warning: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  error: "bg-red-500/20 text-red-400 border-red-500/30",
-  info: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-  dim: "bg-slate-500/20 text-slate-400 border-slate-500/30",
-  default: "bg-ethan-500/20 text-ethan-400 border-ethan-500/30",
-};
-
-export function Badge({ children, variant = "default", className }: BadgeProps) {
+function Badge({ className, variant, size, dot, children, ...props }: BadgeProps) {
   return (
     <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-        variants[variant],
-        className
-      )}
+      className={cn(badgeVariants({ variant, size, dot, className }))}
+      role="status"
+      {...props}
     >
       {children}
     </span>
   );
 }
+
+export { Badge, badgeVariants };

@@ -17,6 +17,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CpuCard } from "./cards/cpu-card";
 import { RamCard } from "./cards/ram-card";
 import { GpuCard } from "./cards/gpu-card";
@@ -153,12 +155,12 @@ export function DashboardGrid() {
 
   if (!loaded) {
     return (
-      <div className="db-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-        {layout.map((id) => {
-          const Card = CARD_REGISTRY[id];
-          if (!Card) return null;
-          return <Card key={id} data={null} loading />;
-        })}
+      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+        {layout.map((id) => (
+          <div key={id} className="rounded-xl border border-line-1 bg-background p-4">
+            <Skeleton variant="text" lines={3} />
+          </div>
+        ))}
       </div>
     );
   }
@@ -166,16 +168,17 @@ export function DashboardGrid() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end">
-        <button
-          className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1 rounded border border-gray-700 hover:border-gray-500"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => updateLayout(DEFAULT_LAYOUT)}
         >
           ↺ Reset layout
-        </button>
+        </Button>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={layout} strategy={verticalListSortingStrategy}>
-          <div className="db-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {layout.map((id) => (
               <SortableCard key={id} id={id} />
             ))}

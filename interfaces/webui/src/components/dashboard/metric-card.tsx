@@ -2,7 +2,8 @@
 
 import { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkline } from "@/components/widgets/sparkline";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface MetricCardProps {
   title: string;
@@ -17,6 +18,15 @@ interface MetricCardProps {
   className?: string;
   dragHandleProps?: Record<string, unknown>;
 }
+
+const statusToBadge: Record<string, "success" | "warning" | "error" | "info" | "default" | "dim"> = {
+  normal: "success",
+  warning: "warning",
+  critical: "error",
+  loading: "info",
+  error: "error",
+  na: "dim",
+};
 
 export function MetricCard({
   title,
@@ -33,24 +43,6 @@ export function MetricCard({
 }: MetricCardProps) {
   const router = useRouter();
 
-  const statusColors = {
-    normal: "border-green-500/30 bg-green-500/5",
-    warning: "border-yellow-500/30 bg-yellow-500/5",
-    critical: "border-red-500/30 bg-red-500/5",
-    loading: "border-blue-500/30 bg-blue-500/5",
-    error: "border-red-500/30 bg-red-500/5",
-    na: "border-gray-500/30 bg-gray-500/5",
-  };
-
-  const statusIcons = {
-    normal: "●",
-    warning: "⚠",
-    critical: "✗",
-    loading: "◐",
-    error: "✗",
-    na: "—",
-  };
-
   const handleClick = () => {
     if (href) {
       router.push(href);
@@ -61,12 +53,11 @@ export function MetricCard({
 
   return (
     <div
-      className={`
-        relative rounded-lg border p-4 transition-all duration-300
-        hover:shadow-lg hover:scale-[1.02] cursor-pointer
-        ${statusColors[status]}
-        ${className}
-      `}
+      className={cn(
+        "relative rounded-xl border border-line-2 bg-background p-4 transition-all duration-100",
+        "hover:border-line-3 hover:shadow-md cursor-pointer",
+        className
+      )}
       onClick={handleClick}
       role={href ? "link" : "button"}
       tabIndex={0}
@@ -77,35 +68,53 @@ export function MetricCard({
       data-status={status}
       {...dragHandleProps}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <p className="text-sm text-gray-400 mb-1">{title}</p>
+          <p className="text-sm text-foreground-secondary mb-1">{title}</p>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-white">{value}</span>
-            {unit && <span className="text-sm text-gray-400">{unit}</span>}
+            <span className="text-2xl font-bold text-foreground">{value}</span>
+            {unit && <span className="text-sm text-foreground-tertiary">{unit}</span>}
           </div>
         </div>
         {icon && <div className="text-2xl ml-2">{icon}</div>}
       </div>
 
+      <div className="absolute top-3 right-3">
+        <Badge variant={statusToBadge[status] || "dim"} size="sm" dot>
+          {status}
+        </Badge>
+      </div>
+
       {sparkline && sparkline.length > 1 && (
-        <div className="mt-3 h-8">
-          <Sparkline data={sparkline} />
+        <div className="mt-3 h-8" data-testid="sparkline-wrapper">
+          {/* Sparkline will be rendered by the existing Sparkline component */}
+          <div className="w-full h-full relative overflow-hidden">
+            <svg
+              viewBox={`0 0 ${sparkline.length - 1} 100`}
+              className="w-full h-full"
+              preserveAspectRatio="none"
+            >
+              <polyline
+                fill="none"
+                stroke="var(--accent-400)"
+                strokeWidth="2"
+                points={sparkline
+                  .map((val, i) => `${i},${100 - val}`)
+                  .join(" ")}
+              />
+            </svg>
+          </div>
         </div>
       )}
 
       {progress !== undefined && (
-        <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-line-1 rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-500 transition-all duration-500"
+            className="h-full bg-accent-500 transition-all duration-500 rounded-full"
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>
       )}
-
-      <div className="absolute top-2 right-2 text-xs">
-        {statusIcons[status]}
-      </div>
     </div>
   );
 }

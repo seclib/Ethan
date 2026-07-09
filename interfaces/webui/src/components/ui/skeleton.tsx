@@ -1,61 +1,61 @@
 "use client";
 
+import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface SkeletonProps {
-  className?: string;
+interface SkeletonProps extends React.ComponentProps<"div"> {
+  variant?: "text" | "circle" | "rectangle";
+  lines?: number;
 }
 
-export function Skeleton({ className }: SkeletonProps) {
+function Skeleton({ className, variant = "text", lines = 1, ...props }: SkeletonProps) {
+  if (variant === "text") {
+    return (
+      <div className="flex flex-col gap-2" {...props}>
+        {Array.from({ length: lines }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "h-4 rounded-md bg-line-1 animate-shimmer",
+              i === lines - 1 && lines > 1 && "w-3/4",
+              className
+            )}
+            style={{
+              background: "linear-gradient(90deg, var(--line-1) 25%, var(--line-2) 50%, var(--line-1) 75%)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 1.5s infinite",
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (variant === "circle") {
+    return (
+      <div
+        className={cn("rounded-full bg-line-1 animate-shimmer", className)}
+        style={{
+          background: "linear-gradient(90deg, var(--line-1) 25%, var(--line-2) 50%, var(--line-1) 75%)",
+          backgroundSize: "200% 100%",
+          animation: "shimmer 1.5s infinite",
+        }}
+        {...props}
+      />
+    );
+  }
+
   return (
     <div
-      className={cn(
-        "animate-pulse rounded-md bg-muted",
-        className
-      )}
+      className={cn("rounded-lg bg-line-1 animate-shimmer", className)}
+      style={{
+        background: "linear-gradient(90deg, var(--line-1) 25%, var(--line-2) 50%, var(--line-1) 75%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.5s infinite",
+      }}
+      {...props}
     />
   );
 }
 
-// Skeleton variants for common patterns
-export function SkeletonText({ lines = 3 }: { lines?: number }) {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className={cn(
-            "h-4",
-            i === lines - 1 && "w-2/3" // Last line is shorter
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
-export function SkeletonCard() {
-  return (
-    <div className="p-6 border rounded-lg space-y-4">
-      <Skeleton className="h-4 w-1/2" />
-      <Skeleton className="h-8 w-3/4" />
-      <Skeleton className="h-32 w-full" />
-    </div>
-  );
-}
-
-export function SkeletonTable({ rows = 5 }: { rows?: number }) {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3 w-1/3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+export { Skeleton };

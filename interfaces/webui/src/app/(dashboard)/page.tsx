@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
-import { KpiCard } from "@/components/widgets/kpi-card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricCard } from "@/components/dashboard/metric-card";
 import { EventStream } from "@/components/widgets/event-stream";
 import { useAgents } from "@/hooks/use-agents";
 import { useGoals } from "@/hooks/use-goals";
@@ -18,18 +20,20 @@ import {
 const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#fb923c"];
 
 function DashboardPage() {
-  const { agents } = useAgents();
-  const { goals } = useGoals();
-  const { facts } = useFacts();
-  const { events } = useFlux();
-  const { missions } = useMissions();
-  const { skills } = useSkills();
+  const { agents, isLoading: agentsLoading } = useAgents();
+  const { goals, isLoading: goalsLoading } = useGoals();
+  const { facts, isLoading: factsLoading } = useFacts();
+  const { events, isLoading: eventsLoading } = useFlux();
+  const { missions, isLoading: missionsLoading } = useMissions();
+  const { skills, isLoading: skillsLoading } = useSkills();
 
-  const activeAgents = agents.filter((a) => a.status === "running").length;
-  const activeGoals = goals.filter((g) => g.status === "active").length;
-  const completedGoals = goals.filter((g) => g.status === "completed").length;
-  const activeMissions = missions.filter((m) => m.status === "running" || m.status === "planning").length;
-  const activeSkills = skills.filter((s) => s.status === "active").length;
+  const isLoading = agentsLoading || goalsLoading || factsLoading || eventsLoading || missionsLoading || skillsLoading;
+
+  const activeAgents = agents.filter((a: any) => a.status === "running").length;
+  const activeGoals = goals.filter((g: any) => g.status === "active").length;
+  const completedGoals = goals.filter((g: any) => g.status === "completed").length;
+  const activeMissions = missions.filter((m: any) => m.status === "running" || m.status === "planning").length;
+  const activeSkills = skills.filter((s: any) => s.status === "active").length;
 
   // Mock chart data (replace with real data from API)
   const activityData = [
@@ -45,170 +49,224 @@ function DashboardPage() {
   const statusData = [
     { name: "Running", value: activeAgents },
     { name: "Idle", value: agents.length - activeAgents },
-    { name: "Error", value: agents.filter((a) => a.status === "error").length },
+    { name: "Error", value: agents.filter((a: any) => a.status === "error").length },
   ].filter((d) => d.value > 0);
 
   const goalStatusData = [
     { name: "Active", value: activeGoals },
     { name: "Completed", value: completedGoals },
-    { name: "Pending", value: goals.filter((g) => g.status === "pending").length },
-    { name: "Failed", value: goals.filter((g) => g.status === "failed").length },
+    { name: "Pending", value: goals.filter((g: any) => g.status === "pending").length },
+    { name: "Failed", value: goals.filter((g: any) => g.status === "failed").length },
   ].filter((d) => d.value > 0);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-foreground-secondary mt-2">Loading...</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} variant="outlined">
+              <CardContent>
+                <Skeleton variant="text" lines={4} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i} variant="outlined">
+              <CardContent>
+                <Skeleton variant="rectangle" className="w-full" style={{ height: 256 }} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-foreground-secondary mt-2">
           Welcome to ETHAN Cognitive Runtime
         </p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
+        <MetricCard
           title="Active Agents"
           value={activeAgents}
           unit={`/${agents.length} total`}
-          trend="up"
-          trendValue="+2/hr"
-          icon="⚡"
-          sparklineData={[5, 8, 6, 9, 7, 10, 12]}
-          onClick={() => {}}
+          status="normal"
+          sparkline={[5, 8, 6, 9, 7, 10, 12]}
+          href="/agents"
         />
-        <KpiCard
+        <MetricCard
           title="Active Goals"
           value={activeGoals}
           unit={`${completedGoals} completed`}
-          trend="up"
-          trendValue="+3 today"
-          icon="🏆"
-          sparklineData={[3, 5, 4, 7, 5, 8, 8]}
-          onClick={() => {}}
+          status="normal"
+          sparkline={[3, 5, 4, 7, 5, 8, 8]}
+          href="/goals"
         />
-        <KpiCard
+        <MetricCard
           title="Memory Facts"
           value={facts.length}
           unit="active entries"
-          trend="neutral"
-          trendValue="94% confidence"
-          icon="💾"
-          sparklineData={[100, 150, 200, 180, 250, 300, 320]}
-          onClick={() => {}}
+          status="normal"
+          sparkline={[100, 150, 200, 180, 250, 300, 320]}
+          href="/memory/facts"
         />
-        <KpiCard
+        <MetricCard
           title="Events Today"
           value={events.length}
           unit="in this session"
-          trend="up"
-          trendValue="12/min avg"
-          icon="📊"
-          sparklineData={[10, 15, 12, 18, 20, 16, 22]}
-          onClick={() => {}}
+          status="normal"
+          sparkline={[10, 15, 12, 18, 20, 16, 22]}
+          href="/flux"
         />
       </div>
 
       {/* Charts Row */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Weekly Activity</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Bar dataKey="events" fill="#60a5fa" radius={[4, 4, 0, 0]} name="Events" />
-                <Bar dataKey="goals" fill="#34d399" radius={[4, 4, 0, 0]} name="Goals" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <Card variant="outlined">
+          <CardHeader>
+            <CardTitle>Weekly Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activityData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line-2)" />
+                  <XAxis dataKey="name" stroke="var(--fg-2)" fontSize={12} />
+                  <YAxis stroke="var(--fg-2)" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-1)",
+                      border: "1px solid var(--line-2)",
+                      borderRadius: "8px",
+                      color: "var(--fg-0)",
+                    }}
+                  />
+                  <Bar dataKey="events" fill="var(--accent-400)" radius={[4, 4, 0, 0]} name="Events" />
+                  <Bar dataKey="goals" fill="var(--success)" radius={[4, 4, 0, 0]} name="Goals" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Agent Status</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {statusData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+        <Card variant="outlined">
+          <CardHeader>
+            <CardTitle>Agent Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {statusData.map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-1)",
+                      border: "1px solid var(--line-2)",
+                      borderRadius: "8px",
+                      color: "var(--fg-0)",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Second Row */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Goal Status</h2>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={goalStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {goalStatusData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+        <Card variant="outlined">
+          <CardHeader>
+            <CardTitle>Goal Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={goalStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {goalStatusData.map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-1)",
+                      border: "1px solid var(--line-2)",
+                      borderRadius: "8px",
+                      color: "var(--fg-0)",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Active Missions</span>
-              <span className="text-lg font-bold">{activeMissions}</span>
+        <Card variant="outlined">
+          <CardHeader>
+            <CardTitle>Quick Stats</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground-tertiary">Active Missions</span>
+                <span className="text-lg font-bold text-foreground">{activeMissions}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground-tertiary">Installed Skills</span>
+                <span className="text-lg font-bold text-foreground">{activeSkills}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground-tertiary">Total Goals</span>
+                <span className="text-lg font-bold text-foreground">{goals.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground-tertiary">Total Missions</span>
+                <span className="text-lg font-bold text-foreground">{missions.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground-tertiary">Skills Candidates</span>
+                <span className="text-lg font-bold text-foreground">
+                  {skills.filter((s: any) => s.status === "candidate").length}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Installed Skills</span>
-              <span className="text-lg font-bold">{activeSkills}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Goals</span>
-              <span className="text-lg font-bold">{goals.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Missions</span>
-              <span className="text-lg font-bold">{missions.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Skills Candidates</span>
-              <span className="text-lg font-bold">{skills.filter((s) => s.status === "candidate").length}</span>
-            </div>
-          </div>
+          </CardContent>
         </Card>
       </div>
 

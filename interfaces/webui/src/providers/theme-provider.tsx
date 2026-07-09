@@ -2,19 +2,19 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-type Theme = "dark" | "light" | "system";
+type Theme = "dark" | "light" | "high-contrast" | "oled" | "system";
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  resolvedTheme: "dark" | "light";
+  resolvedTheme: "dark" | "light" | "high-contrast" | "oled";
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("dark");
+  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light" | "high-contrast" | "oled">("dark");
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -51,11 +51,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener("change", handler);
   }, [theme]);
 
+  // Detect high contrast preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-contrast: high)");
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches && theme === "system") {
+        setResolvedTheme("high-contrast");
+      }
+    };
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, [theme]);
+
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(resolvedTheme);
+    root.classList.remove("light", "dark", "high-contrast", "oled");
+    root.setAttribute("data-theme", resolvedTheme);
   }, [resolvedTheme]);
 
   const value = {
@@ -65,6 +77,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme(newTheme);
     },
     resolvedTheme,
+    isDark: resolvedTheme === "dark",
+    isLight: resolvedTheme === "light",
+    isHighContrast: resolvedTheme === "high-contrast",
+    isOLED: resolvedTheme === "oled",
   };
 
   return (

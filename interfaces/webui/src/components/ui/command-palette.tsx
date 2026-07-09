@@ -1,201 +1,234 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useUIStore } from "@/stores/ui.store";
-import { useAgentsStore } from "@/stores/agents.store";
-import { useGoalsStore } from "@/stores/goals.store";
-import { useMissionsStore } from "@/stores/missions.store";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 
-interface Command {
+interface CommandItem {
   id: string;
   label: string;
-  icon: string;
-  category: "page" | "action" | "recent";
-  action: () => void;
+  category?: string;
+  icon?: React.ReactNode;
+  shortcut?: string;
+  onSelect: () => void;
 }
 
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
-  const [recentCommands, setRecentCommands] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-  const { closeCommandPalette, toggleSidebar, toggleInspector } = useUIStore();
-  const { agents } = useAgentsStore();
-  const { goals } = useGoalsStore();
-  const { missions } = useMissionsStore();
+interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+  items: CommandItem[];
+  recent?: CommandItem[];
+  placeholder?: string;
+}
 
-  // Load recent commands from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("ethan:recent-commands");
-    if (saved) {
-      setRecentCommands(JSON.parse(saved));
-    }
-  }, []);
+function fuzzySearch(query: string, text: string): boolean {
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  let qi = 0;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (q[qi] === t[ti]) qi++;
+  }
+  return qi === q.length;
+}
 
-  // Save command to recent
-  const saveToRecent = useCallback((commandId: string) => {
-    setRecentCommands((prev) => {
-      const updated = [commandId, ...prev.filter((id) => id !== commandId)].slice(0, 10);
-      localStorage.setItem("ethan:recent-commands", JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+function CommandPalette({
+  open,
+  onClose,
+  items,
+  recent = [],
+  placeholder = "Search commands...",
+}: CommandPaletteProps) {
+  const [query, setQuery] = React.useState("");
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setOpen((v) => !v);
-        setQuery("");
-        setSelected(0);
-      }
-      if (e.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // Filter items by query
+  const filtered = React.useMemo(() => {
+    if (!query.trim()) return items;
+    return items.filter((item) => fuzzySearch(query, item.label));
+  }, [query, items]);
 
-  // Build commands list
-  const commands: Command[] = [
-    // Pages
-    { id: "page-dashboard", label: "Dashboard", icon: "◉", category: "page", action: () => { router.push("/"); saveToRecent("page-dashboard"); } },
-    { id: "page-agents", label: "Agents", icon: "⚡", category: "page", action: () => { router.push("/agents"); saveToRecent("page-agents"); } },
-    { id: "page-missions", label: "Missions", icon: "🎯", category: "page", action: () => { router.push("/missions"); saveToRecent("page-missions"); } },
-    { id: "page-goals", label: "Goals", icon: "🏆", category: "page", action: () => { router.push("/goals"); saveToRecent("page-goals"); } },
-    { id: "page-flux", label: "Event Flux", icon: "📊", category: "page", action: () => { router.push("/flux"); saveToRecent("page-flux"); } },
-    { id: "page-memory", label: "Memory Facts", icon: "�", category: "page", action: () => { router.push("/memory/facts"); saveToRecent("page-memory"); } },
-    { id: "page-skills", label: "Skills Lab", icon: "⚡", category: "page", action: () => { router.push("/skills/lab"); saveToRecent("page-skills"); } },
-    { id: "page-settings", label: "Settings", icon: "⚙️", category: "page", action: () => { router.push("/settings"); saveToRecent("page-settings"); } },
-    
-    // Actions
-    { id: "action-toggle-sidebar", label: "Toggle Sidebar", icon: "◀", category: "action", action: () => { toggleSidebar(); saveToRecent("action-toggle-sidebar"); } },
-    { id: "action-toggle-inspector", label: "Toggle Inspector", icon: "🔍", category: "action", action: () => { toggleInspector(); saveToRecent("action-toggle-inspector"); } },
-    
-    // Recent agents
-    ...agents.slice(0, 3).map((agent) => ({
-      id: `agent-${agent.id}`,
-      label: `Agent: ${agent.name}`,
-      icon: "🤖",
-      category: "recent" as const,
-      action: () => { router.push(`/agents?id=${agent.id}`); saveToRecent(`agent-${agent.id}`); },
-    })),
-    
-    // Recent missions
-    ...missions.slice(0, 3).map((mission) => ({
-      id: `mission-${mission.id}`,
-      label: `Mission: ${mission.title}`,
-      icon: "🎯",
-      category: "recent" as const,
-      action: () => { router.push(`/missions?id=${mission.id}`); saveToRecent(`mission-${mission.id}`); },
-    })),
-    
-    // Recent goals
-    ...goals.slice(0, 3).map((goal) => ({
-      id: `goal-${goal.id}`,
-      label: `Goal: ${goal.title}`,
-      icon: "🏆",
-      category: "recent" as const,
-      action: () => { router.push(`/goals?id=${goal.id}`); saveToRecent(`goal-${goal.id}`); },
-    })),
-  ];
-
-  // Filter commands
-  const filtered = query
-    ? commands.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()))
-    : commands;
-
-  // Group by category
-  const grouped = filtered.reduce((acc, cmd) => {
-    if (!acc[cmd.category]) acc[cmd.category] = [];
-    acc[cmd.category].push(cmd);
-    return acc;
-  }, {} as Record<string, Command[]>);
-
-  useEffect(() => {
+  // Reset on open/close
+  React.useEffect(() => {
     if (open) {
+      setQuery("");
+      setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
 
-  const execute = useCallback((cmd: Command) => {
-    cmd.action();
-    setOpen(false);
-    setQuery("");
-  }, []);
-
-  const handleKey = (e: React.KeyboardEvent) => {
-    const items = filtered;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelected((s) => Math.min(s + 1, items.length - 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelected((s) => Math.max(s - 1, 0));
-    }
-    if (e.key === "Enter" && items[selected]) {
-      execute(items[selected]);
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % filtered.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (filtered[selectedIndex]) {
+          filtered[selectedIndex].onSelect();
+          onClose();
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        onClose();
+        break;
     }
   };
 
+  // Scroll selected item into view
+  React.useEffect(() => {
+    if (listRef.current) {
+      const selected = listRef.current.querySelector<HTMLButtonElement>(
+        `[data-index="${selectedIndex}"]`
+      );
+      selected?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedIndex]);
+
   if (!open) return null;
 
+  // Group items by category
+  const grouped = filtered.reduce<Record<string, CommandItem[]>>((acc, item) => {
+    const cat = item.category || "General";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+
   return (
-    <div className="cmd-overlay" onClick={closeCommandPalette}>
-      <div className="cmd-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cmd-input-row">
-          <span className="cmd-prefix">▶</span>
+    <div
+      className="fixed inset-0 z-modal flex items-start justify-center pt-[15vh]"
+      role="dialog"
+      aria-label="Command palette"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div
+        className={cn(
+          "relative w-full max-w-lg mx-4 rounded-xl border border-line-2 bg-background shadow-xl overflow-hidden",
+          "animate-in fade-in zoom-in-95 duration-150"
+        )}
+      >
+        {/* Search input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-line-1">
+          <Search className="w-4 h-4 text-foreground-tertiary shrink-0" />
           <input
             ref={inputRef}
-            className="cmd-input"
-            placeholder="Rechercher une page, action ou élément..."
+            type="text"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              setSelected(0);
+              setSelectedIndex(0);
             }}
-            onKeyDown={handleKey}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground-tertiary outline-none"
+            aria-label="Search commands"
           />
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-foreground-tertiary bg-elevated rounded">
+            ESC
+          </kbd>
         </div>
-        <div className="cmd-results">
-          {Object.entries(grouped).map(([category, cmds]) => {
-            const categoryLabel = category === "page" ? "Pages" : category === "action" ? "Actions" : "Récents";
-            return (
-              <div key={category} className="cmd-group">
-                <div className="cmd-group-label">{categoryLabel}</div>
-                {cmds.map((cmd, i) => {
-                  const globalIndex = filtered.indexOf(cmd);
-                  return (
-                    <button
-                      key={cmd.id}
-                      className={`cmd-item ${globalIndex === selected ? "cmd-selected" : ""}`}
-                      onClick={() => execute(cmd)}
-                      onMouseEnter={() => setSelected(globalIndex)}
-                    >
-                      <span className="cmd-icon">{cmd.icon}</span>
-                      <span className="cmd-label">{cmd.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="cmd-empty">Aucun résultat pour "{query}"</div>
+
+        {/* Results */}
+        <div
+          ref={listRef}
+          className="max-h-[300px] overflow-y-auto p-2"
+          role="listbox"
+        >
+          {/* Recent section */}
+          {!query.trim() && recent.length > 0 && (
+            <div className="mb-2">
+              <p className="px-2 py-1 text-[10px] font-semibold text-foreground-tertiary uppercase tracking-wider">
+                Recent
+              </p>
+              {recent.map((item) => (
+                <button
+                  key={item.id}
+                  role="option"
+                  data-index={-1}
+                  onClick={() => {
+                    item.onSelect();
+                    onClose();
+                  }}
+                  className="flex items-center gap-3 w-full px-2 py-2 text-sm rounded-md text-foreground-secondary hover:bg-elevated hover:text-foreground transition-colors duration-100"
+                >
+                  {item.icon && <span className="w-4 h-4 shrink-0">{item.icon}</span>}
+                  <span className="flex-1 text-left">{item.label}</span>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
-        <div className="cmd-footer">
-          <span>↑↓ Naviguer</span>
-          <span>↵ Ouvrir</span>
-          <span>Esc Fermer</span>
+
+          {/* Filtered results */}
+          {Object.entries(grouped).map(([category, categoryItems]) => (
+            <div key={category} className="mb-2 last:mb-0">
+              <p className="px-2 py-1 text-[10px] font-semibold text-foreground-tertiary uppercase tracking-wider">
+                {category}
+              </p>
+              {categoryItems.map((item, idx) => {
+                const globalIndex = filtered.indexOf(item);
+                const isSelected = globalIndex === selectedIndex;
+
+                return (
+                  <button
+                    key={item.id}
+                    role="option"
+                    aria-selected={isSelected}
+                    data-index={globalIndex}
+                    ref={(el) => {
+                      if (isSelected && el) {
+                        el.scrollIntoView({ block: "nearest" });
+                      }
+                    }}
+                    onClick={() => {
+                      item.onSelect();
+                      onClose();
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 w-full px-2 py-2 text-sm rounded-md transition-colors duration-100",
+                      isSelected
+                        ? "bg-accent-600/10 text-accent-600"
+                        : "text-foreground-secondary hover:bg-elevated hover:text-foreground"
+                    )}
+                  >
+                    {item.icon && <span className="w-4 h-4 shrink-0">{item.icon}</span>}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.shortcut && (
+                      <kbd className="text-[10px] text-foreground-tertiary bg-elevated px-1.5 py-0.5 rounded">
+                        {item.shortcut}
+                      </kbd>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+
+          {filtered.length === 0 && (
+            <p className="px-2 py-4 text-sm text-foreground-tertiary text-center">
+              No results for "{query}"
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+export { CommandPalette };
+export type { CommandItem, CommandPaletteProps };

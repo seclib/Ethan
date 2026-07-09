@@ -1,86 +1,113 @@
+"use client";
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
-interface DialogProps {
+interface DialogContextType {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
+}
+
+const DialogContext = React.createContext<DialogContextType | undefined>(undefined);
+
+function useDialog() {
+  const context = React.useContext(DialogContext);
+  if (!context) {
+    throw new Error("Dialog sub-components must be used within a Dialog");
+  }
+  return context;
+}
+
+export interface DialogProps {
+  open: boolean;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
+  size?: "sm" | "md" | "lg" | "xl";
+  title?: string;
   children: React.ReactNode;
 }
 
-function Dialog({ open, onOpenChange, children }: DialogProps) {
+function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: DialogProps) {
+  const handleClose = React.useCallback(() => {
+    onClose?.();
+    onOpenChange?.(false);
+  }, [onClose, onOpenChange]);
+
+  // Focus trap + escape key
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open, handleClose]);
+
   if (!open) return null;
 
+  const sizeClasses = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <DialogContext.Provider value={{ open, onClose: handleClose }}>
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={() => onOpenChange(false)}
-      />
-      <div className="relative z-50">{children}</div>
-    </div>
+        className="fixed inset-0 z-modal flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? "dialog-title" : undefined}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+
+        {/* Panel */}
+        <div
+          className={cn(
+            "relative w-full mx-4 rounded-xl border border-line-2 bg-background shadow-xl",
+            "animate-in fade-in zoom-in-95 duration-200",
+            sizeClasses[size]
+          )}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-line-1">
+            <h2
+              id="dialog-title"
+              className="text-base font-semibold text-foreground"
+            >
+              {title || "Dialog"}
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-foreground-tertiary hover:text-foreground transition-colors duration-100"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-4">{children}</div>
+        </div>
+      </div>
+    </DialogContext.Provider>
   );
 }
 
-function DialogContent({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-content"
-      className={cn(
-        "bg-background border rounded-lg shadow-lg",
-        "w-full max-w-lg max-h-[85vh] overflow-y-auto",
-        "animate-in fade-in zoom-in-95 duration-200",
-        className
-      )}
-      {...props}
-    />
-  );
-}
-
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 p-6 pb-4", className)}
-      {...props}
-    />
-  );
-}
-
-function DialogTitle({ className, ...props }: React.ComponentProps<"h2">) {
-  return (
-    <h2
-      data-slot="dialog-title"
-      className={cn("text-lg font-semibold", className)}
-      {...props}
-    />
-  );
-}
-
-function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
-  return (
-    <p
-      data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  );
-}
-
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-footer"
-      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-6 pt-4", className)}
-      {...props}
-    />
-  );
-}
-
-export {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-};
+export { Dialog };

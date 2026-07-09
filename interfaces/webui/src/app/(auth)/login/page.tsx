@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 
 export default function LoginPage() {
@@ -22,62 +24,62 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">ETHAN</h1>
-          <p className="text-muted-foreground mt-1">Cognitive Runtime</p>
-        </div>
+      <Card variant="elevated" className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">ETHAN</CardTitle>
+          <p className="text-sm text-foreground-secondary mt-1">Cognitive Runtime</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@ethan.ai"
+                required
+              />
+            </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="user@ethan.ai"
-              required
-            />
-          </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+            {error && (
+              <p className="text-sm text-error-600" role="alert">{error}</p>
+            )}
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              loading={isLoading}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isLoading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Don't have an account?{" "}
-          <a href="/register" className="text-primary hover:underline">
-            Register
-          </a>
-        </p>
+          <p className="text-center text-sm text-foreground-tertiary mt-6">
+            Don't have an account?{" "}
+            <a href="/register" className="text-accent-500 hover:text-accent-400 transition-colors duration-100">
+              Register
+            </a>
+          </p>
+        </CardContent>
       </Card>
     </div>
   );
