@@ -47,13 +47,20 @@
 **Fichiers concernés** :
 - `core/agents/` - **Note** : Contient du code actif (autonomy.py, base.py, etc.), PAS un dossier vide
 - `core/pkg/` - **Note** : Contient du code actif (events/, types/), PAS un dossier vide
-- `__pycache__/` - Présents mais dans .gitignore
+- `core/cmd/`, `core/proto/`, `core/tests/`, `core/deployment/kubernetes/`, `core/deployment/postgres/` - **VIDES** et supprimés
 
 ### Statut
 
 - [x] **Identifié** (2026-07-19)
-- [x] **Vérifié** : Les dossiers ne sont pas vides - ils contiennent du code module
-- [x] **Documenté** : Aucune suppression requise
+- [x] **Vérifié** : 
+  - `core/agents/` et `core/pkg/` contiennent du code actif → conservés
+  - Dossiers vides identifiés et supprimés
+- [x] **Implémenté** :
+  - `core/cmd/` supprimé (vide)
+  - `core/proto/` supprimé (vide)
+  - `core/tests/` supprimé (vide)
+  - `core/deployment/kubernetes/` supprimé (vide)
+  - `core/deployment/postgres/` supprimé (vide)
 
 ---
 
@@ -78,15 +85,9 @@
 |----|--------|----------|---------|--------|
 | P1-1 | Documenter `runtime/` et `rust/` | **P1** | `runtime/`, `rust/` | ✅ Complété |
 | P1-2 | Éliminer les doublons | **P1** | `core/orchestration/` | ✅ Complété |
-| P1-3 | Vérifier dossiers | **P1** | `core/agents/`, `core/pkg/` | ✅ Vérifié (pas vides) |
+| P1-3 | Nettoyer dossiers vides | **P1** | `core/cmd/`, `core/proto/`, etc. | ✅ Complété |
 | P1-4 | Clarifier README.md | **P1** | `README.md` | ✅ Complété |
 
 ---
-
-## Notes
-
-- Toutes les actions P1 ont été complétées
-- Les dossiers `core/agents/` et `core/pkg/` contiennent du code actif et n'ont pas été supprimés
-- La documentation a été mise à jour pour refléter la réalité du code
 
 **Dernière mise à jour** : 2026-07-19
