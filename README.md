@@ -2,8 +2,8 @@
 
 > **Architecture** : 4 couches, 1 règle — une couche ne traverse pas les barrières.
 >
-> - `core` — Cerveau. Zéro UI. Zéro IO direct. Zéro dépendance OS/CLI. Expose gRPC.
-> - `cli` — Terminal UI. Zéro logique cognitive. Client gRPC uniquement.
+> - `core` — Cerveau. Zéro UI. Zéro IO direct. Zéro dépendance OS/CLI. Event-driven (NATS).
+> - `cli` — Terminal UI. Zéro logique cognitive. Client NATS + HTTP.
 > - `plugins` — Extensions. Process indépendants. Connectés via NATS.
 > - `interfaces` — Ponts vers le monde extérieur (API, Desktop, Shell, WebUI, MCP).
 > - `infra` — Infrastructure système (Docker, K8s, systemd, scripts).
@@ -25,13 +25,13 @@
 | Pas de `print()` / `input()` | ✅ |
 
 **API exposée** :
-- **gRPC** (port 50051) — `ProcessEvent`, `GetState`, `ExecuteTask`, `HealthCheck`
+- **HTTP REST** (port 8000) — `ProcessEvent`, `GetState`, `ExecuteTask`, `HealthCheck`
 - **Python API** — `CognitiveKernel` injecté via dépendances
 
 **Structure** :
 ```
 core/
-├── api/          # Contrats gRPC + Python
+├── api/          # Contrats HTTP + Python
 ├── kernel/       # Moteur (engine, router, lifecycle)
 ├── bus/          # EventBus (ABC + NATS + Memory)
 ├── registry/     # Registres (modules, capabilities, schémas)
@@ -554,7 +554,8 @@ Module crash
 
 ### 7.4 Health Checks
 
-**Endpoint** : `GET http://localhost:8080/health`
+**Endpoint** : `GET http://localhost:8000/health` (API Gateway)
+```
 
 **Response** :
 ```json
@@ -1315,7 +1316,7 @@ Fallback si provider down
 
 1. **Définir l'interface Kernel Go ↔ Python**
    - Comment le kernel Go appelle-t-il l'Orchestrator Python ?
-   - gRPC ? HTTP ? Shared memory ?
+   - HTTP ? HTTP ? Shared memory ?
 
 2. **Choisir le backend Event Bus par défaut**
    - NATS pour V1 ? InMemory pour tests ?

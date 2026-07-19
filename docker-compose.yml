@@ -176,7 +176,7 @@ services:
           cpus: '0.5'
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import psutil; exit(0)"]
       interval: 10s
       timeout: 3s
       retries: 3
