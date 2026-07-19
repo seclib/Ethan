@@ -17,7 +17,6 @@ import nats
 from api.routers import message as message_router
 from api.routers import state as state_router
 from api.routers.internal import router as internal_router, init_modules
-from kernel.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,10 @@ app.include_router(internal_router)
 @app.on_event("startup")
 async def startup():
     """Connect to NATS on startup."""
-    setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+    logging.basicConfig(
+        level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
 
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
     logger.info(f"API Gateway connecting to NATS: {nats_url}")

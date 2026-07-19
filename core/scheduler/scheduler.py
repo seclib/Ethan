@@ -6,8 +6,8 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 
-from kernel.bus.interface import EventBus
-from sdk.event import Event, EventType
+from core.bus.interface import EventBus
+from core.types.sdk.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

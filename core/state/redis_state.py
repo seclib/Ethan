@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 import redis.asyncio as aioredis
 
-from kernel.state.interface import LiveState
+from core.state.interface import StateBackend as LiveState
 
 logger = logging.getLogger(__name__)
 

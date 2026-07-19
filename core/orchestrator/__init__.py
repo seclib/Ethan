@@ -1,27 +1,15 @@
-"""ETHAN Orchestrator — Le cerveau central d'ETHAN.
+"""Orchestration Layer — Ethan OS
 
-L'Orchestrator est le composant principal qui contrôle tout le système.
-Il coordonne tous les modules et constitue le véritable cœur d'ETHAN.
-
-Modules coordonnés :
-- Cognition (intention, raisonnement, planification)
-- Mémoire (working memory, long-term memory)
-- Planner (décomposition de buts)
-- Tools (exécution d'outils)
-- Sécurité (validation, permissions)
-- Events (bus d'événements)
-- LLM (inférence multi-provider)
+Le Core orchestre via :
+- Planner : construit les plans
+- Executor : exécute les Capabilities
+- Observer : analyse les résultats
+- Registry : découvre les Capabilities
 """
 
-from .orchestrator import Orchestrator
-from .pipeline import Pipeline, PipelineStep
-from .context import OrchestratorContext
-from .router import RequestRouter
+from .planner import Planner
+from .executor import Executor
+from .observer import Observer
+from .registry import CapabilityRegistry
 
-__all__ = [
-    "Orchestrator",
-    "Pipeline",
-    "PipelineStep",
-    "OrchestratorContext",
-    "RequestRouter",
-]
+__all__ = ["Planner", "Executor", "Observer", "CapabilityRegistry"]

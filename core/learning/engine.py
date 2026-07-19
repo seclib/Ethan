@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from kernel.bus.interface import EventBus
-from kernel.learning.detector import PatternDetector
-from kernel.learning.generator import RuleGenerator
-from kernel.learning.modeler import SelfModelUpdater
-from kernel.learning.store import ExperienceStore
-from sdk.event import Event, EventType
-from sdk.learning import Experience, Pattern
+from core.bus.interface import EventBus
+from core.learning.detector import PatternDetector
+from core.learning.generator import RuleGenerator
+from core.learning.modeler import SelfModelUpdater
+from core.learning.store import ExperienceStore
+from core.types.sdk.event import Event, EventType
+from core.types.sdk.learning import Experience, Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class LearningEngine:
         EventType.TASK_FAILED,
         EventType.TASK_PLANNED,
         EventType.MEMORY_STORED,
-        EventType.REFLECTION_DONE,
+        EventType.MODULE_REFLECTION_DONE,
     }
 
     def __init__(

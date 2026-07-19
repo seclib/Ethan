@@ -6,9 +6,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from kernel.state.redis_state import RedisLiveState
-from kernel.state.postgres_state import PostgresPersistentState
-from sdk.learning import Experience
+from core.state.redis_state import RedisLiveState
+from core.state.postgres_state import PostgresPersistentState
+from core.types.sdk.learning import Experience
 
 logger = logging.getLogger(__name__)
 

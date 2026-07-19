@@ -6,10 +6,10 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
-from kernel.bus.interface import EventBus
-from kernel.state.redis_state import RedisLiveState
-from kernel.state.postgres_state import PostgresPersistentState
-from sdk.event import Event
+from core.bus.interface import EventBus
+from core.state.redis_state import RedisLiveState
+from core.state.postgres_state import PostgresPersistentState
+from core.types.sdk.event import Event
 
 logger = logging.getLogger(__name__)
 

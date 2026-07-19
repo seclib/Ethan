@@ -31,3 +31,14 @@ async def get_state() -> StateResponse:
         mode="idle",
         modules_active=["cli", "api"],
     )
+
+
+@router.get("/version")
+async def get_version():
+    """Return ETHAN version."""
+    from core._version import __version__
+    return {
+        "version": __version__,
+        "name": "ETHAN Cognitive OS",
+        "api": "0.2.0",
+    }

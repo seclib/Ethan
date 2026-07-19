@@ -5,13 +5,13 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.context.intent import Intent, IntentRouter
-from core.orchestration.cognitive_loop import (
+from core.orchestrator.cognitive_loop import (
     CognitiveLoop,
     CognitiveState,
     CognitiveResult,
 )
 from core.orchestration import Executor, Observer, Planner
-from core.orchestration.registry import CapabilityRegistry
+from core.orchestrator.registry import CapabilityRegistry
 
 
 @pytest.fixture
@@ -108,7 +108,7 @@ class TestCognitiveLoopReasoning:
 class TestCognitiveLoopPlanning:
     def test_plan(self, cognitive_loop, sample_intent):
         with patch.object(cognitive_loop.planner, 'build') as mock_build:
-            from core.orchestration.planner import Plan
+            from core.orchestrator.planner import Plan
             mock_plan = Plan(steps=[])
             mock_build.return_value = mock_plan
             
@@ -121,7 +121,7 @@ class TestCognitiveLoopPlanning:
 class TestCognitiveLoopExecution:
     @pytest.mark.asyncio
     async def test_execute(self, cognitive_loop, sample_context):
-        from core.orchestration.planner import Plan, Step
+        from core.orchestrator.planner import Plan, Step
         from core.capabilities import CapabilityStatus, CapabilityResult
         
         plan = Plan(steps=[
@@ -143,7 +143,7 @@ class TestCognitiveLoopExecution:
 
     @pytest.mark.asyncio
     async def test_execute_failure(self, cognitive_loop, sample_context):
-        from core.orchestration.planner import Plan, Step
+        from core.orchestrator.planner import Plan, Step
         from core.capabilities import CapabilityStatus, CapabilityResult
         
         plan = Plan(steps=[
@@ -162,7 +162,7 @@ class TestCognitiveLoopMemory:
     def test_update_memory(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
         
-        from core.orchestration.observer import Observation
+        from core.orchestrator.observer import Observation
         observations = [
             Observation(summary="Test obs", details={}, success=True)
         ]
@@ -176,7 +176,7 @@ class TestCognitiveLoopMemory:
     def test_update_memory_with_failures(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
         
-        from core.orchestration.observer import Observation
+        from core.orchestrator.observer import Observation
         observations = [
             Observation(summary="Failed", details={}, success=False)
         ]
@@ -191,7 +191,7 @@ class TestCognitiveLoopReflection:
     def test_reflect_success(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
         
-        from core.orchestration.observer import Observation
+        from core.orchestrator.observer import Observation
         observations = [
             Observation(summary="Success", details={}, success=True)
         ]
@@ -205,7 +205,7 @@ class TestCognitiveLoopReflection:
     def test_reflect_failure(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
         
-        from core.orchestration.observer import Observation
+        from core.orchestrator.observer import Observation
         observations = [
             Observation(summary="Failed op", details={}, success=False)
         ]
@@ -220,9 +220,9 @@ class TestCognitiveLoopReflection:
 class TestCognitiveLoopIntegration:
     @pytest.mark.asyncio
     async def test_run_full_cycle(self, cognitive_loop, mock_intent_router, sample_context):
-        from core.orchestration.planner import Plan, Step
+        from core.orchestrator.planner import Plan, Step
         from core.capabilities import CapabilityStatus, CapabilityResult
-        from core.orchestration.observer import Observation
+        from core.orchestrator.observer import Observation
         
         # Setup mocks
         sample_intent = Intent(

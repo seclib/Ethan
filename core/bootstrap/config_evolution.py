@@ -7,9 +7,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from kernel.bus.interface import EventBus
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event
+from core.bus.interface import EventBus
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.event import Event
 
 logger = logging.getLogger(__name__)
 

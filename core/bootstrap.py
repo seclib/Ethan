@@ -10,32 +10,32 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from kernel.autonomy.controller import AutonomyLoopController
-from kernel.autonomy.curiosity import CuriosityEngine
-from kernel.autonomy.environment import EnvironmentAnalyzer
-from kernel.autonomy.healing import SelfHealingSystem
-from kernel.autonomy.idle import IdleStateIntelligence
-from kernel.autonomy.scheduler import PriorityScheduler
-from kernel.autonomy.weakness import WeaknessDetector
-from kernel.bootstrap.bootstrapper import SystemBootstrapper
-from kernel.bus.nats_bus import NatsEventBus
-from kernel.goals.manager import GoalManager
-from kernel.kernel import CognitiveKernel
-from kernel.learning.engine import LearningEngine
-from kernel.learning.modeler import SelfModelUpdater
-from kernel.learning.store import ExperienceStore
-from kernel.learning.detector import PatternDetector
-from kernel.learning.generator import RuleGenerator
-from kernel.metacognition.engine import MetaCognitionEngine
-from kernel.metacognition.load import CognitiveLoadManager
-from kernel.metacognition.prioritizer import ModulePrioritizer
-from kernel.metacognition.strategy import DecisionStrategySelector
-from kernel.metacognition.trace import ThoughtTraceAnalyzer
-from kernel.registry.module_registry import ModuleRegistry
-from kernel.scheduler.scheduler import Scheduler
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from kernel.telemetry.logger import setup_logging
+from core.autonomy.controller import AutonomyLoopController
+from core.autonomy.curiosity import CuriosityEngine
+from core.autonomy.environment import EnvironmentAnalyzer
+from core.autonomy.healing import SelfHealingSystem
+from core.autonomy.idle import IdleStateIntelligence
+from core.autonomy.scheduler import PriorityScheduler
+from core.autonomy.weakness import WeaknessDetector
+from core.bootstrap.bootstrapper import SystemBootstrapper
+from core.bus.nats_bus import NatsEventBus
+from core.goals.manager import GoalManager
+from core.kernel import CognitiveKernel
+from core.learning.engine import LearningEngine
+from core.learning.modeler import SelfModelUpdater
+from core.learning.store import ExperienceStore
+from core.learning.detector import PatternDetector
+from core.learning.generator import RuleGenerator
+from core.metacognition.engine import MetaCognitionEngine
+from core.metacognition.load import CognitiveLoadManager
+from core.metacognition.prioritizer import ModulePrioritizer
+from core.metacognition.strategy import DecisionStrategySelector
+from core.metacognition.trace import ThoughtTraceAnalyzer
+from core.registry.module_registry import ModuleRegistry
+from core.scheduler.scheduler import Scheduler
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 

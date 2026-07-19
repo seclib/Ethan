@@ -4,15 +4,15 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.capabilities import CapabilityContext, CapabilityResult, CapabilityStatus
-from core.orchestration.executor import Executor
-from core.orchestration.pipeline import (
+from core.orchestrator.executor import Executor
+from core.orchestrator.pipeline import (
     CapabilityPipeline,
     SequentialStep,
     ParallelStep,
     ConditionalStep,
     RetryStep,
 )
-from core.orchestration.registry import CapabilityRegistry
+from core.orchestrator.registry import CapabilityRegistry
 
 
 @pytest.fixture

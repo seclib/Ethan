@@ -5,15 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from kernel.bus.interface import EventBus
-from kernel.metacognition.load import CognitiveLoadManager
-from kernel.metacognition.prioritizer import ModulePrioritizer
-from kernel.metacognition.strategy import DecisionStrategySelector
-from kernel.metacognition.trace import ThoughtTraceAnalyzer
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event
-from sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
-from sdk.learning import SelfModel
+from core.bus.interface import EventBus
+from core.metacognition.load import CognitiveLoadManager
+from core.metacognition.prioritizer import ModulePrioritizer
+from core.metacognition.strategy import DecisionStrategySelector
+from core.metacognition.trace import ThoughtTraceAnalyzer
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.event import Event
+from core.types.sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
+from core.types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 

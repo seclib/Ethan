@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from sdk.metacognition import ModulePriority
-from sdk.learning import SelfModel
+from core.types.sdk.metacognition import ModulePriority
+from core.types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ── Infrastructure Services ─────────────────────────────────────────
   nats:
@@ -101,50 +99,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Runtime Controller (ONLY this manages Docker) ───────────────────
-  runtime:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.runtime
-    container_name: ethan-runtime
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - runtime_data:/data
-    environment:
-      NATS_URL: nats://nats:4222
-      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
-      REDIS_URL: redis://redis:6379/0
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # ── Application Services ────────────────────────────────────────────
   api:
     build:
@@ -178,7 +132,7 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -233,137 +187,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Cognitive Modules ───────────────────────────────────────────────
-  module-executive:
+  # ── Cognitive Modules (unifié) ─────────────────────────────────────
+  modules:
     build:
       context: .
       dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-executive
-    environment:
-      NATS_URL: nats://nats:4222
-      MODULE_ID: executive-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  module-planner:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-planner
-    environment:
-      NATS_URL: nats://nats:4222
-      MODULE_ID: planner-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  module-memory:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-memory
-    environment:
-      NATS_URL: nats://nats:4222
-      REDIS_URL: redis://redis:6379/0
-      MODULE_ID: memory-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  module-reflective:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-reflective
-    environment:
-      NATS_URL: nats://nats:4222
-      MODULE_ID: reflective-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  module-learning:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-learning
+    container_name: ethan-modules
     environment:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
-      MODULE_ID: learning-v1
       LOG_LEVEL: INFO
+    command: >
+      python -m modules.launcher
+      executive-v1 planner-v1 memory-v1
+      reflective-v1 learning-v1
+      metacognition-v1 autonomy-v1
     depends_on:
       nats:
         condition: service_healthy
@@ -377,87 +216,16 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.5'
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
           memory: 1G
-        reservations:
-          cpus: '0.3'
-          memory: 512M
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
-
-  module-metacognition:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-metacognition
-    environment:
-      NATS_URL: nats://nats:4222
-      REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
-      MODULE_ID: metacognition-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  module-autonomy:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.module
-    container_name: ethan-module-autonomy
-    environment:
-      NATS_URL: nats://nats:4222
-      REDIS_URL: redis://redis:6379/0
-      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
-      MODULE_ID: autonomy-v1
-      LOG_LEVEL: INFO
-    depends_on:
-      nats:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - ethan-core
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # ── LLM Providers (Optional) ────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
@@ -494,7 +262,7 @@ services:
       dockerfile: deploy/Dockerfile.ui
     container_name: ethan-ui
     ports:
-      - "8501:8501"
+      - "3000:3000"
     environment:
       API_URL: http://api:8000
     depends_on:
@@ -523,8 +291,6 @@ volumes:
   redis_data:
     driver: local
   postgres_data:
-    driver: local
-  runtime_data:
     driver: local
   ollama_data:
     driver: local

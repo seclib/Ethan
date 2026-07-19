@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from kernel.bus.interface import EventBus
-from kernel.autonomy.curiosity import CuriosityEngine
-from kernel.autonomy.environment import EnvironmentAnalyzer
-from kernel.autonomy.weakness import WeaknessDetector
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event
-from sdk.goals import GoalProposal, GoalScore
+from core.bus.interface import EventBus
+from core.autonomy.curiosity import CuriosityEngine
+from core.autonomy.environment import EnvironmentAnalyzer
+from core.autonomy.weakness import WeaknessDetector
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.event import Event
+from core.types.sdk.goals import GoalProposal, GoalScore
 
 logger = logging.getLogger(__name__)
 

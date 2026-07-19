@@ -1,0 +1,25 @@
+# Dockerfile Python de base pour ETHAN
+# Utilisé comme base commune par api, kernel, runtime, modules
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Dépendances système minimales
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copie du code partagé (core + interfaces)
+COPY core/ core/
+COPY interfaces/api/ interfaces/api/
+COPY sdk/ sdk/
+COPY pyproject.toml README.md ./
+
+# Installation des dépendances Python
+RUN pip install --no-cache-dir -e ".[server,dev]"
+
+# PYTHONPATH unifié (accessible à tous les services)
+ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=5s \
+    CMD curl -f http://localhost:8000/v1/health || exit 1

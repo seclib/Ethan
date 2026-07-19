@@ -9,15 +9,15 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from kernel.bus.nats_bus import NatsEventBus
-from kernel.learning.detector import PatternDetector
-from kernel.learning.engine import LearningEngine
-from kernel.learning.generator import RuleGenerator
-from kernel.learning.modeler import SelfModelUpdater
-from kernel.learning.store import ExperienceStore
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from kernel.telemetry.logger import setup_logging
+from core.bus.nats_bus import NatsEventBus
+from core.learning.detector import PatternDetector
+from core.learning.engine import LearningEngine
+from core.learning.generator import RuleGenerator
+from core.learning.modeler import SelfModelUpdater
+from core.learning.store import ExperienceStore
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 

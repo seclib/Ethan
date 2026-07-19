@@ -7,10 +7,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from kernel.bus.interface import EventBus
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event, EventType
+from core.bus.interface import EventBus
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

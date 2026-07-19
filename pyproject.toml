@@ -151,8 +151,9 @@ Repository = "https://github.com/ethan/Ethan"
 Issues = "https://github.com/ethan/Ethan/issues"
 
 [project.scripts]
-jarvis = "openjarvis.cli:main"
-openjarvis-eval = "openjarvis.evals.cli:main"
+jarvis = "legacy.cli:main"
+openjarvis-eval = "legacy.evals.cli:main"
+ethan = "core.main:main"
 
 # Version is derived from git tags by hatch-vcs (see #526). For source/editable
 # checkouts this yields the true `git describe` version (e.g. 1.0.3.dev109+g<sha>)
@@ -179,13 +180,11 @@ git_describe_command = [
 fallback_version = "0.0.0+unknown"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openjarvis"]
+packages = ["core"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/openjarvis/agents/claude_code_runner" = "_node_modules/claude_code_runner"
-"src/openjarvis/channels/whatsapp_baileys_bridge" = "_node_modules/whatsapp_baileys_bridge"
-"scripts/install" = "_install_scripts"
-"deploy/windows" = "_deploy/windows"
+"scripts/install" = "_install_scripts/install"
+"scripts/install.sh" = "_install_scripts/install.sh"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff check
+        run: ruff check core/ legacy/ interfaces/ tests/ src/
+
+  test:
+    name: Test (pytest)
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:2.10-alpine
+        ports: ["4222:4222"]
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ethan
+          POSTGRES_PASSWORD: ethan_test
+          POSTGRES_DB: ethan
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready -U ethan
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -e ".[server,dev]"
+      - name: Run tests
+        env:
+          PYTHONPATH: src:legacy:core:.
+          NATS_URL: nats://localhost:4222
+          REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: postgresql://ethan:ethan_test@localhost:5432/ethan
+        run: pytest tests/ -v --cov=core --cov-report=term-missing
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, kernel, module, runtime, ui]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.service }}
+        run: docker compose build ${{ matrix.service }}

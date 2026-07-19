@@ -1,33 +1,28 @@
 [Unit]
-Description=ETHAN Core AI Engine
+Description=ETHAN Core — Services Docker
 Documentation=https://github.com/seclib/Ethan/docs
-Wants=network-online.target nats.service redis.service postgres.service
-After=network-online.target
+Wants=network-online.target docker.service
+After=network-online.target docker.service
 
 [Service]
-Type=simple
-ExecStart=/usr/local/bin/ethan-core
-Restart=on-failure
-RestartSec=5s
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/ethan up
+ExecStop=/usr/local/bin/ethan down
+ExecReload=/usr/local/bin/ethan restart
 User=ethan
-Group=ethan
+Group=docker
 
 # Security
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/var/lib/ethan /var/log/ethan /var/cache/ethan
-
-# Resources
-MemoryMax=2G
-CPUQuota=200%
-LimitNOFILE=65536
+ReadWritePaths=/var/lib/ethan /var/log/ethan
 
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ethan-core
+SyslogIdentifier=ethan
 
 [Install]
 WantedBy=multi-user.target

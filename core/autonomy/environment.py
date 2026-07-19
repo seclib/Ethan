@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from sdk.goals import GoalProposal, MAINTENANCE_GOAL, OPTIMIZATION_GOAL
+from core.types.sdk.goals import GoalProposal, MAINTENANCE_GOAL, OPTIMIZATION_GOAL
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from sdk.metacognition import (
+from core.types.sdk.metacognition import (
     COGNITIVE_MODES,
     CognitiveMode,
     DecisionStrategy,
@@ -15,7 +15,7 @@ from sdk.metacognition import (
     FAST_EXECUTION_MODE,
     SAFE_MODE,
 )
-from sdk.learning import SelfModel
+from core.types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 

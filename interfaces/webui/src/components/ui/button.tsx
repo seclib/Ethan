@@ -9,6 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // "default" is the primary action — aligns with Tailwind/shadcn convention
+        default:
+          "bg-accent-600 text-white shadow-sm hover:bg-accent-500 active:scale-[0.98]",
+        // alias kept for backward compatibility with existing call-sites
         primary:
           "bg-accent-600 text-white shadow-sm hover:bg-accent-500 active:scale-[0.98]",
         secondary:
@@ -28,7 +32,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "primary",
+      variant: "default",
       size: "md",
     },
   }
@@ -38,7 +42,9 @@ export interface ButtonProps
   extends React.ComponentProps<"button">,
     VariantProps<typeof buttonVariants> {
   loading?: boolean;
+  /** @deprecated Pass the icon as a direct child instead */
   icon?: React.ReactNode;
+  /** @deprecated Pass the icon as a direct child instead */
   iconRight?: React.ReactNode;
 }
 

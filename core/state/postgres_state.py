@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import asyncpg
 
-from kernel.state.interface import PersistentState
+from core.state.interface import StateBackend as PersistentState
 
 logger = logging.getLogger(__name__)
 

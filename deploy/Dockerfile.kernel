@@ -1,0 +1,17 @@
+# Dockerfile Kernel ETHAN
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+COPY core/ core/
+COPY sdk/ sdk/
+COPY pyproject.toml README.md ./
+
+RUN pip install --no-cache-dir -e ".[server,dev]"
+
+ENV PYTHONPATH=/app/core:/app/sdk:/app
+
+EXPOSE 8080
+CMD ["python", "core/bootstrap.py"]

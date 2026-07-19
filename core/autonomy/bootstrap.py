@@ -9,16 +9,16 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from kernel.autonomy.controller import AutonomyLoopController
-from kernel.autonomy.curiosity import CuriosityEngine
-from kernel.autonomy.environment import EnvironmentAnalyzer
-from kernel.autonomy.healing import SelfHealingSystem
-from kernel.autonomy.idle import IdleStateIntelligence
-from kernel.autonomy.scheduler import PriorityScheduler
-from kernel.autonomy.weakness import WeaknessDetector
-from kernel.bus.nats_bus import NatsEventBus
-from kernel.state.redis_state import RedisLiveState
-from kernel.telemetry.logger import setup_logging
+from core.autonomy.controller import AutonomyLoopController
+from core.autonomy.curiosity import CuriosityEngine
+from core.autonomy.environment import EnvironmentAnalyzer
+from core.autonomy.healing import SelfHealingSystem
+from core.autonomy.idle import IdleStateIntelligence
+from core.autonomy.scheduler import PriorityScheduler
+from core.autonomy.weakness import WeaknessDetector
+from core.bus.nats_bus import NatsEventBus
+from core.state.redis_state import RedisLiveState
+from core.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 

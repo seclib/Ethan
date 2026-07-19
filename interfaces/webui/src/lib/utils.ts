@@ -29,8 +29,8 @@ export function formatRelativeTime(dateString: string): string {
 }
 
 /**
- * Format time to HH:MM:SS
- * @deprecated Use formatDuration for milliseconds or formatRelativeTime for dates
+ * Format time to HH:MM:SS from total seconds
+ * Use formatDuration for milliseconds or formatRelativeTime for dates
  */
 export function formatTime(seconds: number | string): string {
   const num = typeof seconds === "string" ? parseFloat(seconds) : seconds;
@@ -144,35 +144,6 @@ export function getStatusColor(status: string): "default" | "success" | "warning
   return map[status] || "default";
 }
 
-/**
- * Get status color as CSS class
- * @deprecated Use getStatusColor for Badge variant
- */
-export function statusColor(status: string): "default" | "success" | "warning" | "error" | "info" | "dim" {
-  const colors: Record<string, "default" | "success" | "warning" | "error" | "info" | "dim"> = {
-    idle: "default",
-    running: "success",
-    paused: "warning",
-    error: "error",
-    stopped: "dim",
-    pending: "default",
-    active: "info",
-    completed: "success",
-    failed: "error",
-    cancelled: "dim",
-    skipped: "dim",
-    planning: "info",
-    waiting_approval: "warning",
-    candidate: "info",
-    stale: "warning",
-    archived: "dim",
-    superseded: "default",
-    conflicted: "error",
-    needs_review: "warning",
-  };
-
-  return colors[status] || "default";
-}
 
 /**
  * Get priority color
@@ -195,13 +166,6 @@ export function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-/**
- * Format date to locale string
- * @deprecated Use formatRelativeTime or native toLocaleDateString
- */
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString();
-}
 
 /**
  * Format access level to string

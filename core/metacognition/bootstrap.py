@@ -9,15 +9,15 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from kernel.bus.nats_bus import NatsEventBus
-from kernel.metacognition.engine import MetaCognitionEngine
-from kernel.metacognition.load import CognitiveLoadManager
-from kernel.metacognition.prioritizer import ModulePrioritizer
-from kernel.metacognition.strategy import DecisionStrategySelector
-from kernel.metacognition.trace import ThoughtTraceAnalyzer
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from kernel.telemetry.logger import setup_logging
+from core.bus.nats_bus import NatsEventBus
+from core.metacognition.engine import MetaCognitionEngine
+from core.metacognition.load import CognitiveLoadManager
+from core.metacognition.prioritizer import ModulePrioritizer
+from core.metacognition.strategy import DecisionStrategySelector
+from core.metacognition.trace import ThoughtTraceAnalyzer
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)
 

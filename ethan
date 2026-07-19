@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# ───────────────────────────────────────────────────────────────
+# ETHAN — Lanceur officiel
+# Usage : ./ethan <commande> [options]
+# ───────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+export ETHAN_ROOT="$(cd "$(dirname "$0")" && pwd)"
+export PYTHONPATH="${ETHAN_ROOT}:${PYTHONPATH:-}"
+
+# ── Couleurs ───────────────────────────────────────────────────
+C_RESET="\033[0m"
+C_BOLD="\033[1m"
+C_BLUE="\033[38;5;39m"
+C_RED="\033[38;5;196m"
+C_CYAN="\033[38;5;44m"
+
+I_ARROW="→"
+
+error()   { echo -e "  ${C_RED}✗ $*${C_RESET}"; }
+info()    { echo -e "  ${C_CYAN}${I_ARROW} $*${C_RESET}"; }
+
+usage() {
+    echo -e "${C_BOLD}ETHAN — Lanceur officiel${C_RESET}"
+    echo
+    echo "Usage: ./ethan <commande> [options]"
+    echo
+    echo "Commandes disponibles :"
+    echo "  install    Installer ETHAN (dépendances + configuration)"
+    echo "  up         Démarrer les services Docker"
+    echo "  down       Arrêter les services Docker"
+    echo "  restart    Redémarrer les services Docker"
+    echo "  status     Afficher l'état des services"
+    echo "  doctor     Diagnostiquer l'installation"
+    echo "  logs       Afficher les logs (ex: ./ethan logs api)"
+    echo "  api        Lancer l'API Gateway en dev"
+    echo "  webui      Lancer l'interface Web en dev (Next.js)"
+    echo "  cli        Lancer le CLI ETHAN interactif"
+    echo "  desktop    Lancer l'application Desktop (Electron/Tauri)"
+    echo "  update     Mettre à jour ETHAN"
+    echo "  help       Afficher cette aide"
+}
+
+# ── Routage ────────────────────────────────────────────────────
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+    install)  exec "${ETHAN_ROOT}/scripts/cmd-install.sh"  "$@" ;;
+    up)       exec "${ETHAN_ROOT}/scripts/cmd-up.sh"       "$@" ;;
+    down)     exec "${ETHAN_ROOT}/scripts/cmd-down.sh"     "$@" ;;
+    restart)  exec "${ETHAN_ROOT}/scripts/cmd-restart.sh"  "$@" ;;
+    status)   exec "${ETHAN_ROOT}/scripts/cmd-status.sh"   "$@" ;;
+    doctor)   exec "${ETHAN_ROOT}/scripts/cmd-doctor.sh"   "$@" ;;
+    logs)     exec "${ETHAN_ROOT}/scripts/cmd-logs.sh"     "$@" ;;
+    api)      exec "${ETHAN_ROOT}/scripts/cmd-api.sh"      "$@" ;;
+    webui)    exec "${ETHAN_ROOT}/scripts/cmd-webui.sh"    "$@" ;;
+    cli)      exec "${ETHAN_ROOT}/scripts/cmd-cli.sh"      "$@" ;;
+    desktop)  exec "${ETHAN_ROOT}/scripts/cmd-desktop.sh"  "$@" ;;
+    update)   exec "${ETHAN_ROOT}/scripts/cmd-update.sh"   "$@" ;;
+    help|--help|-h)
+              usage
+              exit 0
+              ;;
+    *)
+              error "Commande inconnue : ${CMD}"
+              info "Utilise ./ethan help pour la liste des commandes valides."
+              exit 1
+              ;;
+esac

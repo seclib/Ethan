@@ -1,24 +1,17 @@
 import * as React from "react";
-import { ThemeProvider } from "@/providers/theme-provider";
-import { QueryProvider } from "@/providers/query-provider";
-import { WebSocketProvider } from "@/providers/websocket-provider";
-import { AuthProvider } from "@/providers/auth-provider";
-import type { Metadata } from "next";
-
-// Import global styles
+import { ThemeProvider } from "@/core/providers/theme-provider";
+import { QueryProvider } from "@/core/providers/query-provider";
+import { WebSocketProvider } from "@/core/providers/websocket-provider";
+import { AuthProvider } from "@/core/providers/auth-provider";
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "ETHAN — Cognitive Runtime",
   description: "Web interface for the ETHAN Cognitive Runtime",
   icons: "/favicon.ico",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

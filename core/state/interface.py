@@ -11,55 +11,53 @@ class StateBackend(ABC):
 
     @abstractmethod
     async def get(self, key: str, namespace: str = "") -> bytes | None:
-        """Lit une valeur.
-
-        Args:
-            key: Clé
-            namespace: Namespace optionnel
-
-        Returns:
-            Valeur ou None
-        """
+        """Lit une valeur."""
         pass
 
     @abstractmethod
     async def set(
-        self,
-        key: str,
-        value: bytes,
-        ttl: int | None = None,
-        namespace: str = "",
+        self, key: str, value: bytes, ttl: int | None = None, namespace: str = ""
     ) -> None:
-        """Écrit une valeur.
-
-        Args:
-            key: Clé
-            value: Valeur
-            ttl: TTL en secondes (optionnel)
-            namespace: Namespace optionnel
-        """
+        """Écrit une valeur."""
         pass
 
     @abstractmethod
     async def delete(self, key: str, namespace: str = "") -> None:
-        """Supprime une valeur.
-
-        Args:
-            key: Clé
-            namespace: Namespace optionnel
-        """
+        """Supprime une valeur."""
         pass
 
     @abstractmethod
     async def persist(self, event: Any) -> None:
-        """Persiste un événement.
-
-        Args:
-            event: Événement à persister
-        """
+        """Persiste un événement."""
         pass
 
     @abstractmethod
     async def close(self) -> None:
         """Ferme les connexions."""
+        pass
+
+
+class LiveState(StateBackend):
+    """Alias pour StateBackend — compatibilité avec les imports existants."""
+
+    @abstractmethod
+    async def get(self, key: str, namespace: str = "") -> bytes | None:
+        pass
+
+    @abstractmethod
+    async def set(
+        self, key: str, value: bytes, ttl: int | None = None, namespace: str = ""
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def delete(self, key: str, namespace: str = "") -> None:
+        pass
+
+    @abstractmethod
+    async def persist(self, event: Any) -> None:
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
         pass

@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from kernel.autonomy.controller import AutonomyLoopController
-from kernel.bus.interface import EventBus
-from kernel.goals.manager import GoalManager
-from kernel.learning.engine import LearningEngine
-from kernel.metacognition.engine import MetaCognitionEngine
-from kernel.registry.module_registry import ModuleRegistry, ModuleManifest
-from kernel.scheduler.scheduler import Scheduler
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event, EventType
+from core.autonomy.controller import AutonomyLoopController
+from core.bus.interface import EventBus
+from core.goals.manager import GoalManager
+from core.learning.engine import LearningEngine
+from core.metacognition.engine import MetaCognitionEngine
+from core.registry.module import ModuleRegistry
+from core.scheduler.scheduler import Scheduler
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,9 @@ class CognitiveKernel:
             logger.info("Autonomy Engine started")
 
         await self.bus.publish("system.kernel.started", Event(
-            type="system.kernel.started",
+            type=EventType.SYSTEM_BOOT,
             source="kernel",
-            data={"version": "0.7.0", "phase": "7.0"},
+            payload={"version": "0.7.0", "phase": "7.0"},
         ))
         logger.info("Cognitive Kernel started")
 
@@ -97,7 +97,7 @@ class CognitiveKernel:
             await self.autonomy.stop()
 
         await self.bus.publish("system.kernel.stopping", Event(
-            type="system.kernel.stopping",
+            type=EventType.SYSTEM_SHUTDOWN,
             source="kernel",
         ))
         await self.scheduler.stop()
@@ -106,17 +106,21 @@ class CognitiveKernel:
         await self.pg.close()
         logger.info("Cognitive Kernel stopped")
 
-    async def register_module(self, module_id: str, capabilities: List[str]) -> None:
-        manifest = ModuleManifest(
-            id=module_id,
-            name=module_id,
-            version="1.0.0",
-            capabilities=capabilities,
-            topics_subscribed=[],
-            topics_published=[],
-        )
-        await self.registry.register(manifest)
-        logger.info(f"Module registered: {module_id} capabilities={capabilities}")
+    async def register_module(self, module_id: str, capabilities: list[str]) -> None:
+        from core.modules.base import Module, ModuleContext
+
+        class _SimpleModule(Module):
+            name = module_id
+            async def initialize(self, context: ModuleContext) -> None:
+                logger.info("Module %s initialized with caps=%s", module_id, capabilities)
+            async def handle_event(self, event: Event) -> None:
+                logger.debug("Module %s received event: %s", module_id, event.type)
+            async def shutdown(self) -> None:
+                pass
+
+        module = _SimpleModule()
+        self.registry.register(module)
+        logger.info("Module registered: %s capabilities=%s", module_id, capabilities)
 
     async def dispatch_event(self, event: Event) -> None:
         if not self._running:
@@ -125,16 +129,16 @@ class CognitiveKernel:
 
         start = time.monotonic()
         try:
-            capability = f"handle.{event.type.split('.')[-1]}"
-            modules = self.registry.find_by_capability(capability)
+            capability = f"handle.{event.type.value.split('.')[-1]}"
+            modules = self.registry.get_by_capability(capability)
 
             if not modules:
                 logger.debug("No module for capability=%s event=%s", capability, event.id)
                 return
 
-            targets = [m.id for m in modules]
+            targets = [m.name for m in modules]
             logger.info("Dispatching %s to %s", event.type, targets)
-            await self.bus.publish(f"module.dispatch.{event.type}", event)
+            await self.bus.publish(f"module.dispatch.{event.type.value}", event)
             await self._sync_state(event)
 
             duration = (time.monotonic() - start) * 1000
@@ -142,9 +146,9 @@ class CognitiveKernel:
         except Exception as e:
             logger.error("Dispatch failed for %s: %s", event.id, e, exc_info=True)
             await self.bus.publish("system.error", Event(
-                type="system.error",
+                type=EventType.SYSTEM_ERROR,
                 source="kernel",
-                data={"event_id": event.id, "error": str(e)},
+                payload={"event_id": event.id, "error": str(e)},
             ))
 
     async def handle_event(self, event: Event) -> None:
@@ -168,19 +172,19 @@ class CognitiveKernel:
 
     async def _on_goal_event(self, event: Event) -> None:
         try:
-            event_type = event.type
-            goal_id = event.data.get("goal_id")
-            if event_type == "goal.created":
+            goal_id = event.payload.get("goal_id")
+            type_str = event.type.value
+            if "goal.created" in type_str:
                 await self.goals.create(
                     user_id=event.metadata.get("user_id", "anonymous"),
-                    intent=event.data.get("intent", {}),
+                    intent=event.payload.get("intent", {}),
                     session_id=event.metadata.get("session_id", ""),
                     trace_id=event.metadata.get("trace_id", ""),
                 )
-            elif event_type == "goal.completed" and goal_id:
+            elif "goal.completed" in type_str and goal_id:
                 await self.goals.complete(goal_id)
-            elif event_type == "goal.failed" and goal_id:
-                await self.goals.fail(goal_id, event.data.get("error", ""))
+            elif "goal.failed" in type_str and goal_id:
+                await self.goals.fail(goal_id, event.payload.get("error", ""))
         except Exception as e:
             logger.error("Goal handling failed: %s", e)
 
@@ -191,26 +195,26 @@ class CognitiveKernel:
         try:
             goal = await self.goals.create(
                 user_id=event.metadata.get("user_id", "anonymous"),
-                intent=event.data.get("intent", {}),
+                intent=event.payload.get("intent", {}),
                 session_id=event.metadata.get("session_id", ""),
                 trace_id=event.metadata.get("trace_id", ""),
             )
-            event.data["goal_id"] = goal.id
+            event.payload["goal_id"] = goal.id
             await self.dispatch_event(event)
         except Exception as e:
             logger.error("Intent handling failed: %s", e, exc_info=True)
 
     async def _sync_state(self, event: Event) -> None:
         try:
-            payload = event.dict()
-            await self.redis.set(f"event:{event.id}", payload, ttl=3600)
-            await self.pg.insert("events", {
+            payload = {
                 "id": event.id,
-                "type": event.type,
+                "type": event.type.value,
                 "source": event.source,
-                "timestamp": event.timestamp,
-                "data": event.data,
+                "timestamp": event.timestamp.isoformat(),
+                "payload": event.payload,
                 "metadata": event.metadata,
-            })
+            }
+            await self.redis.set(f"event:{event.id}", payload, ttl=3600)
+            await self.pg.insert("events", payload)
         except Exception as e:
             logger.warning("State sync failed: %s", e)

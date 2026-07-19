@@ -19,21 +19,21 @@ dev:
 	PYTHONPATH=. NATS_URL=nats://localhost:4222 uvicorn api.main:app --reload --port 8000
 
 build:
-	docker-compose build
+	docker compose build
 
 up:
-	docker-compose up -d
+	docker compose up -d
 
 down:
-	docker-compose down
+	docker compose down
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 test:
-	PYTHONPATH=. python -m pytest tests/ -v
+	PYTHONPATH=src:legacy:core:. python -m pytest tests/ -v
 
 shell:
-	docker-compose exec kernel python
+	docker compose exec kernel python
 
 .PHONY: help install dev build up down logs test shell

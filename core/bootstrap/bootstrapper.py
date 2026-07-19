@@ -6,13 +6,13 @@ import asyncio
 import logging
 from typing import Optional
 
-from kernel.bootstrap.integrity import IntegrityChecker
-from kernel.bootstrap.repair import RepairEngine
-from kernel.bootstrap.config_evolution import ConfigEvolutionEngine
-from kernel.bus.interface import EventBus
-from kernel.state.postgres_state import PostgresPersistentState
-from kernel.state.redis_state import RedisLiveState
-from sdk.event import Event
+from core.bootstrap.integrity import IntegrityChecker
+from core.bootstrap.repair import RepairEngine
+from core.bootstrap.config_evolution import ConfigEvolutionEngine
+from core.bus.interface import EventBus
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.event import Event
 
 logger = logging.getLogger(__name__)
 

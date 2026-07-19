@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from kernel.state.redis_state import RedisLiveState
-from sdk.learning import SelfModel
+from core.state.redis_state import RedisLiveState
+from core.types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 
