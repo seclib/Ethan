@@ -32,7 +32,6 @@ Structure réelle :
 core/
 ├── kernel.py — CognitiveKernel (orchestrateur événementiel)
 ├── bootstrap.py — Entrypoint Docker
-├── agents/ — Agents cognitifs (12 modules)
 ├── orchestrator/ — Orchestrateur pipeline
 ├── bus/ — EventBus (NATS)
 ├── registry/ — ModuleRegistry, CapabilityRegistry
