@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from core.state.redis_state import RedisLiveState
 from core.state.postgres_state import PostgresPersistentState
-from core.types.sdk.learning import Experience
+from core.ethan_types.sdk.learning import Experience
 
 logger = logging.getLogger(__name__)
 

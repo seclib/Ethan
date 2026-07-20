@@ -1,1 +1,1 @@
-from core.types.sdk.learning import *
+from core.ethan_types.sdk.learning import *

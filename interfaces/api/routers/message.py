@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from nats.aio.client import Client as NatsClient
 
 from api.models.requests import MessageRequest, MessageResponse, IntentRequest
-from core.types.sdk.event import Event, EventType
+from core.ethan_types.sdk.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

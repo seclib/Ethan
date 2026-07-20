@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from core.types.sdk.metacognition import ThoughtTrace
+from core.ethan_types.sdk.metacognition import ThoughtTrace
 
 logger = logging.getLogger(__name__)
 

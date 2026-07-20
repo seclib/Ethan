@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from core.bus.interface import EventBus, EventHandler, Subscription
-from core.types.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

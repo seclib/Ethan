@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Any
 
 from core.bus.interface import EventBus
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 
 class ModuleState(str, Enum):

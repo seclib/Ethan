@@ -1,0 +1,18 @@
+[Unit]
+Description=ETHAN Watchdog Timer — Vérification périodique des conteneurs
+Documentation=https://github.com/seclib/Ethan/docs
+# Lier le timer au service ETHAN (s'arrête si ethan-core s'arrête)
+PartOf=ethan-core.service
+
+[Timer]
+# Démarrer 2 minutes après le boot (laisser le temps aux conteneurs de démarrer)
+OnBootSec=2min
+# Puis vérifier toutes les 30 secondes
+OnUnitActiveSec=30s
+# Activation précise (pas d'accumulation de délai)
+AccuracySec=5s
+
+Unit=ethan-watchdog.service
+
+[Install]
+WantedBy=timers.target

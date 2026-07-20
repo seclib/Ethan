@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
-from core.types.sdk.autonomy import CycleState
-from core.types.sdk.event import Event, EventType
+from core.ethan_types.sdk.autonomy import CycleState
+from core.ethan_types.sdk.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

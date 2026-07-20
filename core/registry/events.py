@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

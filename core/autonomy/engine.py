@@ -10,8 +10,8 @@ from core.autonomy.curiosity import CuriosityEngine
 from core.autonomy.environment import EnvironmentAnalyzer
 from core.autonomy.weakness import WeaknessDetector
 from core.state.redis_state import RedisLiveState
-from core.types.sdk.event import Event
-from core.types.sdk.goals import GoalProposal, GoalScore
+from core.ethan_types.sdk.event import Event
+from core.ethan_types.sdk.goals import GoalProposal, GoalScore
 
 logger = logging.getLogger(__name__)
 

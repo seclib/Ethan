@@ -15,7 +15,7 @@ from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
-from core.types.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

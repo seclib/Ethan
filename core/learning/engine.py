@@ -10,8 +10,8 @@ from core.learning.detector import PatternDetector
 from core.learning.generator import RuleGenerator
 from core.learning.modeler import SelfModelUpdater
 from core.learning.store import ExperienceStore
-from core.types.sdk.event import Event, EventType
-from core.types.sdk.learning import Experience, Pattern
+from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.sdk.learning import Experience, Pattern
 
 logger = logging.getLogger(__name__)
 

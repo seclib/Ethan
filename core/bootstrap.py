@@ -8,30 +8,29 @@ import os
 import signal
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# NOTE: Static analysis/IDE hint only. The launcher and Docker set PYTHONPATH at runtime.
+if sys.path[0] != os.path.dirname(os.path.dirname(os.path.abspath(__file__))):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.autonomy.controller import AutonomyLoopController
 from core.autonomy.curiosity import CuriosityEngine
 from core.autonomy.environment import EnvironmentAnalyzer
-from core.autonomy.healing import SelfHealingSystem
-from core.autonomy.idle import IdleStateIntelligence
-from core.autonomy.scheduler import PriorityScheduler
 from core.autonomy.weakness import WeaknessDetector
 from core.bootstrap.bootstrapper import SystemBootstrapper
 from core.bus.nats_bus import NatsEventBus
 from core.goals.manager import GoalManager
 from core.kernel import CognitiveKernel
 from core.learning.engine import LearningEngine
-from core.learning.modeler import SelfModelUpdater
-from core.learning.store import ExperienceStore
 from core.learning.detector import PatternDetector
 from core.learning.generator import RuleGenerator
+from core.learning.modeler import SelfModelUpdater
+from core.learning.store import ExperienceStore
 from core.metacognition.engine import MetaCognitionEngine
 from core.metacognition.load import CognitiveLoadManager
 from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
-from core.registry.module_registry import ModuleRegistry
+from core.registry.registry import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
@@ -64,6 +63,18 @@ async def main():
     await bus.connect(nats_url)
     await redis.connect()
     await pg.connect()
+
+    # ── Résilience : retry sur connexion NATS ───────────────────
+    for attempt in range(1, 11):
+        try:
+            await bus.connect(nats_url)
+            break
+        except Exception as exc:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("NATS connection failed (%s), retry %s/%s in %ss", exc, attempt, 10, wait)
+            await asyncio.sleep(wait)
 
     # Run system bootstrap (integrity check + repair)
     bootstrapper = SystemBootstrapper(bus, redis, pg)

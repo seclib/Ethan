@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

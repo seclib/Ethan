@@ -18,8 +18,8 @@ from core.cognition.types import (
     IntentType,
     Reasoning,
 )
-from core.types.event import Event, EventType
-from core.types.result import Result
+from core.ethan_types.event import Event, EventType
+from core.ethan_types.result import Result
 
 logger = logging.getLogger(__name__)
 

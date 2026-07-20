@@ -7,8 +7,8 @@ import logging
 from typing import Any, Dict
 
 from core.bus.interface import EventBus
-from core.types.sdk.event import Event
-from core.types.sdk.autonomy import CycleState
+from core.ethan_types.sdk.event import Event
+from core.ethan_types.sdk.autonomy import CycleState
 
 logger = logging.getLogger(__name__)
 

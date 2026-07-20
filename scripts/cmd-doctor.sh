@@ -433,17 +433,21 @@ check_http_connectivity() {
     fi
 
     # Health endpoint
-    if curl -sf "http://localhost:${API_PORT}/api/v1/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
+        check_pass "API Gateway : /health répond"
+    elif curl -sf "http://localhost:${API_PORT}/api/v1/health" >/dev/null 2>&1; then
         check_pass "API Gateway : /api/v1/health répond"
     else
-        check_warn "API Gateway : /api/v1/health inaccessible"
+        check_warn "API Gateway : /health inaccessible"
     fi
 
     # Version endpoint
-    if curl -sf "http://localhost:${API_PORT}/api/v1/version" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:${API_PORT}/version" >/dev/null 2>&1; then
+        check_pass "API Gateway : /version répond"
+    elif curl -sf "http://localhost:${API_PORT}/api/v1/version" >/dev/null 2>&1; then
         check_pass "API Gateway : /api/v1/version répond"
     else
-        check_warn "API Gateway : /api/v1/version inaccessible"
+        check_warn "API Gateway : /version inaccessible"
     fi
 
     # Swagger

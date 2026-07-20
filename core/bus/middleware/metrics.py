@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any, Callable, Coroutine
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

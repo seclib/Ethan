@@ -1,0 +1,5 @@
+FROM postgres:16-alpine
+RUN apk add --no-cache bash
+COPY deploy/postgres/backup/backup.sh /usr/local/bin/backup.sh
+RUN chmod +x /usr/local/bin/backup.sh
+CMD ["sh", "-c", "while true; do sleep 86400; /usr/local/bin/backup.sh; done"]

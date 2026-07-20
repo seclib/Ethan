@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Coroutine
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 # Type pour un handler d'événement asynchrone
 EventHandler = Callable[[Event], Coroutine[Any, Any, None]]

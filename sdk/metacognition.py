@@ -1,1 +1,1 @@
-from core.types.sdk.metacognition import *
+from core.ethan_types.sdk.metacognition import *

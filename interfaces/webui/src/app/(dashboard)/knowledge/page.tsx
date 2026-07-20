@@ -28,10 +28,10 @@ export default function KnowledgePage() {
         {filtered.map((node) => (
           <Card key={node.id} hoverable onClick={() => selectNode(node)}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {node.label}
-                <Badge variant="info" size="sm">{node.type}</Badge>
-              </CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  {node.label}
+                  <span className="text-xs text-muted-foreground">{node.type}</span>
+                </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-foreground-tertiary">{node.connections.length} connections</p>

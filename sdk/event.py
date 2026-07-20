@@ -1,1 +1,1 @@
-from core.types.sdk.event import *
+from core.ethan_types.sdk.event import *

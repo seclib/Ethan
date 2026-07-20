@@ -1,1 +1,1 @@
-from core.types.sdk.autonomy import *
+from core.ethan_types.sdk.autonomy import *

@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from core.bus.priorities import Priority
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

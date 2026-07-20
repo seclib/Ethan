@@ -1,28 +1,68 @@
 [Unit]
-Description=ETHAN Core — Services Docker
+Description=ETHAN Cognitive OS — Stack Docker Compose
 Documentation=https://github.com/seclib/Ethan/docs
+# S'assurer que le réseau ET le daemon Docker sont prêts avant de lancer
 Wants=network-online.target docker.service
 After=network-online.target docker.service
 
+# ──────────────────────────────────────────────────────────────────
+# POURQUOI Type=oneshot RemainAfterExit=yes ?
+#
+# docker compose up -d est une commande qui lance les conteneurs en
+# arrière-plan et se termine immédiatement. Il n'y a pas de processus
+# parent à superviser.
+#
+# LIMITATION DOCUMENTÉE : systemd voit ce service comme "actif" même
+# si 3 conteneurs sur 7 ont crashé. La vraie supervision est assurée
+# par Docker lui-même (restart: unless-stopped) et par ethan-watchdog.service.
+#
+# SOLUTION COMPLÈTE : voir ethan-watchdog.service (timer toutes les 30s)
+# ──────────────────────────────────────────────────────────────────
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/bin/ethan up
+
+# ── Environnement ──────────────────────────────────────────────────
+# Charger le fichier .env si présent
+EnvironmentFile=-/opt/ethan/.env
+Environment=ETHAN_ROOT=/opt/ethan
+
+# ── Démarrage avec préflight ───────────────────────────────────────
+# Le préflight vérifie les ports et les prérequis avant le vrai démarrage.
+# En cas d'échec du préflight, le service ne démarre pas.
+ExecStartPre=/usr/local/bin/ethan preflight
+ExecStart=/usr/local/bin/ethan up --skip-preflight
 ExecStop=/usr/local/bin/ethan down
 ExecReload=/usr/local/bin/ethan restart
-User=ethan
+
+# ── Politique de redémarrage ───────────────────────────────────────
+# Ne pas redémarrer automatiquement : Docker gère lui-même les conteneurs
+# via restart: unless-stopped. Un redémarrage systemd lancerait un
+# second `docker compose up` qui pourrait entrer en conflit.
+Restart=no
+
+# ── Timeout ───────────────────────────────────────────────────────
+# Premier démarrage = pull images (5-10min possible sur machine vierge)
+TimeoutStartSec=600
+TimeoutStopSec=60
+
+# ── Utilisateur ────────────────────────────────────────────────────
+# L'utilisateur doit être dans le groupe 'docker'
+User=%i
 Group=docker
 
-# Security
+# ── Sécurité ───────────────────────────────────────────────────────
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/ethan /var/log/ethan
+# NE PAS utiliser ProtectSystem=strict car ethan a besoin de lire/écrire
+# dans son répertoire de travail
+ProtectSystem=false
+ReadWritePaths=/opt/ethan /var/lib/ethan /var/log/ethan
 
-# Logging
+# ── Logging ────────────────────────────────────────────────────────
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ethan
+SyslogIdentifier=ethan-core
 
 [Install]
 WantedBy=multi-user.target

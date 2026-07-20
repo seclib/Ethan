@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from core.types.sdk.learning import Experience, Pattern
+from core.ethan_types.sdk.learning import Experience, Pattern
 
 logger = logging.getLogger(__name__)
 

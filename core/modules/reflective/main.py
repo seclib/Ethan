@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 import nats
 from nats.aio.msg import Msg
 
-from core.types.sdk.event import Event, EventType
-from core.types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
+from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
 from core.telemetry.logger import setup_logging
 
 logger = logging.getLogger(__name__)

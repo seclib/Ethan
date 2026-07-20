@@ -91,7 +91,7 @@ export default function AgentsPage() {
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>All Agents</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="default" className="text-xs">{total} total</Badge>
+            <span className="text-xs text-muted-foreground">{total} total</span>
           </div>
         </CardHeader>
         <CardContent>
@@ -127,7 +127,7 @@ export default function AgentsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge variant={status.color}>{status.label}</Badge>
+                        <span className="text-xs text-muted-foreground">{status.label}</span>
                         <div className="flex items-center gap-1">
                           {agent.status === "running" ? (
                             <>

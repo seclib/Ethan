@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional
 
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
-from core.types.sdk.autonomy import HealthStatus
-from core.types.sdk.event import Event
+from core.ethan_types.sdk.autonomy import HealthStatus
+from core.ethan_types.sdk.event import Event
 
 logger = logging.getLogger(__name__)
 

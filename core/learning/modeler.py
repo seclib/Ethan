@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from core.state.redis_state import RedisLiveState
-from core.types.sdk.learning import SelfModel
+from core.ethan_types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 

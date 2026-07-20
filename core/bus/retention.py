@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

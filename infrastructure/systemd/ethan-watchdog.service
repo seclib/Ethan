@@ -1,0 +1,45 @@
+[Unit]
+Description=ETHAN Watchdog — Surveillance de santé des conteneurs
+Documentation=https://github.com/seclib/Ethan/docs
+# Ne démarrer le watchdog que si ethan-core est actif
+PartOf=ethan-core.service
+After=ethan-core.service
+
+[Service]
+Type=oneshot
+
+# Script de vérification : vérifie que TOUS les services sont running.
+# Si un conteneur est "exited", il est redémarré et une alerte est loguée.
+ExecStart=/bin/bash -c '\
+    set -euo pipefail; \
+    COMPOSE_FILE="${ETHAN_ROOT:-/opt/ethan}/docker-compose.yml"; \
+    if ! docker compose -f "$COMPOSE_FILE" ps --services &>/dev/null; then \
+        echo "WARN: ethan-watchdog: docker compose ps failed" >&2; \
+        exit 0; \
+    fi; \
+    EXITED=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | wc -l); \
+    if [ "$EXITED" -gt 0 ]; then \
+        CRASHED=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | tr "\\n" " "); \
+        echo "ERROR: ethan-watchdog: ${EXITED} service(s) crashé(s): ${CRASHED}" >&2; \
+        systemd-cat -t ethan-watchdog -p err echo "Services crashés: ${CRASHED}"; \
+        docker compose -f "$COMPOSE_FILE" up -d; \
+        echo "INFO: ethan-watchdog: redémarrage tenté pour: ${CRASHED}" >&2; \
+    else \
+        HEALTHY=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "health=healthy" 2>/dev/null | wc -l || echo 0); \
+        TOTAL=$(docker compose -f "$COMPOSE_FILE" ps --services 2>/dev/null | wc -l || echo 0); \
+        echo "INFO: ethan-watchdog: ${HEALTHY}/${TOTAL} services healthy" >&2; \
+    fi \
+'
+
+EnvironmentFile=-/opt/ethan/.env
+Environment=ETHAN_ROOT=/opt/ethan
+
+User=root
+Group=docker
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ethan-watchdog
+
+[Install]
+WantedBy=multi-user.target

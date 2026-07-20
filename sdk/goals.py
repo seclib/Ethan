@@ -1,1 +1,1 @@
-from core.types.sdk.goals import *
+from core.ethan_types.sdk.goals import *

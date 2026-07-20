@@ -16,8 +16,8 @@ from typing import Any
 from core.agents.base import Agent, AgentConfig
 from core.executive.goal_manager import ExecutiveGoalManager
 from core.executive.types import Goal, GoalPriority
-from core.types.event import Event, EventType
-from core.types.result import Result
+from core.ethan_types.event import Event, EventType
+from core.ethan_types.result import Result
 
 logger = logging.getLogger(__name__)
 

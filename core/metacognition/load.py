@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Dict
 
-from core.types.sdk.metacognition import CognitiveMode, COGNITIVE_MODES
+from core.ethan_types.sdk.metacognition import CognitiveMode, COGNITIVE_MODES
 
 logger = logging.getLogger(__name__)
 

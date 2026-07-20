@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from core.executive.types import Goal, GoalState, GoalProgress, GoalPriority
-from core.types.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 

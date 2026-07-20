@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from core.types.sdk.goals import GoalProposal, IMPROVEMENT_GOAL
+from core.ethan_types.sdk.goals import GoalProposal, IMPROVEMENT_GOAL
 
 logger = logging.getLogger(__name__)
 

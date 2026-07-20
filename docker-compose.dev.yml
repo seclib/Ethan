@@ -129,7 +129,7 @@ services:
     networks:
       - ethan-network
     ports:
-      - "${CHROMADB_PORT:-8000}:8000"
+      - "${CHROMADB_PORT:-8001}:8000"
     volumes:
       - chromadb-data:/chroma/chroma
     depends_on:
@@ -154,46 +154,10 @@ services:
 
   # ===========================================================================
   # Ollama — LLM local
+  # Note: le service `ollama` est défini dans docker-compose.yml avec le profil `llm`.
+  # Ne pas le redéfinir ici pour éviter les doublons. Utiliser :
+  #   docker compose --profile llm up
   # ===========================================================================
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ethan-ollama
-    hostname: ollama
-    networks:
-      - ethan-network
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama-models:/root/.ollama
-    depends_on:
-      qdrant:
-        condition: service_healthy
-    environment:
-      - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
-      - OLLAMA_DEBUG=${OLLAMA_DEBUG:-0}
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-    # GPU Support (NVIDIA) — uncomment for GPU passthrough:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 # ── Volumes additionnels ──────────────────────────────────────────────────────
 volumes:

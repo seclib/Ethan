@@ -7,7 +7,7 @@ import logging
 from enum import IntEnum
 from typing import Any
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

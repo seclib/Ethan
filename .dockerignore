@@ -67,6 +67,11 @@ results/
 logs/
 traces/
 
+# Storybook (dev-only)
+.storybook/
+**/__stories__/
+**/*.stories.tsx
+
 # OS artifacts
 .DS_Store
 Thumbs.db

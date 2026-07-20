@@ -1,1 +1,1 @@
-from core.types.sdk.module import *
+from core.ethan_types.sdk.module import *

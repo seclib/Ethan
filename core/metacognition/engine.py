@@ -11,9 +11,9 @@ from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
 from core.state.redis_state import RedisLiveState
-from core.types.sdk.event import Event
-from core.types.sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
-from core.types.sdk.learning import SelfModel
+from core.ethan_types.sdk.event import Event
+from core.ethan_types.sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
+from core.ethan_types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 

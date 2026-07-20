@@ -82,7 +82,7 @@ class PostgreSQLBackend(StorageBackend):
             rows = await conn.fetch(query, *params)
 
             for row in rows:
-                from core.types.event import Event, EventType
+                from core.ethan_types.event import Event, EventType
                 event = Event(
                     id=row["id"],
                     type=EventType(row["type"]),

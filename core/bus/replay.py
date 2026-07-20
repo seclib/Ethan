@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import AsyncIterator, Callable
 
-from core.types.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

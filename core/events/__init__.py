@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 from core.bus.memory import InMemoryBus
-from core.types.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
