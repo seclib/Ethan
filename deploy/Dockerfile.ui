@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY interfaces/webui/package.json interfaces/webui/package-lock.json* /app/
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+RUN npm ci
 COPY interfaces/webui/ /app/
 RUN npm run build
 

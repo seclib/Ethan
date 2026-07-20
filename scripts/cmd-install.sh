@@ -65,6 +65,28 @@ fi
 mkdir -p "$LOG_DIR"
 success "Dossier logs : ${LOG_DIR}"
 
+# ── 7. Préparer le user systemd si nécessaire ────────────────
+if [ "$(id -u)" = "0" ]; then
+    if ! id ethan &>/dev/null; then
+        useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/ethan ethan 2>/dev/null || true
+        success "Utilisateur systemd 'ethan' créé"
+    else
+        info "Utilisateur 'ethan' déjà présent"
+    fi
+    if ! getent group docker | grep -qw ethan; then
+        usermod -aG docker ethan 2>/dev/null || true
+        success "Utilisateur 'ethan' ajouté au groupe 'docker'"
+    fi
+    mkdir -p /var/lib/ethan /var/log/ethan
+    chown -R ethan:docker /var/lib/ethan /var/log/ethan 2>/dev/null || true
+    success "Chemins systemd : /var/lib/ethan, /var/log/ethan"
+else
+    warn "root requis pour créer l'utilisateur systemd 'ethan'"
+    arrow "sudo usermod -aG docker $USER"
+    arrow "sudo mkdir -p /var/lib/ethan /var/log/ethan"
+    arrow "sudo chown -R $USER:docker /var/lib/ethan /var/log/ethan"
+fi
+
 # ── 7. Vérifier docker-compose ────────────────────────────────
 if docker compose -f "$COMPOSE_FILE" config &>/dev/null; then
     success "docker-compose.yml valide"

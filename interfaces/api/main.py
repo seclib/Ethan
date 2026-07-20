@@ -5,18 +5,21 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import nats
 
 from api.routers import message as message_router
 from api.routers import state as state_router
 from api.routers.internal import router as internal_router, init_modules
+
+try:
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    HAS_PROMETHEUS = True
+except ImportError:
+    HAS_PROMETHEUS = False
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +60,14 @@ async def startup():
 
     # Initialiser les nouveaux modules (Audit, Budget, Facts, Approval, SkillLab)
     init_modules(pg_conn=None)
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    if not HAS_PROMETHEUS:
+        return {"error": "prometheus_client not installed"}
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.on_event("shutdown")

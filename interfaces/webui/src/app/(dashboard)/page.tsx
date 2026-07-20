@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { MetricCard } from "@/components/shared/metric-card";
 import { EventStream } from "@/components/shared/event-stream";
 import { useAgents } from "@/features/agents/hooks/use-agents";
@@ -34,6 +36,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <Spinner />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -62,6 +65,7 @@ export default function DashboardPage() {
             System status and active operations
           </p>
         </div>
+        <Badge>Live</Badge>
       </div>
 
       {/* KPI Strip */}
@@ -139,6 +143,8 @@ export default function DashboardPage() {
           })}
         </CardContent>
       </Card>
+
+      <Separator />
 
       {/* Quick Actions */}
       <div className="space-y-3">

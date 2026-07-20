@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir -e ".[server,dev]"
 ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=5s \
-    CMD curl -f http://localhost:8000/v1/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1

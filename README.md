@@ -2,10 +2,10 @@
 
 Architecture : 4 couches, 1 règle — une couche ne traverse pas les barrières.
 
-- core — Cerveau. Zéro UI. Zéro IO direct. Zéro dépendance OS/CLI. Event-driven (NATS).
-- cli — Terminal UI. Zéro logique cognitive. Client NATS + HTTP.
-- plugins — Extensions. Process indépendants. Connectés via NATS.
-- interfaces — Ponts vers le monde extérieur (API, Desktop, Shell, WebUI, MCP).
+- core — Cerveau. Python kernel event-driven (NATS), API HTTP via FastAPI.
+- cli — Terminal UI. Aucune logique cognitive.
+- plugins — Extensions en process séparé, connectées via NATS.
+- interfaces — Ponts externes (API REST/WS, Desktop, Shell, WebUI, MCP).
 - infra — Infrastructure système (Docker, K8s, systemd, scripts).
 
 Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour la documentation complète.

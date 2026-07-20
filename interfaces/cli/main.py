@@ -12,9 +12,6 @@ import sys
 import os
 import argparse
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from interfaces.cli.repl import repl_loop
 from interfaces.cli.boot import BootManager, BootLogger
 from interfaces.cli.client import RuntimeClient

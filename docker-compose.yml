@@ -148,6 +148,8 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.kernel
     container_name: ethan-kernel
+    ports:
+      - "8080:8080"
     environment:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD:-ethan_dev_pass}@postgres:5432/ethan
@@ -176,11 +178,11 @@ services:
           cpus: '0.5'
           memory: 1G
     healthcheck:
-      test: ["CMD", "python", "-c", "import psutil; exit(0)"]
+      test: ["CMD", "python", "-c", "import nats, asyncio; asyncio.run(nats.connect(os.environ.get('NATS_URL','nats://nats:4222'), timeout=2))"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     logging:
       driver: json-file
       options:
@@ -210,6 +212,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import nats; print('modules OK')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     networks:
       - ethan-core
@@ -227,6 +235,25 @@ services:
         max-size: "10m"
         max-file: "3"
   # ── LLM Providers (Optional) ────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ethan-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   ollama:
     image: ollama/ollama:latest
     container_name: ethan-ollama
@@ -268,6 +295,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     networks:
       - ethan-core
@@ -293,6 +326,8 @@ volumes:
   postgres_data:
     driver: local
   ollama_data:
+    driver: local
+  prometheus_data:
     driver: local
 
 networks:
