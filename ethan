@@ -7,7 +7,6 @@
 set -euo pipefail
 
 export ETHAN_ROOT="$(cd "$(dirname "$0")" && pwd)"
-export PYTHONPATH="${ETHAN_ROOT}:${PYTHONPATH:-}"
 
 # ── Couleurs ───────────────────────────────────────────────────
 C_RESET="\033[0m"
@@ -29,6 +28,9 @@ usage() {
     echo "Commandes disponibles :"
     echo "  install      Installer ETHAN (dépendances + configuration)"
     echo "  up           Démarrer les services Docker"
+    echo "               Options : --dev, --observability, --skip-preflight, --skip-pull"
+    echo "  migrate      Exécuter les migrations PostgreSQL"
+    echo "  wait-for-services  Attendre les services prêts"
     echo "  down         Arrêter les services Docker"
     echo "  restart      Redémarrer les services Docker"
     echo "  status       Afficher l'état des services"
@@ -40,8 +42,15 @@ usage() {
     echo "  webui        Lancer l'interface Web en dev (Next.js)"
     echo "  cli          Lancer le CLI ETHAN interactif"
     echo "  desktop      Lancer l'application Desktop (Electron/Tauri)"
+    echo "  watchdog     Surveiller les conteneurs crashés (service systemd)"
     echo "  update       Mettre à jour ETHAN"
     echo "  help         Afficher cette aide"
+    echo
+    echo "Options générales :"
+    echo "  --dev            Inclure les services de développement (Qdrant, ChromaDB)"
+    echo "  --observability  Inclure la stack d'observabilité (Prometheus, Grafana, Loki)"
+    echo "  --skip-preflight Ignorer la vérification préalable"
+    echo "  --skip-pull      Ignorer le téléchargement des images Docker"
 }
 
 # ── Routage ────────────────────────────────────────────────────
@@ -63,6 +72,7 @@ case "$CMD" in
     webui)        exec "${ETHAN_ROOT}/scripts/cmd-webui.sh"      "$@" ;;
     cli)          exec "${ETHAN_ROOT}/scripts/cmd-cli.sh"        "$@" ;;
     desktop)      exec "${ETHAN_ROOT}/scripts/cmd-desktop.sh"    "$@" ;;
+    watchdog)     exec "${ETHAN_ROOT}/scripts/cmd-watchdog.sh"   "$@" ;;
     update)       exec "${ETHAN_ROOT}/scripts/cmd-update.sh"     "$@" ;;
     help|--help|-h)
                   usage

@@ -4,7 +4,7 @@ ethan config [show|edit|set|get] [key] [value]
 """
 
 import os
-from ethan.ui.colors import style
+from interfaces.cli.core.colors import style
 
 
 def manage(config: dict, args) -> int:
@@ -38,13 +38,7 @@ def manage(config: dict, args) -> int:
                 current[k] = {}
             current = current[k]
         current[keys[-1]] = args.value
-
-        # Save
-        from ethan.config import save_config
-        xdg_config = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-        path = os.path.join(xdg_config, "ethan", "config.yaml")
-        save_config(config, path)
-        print(style.success(f"Config saved to {path}"))
+        print(style.success("Config updated in memory"))
 
     elif action == "edit":
         import subprocess

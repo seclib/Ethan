@@ -1,0 +1,197 @@
+# =============================================================================
+# docker-compose.cluster.yml — Patch Cluster NATS (3 nœuds) + Backup PG
+# =============================================================================
+#
+# Ce fichier REMPLACE le nœud NATS unique par un cluster JetStream 3 nœuds
+# et ajoute le service de backup PostgreSQL planifié.
+#
+# Usage :
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.cluster.yml \
+#     up -d
+#
+# ⚠️  Ne pas combiner avec docker-compose.dev.yml qui redéfinit postgres/redis
+#     avec des noms de volumes différents.
+#
+# Topologie NATS :
+#   nats-1 : client 4222  / http 8222 / cluster 6222  (leader éligible)
+#   nats-2 : client 4223  / http 8223 / cluster 6223
+#   nats-3 : client 4224  / http 8224 / cluster 6224
+#   → Les applications se connectent via nats://nats-1:4222,nats-2:4223,nats-3:4224
+# =============================================================================
+
+services:
+
+  # ============================================================================
+  # NATS Cluster — Nœud 1 (PRIMARY) - Remplace le 'nats' original
+  # ============================================================================
+  nats:
+    image: nats:2.10-alpine
+    container_name: ethan-nats-1
+    hostname: nats-1
+    ports:
+      - "4222:4222"    # Client (compatibilité avec le port standard)
+      - "8222:8222"    # HTTP monitoring
+    volumes:
+      - nats1_data:/data/jetstream
+      - ./deploy/nats/nats-1.conf:/etc/nats/nats.conf:ro
+    command: ["-c", "/etc/nats/nats.conf", "-sd", "/data/jetstream"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # NATS Cluster — Nœud 2
+  # ============================================================================
+  nats-2:
+    image: nats:2.10-alpine
+    container_name: ethan-nats-2
+    hostname: nats-2
+    ports:
+      - "4223:4223"
+      - "8223:8223"
+    volumes:
+      - nats2_data:/data/jetstream
+      - ./deploy/nats/nats-2.conf:/etc/nats/nats.conf:ro
+    command: ["-c", "/etc/nats/nats.conf", "-sd", "/data/jetstream"]
+    depends_on:
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8223/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # NATS Cluster — Nœud 3
+  # ============================================================================
+  nats-3:
+    image: nats:2.10-alpine
+    container_name: ethan-nats-3
+    hostname: nats-3
+    ports:
+      - "4224:4224"
+      - "8224:8224"
+    volumes:
+      - nats3_data:/data/jetstream
+      - ./deploy/nats/nats-3.conf:/etc/nats/nats.conf:ro
+    command: ["-c", "/etc/nats/nats.conf", "-sd", "/data/jetstream"]
+    depends_on:
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8224/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # PostgreSQL Backup — Scheduled (toutes les 6h par défaut)
+  # ============================================================================
+  # Les backups sont stockés dans le volume pg_backups (persistant).
+  # Rotation automatique : fichiers > BACKUP_RETENTION_DAYS supprimés.
+  # Pour forcer un backup manuel :
+  #   docker exec ethan-pg-backup /usr/local/bin/backup.sh
+  # ============================================================================
+  pg-backup:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.pg_backup
+    container_name: ethan-pg-backup
+    hostname: pg-backup
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ethan
+      PGDATABASE: ethan
+      PGPASSWORD: ${POSTGRES_PASSWORD:-ethan_dev_pass}
+      BACKUP_SCHEDULE: ${PG_BACKUP_SCHEDULE:-0 */6 * * *}    # toutes les 6h
+      BACKUP_RETENTION_DAYS: ${PG_BACKUP_RETENTION_DAYS:-30} # 30 jours
+      BACKUP_COMPRESS: "true"
+    volumes:
+      - pg_backups:/var/backups/ethan
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# ── Volumes additionnels ──────────────────────────────────────────────────────
+volumes:
+  nats1_data:
+    driver: local
+  nats2_data:
+    driver: local
+  nats3_data:
+    driver: local
+  pg_backups:
+    driver: local

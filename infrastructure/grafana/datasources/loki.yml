@@ -1,0 +1,28 @@
+# =============================================================================
+# Grafana — DataSource Loki
+# =============================================================================
+# Auto-provisionné au démarrage de Grafana.
+# Corrélation automatique avec Prometheus via le label `service`.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+      httpHeaderName1: "X-Scope-OrgID"
+      derivedFields:
+        # Corrélation Loki → Prometheus : extraction du service depuis les labels
+        - name: "service"
+          matcherRegex: '"service"\s*:\s*"([^"]+)"'
+          url: "http://prometheus:9090/graph?g0.expr=up{service=\"$1\"}"
+          datasourceUid: "prometheus"
+    secureJsonData:
+      httpHeaderValue1: "ethan"

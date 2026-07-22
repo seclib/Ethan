@@ -1,42 +1,21 @@
 [Unit]
-Description=ETHAN Watchdog — Surveillance de santé des conteneurs
+Description=ETHAN Container Watchdog — Monitor crashed containers
 Documentation=https://github.com/seclib/Ethan/docs
-# Ne démarrer le watchdog que si ethan-core est actif
-PartOf=ethan-core.service
-After=ethan-core.service
+After=network-online.target docker.service ethan-core.service
+Requires=docker.service
+
+# Ce service est déclenché par ethan-watchdog.timer (toutes les 30s).
+# Il vérifie l'état des conteneurs ETHAN et tente de redémarrer
+# ceux qui ont crashé, ou alerte via le journal systemd.
 
 [Service]
-Type=oneshot
-
-# Script de vérification : vérifie que TOUS les services sont running.
-# Si un conteneur est "exited", il est redémarré et une alerte est loguée.
-ExecStart=/bin/bash -c '\
-    set -euo pipefail; \
-    COMPOSE_FILE="${ETHAN_ROOT:-/opt/ethan}/docker-compose.yml"; \
-    if ! docker compose -f "$COMPOSE_FILE" ps --services &>/dev/null; then \
-        echo "WARN: ethan-watchdog: docker compose ps failed" >&2; \
-        exit 0; \
-    fi; \
-    EXITED=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | wc -l); \
-    if [ "$EXITED" -gt 0 ]; then \
-        CRASHED=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | tr "\\n" " "); \
-        echo "ERROR: ethan-watchdog: ${EXITED} service(s) crashé(s): ${CRASHED}" >&2; \
-        systemd-cat -t ethan-watchdog -p err echo "Services crashés: ${CRASHED}"; \
-        docker compose -f "$COMPOSE_FILE" up -d; \
-        echo "INFO: ethan-watchdog: redémarrage tenté pour: ${CRASHED}" >&2; \
-    else \
-        HEALTHY=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "health=healthy" 2>/dev/null | wc -l || echo 0); \
-        TOTAL=$(docker compose -f "$COMPOSE_FILE" ps --services 2>/dev/null | wc -l || echo 0); \
-        echo "INFO: ethan-watchdog: ${HEALTHY}/${TOTAL} services healthy" >&2; \
-    fi \
-'
-
-EnvironmentFile=-/opt/ethan/.env
+Type=exec
+User=ethan
+SupplementaryGroups=docker
 Environment=ETHAN_ROOT=/opt/ethan
-
-User=root
-Group=docker
-
+EnvironmentFile=-/opt/ethan/.env
+WorkingDirectory=/opt/ethan
+ExecStart=/opt/ethan/ethan watchdog
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=ethan-watchdog

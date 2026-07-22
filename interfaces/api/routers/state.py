@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, Depends
 from nats.aio.client import Client as NatsClient
 
-from api.models.state_response import StateResponse
+from interfaces.api.models.state_response import StateResponse
 
 logger = logging.getLogger(__name__)
 

@@ -97,7 +97,7 @@ docker compose logs --tail=100 nats
 ### 4.3 Healthchecks détaillés
 
 ```bash
-curl http://localhost:8000/v1/health          # healthcheck simple
+curl http://localhost:8000/health             # healthcheck simple
 curl http://localhost:8000/health/detailed    # vérifie NATS + Redis + PostgreSQL
 curl http://localhost:9090/metrics            # métriques Prometheus
 ```
@@ -278,7 +278,7 @@ docker compose build --no-cache
 | Endpoint | Port | Contenu |
 |----------|------|---------|
 | `/metrics` | 8000 | Prometheus (API Gateway) |
-| `/v1/health` | 8000 | Healthcheck simple |
+| `/health` | 8000 | Healthcheck simple |
 | `/health/detailed` | 8000 | Healthcheck avec dépendances |
 | NATS monitoring | 8222 | Métriques NATS JetStream |
 

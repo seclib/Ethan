@@ -1,0 +1,239 @@
+# =============================================================================
+# docker-compose.observability.yml — Observabilité & Sécurité
+# =============================================================================
+# Usage :
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.observability.yml \
+#     up -d
+# =============================================================================
+
+services:
+
+  # ============================================================================
+  # Vault — HashiCorp Secrets Management
+  # ============================================================================
+  vault:
+    image: hashicorp/vault:1.17
+    hostname: vault
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    environment:
+      VAULT_LOG_LEVEL: ${VAULT_LOG_LEVEL:-warn}
+    volumes:
+      - vault_data:/vault/file
+      - vault_logs:/vault/logs
+      - ./infrastructure/vault/vault.conf:/vault/config/vault.hcl:ro
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault.hcl
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Prometheus — Metrics Database
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: ethan-prometheus
+    hostname: prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Loki — Log Aggregation Backend
+  # ============================================================================
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: ethan-loki
+    hostname: loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki_data:/loki
+      - ./infrastructure/loki/loki.yml:/etc/loki/loki.yml:ro
+    command: -config.file=/etc/loki/loki.yml
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Alloy — Agent unifié (logs, métriques, traces)
+  # Remplace Promtail. Pipelines intégrés :
+  #   - Docker logs → Loki
+  #   - Scraping Prometheus → Prometheus
+  #   - OTLP traces → Jaeger
+  # ============================================================================
+  alloy:
+    image: grafana/alloy:latest
+    container_name: ethan-alloy
+    hostname: alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./infrastructure/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:12345/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Grafana — Dashboards & Alerting
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: ethan-grafana
+    hostname: grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-ethan-grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_LOG_LEVEL: ${GRAFANA_LOG_LEVEL:-warn}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infrastructure/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # OpenTelemetry Collector — Trace routing and processing
+  # ============================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector:0.103.0
+    container_name: ethan-otel-collector
+    hostname: otel-collector
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./infrastructure/otel/otel-collector-config.yml:/etc/otelcol/config.yaml:ro
+    command: ["--config=/etc/otelcol/config.yaml"]
+    depends_on:
+      - jaeger
+    networks:
+      - ethan-core
+
+  # ============================================================================
+  # Jaeger — OpenTelemetry Tracing Backend
+  # ============================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: ethan-jaeger
+    hostname: jaeger
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    volumes:
+      - ./infrastructure/jaeger/jaeger.yml:/etc/jaeger/jaeger.yml:ro
+    command: ["--config-file=/etc/jaeger/jaeger.yml"]
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ── Volumes additionnels ──────────────────────────────────────────────────────
+volumes:
+  vault_data:
+    driver: local
+  vault_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  grafana_data:
+    driver: local

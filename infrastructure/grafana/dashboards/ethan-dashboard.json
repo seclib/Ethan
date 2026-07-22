@@ -1,0 +1,130 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ETHAN System Monitoring",
+    "tags": ["ethan", "production", "cognitive-os"],
+    "timezone": "UTC",
+    "refresh": "10s",
+    "schemaVersion": 36,
+    "version": 1,
+    "panels": [
+      {
+        "title": "Services Health Status",
+        "type": "stat",
+        "description": "Overall health status of ETHAN services",
+        "targets": [{"expr": "ethan_services_health", "legendFormat": "{{service}}"}],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [{"type": 1, "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Degraded", "color": "red"}}}],
+            "thresholds": {"mode": "value", "steps": [{"value": null, "color": "green"}, {"value": 1, "color": "red"}]}
+          }
+        }
+      },
+      {
+        "title": "CPU Usage by Container",
+        "type": "graph",
+        "description": "CPU percentage per ETHAN container",
+        "targets": [{"expr": "rate(container_cpu_user_seconds_total{label_com_docker_compose_service=~\"ethan.*\"}[1m])", "legendFormat": "{{service}}"}],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
+      },
+      {
+        "title": "Memory Usage by Container",
+        "type": "graph",
+        "description": "Memory RSS per ETHAN container (bytes)",
+        "targets": [{"expr": "container_memory_rss{label_com_docker_compose_service=~\"ethan.*\"}", "legendFormat": "{{service}}"}],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+      },
+      {
+        "title": "Events Processed/sec",
+        "type": "graph",
+        "description": "Rate of events processed by the event bus",
+        "targets": [{"expr": "rate(ethan_events_total[1m])", "legendFormat": "{{module}}"}],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      },
+      {
+        "title": "Event Latency (p95)",
+        "type": "graph",
+        "description": "95th percentile event processing latency",
+        "targets": [{"expr": "histogram_quantile(0.95, rate(ethan_event_latency_seconds_bucket[5m]))"}],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      },
+      {
+        "title": "NATS Queue Size",
+        "type": "gauge",
+        "description": "Current messages in NATS queue",
+        "targets": [{"expr": "ethan_nats_queue_size", "legendFormat": "{{subject}}"}],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 20}
+      },
+      {
+        "title": "Redis Connection Status",
+        "type": "stat",
+        "description": "Redis live state connection health",
+        "targets": [{"expr": "redis_up", "legendFormat": "redis"}],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 20},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [{"type": 1, "options": {"1": {"text": "Connected", "color": "green"}, "0": {"text": "Disconnected", "color": "red"}}}],
+            "thresholds": {"mode": "value", "steps": [{"value": null, "color": "green"}, {"value": 1, "color": "red"}]}
+          }
+        }
+      },
+      {
+        "title": "PostgreSQL Connection Status",
+        "type": "stat",
+        "description": "PostgreSQL persistent state connection health",
+        "targets": [{"expr": "pg_up", "legendFormat": "postgres"}],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 20},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [{"type": 1, "options": {"1": {"text": "Connected", "color": "green"}, "0": {"text": "Disconnected", "color": "red"}}}],
+            "thresholds": {"mode": "value", "steps": [{"value": null, "color": "green"}, {"value": 1, "color": "red"}]}
+          }
+        }
+      },
+      {
+        "title": "API Rate Limit Events",
+        "type": "stat",
+        "description": "Number of 429 responses (rate limited)",
+        "targets": [{"expr": "increase(http_responses_total{status=\"429\"}[5m])"}],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 20},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "green"}, {"value": 10, "color": "orange"}, {"value": 50, "color": "red"}]}
+          }
+        }
+      },
+      {
+        "title": "Circuit Breaker Events",
+        "type": "stat",
+        "description": "Number of circuit breaker openings (failures)",
+        "targets": [{"expr": "increase(ethan_circuit_breaker_opens_total[5m])"}],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {"mode": "absolute", "steps": [{"value": 0, "color": "green"}, {"value": 1, "color": "orange"}, {"value": 5, "color": "red"}]}
+          }
+        }
+      },
+      {
+        "title": "Event Bus Throughput",
+        "type": "graph",
+        "description": "NATS message throughput (msgs/sec)",
+        "targets": [{"expr": "rate(nats_core_server_routes_count[1m])", "legendFormat": "routes"}],
+        "gridPos": {"h": 8, "w": 12, "x": 6, "y": 24}
+      },
+      {
+        "title": "HTTP Request Duration (p95)",
+        "type": "graph",
+        "description": "API endpoint response times",
+        "targets": [{"expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))", "legendFormat": "{{path}}"}],
+        "gridPos": {"h": 8, "w": 12, "x": 18, "y": 24}
+      }
+    ]
+  }
+}

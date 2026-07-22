@@ -13,8 +13,7 @@ from core.learning.engine import LearningEngine
 from core.metacognition.engine import MetaCognitionEngine
 from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
-from core.state.postgres_state import PostgresPersistentState
-from core.state.redis_state import RedisLiveState
+from core.state.interface import StateBackend
 from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -26,8 +25,7 @@ class CognitiveKernel:
     def __init__(
         self,
         bus: EventBus,
-        redis: RedisLiveState,
-        pg: PostgresPersistentState,
+        state: StateBackend,  # Unified state backend (RedisLiveState + PostgresPersistentState wrapper)
         registry: ModuleRegistry,
         goals: GoalManager,
         scheduler: Scheduler,
@@ -36,8 +34,7 @@ class CognitiveKernel:
         autonomy: Optional[AutonomyLoopController] = None,
     ):
         self.bus = bus
-        self.redis = redis
-        self.pg = pg
+        self.state = state
         self.registry = registry
         self.goals = goals
         self.scheduler = scheduler
@@ -102,15 +99,16 @@ class CognitiveKernel:
         ))
         await self.scheduler.stop()
         await self.bus.close()
-        await self.redis.close()
-        await self.pg.close()
+        await self.state.close()
         logger.info("Cognitive Kernel stopped")
 
     async def register_module(self, module_id: str, capabilities: list[str]) -> None:
         from core.modules.base import Module, ModuleContext
 
         class _SimpleModule(Module):
-            name = module_id
+            def __init__(self, name: str = module_id):
+                super().__init__(name)
+            
             async def initialize(self, context: ModuleContext) -> None:
                 logger.info("Module %s initialized with caps=%s", module_id, capabilities)
             async def handle_event(self, event: Event) -> None:
@@ -214,7 +212,6 @@ class CognitiveKernel:
                 "payload": event.payload,
                 "metadata": event.metadata,
             }
-            await self.redis.set(f"event:{event.id}", payload, ttl=3600)
-            await self.pg.insert("events", payload)
+            await self.state.sync_event(event.id, payload)
         except Exception as e:
             logger.warning("State sync failed: %s", e)

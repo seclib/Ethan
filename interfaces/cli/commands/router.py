@@ -11,9 +11,20 @@ from __future__ import annotations
 
 from interfaces.cli.core import colors as clr
 from interfaces.cli.registry import register
-from core.llm.router import LLMRouter
-from core.llm.selector import LLMSelector
-from core.llm.types import ModelInfo
+
+try:
+    from core.llm.router import LLMRouter
+    from core.llm.selector import LLMSelector
+    from core.llm.types import ModelInfo
+    _HAS_LLM = True
+except ImportError:
+    _HAS_LLM = False
+    LLMRouter = None  # type: ignore
+    LLMSelector = None  # type: ignore
+
+    class ModelInfo:  # type: ignore
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
 
 
 # Modèles par défaut

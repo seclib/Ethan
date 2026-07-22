@@ -1,3 +1,1 @@
-"""ETHAN CLI — UI components."""
-
-__version__ = "1.0.0"
+"""CLI UI helpers."""

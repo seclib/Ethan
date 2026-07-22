@@ -44,12 +44,13 @@ class RedisLiveState(LiveState):
             return None
         return json.loads(raw)
 
-    async def set(self, key: str, value: Dict[str, Any], ttl: int = 3600) -> None:
-        """Set JSON value with TTL."""
+    async def set(self, key: str, value: Dict[str, Any], ttl: Optional[int] = None) -> None:
+        """Set JSON value with TTL (defaults to 1 hour)."""
         if not self._redis:
             return
+        actual_ttl = ttl if ttl is not None else 3600
         raw = json.dumps(value)
-        await self._redis.setex(key, ttl, raw)
+        await self._redis.setex(key, actual_ttl, raw)
 
     async def delete(self, key: str) -> None:
         """Delete a key."""
@@ -61,6 +62,15 @@ class RedisLiveState(LiveState):
         if not self._redis:
             return False
         return await self._redis.exists(key) > 0
+
+    async def query(self, sql: str, params: Optional[tuple] = None) -> list[dict]:
+        """Execute a query - Redis doesn't support SQL, returns empty list."""
+        # Redis doesn't have SQL, this is a no-op for compatibility
+        return []
+
+    async def insert(self, table: str, payload: dict) -> Optional[Any]:
+        """Insert - Redis doesn't support relational insert, return None."""
+        return None
 
     # ── Convenience methods ───────────────────────────────
 

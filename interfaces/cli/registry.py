@@ -56,6 +56,19 @@ def register(name: str, group: str = "core", description: str = "", usage: str =
 COMMAND_HANDLERS: dict[str, Callable] = {}
 
 
+class Registry:
+    """Simple wrapper around COMMAND_HANDLERS for CLI dispatch."""
+
+    def __init__(self) -> None:
+        self.commands: dict[str, Callable] = COMMAND_HANDLERS
+
+    def get(self, name: str) -> Callable | None:
+        return self.commands.get(name)
+
+    def list_commands(self) -> list[str]:
+        return sorted(self.commands.keys())
+
+
 def _get_handler(name: str) -> Callable | None:
     """Resolve a command handler by name."""
     return COMMAND_HANDLERS.get(name)

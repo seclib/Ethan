@@ -31,6 +31,25 @@ class PostgresPersistentState(PersistentState):
             await self._pool.close()
             logger.info("PostgreSQL connection closed")
 
+    async def get(self, key: str) -> Optional[Any]:
+        """Get value by key - PostgreSQL doesn't have key-value natively, returns empty."""
+        # For compatibility, we could implement via a kv table, but not needed now
+        return None
+
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        """Set value with TTL - PostgreSQL doesn't have native TTL, would need a kv table."""
+        # For compatibility, this is a no-op
+        pass
+
+    async def query(self, sql: str, params: Optional[tuple] = None) -> list[dict]:
+        """Execute a SQL query."""
+        if not self._pool:
+            raise RuntimeError("PostgreSQL not connected")
+        actual_params = params if params is not None else ()
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(sql, *actual_params)
+            return [dict(row) for row in rows]
+
     async def execute(self, query: str, *args) -> List[Dict[str, Any]]:
         """Execute a raw SQL query."""
         if not self._pool:
@@ -39,16 +58,16 @@ class PostgresPersistentState(PersistentState):
             rows = await conn.fetch(query, *args)
             return [dict(row) for row in rows]
 
-    async def insert(self, table: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def insert(self, table: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Insert a row and return the full record."""
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join(f"${i+1}" for i in range(len(data)))
+        columns = ", ".join(payload.keys())
+        placeholders = ", ".join(f"${i+1}" for i in range(len(payload)))
         query = f"""
             INSERT INTO {table} ({columns})
             VALUES ({placeholders})
             RETURNING *
         """
-        rows = await self.execute(query, *data.values())
+        rows = await self.execute(query, *payload.values())
         return rows[0] if rows else {}
 
     async def update(

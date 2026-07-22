@@ -1,0 +1,95 @@
+# =============================================================================
+# Promtail — Configuration
+# =============================================================================
+# Collecte les logs Docker de tous les conteneurs Ethan et les envoie à Loki.
+# Labels automatiques extraits des métadonnées Docker.
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+# Chemin de persistance des positions de lecture
+positions:
+  filename: /tmp/positions.yaml
+  sync_period: 10s
+  ignore_invalid_yaml: true
+
+# ── Destination : Loki ──────────────────────────────────────────────────────
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    tenant_id: ethan
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    timeout: 10s
+
+# ── Sources de logs ─────────────────────────────────────────────────────────
+scrape_configs:
+
+  # ── Logs Docker via socket ─────────────────────────────────────────────────
+  - job_name: docker_containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project"]
+    relabel_configs:
+      # Utiliser le nom du conteneur comme job
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: container
+      # Extraire le service compose
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service
+      # Extraire le projet compose
+      - source_labels: [__meta_docker_container_label_com_docker_compose_project]
+        target_label: compose_project
+      # Conserver l'image
+      - source_labels: [__meta_docker_container_image]
+        target_label: image
+      # Label fixe : stack
+      - target_label: stack
+        replacement: ethan
+    pipeline_stages:
+      # Parser JSON si le log est au format JSON
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            timestamp: time
+      # Mapper le niveau de log
+      - labels:
+          level:
+          msg:
+      # Timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          fallback_formats:
+            - RFC3339
+            - "2006-01-02T15:04:05.999999999Z07:00"
+      # Supprimer les champs extraits du log brut pour éviter la duplication
+      - output:
+          source: msg
+
+  # ── Logs fichiers système (hôte) ──────────────────────────────────────────
+  - job_name: system_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          stack: ethan
+          __path__: /var/log/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\S+\s+\S+)\s+(?P<host>\S+)\s+(?P<process>[^\[]+)(?:\[(?P<pid>\d+)\])?\s*:\s+(?P<message>.*)$'
+      - labels:
+          host:
+          process:
+      - output:
+          source: message

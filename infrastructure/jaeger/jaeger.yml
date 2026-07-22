@@ -1,0 +1,17 @@
+# =============================================================================
+# Jaeger — Configuration
+# =============================================================================
+
+collector:
+  otlp:
+    grpc:
+      host-port: ":4317"
+    http:
+      host-port: ":4318"
+
+memory:
+  max-traces: 100000
+
+processor:
+  jaeger-binary:
+    server-queue-size: 1000

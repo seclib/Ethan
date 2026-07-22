@@ -1,39 +1,52 @@
-# Secrets ETHAN
+# ETHAN — Secrets Management
 
-**ATTENTION** : Ne jamais commiter les fichiers `.txt` contenant les secrets en clair.
+## 🔴 IMPORTANT : Migration vers Docker Secrets
 
-## Structure
+Les fichiers texte en clair dans ce dossier sont **obsolètes et non sécurisés**.
 
+Ne JAMAIS stocker de secrets dans des fichiers texte. La méthode `echo "pass" > file.txt` est interdite.
+
+## Méthodes recommandées
+
+### 1. Docker Secrets (recommandé pour Docker Compose)
+
+```yaml
+# docker-compose.yml
+secrets:
+  postgres_password:
+    file: ./infrastructure/secrets/postgres_password.txt  # ← À REMPLACER
 ```
-infrastructure/secrets/
-├── README.md               ← Ce fichier
-├── postgres_password.txt   ← Mot de passe PostgreSQL (AJOUTER DANS .gitignore)
-├── api_key_openai.txt      ← Clé API OpenAI (AJOUTER DANS .gitignore)
-└── api_key_anthropic.txt   ← Clé API Anthropic (AJOUTER DANS .gitignore)
-```
 
-## Procédure d'utilisation (Docker secrets)
+### 2. HashiCorp Vault (production)
 
-1. Créer les fichiers de secrets locaux :
 ```bash
-echo "mon_mot_de_passe_securise" > infrastructure/secrets/postgres_password.txt
+# Setup Vault
+docker compose -f docker-compose.vault.yml up -d vault
+
+# Écrire les secrets
+vault kv put ethan/postgres password="$(openssl rand -base64 32)"
+vault kv put ethan/redis password="$(openssl rand -base64 32)"
+vault kv put ethan/jwt secret="$(openssl rand -base64 64)"
 ```
 
-2. S'assurer que `.gitignore` contient :
-```
-infrastructure/secrets/*.txt
-```
+### 3. Environnement + .env (dev uniquement)
 
-3. Docker Compose lit automatiquement les secrets définis dans la section `secrets:`.
-
-## Migration future vers Vault
-
-1. Ajouter le service `vault` dans `docker-compose.yml`
-2. Configurer `core/config/secrets.py` pour lire depuis Vault
-3. Supprimer les Docker secrets
-
-## Audit des secrets
-
-Pour vérifier qu'aucun secret n'est commité :
 ```bash
-trufflehog filesystem . --results=verified,unknown
+# .env (ajouté à .gitignore)
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+REDIS_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -base64 64)
+```
+
+## Commandes utiles
+
+```bash
+# Générer un secret solide
+openssl rand -base64 32
+
+# Vérifier qu'aucun secret n'est commité
+grep -r "POSTGRES_PASSWORD=change-me" .env.example && echo "⚠️  Default password found"
+
+# Scanner le dépôt pour des secrets
+pip install trufflehog
+trufflehog filesystem .

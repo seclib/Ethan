@@ -435,8 +435,8 @@ check_http_connectivity() {
     # Health endpoint
     if curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
         check_pass "API Gateway : /health répond"
-    elif curl -sf "http://localhost:${API_PORT}/api/v1/health" >/dev/null 2>&1; then
-        check_pass "API Gateway : /api/v1/health répond"
+    elif curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
+        check_pass "API Gateway : /health répond"
     else
         check_warn "API Gateway : /health inaccessible"
     fi

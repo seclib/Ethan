@@ -21,7 +21,7 @@
 
 Services exposés :
 - WebUI : http://localhost:3000
-- API : http://localhost:8000/v1/health
+- API : http://localhost:8000/health
 - NATS : http://localhost:8222
 
 ## Commandes essentielles

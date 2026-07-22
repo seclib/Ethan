@@ -6,10 +6,11 @@ import logging
 import os
 from uuid import uuid4
 
+import json
 from fastapi import APIRouter, HTTPException
 from nats.aio.client import Client as NatsClient
 
-from api.models.requests import MessageRequest, MessageResponse, IntentRequest
+from interfaces.api.models.requests import MessageRequest, MessageResponse, IntentRequest
 from core.ethan_types.sdk.event import Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ async def post_message(request: MessageRequest) -> MessageResponse:
         },
     )
 
-    await _nats.publish("ethan.intent.user", event.dict())
+    await _nats.publish("ethan.intent.user", json.dumps(event.dict()).encode())
     logger.info(f"Published intent event {event_id} for user {request.user_id}")
 
     return MessageResponse(
@@ -96,7 +97,7 @@ async def post_intent(request: IntentRequest) -> MessageResponse:
         },
     )
 
-    await _nats.publish("ethan.intent.user", event.dict())
+    await _nats.publish("ethan.intent.user", json.dumps(event.dict()).encode())
 
     return MessageResponse(
         success=True,

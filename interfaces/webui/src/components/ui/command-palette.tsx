@@ -160,6 +160,7 @@ function CommandPalette({
                 <button
                   key={item.id}
                   role="option"
+                  aria-selected={false}
                   data-index={-1}
                   onClick={() => {
                     item.onSelect();

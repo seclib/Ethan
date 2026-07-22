@@ -67,7 +67,7 @@ Services vérifiés :
 
 ### 5. Connectivité HTTP
 - ✅ API Gateway répond sur `/`
-- ✅ `/api/v1/health` accessible
+- ✅ `/health` accessible
 - ✅ `/api/v1/version` accessible
 - ✅ Swagger UI (`/docs`) accessible
 - ✅ WebSocket endpoint (`/api/v1/events/ws`)
@@ -201,7 +201,7 @@ Cela permet d'utiliser le doctor dans des scripts CI/CD :
 
 5. Connectivité HTTP (tests réels)
    ├─ API Gateway (http://localhost:8000/)
-   ├─ /api/v1/health
+   ├─ /health
    ├─ /api/v1/version
    ├─ /docs (Swagger)
    ├─ /api/v1/events/ws (WebSocket)

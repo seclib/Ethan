@@ -3,8 +3,6 @@
 # =============================================================================
 #
 # Services additionnels pour le développement :
-#   - Redis (cache, événements)
-#   - PostgreSQL (base de données)
 #   - Qdrant (vector store)
 #   - ChromaDB (vector store alternatif)
 #   - Ollama (LLM local)
@@ -12,80 +10,12 @@
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 #
-# Note: Ces services sont optionnels et peuvent être désactivés via .env
+# Note : Redis et PostgreSQL sont définis dans docker-compose.yml (fichier principal)
+# pour éviter les conflits de réseaux et de noms de conteneurs.
+# Ce fichier n'ajoute QUE les services optionnels de développement.
 # =============================================================================
 
 services:
-  # ===========================================================================
-  # Redis — Cache, événements, mémoire court-terme
-  # ===========================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: ethan-redis
-    hostname: redis
-    networks:
-      - ethan-network
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis-data:/data
-    environment:
-      - REDIS_PERSISTENCE=${REDIS_PERSISTENCE:-false}
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    restart: unless-stopped
-    command: >
-      sh -c '
-        if [ "${REDIS_PERSISTENCE}" = "true" ]; then
-          redis-server --appendonly yes --save 60 1
-        else
-          redis-server --save "" --appendonly no
-        fi
-      '
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================================================
-  # PostgreSQL — Base de données structurée
-  # ===========================================================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: ethan-postgres
-    hostname: postgres
-    networks:
-      - ethan-network
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-ethan}
-      - POSTGRES_USER=${POSTGRES_USER:-ethan}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ethan} -d ${POSTGRES_DB:-ethan}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # ===========================================================================
   # Qdrant — Vector database (production)
   # ===========================================================================
@@ -94,7 +24,7 @@ services:
     container_name: ethan-qdrant
     hostname: qdrant
     networks:
-      - ethan-network
+      - ethan-core
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "${QDRANT_GRPC_PORT:-6334}:6334"
@@ -127,7 +57,7 @@ services:
     container_name: ethan-chromadb
     hostname: chromadb
     networks:
-      - ethan-network
+      - ethan-core
     ports:
       - "${CHROMADB_PORT:-8001}:8000"
     volumes:
@@ -161,13 +91,14 @@ services:
 
 # ── Volumes additionnels ──────────────────────────────────────────────────────
 volumes:
-  redis-data:
-    name: ethan-redis-data
-  postgres-data:
-    name: ethan-postgres-data
   qdrant-data:
     name: ethan-qdrant-data
   chromadb-data:
     name: ethan-chromadb-data
   ollama-models:
     name: ethan-ollama-models
+
+# ── Réseau partagé avec docker-compose.yml ────────────────────────────────────
+networks:
+  ethan-core:
+    external: true

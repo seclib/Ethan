@@ -12,17 +12,63 @@ Usage:
     loader.load(name)   # load single plugin
 """
 
+import hashlib
 import importlib.util
 import json
+import logging
 import os
 import sys
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from plugins.validator import PluginValidator
+
+logger = logging.getLogger(__name__)
+
 ETHAN_PLUGIN_API = "2"
 
+# Circuit breaker: max crashes before disabling a plugin
+MAX_PLUGIN_CRASHES = 3
+CRASH_WINDOW_SECONDS = 300  # 5 minutes
+
+
+@dataclass
+class CircuitBreaker:
+    """Circuit breaker for plugin crashes."""
+    crash_count: int = 0
+    first_crash_ts: float = 0.0
+    disabled: bool = False
+
+    def record_crash(self) -> None:
+        now = time.time()
+        if now - self.first_crash_ts > CRASH_WINDOW_SECONDS:
+            self.crash_count = 0
+            self.first_crash_ts = now
+        self.crash_count += 1
+        if self.crash_count >= MAX_PLUGIN_CRASHES:
+            self.disabled = True
+
+    def is_disabled(self) -> bool:
+        return self.disabled
+
+    def reset(self) -> None:
+        self.crash_count = 0
+        self.first_crash_ts = 0.0
+        self.disabled = False
+
+
+@dataclass
+class PluginState:
+    """Runtime state for a loaded plugin."""
+    meta: Any
+    breaker: CircuitBreaker = field(default_factory=CircuitBreaker)
+    loaded_at: float = field(default_factory=time.time)
+    crash_count: int = 0
+
 # Discovery paths
-BUILTIN_DIR = Path(__file__).parent.parent / "cli" / "plugins"
+BUILTIN_DIR = Path(__file__).parent.parent / "plugins" / "builtin"
 USER_DIR = Path.home() / ".local" / "share" / "ethan" / "plugins"
 SYSTEM_DIR = Path("/etc/ethan/plugins")
 
@@ -116,6 +162,7 @@ class PluginLoader:
 
     def __init__(self):
         self._plugins: dict[str, PluginMeta] = {}
+        self._validator = PluginValidator()
 
     def _search_paths(self) -> list[Path]:
         paths = []
@@ -136,6 +183,20 @@ class PluginLoader:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             return None
+
+    def _verify_signature(self, plugin_dir: Path, manifest: dict) -> bool:
+        """Verify SHA256 signature of manifest if .sha256 file exists."""
+        sig_path = plugin_dir / "manifest.json.sha256"
+        if not sig_path.exists():
+            return True  # No signature = unsigned (allowed for dev)
+        try:
+            with open(sig_path) as f:
+                expected = f.read().strip()
+            manifest_path = plugin_dir / "manifest.json"
+            actual = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+            return actual == expected
+        except (OSError, ValueError):
+            return False
 
     def _load_entry_point(self, plugin_dir: Path, manifest: dict) -> Any | None:
         # Try plugin.py first, then fallback to inline ETHAN_PLUGIN
@@ -170,6 +231,15 @@ class PluginLoader:
             manifest = self._load_manifest(plugin_dir)
             if manifest is None:
                 continue
+
+            # Validation du plugin avant chargement
+            validation = self._validator.validate(plugin_dir, manifest)
+            if not validation.valid:
+                logger.warning(
+                    f"Plugin '{name}' rejeté par le validateur : {validation.error}"
+                )
+                continue
+
             module = self._load_entry_point(plugin_dir, manifest)
             if module is None:
                 continue
@@ -179,6 +249,7 @@ class PluginLoader:
             if not self._resolve_version(meta.name, meta.version, self._plugins.get(meta.name)):
                 continue
             self._plugins[meta.name] = meta
+            logger.info(f"Plugin '{name}' chargé avec succès (v{meta.version})")
             return meta
         return None
 

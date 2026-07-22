@@ -1,42 +1,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # ETHAN — API Gateway
-# FROM : ethan/python-base (contient pip install + curl + nc + core/ + sdk/)
+# Hérite de ethan/python-base (pip install + system deps + core/ + sdk/ partagés)
 #
-# Si l'image de base n'est pas buildée localement, Docker Compose la build
-# automatiquement grâce au `build` dans le docker-compose.yml.
-# Pour un build manuel :
+# Build :
 #   docker build -f deploy/Dockerfile.python-base -t ethan/python-base:latest .
-#   docker build -f deploy/Dockerfile.api -t ethan/api:latest .
+#   docker build -f deploy/Dockerfile.api          -t ethan/api:latest .
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM ethan/python-base:latest
 
-WORKDIR /app
-
-# Reprendre les dépendances système et pip depuis la base
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copier les fichiers de définition des dépendances en premier (layer cache)
-COPY pyproject.toml README.md ./
-COPY core/ core/
-COPY sdk/ sdk/
-
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e ".[server,dev]" || \
-    pip install --no-cache-dir -e ".[server]" || \
-    pip install --no-cache-dir -e "." || \
-    echo "WARN: pip install partiel"
-
-# Copier le code de l'API (couche invalidée uniquement si interfaces/api/ change)
+# ── Code spécifique à l'API ───────────────────────────────────────────────────
+# Cette couche est invalidée UNIQUEMENT si interfaces/api/ change.
 COPY interfaces/api/ interfaces/api/
 
 ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=15s \
-    CMD curl -f http://localhost:8000/v1/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
+    CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

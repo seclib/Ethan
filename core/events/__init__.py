@@ -14,7 +14,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
-from core.bus.memory import InMemoryBus
+from core.bus.memory_bus import InMemoryBus
 from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class EventBus:
     """
 
     def __init__(self, record_history: bool = True):
-        self._inner = InMemoryBus(record_history=record_history)
+        self._inner = InMemoryBus()
         self._handlers: Dict[EventType, List[EventHandler]] = {}
         self._record_history = record_history
 
@@ -84,9 +84,9 @@ class EventBus:
             return self._inner.get_history()
         return self._inner.get_history(event_type.value)
 
-    def clear_history(self) -> None:
+    async def clear_history(self) -> None:
         """Vide l'historique des événements."""
-        self._inner.clear_history()
+        await self._inner.clear()
 
     @property
     def inner_bus(self) -> InMemoryBus:

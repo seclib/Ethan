@@ -55,91 +55,24 @@ dev = [
     "ruff>=0.4",
     "pre-commit>=3.0",
 ]
-inference-mlx = ["mlx-lm>=0.31.1; sys_platform == 'darwin'"]
-inference-vllm = ["vllm>=0.16.0"]
 inference-cloud = [
     "openai>=1.30",
     "anthropic>=0.30",
 ]
-inference-google = [
-    "google-genai>=1.0",
-]
-inference-litellm = ["litellm>=1.40"]
-inference-gemma = ["pygemma>=0.1.3"]
-tools-search = [
-    "tavily-python>=0.3",
-    "ddgs>=9.11.4",
-]
-memory-faiss = [
-    "faiss-cpu>=1.7",
-    "sentence-transformers>=2.2",
-    "numpy>=1.24",
-]
-memory-colbert = [
-    "colbert-ai>=0.2",
-    "torch>=2.0",
-]
-memory-pdf = ["pdfplumber>=0.10"]
-memory-bm25 = ["rank-bm25>=0.2.2"]
 server = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
     "pydantic>=2.0",
     "python-multipart>=0.0.9",
     "prometheus-client>=0.20",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "slowapi>=0.1.9",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-exporter-otlp>=1.24.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
 ]
-openhands = ["openhands-sdk>=1.0; python_version >= '3.12'"]
-gpu-metrics = ["pynvml>=12.0"]
-energy-amd = ["amdsmi>=6.1"]
-energy-apple = ["zeus-ml[apple]"]
-energy-all = ["pynvml>=12.0", "amdsmi>=6.1", "zeus-ml[apple]"]
-orchestrator-training = ["torch>=2.0", "transformers>=4.40"]
-learning-dspy = ["dspy>=2.6"]
-learning-gepa = ["gepa>=0.1"]
-channel-telegram = ["python-telegram-bot>=21.0"]
-channel-discord = ["discord.py>=2.3"]
-channel-slack = ["slack-sdk>=3.27"]
-channel-line = ["line-bot-sdk>=3.0"]
-channel-viber = ["viberbot>=1.0"]
-channel-messenger = ["pymessenger>=0.0.7"]
-channel-reddit = ["praw>=7.0"]
-channel-mastodon = ["Mastodon.py>=1.8"]
-channel-xmpp = ["slixmpp>=1.8"]
-channel-rocketchat = ["rocketchat-API>=1.30"]
-channel-zulip = ["zulip>=0.9"]
-channel-twitter = ["httpx>=0.27"]
-channel-twitch = ["twitchio>=2.6"]
-channel-nostr = ["pynostr>=0.6"]
-channel-twilio = ["twilio>=9.0"]
-channel-gmail = [
-    "google-api-python-client>=2.0",
-    "google-auth-oauthlib>=1.0",
-    "google-auth-httplib2>=0.2",
-]
-browser = ["playwright>=1.40"]
-media = ["openai>=1.30"]
-mining-pearl-vllm = ["docker>=7.0", "httpx>=0.27"]
-pdf = ["pdfplumber>=0.10"]
-scheduler = ["croniter>=2.0"]
-security-signing = ["cryptography>=43"]
-sandbox-wasm = ["wasmtime>=25"]
-sandbox-docker = ["docker>=7.0"]
-dashboard = ["textual>=0.80"]
-speech = ["faster-whisper>=1.0"]
-speech-deepgram = ["deepgram-sdk>=3.0"]
-eval-wandb = ["wandb>=0.17"]
-eval-sheets = ["gspread>=6.0", "google-auth>=2.0"]
-mining-pearl-cpu = [
-    # Pearl Python packages (py-pearl-mining, miner-base, pearl-gateway) are
-    # not on PyPI yet. They are installed at first `mine init` via the
-    # build-from-pin path in src/openjarvis/mining/_install.py:build_from_pin().
-    # When Pearl publishes wheels, replace the line below with version pins.
-    #
-    # The extra remains as a feature-flag namespace so users can run
-    # `uv sync --extra mining-pearl-cpu` to opt-in (it succeeds with no
-    # additional resolution today; the actual install happens on demand).
-]
-framework-comparison = ["polars>=1.0"]
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
@@ -155,8 +88,6 @@ Repository = "https://github.com/ethan/Ethan"
 Issues = "https://github.com/ethan/Ethan/issues"
 
 [project.scripts]
-jarvis = "legacy.cli:main"
-openjarvis-eval = "legacy.evals.cli:main"
 ethan = "core.main:main"
 
 # Version is derived from git tags by hatch-vcs (see #526). For source/editable
@@ -184,7 +115,7 @@ git_describe_command = [
 fallback_version = "0.0.0+unknown"
 
 [tool.hatch.build.targets.wheel]
-packages = ["core"]
+packages = ["core", "sdk", "plugins", "interfaces"]
 
 [tool.hatch.build.targets.wheel.force-include]
 
@@ -276,22 +207,10 @@ markers = [
 
 [tool.ruff]
 target-version = "py310"
-src = ["src", "tests"]
+src = ["core", "interfaces", "plugins", "sdk", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
-
-[tool.ruff.lint.per-file-ignores]
-"src/openjarvis/evals/datasets/*.py" = ["E501"]
-"src/openjarvis/evals/scorers/*.py" = ["E501"]
-# hybrid/ is research code with long prompt strings and paradigm-specific
-# config dicts — same relaxation as evals research code above. The ``**`` glob
-# also covers subpackages (e.g. hybrid/skillorchestra/), which the prior
-# ``hybrid/*.py`` glob missed.
-"src/openjarvis/agents/hybrid/**/*.py" = ["E501"]
-# research_loop.py carries long prompt strings too (documented in CLAUDE.md);
-# the ignore was missing here.
-"src/openjarvis/agents/research_loop.py" = ["E501"]
 
 [dependency-groups]
 dev = [

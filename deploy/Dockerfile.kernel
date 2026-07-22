@@ -1,41 +1,21 @@
+# syntax=docker/dockerfile:1.4
 # ─────────────────────────────────────────────────────────────────────────────
 # ETHAN — Kernel (moteur cognitif central)
-# Même stratégie de cache que Dockerfile.api
+# Hérite de ethan/python-base. Aucune réinstallation de dépendances.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM ethan/python-base:latest
 
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
-
-# Dépendances (couche stable, invalidée uniquement si pyproject.toml change)
-COPY pyproject.toml README.md ./
-COPY core/ core/
-COPY sdk/ sdk/
-
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e ".[server,dev]" || \
-    pip install --no-cache-dir -e ".[server]" || \
-    pip install --no-cache-dir -e "." || \
-    echo "WARN: pip install partiel"
+# ── Code spécifique au kernel ─────────────────────────────────────────────
+# Cette couche est invalidée UNIQUEMENT si core/kernel/ ou core/bootstrap.py changent.
+COPY core/kernel.py core/kernel.py
+COPY core/bootstrap.py core/bootstrap.py
+COPY core/ethan_types/sdk/event.py core/ethan_types/sdk/event.py
 
 ENV PYTHONPATH=/app/core:/app/sdk:/app
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=20s \
-    CMD python - <<'PY' || exit 1
-try:
-    import asyncio, os, nats
-    async def _c():
-        nc = await nats.connect(os.environ.get('NATS_URL', 'nats://nats:4222'), timeout=2)
-        await nc.close()
-    asyncio.run(_c())
-except Exception:
-    raise SystemExit(1)
-PY
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=30s \
+    CMD python -c "import asyncio, os, nats; asyncio.run(nats.connect(os.environ.get('NATS_URL','nats://nats:4222'), timeout=2).__aenter__())" || exit 1
 
 CMD ["python", "core/bootstrap.py"]

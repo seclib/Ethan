@@ -45,6 +45,21 @@ class MemoryStateBackend(StateBackend):
         data = json.dumps(event.to_dict() if hasattr(event, 'to_dict') else dict(event))
         await self.set(key, data.encode(), ttl=3600)
 
+    async def insert(self, table: str, payload: dict) -> Any | None:
+        import uuid
+        _id = str(uuid.uuid4())
+        key = f"{table}:{_id}"
+        import json
+        await self.set(key, json.dumps(payload).encode())
+        return payload
+
+    async def query(self, sql: str, params: tuple | None = None) -> list[dict]:
+        # Basic mock implementation that just returns empty for simplicity
+        return []
+
+    async def sync_event(self, event_id: str, payload: dict) -> None:
+        await self.insert("events", {"id": event_id, **payload})
+
     async def close(self) -> None:
         """Ferme le backend."""
         self._store.clear()

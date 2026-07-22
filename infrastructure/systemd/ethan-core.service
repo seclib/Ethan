@@ -1,9 +1,9 @@
 [Unit]
 Description=ETHAN Cognitive OS — Stack Docker Compose
 Documentation=https://github.com/seclib/Ethan/docs
-# S'assurer que le réseau ET le daemon Docker sont prêts avant de lancer
 Wants=network-online.target docker.service
 After=network-online.target docker.service
+Requires=docker.service
 
 # ──────────────────────────────────────────────────────────────────
 # POURQUOI Type=oneshot RemainAfterExit=yes ?
@@ -14,49 +14,48 @@ After=network-online.target docker.service
 #
 # LIMITATION DOCUMENTÉE : systemd voit ce service comme "actif" même
 # si 3 conteneurs sur 7 ont crashé. La vraie supervision est assurée
-# par Docker lui-même (restart: unless-stopped) et par ethan-watchdog.service.
+# par Docker lui-même (restart: unless-stopped) et par ethan-watchdog.timer.
 #
-# SOLUTION COMPLÈTE : voir ethan-watchdog.service (timer toutes les 30s)
+# SOLUTION COMPLÈTE : voir ethan-watchdog.timer (toutes les 30s)
 # ──────────────────────────────────────────────────────────────────
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 
-# ── Environnement ──────────────────────────────────────────────────
-# Charger le fichier .env si présent
-EnvironmentFile=-/opt/ethan/.env
+# ── Chemins absolus ───────────────────────────────────────────────
+# ETHAN_ROOT doit pointer vers l'emplacement réel du projet.
+# Par défaut : /opt/ethan (via le script d'install)
+# Chemin alternatif : /home/fatsio/AI/Ethan (via git clone local)
 Environment=ETHAN_ROOT=/opt/ethan
+EnvironmentFile=-/opt/ethan/.env
+WorkingDirectory=/opt/ethan
 
 # ── Démarrage avec préflight ───────────────────────────────────────
 # Le préflight vérifie les ports et les prérequis avant le vrai démarrage.
 # En cas d'échec du préflight, le service ne démarre pas.
-ExecStartPre=/usr/local/bin/ethan preflight
-ExecStart=/usr/local/bin/ethan up --skip-preflight
-ExecStop=/usr/local/bin/ethan down
-ExecReload=/usr/local/bin/ethan restart
+ExecStartPre=/opt/ethan/ethan preflight
+ExecStart=/opt/ethan/ethan up --skip-preflight
+ExecStop=/opt/ethan/ethan down
+ExecReload=/opt/ethan/ethan restart
 
 # ── Politique de redémarrage ───────────────────────────────────────
-# Ne pas redémarrer automatiquement : Docker gère lui-même les conteneurs
-# via restart: unless-stopped. Un redémarrage systemd lancerait un
-# second `docker compose up` qui pourrait entrer en conflit.
-Restart=no
+Restart=on-failure
+RestartSec=30
 
 # ── Timeout ───────────────────────────────────────────────────────
-# Premier démarrage = pull images (5-10min possible sur machine vierge)
 TimeoutStartSec=600
-TimeoutStopSec=60
+TimeoutStopSec=90
 
 # ── Utilisateur ────────────────────────────────────────────────────
-# L'utilisateur doit être dans le groupe 'docker'
-User=%i
-Group=docker
+User=ethan
+SupplementaryGroups=docker
+# Group=docker  ← NE PAS UTILISER : équivaut à un accès root complet.
+# SupplementaryGroups=docker est plus sécurisé (PID-specific).
 
 # ── Sécurité ───────────────────────────────────────────────────────
 NoNewPrivileges=true
 PrivateTmp=true
-# NE PAS utiliser ProtectSystem=strict car ethan a besoin de lire/écrire
-# dans son répertoire de travail
-ProtectSystem=false
+ProtectSystem=full
 ReadWritePaths=/opt/ethan /var/lib/ethan /var/log/ethan
 
 # ── Logging ────────────────────────────────────────────────────────

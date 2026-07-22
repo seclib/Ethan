@@ -8,15 +8,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
+import os
 
 from core.bus.memory_bus import MemoryEventBus
+from core.goals.manager import GoalManager
 from core.kernel import CognitiveKernel
 from core.registry.module import ModuleRegistry
+from core.scheduler.scheduler import Scheduler
 from core.state.interface import StateBackend
 from core.state.memory_backend import MemoryStateBackend
 
 
 logger = logging.getLogger(__name__)
+
+
+# Ensure project root is importable when running from source checkouts
+_here = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.abspath(os.path.join(_here, "..", ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 
 async def create_kernel(
@@ -36,11 +47,15 @@ async def create_kernel(
     Returns:
         Kernel prêt à démarrer
     """
+    goals = GoalManager(bus, state, state)
+    scheduler = Scheduler(bus)
+    
     kernel = CognitiveKernel(
         bus=bus,
         state=state,
         registry=registry,
-        config=config,
+        goals=goals,
+        scheduler=scheduler,
     )
     return kernel
 

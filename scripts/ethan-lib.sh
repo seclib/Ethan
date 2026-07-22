@@ -53,8 +53,14 @@ bold()      { echo -e "${C_BOLD}$*${C_RESET}"; }
 
 # ── Docker helpers ───────────────────────────────────────────────
 
+# Support multi-compose-files : si COMPOSE_FILES est défini (tableau),
+# l'utiliser. Sinon, utiliser COMPOSE_FILE seul.
 docker_compose() {
-    docker compose -f "$COMPOSE_FILE" "$@"
+    if [[ -n "${COMPOSE_FILES:-}" ]] && [[ "${#COMPOSE_FILES[@]}" -gt 0 ]]; then
+        docker compose "${COMPOSE_FILES[@]}" "$@"
+    else
+        docker compose -f "$COMPOSE_FILE" "$@"
+    fi
 }
 
 service_is_running() {
@@ -136,6 +142,55 @@ wait_for_http() {
     done
 }
 
+# Diagnostic : logs le message d'erreur du healthcheck d'un conteneur
+container_health_log() {
+    local service="$1"
+    local container
+    container=$(docker_compose ps --format "{{.Names}}" --filter "name=${service}" 2>/dev/null | head -1 || true)
+    [[ -z "$container" ]] && return
+    docker inspect "$container" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    state = d[0].get('State', {})
+    health = state.get('Health', {})
+    status = health.get('Status', 'none')
+    if status == 'unhealthy' and health.get('Log'):
+        last = health['Log'][-1]
+        output = last.get('Output', '')[:200]
+        print(f'unhealthy: {output}')
+    else:
+        print(status)
+except Exception:
+    print('unknown')
+" 2>/dev/null || echo "unknown"
+}
+
+# Vérification rapide qu'un service Docker tourne sans crash immédiat
+service_is_stable() {
+    local service="$1"
+    local container
+    container=$(docker_compose ps --format "{{.Names}}" --filter "name=${service}" 2>/dev/null | head -1 || true)
+    [[ -z "$container" ]] && return 1
+    local status
+    status=$(docker inspect "$container" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    s = d[0].get('State', {})
+    if s.get('Status') == 'running':
+        print('running')
+    elif s.get('Status') == 'exited':
+        rc = s.get('ExitCode', -1)
+        print(f'exited({rc})')
+    else:
+        print(s.get('Status', 'unknown'))
+except Exception:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+    [[ "$status" == "running" ]]
+}
+
 check_url() {
     local name="$1"
     local url="$2"
@@ -165,12 +220,10 @@ ensure_compose_service() {
     local label="${2:-$1}"
     local total
     total=$(docker_compose ps --services 2>/dev/null | wc -l)
-
     if [ "$total" -eq 0 ]; then
         warn "Aucun service docker-compose détecté"
         return 1
     fi
-
     if docker_compose ps --services --filter "status=running" | grep -q "^${service}$"; then
         success "$label est en cours d'exécution"
         return 0

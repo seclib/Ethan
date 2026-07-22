@@ -1,63 +1,67 @@
-"""StateBackend — Abstract interface for persistence."""
+"""State Backend — Interface unifiée pour la persistance.
+
+CLEAN ARCHITECTURE: Le Kernel dépend de cette interface, pas des implémentations concrètes.
+"""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 
 class StateBackend(ABC):
-    """Interface abstraite pour la persistance d'état."""
-
+    """Interface abstraite pour les opérations d'état.
+    
+    - Live state (Redis) pour le cache actif
+    - Persistent state (PostgreSQL) pour la persistance
+    - Toutes les opérations sont asynchrones pour la robustesse
+    
+    Note: Certaines méthodes sont spécifiques à un backend ou l'autre.
+    Les implémentations composites (Redis+PostgreSQL) implémentent toutes.
+    """
+    
     @abstractmethod
-    async def get(self, key: str, namespace: str = "") -> bytes | None:
-        """Lit une valeur."""
+    async def get(self, key: str) -> Optional[Any]:
+        """Récupérer une valeur par clé."""
         pass
-
+    
     @abstractmethod
-    async def set(
-        self, key: str, value: bytes, ttl: int | None = None, namespace: str = ""
-    ) -> None:
-        """Écrit une valeur."""
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        """Définir une valeur avec TTL optionnel."""
         pass
-
+    
     @abstractmethod
-    async def delete(self, key: str, namespace: str = "") -> None:
-        """Supprime une valeur."""
+    async def insert(self, table: str, payload: dict) -> Optional[Any]:
+        """Insérer dans une table et retourner le record inséré."""
         pass
-
+    
     @abstractmethod
-    async def persist(self, event: Any) -> None:
-        """Persiste un événement."""
+    async def query(self, sql: str, params: Optional[tuple] = None) -> list[dict]:
+        """Exécuter une requête SQL."""
         pass
-
-    @abstractmethod
-    async def close(self) -> None:
-        """Ferme les connexions."""
-        pass
-
-
-class LiveState(StateBackend):
-    """Alias pour StateBackend — compatibilité avec les imports existants."""
-
-    @abstractmethod
-    async def get(self, key: str, namespace: str = "") -> bytes | None:
-        pass
-
-    @abstractmethod
-    async def set(
-        self, key: str, value: bytes, ttl: int | None = None, namespace: str = ""
-    ) -> None:
-        pass
-
-    @abstractmethod
-    async def delete(self, key: str, namespace: str = "") -> None:
-        pass
-
-    @abstractmethod
-    async def persist(self, event: Any) -> None:
-        pass
-
+    
     @abstractmethod
     async def close(self) -> None:
+        """Fermer la connexion proprement."""
         pass
+
+    # ── Convenience methods for composite backend ──────────────────────────────
+    
+    async def set_live(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        """Définir dans le backend live (Redis-like) - optionnel."""
+        # Default implementation: use standard set
+        await self.set(key, value, ttl=ttl)
+
+    async def insert_persistent(self, table: str, payload: dict) -> Optional[Any]:
+        """Insérer dans le backend persistant (PostgreSQL-like) - optionnel."""
+        # Default implementation: use standard insert
+        return await self.insert(table, payload)
+
+    async def sync_event(self, event_id: str, payload: dict) -> None:
+        """Synchroniser un événement dans les deux backends - optionnel.
+        
+        Cette méthode est utilisée par le Kernel pour persister les événements.
+        Les implémentations composites l'override pour utiliser les deux backends.
+        """
+        # Default: just insert to persistent (most important)
+        await self.insert("events", payload)

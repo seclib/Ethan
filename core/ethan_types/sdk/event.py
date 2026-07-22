@@ -38,6 +38,11 @@ class Event:
             "reply_to": self.reply_to,
         }
 
+    def to_json(self) -> bytes:
+        """Serialize to JSON bytes."""
+        import json
+        return json.dumps(self.dict()).encode()
+
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> Event:
         """Deserialize from dict."""

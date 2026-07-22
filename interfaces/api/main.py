@@ -1,4 +1,10 @@
-"""API Gateway — Entry point for the Ethan Cognitive OS."""
+"""API Gateway — entry point for the Ethan Cognitive OS.
+
+NOTE: This file relies on the 'ethan' package being installed in editable mode:
+    pip install -e ".[server]"
+
+If you encounter import errors, run the command above from the project root.
+"""
 
 from __future__ import annotations
 
@@ -6,20 +12,30 @@ import json
 import logging
 import os
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 
 import nats
 
-from api.routers import message as message_router
-from api.routers import state as state_router
-from api.routers.internal import router as internal_router, init_modules
+from interfaces.api.routers.message import router as message_router, set_nats_client
+from interfaces.api.routers.state import router as state_router
+from interfaces.api.routers.internal import router as internal_router, init_modules
+from interfaces.api.auth import auth_middleware, create_access_token
+from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
     HAS_PROMETHEUS = True
 except ImportError:  # pragma: no cover - optional dependency
     HAS_PROMETHEUS = False
+
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from core.telemetry import init_telemetry
+    HAS_TELEMETRY = True
+except ImportError:
+    HAS_TELEMETRY = False
 
     def generate_latest(*args, **kwargs):  # type: ignore[misc]
         raise RuntimeError("prometheus_client is not installed")
@@ -34,17 +50,27 @@ app = FastAPI(
     description="Event-driven cognitive operating system API Gateway",
 )
 
-# CORS
+# CORS — restrict origins in production via CORS_ORIGINS env var
+_cors_origins = os.getenv("CORS_ORIGINS", "*")
+_cors_origins_list = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(message_router.router)
-app.include_router(state_router.router)
+# Rate limiting middleware (must be before auth middleware)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(429, rate_limit_exceeded_handler)
+
+# Middleware d'authentification JWT (protège les routes sauf /health, /metrics, /docs)
+app.middleware("http")(auth_middleware)
+
+app.include_router(message_router)
+app.include_router(state_router)
 app.include_router(internal_router)
 
 
@@ -60,11 +86,44 @@ async def startup():
     logger.info(f"API Gateway connecting to NATS: {nats_url}")
 
     nc = await nats.connect(nats_url, name="api-gateway")
-    message_router.set_nats_client(nc)
+    set_nats_client(nc)
     logger.info("API Gateway connected to NATS")
 
     # Initialiser les nouveaux modules (Audit, Budget, Facts, Approval, SkillLab)
     init_modules(pg_conn=None)
+
+    # Initialize OpenTelemetry if available
+    if HAS_TELEMETRY:
+        try:
+            init_telemetry("ethan-api")
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("OpenTelemetry tracing enabled for API Gateway")
+        except Exception as e:
+            logger.warning(f"Failed to initialize OpenTelemetry: {e}")
+
+
+@app.post("/auth/login")
+async def login(request: Request):
+    """Login endpoint — returns a JWT token.
+
+    In production, replace this with proper credential validation (API key, OAuth2, etc.).
+    For development, accepts any valid JSON body with a 'username' field.
+    Rate limited to 5 requests per minute.
+    """
+    import json
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    username = body.get("username", "developer")
+    token = create_access_token(data={"sub": username, "role": "user"})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+    }
 
 
 @app.get("/health")
@@ -134,7 +193,8 @@ async def metrics():
 @app.on_event("shutdown")
 async def shutdown():
     """Close NATS on shutdown."""
-    nc = message_router._nats
+    from interfaces.api.routers import message as _message_router
+    nc = _message_router._nats
     if nc:
         await nc.drain()
         logger.info("API Gateway NATS connection closed")

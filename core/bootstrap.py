@@ -8,16 +8,12 @@ import os
 import signal
 import sys
 
-# NOTE: Static analysis/IDE hint only. The launcher and Docker set PYTHONPATH at runtime.
-if sys.path[0] != os.path.dirname(os.path.dirname(os.path.abspath(__file__))):
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from core.autonomy.controller import AutonomyLoopController
 from core.autonomy.curiosity import CuriosityEngine
 from core.autonomy.environment import EnvironmentAnalyzer
 from core.autonomy.weakness import WeaknessDetector
 from core.bootstrap.bootstrapper import SystemBootstrapper
-from core.bus.nats_bus import NatsEventBus
+from core.bus.nats_bus import EventBus as NatsEventBus
 from core.goals.manager import GoalManager
 from core.kernel import CognitiveKernel
 from core.learning.engine import LearningEngine
@@ -30,8 +26,9 @@ from core.metacognition.load import CognitiveLoadManager
 from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
-from core.registry.registry import ModuleRegistry
+from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
+from core.state.composite_backend import CompositeStateBackend
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
 from core.telemetry.logger import setup_logging
@@ -51,29 +48,73 @@ async def main():
     enable_learning = os.getenv("ENABLE_LEARNING", "false").lower() == "true"
     enable_metacognition = os.getenv("ENABLE_METACOGNITION", "false").lower() == "true"
     enable_autonomy = os.getenv("ENABLE_AUTONOMY", "false").lower() == "true"
+    connect_timeout = int(os.getenv("CONNECT_TIMEOUT", "10"))
 
     setup_logging(log_level)
     logger.info("Cognitive Kernel bootstrapping... learning=%s metacognition=%s autonomy=%s",
                 enable_learning, enable_metacognition, enable_autonomy)
 
-    bus = NatsEventBus()
+    bus = NatsEventBus(servers=nats_url)
     redis = RedisLiveState(redis_url)
     pg = PostgresPersistentState(database_url)
 
-    await bus.connect(nats_url)
-    await redis.connect()
-    await pg.connect()
+    # ── Résilience : retry avec timeout sur connexions externes ────────
 
-    # ── Résilience : retry sur connexion NATS ───────────────────
+    # Retry NATS connection with timeout
     for attempt in range(1, 11):
         try:
-            await bus.connect(nats_url)
+            await asyncio.wait_for(bus.connect(), timeout=connect_timeout)
+            logger.info("NATS connection established")
             break
+        except asyncio.TimeoutError:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("NATS connection timeout, retry %s/%s in %ss", attempt, 10, wait)
+            await asyncio.sleep(wait)
         except Exception as exc:
             if attempt == 10:
                 raise
             wait = min(attempt * 2, 10)
             logger.warning("NATS connection failed (%s), retry %s/%s in %ss", exc, attempt, 10, wait)
+            await asyncio.sleep(wait)
+
+    # Retry Redis connection with timeout
+    for attempt in range(1, 11):
+        try:
+            await asyncio.wait_for(redis.connect(), timeout=connect_timeout)
+            logger.info("Redis connection established")
+            break
+        except asyncio.TimeoutError:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("Redis connection timeout, retry %s/%s in %ss", attempt, 10, wait)
+            await asyncio.sleep(wait)
+        except Exception as exc:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("Redis connection failed (%s), retry %s/%s in %ss", exc, attempt, 10, wait)
+            await asyncio.sleep(wait)
+
+    # Retry PostgreSQL connection with timeout
+    for attempt in range(1, 11):
+        try:
+            await asyncio.wait_for(pg.connect(), timeout=connect_timeout)
+            logger.info("PostgreSQL connection established")
+            break
+        except asyncio.TimeoutError:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("PostgreSQL connection timeout, retry %s/%s in %ss", attempt, 10, wait)
+            await asyncio.sleep(wait)
+        except Exception as exc:
+            if attempt == 10:
+                raise
+            wait = min(attempt * 2, 10)
+            logger.warning("PostgreSQL connection failed (%s), retry %s/%s in %ss", exc, attempt, 10, wait)
             await asyncio.sleep(wait)
 
     # Run system bootstrap (integrity check + repair)
@@ -117,10 +158,12 @@ async def main():
         autonomy = AutonomyLoopController(bus=bus, redis=redis)
         logger.info("Autonomy Loop Controller initialized")
 
+    # Create composite state backend for Kernel (Clean Architecture)
+    state = CompositeStateBackend(redis, pg)
+    
     kernel = CognitiveKernel(
         bus=bus,
-        redis=redis,
-        pg=pg,
+        state=state,
         registry=registry,
         goals=goals,
         scheduler=scheduler,

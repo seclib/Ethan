@@ -2,6 +2,13 @@
 # docker-compose.prod.yml — Production overrides
 # =============================================================================
 # Usage : docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Optimisations pour la production :
+#   - Workers réduits (moins de CPU/RAM)
+#   - Healthchecks moins fréquents
+#   - Logs moins verbeux
+#   - Images pré-buildées (pas de rebuild)
+# =============================================================================
 
 services:
   api:
@@ -9,7 +16,174 @@ services:
       LOG_LEVEL: WARNING
     deploy:
       replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  kernel:
+    environment:
+      LOG_LEVEL: WARNING
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  modules:
+    environment:
+      LOG_LEVEL: WARNING
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   ui:
     environment:
       NODE_ENV: production
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  nats:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+
+  # ── Observabilité & Sécurité (patch observability) ────────────────────────
+
+  vault:
+    environment:
+      VAULT_LOG_LEVEL: warn
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  loki:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  promtail:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.02'
+          memory: 32M
+
+  grafana:
+    environment:
+      GF_LOG_LEVEL: error
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+    healthcheck:
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

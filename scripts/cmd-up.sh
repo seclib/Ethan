@@ -6,7 +6,7 @@
 #   1. Préflight (ports, binaires, RAM, DNS, .env)
 #   2. Pull séquentiel des images de base (si absentes du cache)
 #   3. docker compose up -d
-#   4. Boucle d'attente healthchecks (max 90s)
+#   4. Boucle d'attente healthchecks (max 600s, aligné avec systemd)
 #   5. Rapport final
 
 set -euo pipefail
@@ -20,12 +20,16 @@ timer_start
 
 SKIP_PREFLIGHT=false
 SKIP_PULL=false
+DEV_MODE=false
+OBSERVABILITY=false
 SERVICES=()
 
 for arg in "$@"; do
     case "$arg" in
         --skip-preflight) SKIP_PREFLIGHT=true ;;
         --skip-pull)      SKIP_PULL=true ;;
+        --dev)            DEV_MODE=true ;;
+        --observability)  OBSERVABILITY=true ;;
         -*)               warn "Option inconnue : $arg (ignorée)" ;;
         *)                SERVICES+=("$arg") ;;
     esac
@@ -33,9 +37,31 @@ done
 
 SERVICES_STR="${SERVICES[*]:-}"
 
+# ── Sélection du fichier Compose ────────────────────────────────
+COMPOSE_FILES=("-f" "${COMPOSE_FILE}")
+
+if [[ "$DEV_MODE" == "true" ]]; then
+    if [[ -f "${COMPOSE_DEV}" ]]; then
+        COMPOSE_FILES+=("-f" "${COMPOSE_DEV}")
+        info "Mode dev : ${COMPOSE_DEV} ajouté"
+    else
+        warn "Fichier dev introuvable : ${COMPOSE_DEV} — ignoré"
+    fi
+fi
+
+if [[ "$OBSERVABILITY" == "true" ]]; then
+    COMPOSE_OBS="${ETHAN_ROOT}/docker-compose.observability.yml"
+    if [[ -f "$COMPOSE_OBS" ]]; then
+        COMPOSE_FILES+=("-f" "$COMPOSE_OBS")
+        info "Observabilité : $COMPOSE_OBS ajouté"
+    else
+        warn "Fichier observabilité introuvable : $COMPOSE_OBS — ignoré"
+    fi
+fi
+
 section "Démarrage ETHAN"
 info "Répertoire : ${ETHAN_ROOT}"
-info "Compose    : ${COMPOSE_FILE}"
+info "Compose    : ${COMPOSE_FILES[*]}"
 info "Services   : ${SERVICES_STR:-<tous>}"
 
 # ── Vérification minimale (Docker) ──────────────────────────────
@@ -108,70 +134,160 @@ else
     fi
 fi
 
-# ── Étape 3 : docker compose up ─────────────────────────────────
+# ── Étape 3 : Lancement séquencé ───────────────────────────────
 
 section "3/4 — Lancement des services"
+
+wait_for_health() {
+    local target="$1"
+    local timeout="$2"
+    info "Attente de la santé de : $target (max ${timeout}s)..."
+    local waited=0
+    while [ "$waited" -lt "$timeout" ]; do
+        local healthy=0
+        local expected=0
+        local unhealthy_services=""
+        for svc in $target; do
+            # Vérifier le statut du service via docker inspect (plus fiable)
+            local container
+            container=$(docker_compose ps --format "{{.Names}}" --filter "name=${svc}" 2>/dev/null | head -1 || true)
+            if [[ -z "$container" ]]; then
+                ((expected++)) || true
+                continue
+            fi
+            local state
+            state=$(docker inspect "$container" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    s = d[0].get('State', {})
+    h = s.get('Health', {})
+    status = s.get('Status', 'unknown')
+    health = h.get('Status', 'none') if h else 'none'
+    if status == 'running' and health == 'healthy':
+        print('healthy')
+    elif status == 'running' and health == 'none':
+        print('running')
+    elif status == 'running' and health == 'starting':
+        print('starting')
+    elif status == 'exited':
+        rc = s.get('ExitCode', -1)
+        print(f'exited({rc})')
+    else:
+        print(f'{status}/{health}')
+except Exception:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+            case "$state" in
+                healthy)
+                    ((healthy++)) || true
+                    ((expected++)) || true
+                    ;;
+                running|starting)
+                    ((expected++)) || true
+                    ;;
+                exited*)
+                    unhealthy_services="$unhealthy_services $svc($state)"
+                    ((expected++)) || true
+                    ;;
+                *)
+                    unhealthy_services="$unhealthy_services $svc($state)"
+                    ((expected++)) || true
+                    ;;
+            esac
+        done
+
+        if [ "$healthy" -eq "$expected" ] && [ "$expected" -gt 0 ]; then
+            success "Services prêts : $target"
+            return 0
+        fi
+
+        # Afficher la progression toutes les 6s
+        if (( waited % 6 == 0 )); then
+            dim "  Progression : $healthy/$expected healthy (${waited}s/${timeout}s)"
+            if [[ -n "$unhealthy_services" ]]; then
+                for usvc in $unhealthy_services; do
+                    warn "  $usvc pas encore healthy"
+                done
+            fi
+        fi
+
+        # Détecter les crashs (exited avec code != 0)
+        local crashed
+        crashed=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | wc -l || echo "0")
+        if (( crashed > 0 )); then
+            local crashed_svcs
+            crashed_svcs=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | tr '\n' ' ' || true)
+            error "CRASH détecté pendant l'attente : ${crashed_svcs}"
+            info "Logs : docker compose logs ${crashed_svcs}"
+            return 1
+        fi
+
+        sleep 3
+        waited=$((waited + 3))
+    done
+    error "Timeout d'attente pour : $target (${healthy}/${expected} healthy)"
+    # Afficher les logs des services non-healthy
+    for svc in $target; do
+        container_health_log "$svc"
+    done
+    return 1
+}
 
 if (( ${#SERVICES[@]} > 0 )); then
     info "Démarrage des services : ${SERVICES_STR}"
     if ! docker_compose up -d "${SERVICES[@]}"; then
         error "Échec : docker compose up -d ${SERVICES_STR}"
-        info  "Diagnostiquer : docker compose logs"
         exit 1
     fi
+    wait_for_health "${SERVICES[*]}" 300
 else
-    info "Démarrage de tous les services"
-    if ! docker_compose up -d; then
-        error "Échec : docker compose up -d"
-        info  "Diagnostiquer : docker compose logs"
+    # 3.1 Infrastructure
+    info "Démarrage de l'infrastructure (nats, redis, postgres)..."
+    if ! docker_compose up -d nats redis postgres; then
+        error "Échec de démarrage de l'infrastructure"
         exit 1
     fi
+    wait_for_health "nats redis postgres" 120 || exit 1
+
+    # 3.2 Vérification forte de NATS (port TCP 4222)
+    info "Vérification forte de NATS (port TCP 4222)..."
+    nats_wait=0
+    while ! nc -z localhost 4222 2>/dev/null; do
+        if [ "$nats_wait" -gt 30 ]; then
+            error "NATS injoignable sur le port 4222 après 30s"
+            exit 1
+        fi
+        sleep 1
+        nats_wait=$((nats_wait + 1))
+    done
+    success "NATS TCP 4222 est actif"
+
+    # 3.3 Démarrage du Core
+    info "Démarrage du Core (api, kernel)..."
+    if ! docker_compose up -d api kernel; then
+        error "Échec de démarrage du Core"
+        exit 1
+    fi
+    wait_for_health "api kernel" 120 || exit 1
+
+    # 3.4 Démarrage des Plugins (modules)
+    info "Démarrage des Plugins (modules)..."
+    if ! docker_compose up -d modules; then
+        error "Échec de démarrage des modules"
+        exit 1
+    fi
+    wait_for_health "modules" 120 || exit 1
+
+    # 3.5 Démarrage des autres services (observabilité, ui)
+    info "Démarrage des services additionnels (ui, prometheus)..."
+    docker_compose up -d ui prometheus 2>/dev/null || true
 fi
 
-success "Commande docker compose up exécutée"
+# ── Étape 4 : Validation globale ────────────────────────────────
 
-# ── Étape 4 : Attente des healthchecks ──────────────────────────
-
-section "4/4 — Healthchecks"
-
-info "Attente des healthchecks (max 90s)..."
-MAX_WAIT=90
-WAITED=0
-SLEEP_INTERVAL=3
-LAST_HEALTHY=-1
-LAST_TOTAL=-1
-
-while [ "$WAITED" -lt "$MAX_WAIT" ]; do
-    HEALTHY=$(docker_compose ps --services --filter "health=healthy" 2>/dev/null | wc -l || echo "0")
-    TOTAL=$(docker_compose ps --services 2>/dev/null | wc -l || echo "0")
-    RUNNING=$(docker_compose ps --services --filter "status=running" 2>/dev/null | wc -l || echo "0")
-
-    # Détecter les conteneurs crashés (exited)
-    EXITED=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | wc -l || echo "0")
-
-    # Afficher la progression uniquement si changement
-    if [[ "$HEALTHY" != "$LAST_HEALTHY" || "$TOTAL" != "$LAST_TOTAL" ]]; then
-        if (( EXITED > 0 )); then
-            warn "  ${WAITED}s — ${HEALTHY}/${TOTAL} healthy, ${RUNNING}/${TOTAL} running, ${EXITED} CRASHÉS"
-            # Identifier quels services ont crashé
-            crashed_svcs=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | tr '\n' ' ' || true)
-            error "  Services crashés : ${crashed_svcs}"
-            info  "  Logs : docker compose logs ${crashed_svcs}"
-        else
-            dim "  ${WAITED}s — ${HEALTHY}/${TOTAL} healthy, ${RUNNING}/${TOTAL} running"
-        fi
-        LAST_HEALTHY="$HEALTHY"
-        LAST_TOTAL="$TOTAL"
-    fi
-
-    if [ "$TOTAL" -gt 0 ] && [ "$HEALTHY" -eq "$TOTAL" ]; then
-        success "Tous les healthchecks sont OK ($HEALTHY/$TOTAL)"
-        break
-    fi
-
-    sleep "$SLEEP_INTERVAL"
-    WAITED=$((WAITED + SLEEP_INTERVAL))
-done
+section "4/4 — Validation"
+success "Séquencement terminé avec succès"
 
 # ── Rapport final ────────────────────────────────────────────────
 
