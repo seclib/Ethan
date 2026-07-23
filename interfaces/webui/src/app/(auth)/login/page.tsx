@@ -64,7 +64,9 @@ export default function LoginPage() {
             </div>
 
             {/* Right: Status panel */}
-            <StatusPanel />
+            <div className="hidden lg:block">
+              <StatusPanel />
+            </div>
           </div>
         </div>
 

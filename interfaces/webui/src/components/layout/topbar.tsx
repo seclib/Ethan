@@ -6,14 +6,14 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/core/store/ui.store";
 import { useAuth } from "@/core/providers/auth-provider";
-import { ChevronRight, Command, Search, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/core/providers/theme-provider";
+import { ChevronRight, Command, Search, Moon, Sun, SlidersHorizontal } from "lucide-react";
 
 function Topbar() {
   const { toggleInspector, openCommandPalette } = useUIStore();
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   // Generate breadcrumbs from pathname
   const paths = pathname === "/" ? ["dashboard"] : pathname.split("/").filter(Boolean);
@@ -73,11 +73,11 @@ function Topbar() {
 
         {/* Theme toggle */}
         <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           className="rounded-md p-2 hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Toggle theme"
         >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          {resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         {/* Inspector toggle */}
@@ -87,9 +87,10 @@ function Topbar() {
             "rounded-md p-2 hover:bg-accent/10 transition-colors",
             "text-muted-foreground hover:text-foreground"
           )}
-          title="Toggle Inspector"
+          title="Toggle Inspector (Ctrl+J)"
+          aria-label="Toggle Inspector"
         >
-          <Search size={18} />
+          <SlidersHorizontal size={18} />
         </button>
 
         {/* User menu */}

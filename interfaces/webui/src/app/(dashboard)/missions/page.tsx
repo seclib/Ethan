@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { MetricCard } from "@/components/shared/metric-card";
 import { useMissions } from "@/features/missions/hooks/use-missions";
+import { MissionCreatorDialog } from "@/features/missions/components/mission-creator-dialog";
+import type { Mission } from "@/types";
 import { Play, Pause, Square, Plus, RefreshCw, AlertCircle, Target, Clock, ListChecks } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: "success" | "warning" | "error" | "default" | "info" | "dim" }> = {
@@ -20,6 +22,7 @@ const statusConfig: Record<string, { label: string; color: "success" | "warning"
 
 export default function MissionsPage() {
   const { missions, isLoading, error, refetch } = useMissions();
+  const [creatorOpen, setCreatorOpen] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -48,9 +51,9 @@ export default function MissionsPage() {
     );
   }
 
-  const running = missions?.filter((m: any) => m.status === "running").length || 0;
-  const completed = missions?.filter((m: any) => m.status === "completed").length || 0;
-  const failed = missions?.filter((m: any) => m.status === "failed").length || 0;
+  const running = missions?.filter((m: Mission) => m.status === "running").length || 0;
+  const completed = missions?.filter((m: Mission) => m.status === "completed").length || 0;
+  const failed = missions?.filter((m: Mission) => m.status === "failed").length || 0;
   const total = missions?.length || 0;
 
   return (
@@ -64,7 +67,7 @@ export default function MissionsPage() {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
             <RefreshCw size={14} /> Refresh
           </Button>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setCreatorOpen(true)}>
             <Plus size={14} /> New Mission
           </Button>
         </div>
@@ -101,16 +104,18 @@ export default function MissionsPage() {
               <Target size={48} className="text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground mb-2">No missions yet</p>
               <p className="text-sm text-muted-foreground/60 mb-4">Create your first mission to get started</p>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2" onClick={() => setCreatorOpen(true)}>
                 <Plus size={14} /> Create Mission
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              {missions?.map((mission: any) => {
+              {missions?.map((mission: Mission) => {
                 const status = statusConfig[mission.status] || statusConfig.pending;
-                const progress = mission.steps_total > 0
-                  ? Math.round((mission.steps_completed / mission.steps_total) * 100)
+                const stepsTotal = mission.steps_total || 0;
+                const stepsCompleted = mission.steps_completed || 0;
+                const progress = stepsTotal > 0
+                  ? Math.round((stepsCompleted / stepsTotal) * 100)
                   : 0;
 
                 return (
@@ -140,10 +145,10 @@ export default function MissionsPage() {
                     <div className="ml-7">
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-sm font-mono text-muted-foreground">{progress}%</div>
-                        {mission.steps_total > 0 && (
+                        {stepsTotal > 0 && (
                           <div className="text-sm text-muted-foreground flex items-center gap-1.5">
                             <ListChecks size={14} />
-                            {mission.steps_completed}/{mission.steps_total} steps
+                            {stepsCompleted}/{stepsTotal} steps
                           </div>
                         )}
                       </div>
@@ -162,6 +167,8 @@ export default function MissionsPage() {
           )}
         </CardContent>
       </Card>
+
+      <MissionCreatorDialog open={creatorOpen} onOpenChange={setCreatorOpen} />
     </div>
   );
 }

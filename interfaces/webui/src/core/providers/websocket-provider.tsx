@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode, useCallback } from "react";
+import { logger } from "@/lib/logger";
 
-type WebSocketStatus = "connecting" | "connected" | "disconnected" | "error";
+type WebSocketStatus = "connecting" | "connected" | "disconnected" | "error" | "reconnecting";
 
 interface WebSocketContextType {
   status: WebSocketStatus;
@@ -14,26 +15,52 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/api/v1/ws";
+const MAX_RECONNECT_DELAY = 30000;
+const INITIAL_RECONNECT_DELAY = 1000;
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<WebSocketStatus>("disconnected");
   const [lastEvent, setLastEvent] = useState<any | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const subscriptionsRef = useRef<Set<string>>(new Set());
 
-  const connect = () => {
+  const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    setStatus("connecting");
+    setStatus(reconnectAttemptRef.current > 0 ? "reconnecting" : "connecting");
 
     try {
       const token = localStorage.getItem("ethan_token");
-      const url = token ? `${WS_URL}?token=${token}` : WS_URL;
+      const isProduction = process.env.NODE_ENV === "production";
+      let wsUrl = WS_URL;
+      
+      if (isProduction && wsUrl.startsWith("ws://")) {
+        wsUrl = wsUrl.replace("ws://", "wss://");
+      }
+      
+      const url = token ? `${wsUrl}?token=${token}` : wsUrl;
+      const logUrl = token ? `${wsUrl}?token=***` : wsUrl;
+      
+      logger.debug(`WebSocket connecting to ${logUrl}`);
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
+        logger.debug("WebSocket connected");
         setStatus("connected");
+        reconnectAttemptRef.current = 0; // Reset reconnect attempts
+        
+        // Start Heartbeat (ping every 30s)
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping", timestamp: Date.now() }));
+          }
+        }, 30000);
+
         // Resubscribe to all channels
         subscriptionsRef.current.forEach((channel) => {
           ws.send(JSON.stringify({ type: "subscribe", channel }));
@@ -43,63 +70,92 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (data.type === "pong") return; // Ignore heartbeat responses
           setLastEvent(data);
         } catch {
           // Ignore malformed messages
         }
       };
 
+      const scheduleReconnect = () => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+        
+        const delay = Math.min(
+          INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttemptRef.current),
+          MAX_RECONNECT_DELAY
+        );
+        
+        reconnectAttemptRef.current += 1;
+        
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connect();
+        }, delay);
+      };
+
       ws.onclose = () => {
+        logger.debug("WebSocket closed");
         setStatus("disconnected");
         wsRef.current = null;
-        // Auto-reconnect after 5 seconds
-        reconnectTimeoutRef.current = setTimeout(connect, 5000);
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+        scheduleReconnect();
       };
 
       ws.onerror = () => {
         setStatus("error");
-        ws.close();
+        // onclose will be triggered immediately after onerror
       };
 
       wsRef.current = ws;
-    } catch {
+    } catch (e) {
       setStatus("error");
-      // Retry connection after 10 seconds
-      reconnectTimeoutRef.current = setTimeout(connect, 10000);
+      // Trigger reconnect manually if construction failed
+      const delay = Math.min(
+        INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttemptRef.current),
+        MAX_RECONNECT_DELAY
+      );
+      reconnectAttemptRef.current += 1;
+      
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connect();
+      }, delay);
     }
-  };
+  }, []);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
     }
     subscriptionsRef.current.clear();
     wsRef.current?.close();
     wsRef.current = null;
     setStatus("disconnected");
-  };
+  }, []);
 
-  const subscribe = (channel: string) => {
+  const subscribe = useCallback((channel: string) => {
     subscriptionsRef.current.add(channel);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "subscribe", channel }));
     }
-  };
+  }, []);
 
-  const unsubscribe = (channel: string) => {
+  const unsubscribe = useCallback((channel: string) => {
     subscriptionsRef.current.delete(channel);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "unsubscribe", channel }));
     }
-  };
+  }, []);
 
-  // Connect on mount, disconnect on unmount
   useEffect(() => {
     connect();
     return () => disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [connect, disconnect]);
 
   return (
     <WebSocketContext.Provider

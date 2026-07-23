@@ -255,3 +255,5 @@ export const settingsService = {
   get: () => apiClient.getSettings(),
   update: (data: any) => apiClient.updateSettings(data),
 };
+
+export type { HealthStatus, SystemMetrics } from "./types";

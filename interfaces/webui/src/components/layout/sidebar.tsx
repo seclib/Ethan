@@ -113,9 +113,9 @@ function Sidebar() {
                             isActive
                               ? "bg-accent/15 text-accent font-medium"
                               : "hover:bg-accent/10 hover:text-accent text-muted-foreground",
-                            !sidebarExpanded && "justify-center px-0"
+                            !sidebarExpanded && "justify-center px-0 sidebar-tooltip"
                           )}
-                          title={!sidebarExpanded ? item.label : undefined}
+                          data-tooltip={!sidebarExpanded ? item.label : undefined}
                         >
                           {isActive && (
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-md" />

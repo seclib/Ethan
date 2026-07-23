@@ -2,18 +2,108 @@
 
 import * as React from "react";
 import { useUIStore } from "@/core/store/ui.store";
-import { X } from "lucide-react";
+import { X, Play, Pause, Square, Terminal, FileJson, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
+import { useMission } from "@/features/missions/hooks/use-missions";
+import { useAgent } from "@/features/agents/hooks/use-agents";
+import { useGoal } from "@/features/goals/hooks/use-goals";
+import { Spinner } from "@/components/ui/spinner";
+
+function EntityDetails({ type, id }: { type: string; id: string }) {
+  const { mission, isLoading: missionLoading } = useMission(type === "mission" ? id : null);
+  const { agent, isLoading: agentLoading } = useAgent(type === "agent" ? id : null);
+  const { goal, isLoading: goalLoading } = useGoal(type === "goal" ? id : null);
+
+  const isLoading = missionLoading || agentLoading || goalLoading;
+  
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><Spinner /></div>;
+  }
+
+  const data = mission || agent || goal;
+
+  if (!data) {
+    return <p className="text-sm text-destructive">Entity not found.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Overview */}
+      <div>
+        <h3 className="text-lg font-semibold mb-1">{(data as any).name || (data as any).title || "Unnamed Entity"}</h3>
+        <p className="text-sm text-muted-foreground">{data.description || "No description provided."}</p>
+        
+        <div className="flex gap-2 mt-3">
+          <Badge variant={data.status === "running" || data.status === "active" ? "success" : "default"}>
+            {data.status || "unknown"}
+          </Badge>
+          <Badge variant="default" className="font-mono text-[10px] bg-transparent border-border text-foreground">{id.split("-")[0]}</Badge>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Quick Actions */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Actions</h4>
+        <div className="grid grid-cols-2 gap-2">
+          {data.status === "running" ? (
+            <Button size="sm" variant="outline" className="w-full gap-2">
+              <Pause size={14} /> Pause
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="w-full gap-2">
+              <Play size={14} /> Start
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="w-full gap-2 text-destructive hover:bg-destructive/10">
+            <Square size={14} /> Kill
+          </Button>
+          <Button size="sm" variant="outline" className="w-full gap-2">
+            <Terminal size={14} /> Logs
+          </Button>
+          <Button size="sm" variant="outline" className="w-full gap-2">
+            <Activity size={14} /> Metrics
+          </Button>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Raw Data */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <FileJson size={14} /> Raw Payload
+        </h4>
+        <pre className="text-[10px] font-mono bg-muted p-3 rounded-md overflow-x-auto text-muted-foreground">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
 
 export function GlobalInspector() {
   const { inspectorOpen, inspector, closeInspector } = useUIStore();
 
   return (
     <>
+      {/* Backdrop for mobile (optional) */}
+      {inspectorOpen && (
+        <div 
+          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden" 
+          onClick={closeInspector}
+        />
+      )}
+      
       {/* Inspector Panel */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-40 h-screen w-80 border-l bg-background shadow-2xl transition-transform duration-300",
+          "fixed right-0 top-0 z-40 h-screen w-full md:w-[400px] border-l bg-background shadow-2xl transition-transform duration-300",
           inspectorOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -31,21 +121,12 @@ export function GlobalInspector() {
         
         <div className="p-4 overflow-y-auto h-[calc(100vh-3.5rem)] custom-scrollbar">
           {!inspector.id ? (
-            <p className="text-sm text-foreground-tertiary">Select an item to inspect its details.</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-foreground-tertiary uppercase">ID</span>
-                <p className="text-sm font-mono break-all bg-elevated px-2 py-1 rounded">{inspector.id}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-foreground-tertiary uppercase">Type</span>
-                <p className="text-sm font-mono break-all bg-elevated px-2 py-1 rounded">{inspector.type}</p>
-              </div>
-              <p className="text-xs text-muted-foreground italic mt-4">
-                Detailed contextual data will appear here based on the selected {inspector.type}.
-              </p>
+            <div className="flex flex-col items-center justify-center h-40 text-center space-y-3">
+              <Activity size={32} className="text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">Select an item (Mission, Agent, Goal) to inspect its details.</p>
             </div>
+          ) : (
+            <EntityDetails type={inspector.type!} id={inspector.id} />
           )}
         </div>
       </aside>

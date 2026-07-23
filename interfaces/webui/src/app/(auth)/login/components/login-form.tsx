@@ -25,7 +25,7 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
       <div>
         <label
           htmlFor="operator-id"
-          className="block text-[10px] tracking-[0.15em] text-white/30 uppercase font-mono mb-2"
+          className="block text-[10px] tracking-[0.15em] text-foreground-tertiary uppercase font-mono mb-2"
         >
           Operator ID
         </label>
@@ -38,7 +38,7 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
           required
           autoComplete="username"
           spellCheck={false}
-          className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded text-[13px] text-white/80 placeholder:text-white/15 font-mono outline-none transition-colors focus:border-cyan-400/40 focus:bg-white/[0.07]"
+          className="w-full h-10 px-3 bg-surface border border-line-2 rounded text-[13px] text-foreground placeholder:text-foreground-tertiary font-mono outline-none transition-colors focus:border-accent focus:bg-surface-hover"
         />
       </div>
 
@@ -46,7 +46,7 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
       <div>
         <label
           htmlFor="password"
-          className="block text-[10px] tracking-[0.15em] text-white/30 uppercase font-mono mb-2"
+          className="block text-[10px] tracking-[0.15em] text-foreground-tertiary uppercase font-mono mb-2"
         >
           Password
         </label>
@@ -58,7 +58,7 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
           placeholder="••••••••"
           required
           autoComplete="current-password"
-          className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded text-[13px] text-white/80 placeholder:text-white/15 font-mono outline-none transition-colors focus:border-cyan-400/40 focus:bg-white/[0.07]"
+          className="w-full h-10 px-3 bg-surface border border-line-2 rounded text-[13px] text-foreground placeholder:text-foreground-tertiary font-mono outline-none transition-colors focus:border-accent focus:bg-surface-hover"
         />
       </div>
 
@@ -69,15 +69,15 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="w-3 h-3 rounded border border-white/20 bg-white/5 accent-cyan-400"
+            className="w-3 h-3 rounded border border-line-2 bg-surface accent-accent"
           />
-          <span className="text-[10px] tracking-[0.05em] text-white/30 font-mono">
+          <span className="text-[10px] tracking-[0.05em] text-foreground-tertiary font-mono">
             Remember device
           </span>
         </label>
         <button
           type="button"
-          className="text-[10px] tracking-[0.05em] text-white/20 font-mono hover:text-white/40 transition-colors"
+          className="text-[10px] tracking-[0.05em] text-foreground-tertiary font-mono hover:text-foreground-secondary transition-colors"
         >
           Forgot credentials
         </button>
@@ -88,9 +88,9 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="py-2 px-3 bg-red-500/10 border border-red-500/20 rounded"
+          className="py-2 px-3 bg-red-soft border border-red/20 rounded"
         >
-          <p className="text-[11px] font-mono text-red-400/80">
+          <p className="text-[11px] font-mono text-red/80">
             ACCESS DENIED — {error}
           </p>
         </motion.div>
@@ -100,12 +100,12 @@ export function LoginForm({ onSubmit, isLoading, error }: LoginFormProps) {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full h-10 bg-white/5 border border-white/10 rounded text-[11px] tracking-[0.2em] uppercase font-semibold text-white/60 transition-all duration-150 hover:bg-white/10 hover:border-white/20 hover:text-white/80 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:border-white/10 disabled:hover:text-white/60 disabled:hover:scale-100"
+        className="w-full h-10 bg-surface border border-line-2 rounded text-[11px] tracking-[0.2em] uppercase font-semibold text-foreground-secondary transition-all duration-150 hover:bg-surface-hover hover:border-line-3 hover:text-foreground active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface disabled:hover:border-line-2 disabled:hover:text-foreground-secondary disabled:hover:scale-100"
       >
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">
             <svg
-              className="animate-spin h-3.5 w-3.5 text-cyan-400"
+              className="animate-spin h-3.5 w-3.5 text-accent"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"

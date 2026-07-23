@@ -3,6 +3,8 @@ import { ThemeProvider } from "@/core/providers/theme-provider";
 import { QueryProvider } from "@/core/providers/query-provider";
 import { WebSocketProvider } from "@/core/providers/websocket-provider";
 import { AuthProvider } from "@/core/providers/auth-provider";
+import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
+import { ToastProvider } from "@/components/ui/toast-provider";
 import "./globals.css";
 
 export const metadata = {
@@ -23,7 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <WebSocketProvider>
               <AuthProvider>
+                <AtmosphereLayer />
                 {children}
+                <ToastProvider />
               </AuthProvider>
             </WebSocketProvider>
           </QueryProvider>

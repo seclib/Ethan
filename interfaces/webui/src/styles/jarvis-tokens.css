@@ -1,0 +1,80 @@
+/* ───────── JarvisOS Design Tokens ───────── */
+/* Inspiré de JarvisOS — palette nuit/terminal */
+
+:root {
+  /* Core palette */
+  --j-primary: #00d4ff;
+  --j-primary-hover: #00b8e6;
+  --j-primary-soft: rgba(0, 212, 255, 0.12);
+  --j-primary-line: rgba(0, 212, 255, 0.32);
+
+  --j-bg-0: #05070f;
+  --j-bg-1: #0a0e1a;
+  --j-bg-2: #121826;
+  --j-bg-3: #1a2234;
+
+  --j-fg-0: #f0f4ff;
+  --j-fg-1: rgba(240, 244, 255, 0.85);
+  --j-fg-2: rgba(240, 244, 255, 0.55);
+  --j-fg-3: rgba(240, 244, 255, 0.35);
+  --j-fg-4: rgba(240, 244, 255, 0.15);
+
+  --j-border-1: rgba(0, 212, 255, 0.08);
+  --j-border-2: rgba(0, 212, 255, 0.15);
+  --j-border-3: rgba(0, 212, 255, 0.25);
+
+  /* Status colors */
+  --j-green: #00ff88;
+  --j-green-soft: rgba(0, 255, 136, 0.12);
+  --j-red: #ff4757;
+  --j-red-soft: rgba(255, 71, 87, 0.12);
+  --j-amber: #ffa502;
+  --j-amber-soft: rgba(255, 165, 2, 0.12);
+  --j-purple: #8e44fd;
+  --j-purple-soft: rgba(142, 68, 253, 0.12);
+
+  /* Radius & shadows */
+  --j-radius-sm: 6px;
+  --j-radius-md: 10px;
+  --j-radius-lg: 16px;
+  --j-radius-xl: 24px;
+
+  --j-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --j-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --j-shadow-lg: 0 8px 32px rgba(0, 212, 255, 0.08);
+  --j-shadow-xl: 0 16px 64px rgba(0, 212, 255, 0.12);
+
+  /* Typography */
+  --j-font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --j-font-sans: "Inter", system-ui, sans-serif;
+  --j-font-size-xs: 11px;
+  --j-font-size-sm: 12px;
+  --j-font-size-base: 13px;
+  --j-font-size-md: 14px;
+  --j-font-size-lg: 16px;
+  --j-font-size-xl: 18px;
+  --j-font-size-2xl: 24px;
+  --j-font-size-3xl: 32px;
+}
+
+/* ───────── Dark theme override (default) ───────── */
+[data-theme="light"] {
+  --j-primary: #0099cc;
+  --j-primary-hover: #007fa3;
+  --j-bg-0: #f8fafc;
+  --j-bg-1: #ffffff;
+  --j-bg-2: #f1f5f9;
+  --j-bg-3: #e2e8f0;
+  --j-fg-0: #0f172a;
+  --j-fg-1: rgba(15, 23, 42, 0.85);
+  --j-fg-2: rgba(15, 23, 42, 0.55);
+  --j-fg-3: rgba(15, 23, 42, 0.35);
+  --j-fg-4: rgba(15, 23, 42, 0.15);
+  --j-border-1: rgba(15, 23, 42, 0.08);
+  --j-border-2: rgba(15, 23, 42, 0.15);
+  --j-border-3: rgba(15, 23, 42, 0.25);
+  --j-green: #00b893;
+  --j-red: #e12d39;
+  --j-amber: #d97706;
+  --j-purple: #7c3aed;
+}

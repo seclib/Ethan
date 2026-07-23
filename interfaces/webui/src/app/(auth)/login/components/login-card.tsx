@@ -17,8 +17,8 @@ export function LoginCard({ children }: LoginCardProps) {
     >
       {/* Logo */}
       <div className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-white/10 bg-white/[0.02] mb-4">
-          <span className="text-xl font-bold tracking-tight text-cyan-400 select-none">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-line-2 bg-surface mb-4">
+          <span className="text-xl font-bold tracking-tight text-accent select-none">
             E
           </span>
         </div>
@@ -30,7 +30,7 @@ export function LoginCard({ children }: LoginCardProps) {
         </p>
         <div className="mt-4 flex items-center justify-center gap-2">
           <span className="w-4 h-px bg-white/10" />
-          <span className="text-[9px] tracking-[0.2em] text-cyan-400/50 uppercase font-mono">
+          <span className="text-[9px] tracking-[0.2em] text-accent/50 uppercase font-mono">
             Secure Authentication Terminal
           </span>
           <span className="w-4 h-px bg-white/10" />

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { User } from "@/types";
+import { logger } from "@/lib/logger";
 
 interface AuthContextType {
   user: User | null;
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem("ethan_token");
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        logger.error("Auth check failed:", error);
         localStorage.removeItem("ethan_token");
       } finally {
         setIsLoading(false);
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      console.error("Logout error:", error);
+      logger.error("Logout error:", error);
     } finally {
       localStorage.removeItem("ethan_token");
       setUser(null);
@@ -119,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error("Token refresh failed:", error);
+      logger.error("Token refresh failed:", error);
       localStorage.removeItem("ethan_token");
       setUser(null);
     }

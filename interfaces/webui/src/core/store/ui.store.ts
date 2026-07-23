@@ -20,6 +20,11 @@ interface UIState {
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
 
+  // Mission Control
+  missionControlOpen: boolean;
+  setMissionControlOpen: (open: boolean) => void;
+  toggleMissionControl: () => void;
+
   // Theme
   theme: "dark" | "light" | "system";
   setTheme: (theme: "dark" | "light" | "system") => void;
@@ -59,6 +64,11 @@ export const useUIStore = create<UIState>()(
       commandPaletteOpen: false,
       openCommandPalette: () => set({ commandPaletteOpen: true }),
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
+
+      // Mission Control
+      missionControlOpen: false,
+      setMissionControlOpen: (open) => set({ missionControlOpen: open }),
+      toggleMissionControl: () => set((state) => ({ missionControlOpen: !state.missionControlOpen })),
 
       // Theme
       theme: "dark",

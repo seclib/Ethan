@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agentsService } from "@/core/api/api-client";
+import { useUIStore } from "@/core/store/ui.store";
 import type { Agent } from "@/types";
 
 export function useAgents() {
@@ -40,7 +41,17 @@ export function useCreateAgent() {
     mutationFn: (data: { name: string; capabilities?: string[] }) => agentsService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
+      useUIStore.getState().addToast({
+        type: "success",
+        message: "Agent deployed successfully",
+      });
     },
+    onError: (err) => {
+      useUIStore.getState().addToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to deploy agent",
+      });
+    }
   });
 
   return {
@@ -65,7 +76,17 @@ export function useUpdateAgent() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       queryClient.invalidateQueries({ queryKey: ["agents", variables.id] });
+      useUIStore.getState().addToast({
+        type: "success",
+        message: "Agent parameters updated",
+      });
     },
+    onError: (err) => {
+      useUIStore.getState().addToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to update agent",
+      });
+    }
   });
 
   return {

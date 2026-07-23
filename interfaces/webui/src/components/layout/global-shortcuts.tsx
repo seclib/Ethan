@@ -6,7 +6,14 @@ import { useUIStore } from "@/core/store/ui.store";
 
 export function GlobalShortcuts() {
   const router = useRouter();
-  const { toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette } = useUIStore();
+  const { 
+    toggleSidebar, 
+    commandPaletteOpen, 
+    openCommandPalette, 
+    closeCommandPalette,
+    toggleInspector,
+    toggleMissionControl
+  } = useUIStore();
   
   // Track sequence for "g" commands
   const [keySequence, setKeySequence] = React.useState<string[]>([]);
@@ -43,6 +50,20 @@ export function GlobalShortcuts() {
       if (isCmdOrCtrl && e.shiftKey && key === "l") {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+
+      // ⌘ + J = Toggle Inspector
+      if (isCmdOrCtrl && key === "j") {
+        e.preventDefault();
+        toggleInspector();
+        return;
+      }
+
+      // ⌘ + M = Toggle Mission Control
+      if (isCmdOrCtrl && key === "m") {
+        e.preventDefault();
+        toggleMissionControl();
         return;
       }
 
@@ -99,7 +120,7 @@ export function GlobalShortcuts() {
       window.removeEventListener("keydown", handleKeyDown);
       clearTimeout(timeoutId);
     };
-  }, [router, toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette, keySequence]);
+  }, [router, toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette, keySequence, toggleInspector, toggleMissionControl]);
 
   return null;
 }

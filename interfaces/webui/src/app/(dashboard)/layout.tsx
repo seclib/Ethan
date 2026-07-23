@@ -4,6 +4,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { GlobalCommandPalette } from "@/components/layout/global-command-palette";
 import { GlobalInspector } from "@/components/layout/global-inspector";
+import { MissionControlOverlay } from "@/components/layout/mission-control-overlay";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,7 @@ export default function DashboardLayout({
       <GlobalShortcuts />
       <GlobalCommandPalette />
       <GlobalInspector />
+      <MissionControlOverlay />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />

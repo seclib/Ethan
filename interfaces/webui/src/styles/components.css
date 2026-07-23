@@ -1,0 +1,258 @@
+/* ───────── Micro-interactions ───────── */
+.btn-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.12);
+}
+.btn-lift:active {
+  transform: translateY(0);
+}
+.card-glow {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.card-glow:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px -4px rgba(96, 165, 250, 0.10);
+}
+.link-underline {
+  text-decoration: none;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  transition: background-size 0.25s ease;
+}
+.link-underline:hover {
+  background-size: 100% 1px;
+}
+.inspector-active * {
+  outline: 1px solid rgba(96, 165, 250, 0.15) !important;
+  cursor: crosshair !important;
+}
+.inspector-active *:hover {
+  outline: 1.5px solid rgba(96, 165, 250, 0.45) !important;
+}
+
+/* ───────── KPI Cards ───────── */
+.kpi-card {
+  background: var(--bg-1);
+  border: 0.5px solid var(--line-2);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.kpi-card:hover {
+  border-color: var(--line-3);
+  box-shadow: 0 0 30px -6px rgba(96, 165, 250, 0.08);
+}
+.kpi-label {
+  font-family: ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.kpi-value {
+  font-family: system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+  color: var(--fg-0);
+  line-height: 1.1;
+}
+
+/* ───────── Detail Panel ───────── */
+.detail-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(6, 8, 13, 0.4);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  animation: fadeIn 0.2s ease both;
+}
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 85vw);
+  z-index: 2001;
+  background: var(--bg-0);
+  border-left: 0.5px solid var(--line-2);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+/* ───────── Tasks Widget ───────── */
+.tasks-widget {
+  background: var(--bg-1);
+  border: 0.5px solid var(--line-2);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tasks-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.tasks-item[data-done="true"] { opacity: 0.5; }
+.tasks-item[data-done="true"] .tasks-label { text-decoration: line-through; }
+
+/* ───────── Approval Modal ───────── */
+.approval-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  background: rgba(6, 8, 13, 0.5);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  display: grid;
+  place-items: center;
+  animation: fadeIn 0.15s ease both;
+}
+.approval-modal {
+  width: min(440px, 85vw);
+  background: var(--bg-1);
+  border: 0.5px solid var(--line-2);
+  border-radius: 16px;
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ───────── Syntax highlighting ───────── */
+.hl-keyword { color: #c084fc; font-weight: 500; }
+.hl-string { color: #34d399; }
+.hl-comment { color: var(--fg-4); font-style: italic; }
+.hl-number { color: #fbbf24; }
+
+/* ───────── Animations ───────── */
+/* ───────── Page-level animation ───────── */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease both;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up {
+    animation: fadeInUp 0.3s ease both;
+  }
+  @keyframes pageIn {
+    from { opacity: 0; transform: translateY(8px); filter: blur(6px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  .page-in {
+    animation: pageIn 0.35s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes sidebarBreath {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  .sidebar-breath {
+    animation: sidebarBreath 4s ease-in-out infinite;
+  }
+  @keyframes skeletonPulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--line-1) 25%, var(--line-2) 50%, var(--line-1) 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0%); }
+  }
+}
+
+/* ───────── Skeleton loaders ───────── */
+.kpi-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px;
+}
+.card-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+/* ───────── Dashboard grid ───────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+}
+
+/* ───────── Tooltips (sidebar only) ───────── */
+.sidebar-tooltip {
+  position: relative;
+}
+.sidebar-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 9999;
+  padding: 4px 8px;
+  background: var(--bg-3);
+  color: var(--fg-0);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  border-radius: 4px;
+  border: 0.5px solid var(--line-2);
+  pointer-events: none;
+  animation: fadeIn 0.15s ease;
+}
+/* ───────── Subpages pills ───────── */
+.subpages-pills {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--line-1);
+  border: 0.5px solid var(--line-2);
+  border-radius: 999px;
+  font-family: ui-monospace, monospace;
+  overflow-x: auto;
+  width: fit-content;
+}

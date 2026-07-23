@@ -146,17 +146,17 @@ export function getStatusColor(status: string): "default" | "success" | "warning
 
 
 /**
- * Get priority color
+ * Get priority color as Badge variant
  */
-export function getPriorityColor(priority: string): string {
-  const colors: Record<string, string> = {
-    low: "text-gray-400",
-    medium: "text-blue-400",
-    high: "text-yellow-400",
-    critical: "text-red-400",
+export function getPriorityColor(priority: string): "default" | "success" | "warning" | "error" | "info" | "dim" {
+  const colors: Record<string, "default" | "success" | "warning" | "error" | "info" | "dim"> = {
+    low: "dim",
+    medium: "info",
+    high: "warning",
+    critical: "error",
   };
 
-  return colors[priority] || "text-gray-400";
+  return colors[priority] || "dim";
 }
 
 /**

@@ -4,22 +4,24 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 interface CardProps extends React.ComponentProps<"div"> {
-  variant?: "default" | "elevated" | "outlined";
+  variant?: "default" | "elevated" | "outlined" | "ghost" | "flat";
   hoverable?: boolean;
 }
 
-function Card({ className, variant = "default", hoverable = false, ...props }: CardProps) {
+function Card({ className, variant = "outlined", hoverable = false, ...props }: CardProps) {
   const variantClasses = {
     default: "bg-background",
     elevated: "bg-background shadow-md",
     outlined: "bg-background border border-line-2",
+    ghost: "border-0 bg-transparent",
+    flat: "bg-surface border-0",
   };
 
   return (
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border py-5 transition-all duration-100",
+        "flex flex-col gap-6 rounded-xl border py-5 transition-all duration-150",
         variantClasses[variant],
         hoverable && "cursor-pointer hover:border-line-3 hover:shadow-lg hover:glow-sm",
         variant === "default" && "border-line-1",

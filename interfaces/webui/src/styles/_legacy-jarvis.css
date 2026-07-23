@@ -1,0 +1,151 @@
+/* ───────── Top Nav ───────── */
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 44px;
+  background: rgba(10, 14, 22, 0.75);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 0.5px solid var(--line-2);
+}
+.top-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 16px;
+}
+.top-nav-link {
+  appearance: none;
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.top-nav-link:hover {
+  color: var(--fg-1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.top-nav-link[data-active="true"] {
+  color: var(--fg-0);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.top-nav-chapter {
+  font-family: system-ui, sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.7;
+}
+.top-nav-link[data-active="true"] .top-nav-chapter {
+  opacity: 1;
+}
+
+/* ───────── Rooms Navigation (bottom pills) ───────── */
+.rooms-pages {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(10, 14, 22, 0.70);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 0.5px solid var(--line-2);
+  border-radius: 999px;
+  font-family: ui-monospace, monospace;
+}
+.rooms-pages button {
+  appearance: none;
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.rooms-pages button:hover {
+  color: var(--fg-1);
+  background: rgba(255, 255, 255, 0.04);
+}
+.rooms-pages button[data-active="true"] {
+  color: var(--fg-0);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+/* ───────── Chapter indicator ───────── */
+.rooms-chapter {
+  position: fixed;
+  top: 28px;
+  left: 36px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  pointer-events: none;
+}
+
+/* ───────── Mission Control trigger ───────── */
+.rooms-mc {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px 8px 10px;
+  background: rgba(10, 14, 22, 0.75);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 0.5px solid var(--line-2);
+  border-radius: 999px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.rooms-mc:hover {
+  color: var(--fg-1);
+  border-color: var(--accent-line);
+  background: rgba(10, 14, 22, 0.90);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 4px 24px rgba(96, 165, 250, 0.10);
+}

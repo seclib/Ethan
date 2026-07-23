@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Plus } from "lucide-react";
+import { GoalCreatorDialog } from "@/features/goals/components/goal-creator-dialog";
 
 interface Task {
   id: string;
@@ -22,6 +23,8 @@ export default function PlannerPage() {
     { id: "4", name: "Test", status: "pending", progress: 0 },
   ]);
 
+  const [creatorOpen, setCreatorOpen] = React.useState(false);
+
   const statusColor = { pending: "dim", running: "info", done: "success", failed: "error" } as const;
 
   return (
@@ -33,7 +36,8 @@ export default function PlannerPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" icon={<Pause className="w-4 h-4" />}>Pause</Button>
-          <Button variant="primary" icon={<Play className="w-4 h-4" />}>Run</Button>
+          <Button variant="secondary" icon={<Play className="w-4 h-4" />}>Run</Button>
+          <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setCreatorOpen(true)}>New Goal</Button>
         </div>
       </div>
 
@@ -52,6 +56,8 @@ export default function PlannerPage() {
           </Card>
         ))}
       </div>
+
+      <GoalCreatorDialog open={creatorOpen} onOpenChange={setCreatorOpen} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface AvatarProps extends React.ComponentProps<"div"> {
@@ -44,10 +45,12 @@ function Avatar({ className, src, alt = "", fallback, size = "md", ...props }: A
       {...props}
     >
       {showImage ? (
-        <img
-          src={src}
+        <Image
+          src={src!}
           alt={alt || fallback || ""}
-          className="w-full h-full object-cover"
+          fill
+          sizes="100%"
+          className="object-cover"
           onError={() => setImgError(true)}
         />
       ) : (

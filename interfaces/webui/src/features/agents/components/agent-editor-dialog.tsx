@@ -1,0 +1,182 @@
+"use client";
+
+import * as React from "react";
+import { Dialog } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { useCreateAgent, useUpdateAgent, useAgent } from "@/features/agents/hooks/use-agents";
+import { X, Plus, Cpu } from "lucide-react";
+import type { Agent } from "@/types";
+
+interface AgentEditorDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  agentId?: string | null;
+}
+
+export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDialogProps) {
+  const { agent, isLoading: isFetching } = useAgent(agentId || null);
+  const { mutate: createAgent, isLoading: isCreating } = useCreateAgent();
+  const { mutate: updateAgent, isLoading: isUpdating } = useUpdateAgent();
+  
+  const [name, setName] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [capabilities, setCapabilities] = React.useState<string[]>([]);
+  const [capabilityInput, setCapabilityInput] = React.useState("");
+
+  const isEditing = !!agentId;
+  const isLoading = isCreating || isUpdating;
+
+  // Populate form when agent data is loaded
+  React.useEffect(() => {
+    if (agent && isEditing) {
+      setName(agent.name || "");
+      setDescription(agent.description || "");
+      setCapabilities(agent.capabilities || []);
+    } else if (!isEditing) {
+      // Reset form on new
+      setName("");
+      setDescription("");
+      setCapabilities([]);
+    }
+  }, [agent, isEditing]);
+
+  const handleAddCapability = () => {
+    const val = capabilityInput.trim().toLowerCase();
+    if (val && !capabilities.includes(val)) {
+      setCapabilities([...capabilities, val]);
+      setCapabilityInput("");
+    }
+  };
+
+  const handleRemoveCapability = (cap: string) => {
+    setCapabilities(capabilities.filter(c => c !== cap));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    try {
+      if (isEditing && agentId) {
+        await updateAgent(agentId, {
+          name,
+          description,
+          capabilities,
+        });
+      } else {
+        await createAgent({
+          name,
+          capabilities,
+          // If backend supports description in create, pass it here
+          // description, 
+        });
+      }
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to save agent", error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange} size="md" title={isEditing ? "Edit Cognitive Agent" : "Deploy New Agent"}>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {isFetching ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <Cpu size={32} className="animate-pulse text-muted-foreground/50 mb-4" />
+            <p className="text-sm text-muted-foreground">Loading agent core...</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Designation <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Data Analyst"
+                  className="bg-elevated border-line-2 font-mono text-sm"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Operating Parameters (Description)
+                </label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Defines the agent's primary directive and context..."
+                  className="bg-elevated border-line-2 resize-none text-sm"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Neural Capabilities
+                </label>
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    value={capabilityInput}
+                    onChange={(e) => setCapabilityInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCapability();
+                      }
+                    }}
+                    placeholder="e.g. text-processing"
+                    className="bg-elevated border-line-2 h-9 text-sm font-mono"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="secondary" 
+                    className="h-9 px-3 shrink-0"
+                    onClick={handleAddCapability}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {capabilities.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">No capabilities installed.</span>
+                  ) : (
+                    capabilities.map(cap => (
+                      <Badge key={cap} variant="info" className="gap-1 bg-accent/10 text-accent hover:bg-accent/20 transition-colors border-accent/20">
+                        {cap}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCapability(cap)}
+                          className="hover:text-foreground transition-colors ml-1"
+                        >
+                          <X size={12} />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-line-1 mt-6">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Abort
+              </Button>
+              <Button type="submit" variant="primary" disabled={isLoading || !name.trim()}>
+                {isLoading ? "Processing..." : isEditing ? "Save Parameters" : "Deploy Agent"}
+              </Button>
+            </div>
+          </>
+        )}
+      </form>
+    </Dialog>
+  );
+}

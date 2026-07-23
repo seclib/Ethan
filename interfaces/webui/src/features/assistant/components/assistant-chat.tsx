@@ -26,7 +26,7 @@ export function AssistantChat({ messages, metrics, onSend, disabled }: Assistant
         {messages.length === 0 && (
           <div className="text-center text-gray-500 text-sm mt-20">
             <p className="text-lg mb-2">💬</p>
-            <p>Commencez une conversation avec l'assistant</p>
+            <p>{`Commencez une conversation avec l'assistant`}</p>
           </div>
         )}
         {messages.map((msg) => (

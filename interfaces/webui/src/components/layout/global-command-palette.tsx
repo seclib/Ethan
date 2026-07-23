@@ -23,7 +23,7 @@ import {
 
 export function GlobalCommandPalette() {
   const router = useRouter();
-  const { commandPaletteOpen, closeCommandPalette } = useUIStore();
+  const { commandPaletteOpen, closeCommandPalette, toggleMissionControl } = useUIStore();
 
   const handleNavigate = (path: string) => {
     router.push(path);
@@ -37,6 +37,17 @@ export function GlobalCommandPalette() {
       icon: <LayoutDashboard />,
       shortcut: "G D",
       onSelect: () => handleNavigate("/"),
+    },
+    {
+      id: "cmd-mission-control",
+      label: "Launch Mission Control",
+      category: "Commands",
+      icon: <TerminalIcon />,
+      shortcut: "⌘M",
+      onSelect: () => {
+        closeCommandPalette();
+        toggleMissionControl();
+      },
     },
     {
       id: "nav-assistant",

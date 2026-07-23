@@ -16,6 +16,7 @@ import { useFacts } from "@/features/memory/hooks/use-memory";
 import { useFlux } from "@/features/flux/hooks/use-flux";
 import { useMissions } from "@/features/missions/hooks/use-missions";
 import { Play, Pause, Square, Plus, Search, Terminal } from "lucide-react";
+import type { Agent, Goal, Mission } from "@/types";
 
 export default function DashboardPage() {
   const { agents, isLoading: agentsLoading } = useAgents();
@@ -26,8 +27,8 @@ export default function DashboardPage() {
 
   const isLoading = agentsLoading || goalsLoading || factsLoading || eventsLoading || missionsLoading;
 
-  const activeAgents = agents?.filter((a: any) => a.status === "running").length || 0;
-  const activeGoals = goals?.filter((g: any) => g.status === "active").length || 0;
+  const activeAgents = agents?.filter((a: Agent) => a.status === "running").length || 0;
+  const activeGoals = goals?.filter((g: Goal) => g.status === "active").length || 0;
   const totalFacts = facts?.length || 0;
   const eventsCount = events?.length || 0;
 
@@ -113,9 +114,9 @@ export default function DashboardPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {missions?.slice(0, 5).map((mission: any) => {
-            const stepsTotal = mission.steps_total || 1;
-            const stepsCompleted = mission.steps_completed || 0;
+          {(missions as Mission[])?.slice(0, 5).map((mission) => {
+            const stepsTotal = (mission as any).steps_total || 1;
+            const stepsCompleted = (mission as any).steps_completed || 0;
             const progress = Math.round((stepsCompleted / stepsTotal) * 100);
             return (
               <div key={mission.id} className="rounded-lg border bg-card p-4 transition-all hover:bg-accent/5">

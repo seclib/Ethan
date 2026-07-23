@@ -60,6 +60,8 @@ export interface Mission {
   description: string;
   status: MissionStatus;
   steps: Step[];
+  steps_total?: number;
+  steps_completed?: number;
   workspace_path: string;
   artifacts: Record<string, any>;
   logs: LogEntry[];

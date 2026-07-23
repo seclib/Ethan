@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoals } from "@/features/goals/hooks/use-goals";
+import type { Goal, Task } from "@/types";
 import { getStatusColor, getPriorityColor } from "@/lib/utils";
 
 export default function GoalsPage() {
@@ -41,9 +42,9 @@ export default function GoalsPage() {
     );
   }
 
-  const activeGoals = goals.filter((g: any) => g.status === "active").length;
-  const pendingTasks = goals.reduce((sum: number, g: any) => sum + g.tasks.filter((t: any) => t.status === "pending").length, 0);
-  const completedGoals = goals.filter((g: any) => g.status === "completed").length;
+  const activeGoals = goals.filter((g: Goal) => g.status === "active").length;
+  const pendingTasks = goals.reduce((sum: number, g: Goal) => sum + g.tasks.filter((t: Task) => t.status === "pending").length, 0);
+  const completedGoals = goals.filter((g: Goal) => g.status === "completed").length;
 
   return (
     <div className="space-y-6">
@@ -93,7 +94,7 @@ export default function GoalsPage() {
             <p className="text-sm text-foreground-tertiary">No goals yet</p>
           ) : (
             <div className="space-y-3">
-              {goals.map((goal: any) => (
+              {goals.map((goal: Goal) => (
                 <div
                   key={goal.id}
                   className="flex items-start justify-between p-3 rounded-lg border border-line-1 hover:border-line-2 transition-colors duration-100"
@@ -101,7 +102,7 @@ export default function GoalsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium text-foreground">{goal.title}</h4>
-                      <Badge variant={getPriorityColor(goal.priority) as any}>
+                      <Badge variant={getPriorityColor(goal.priority)}>
                         {goal.priority}
                       </Badge>
                     </div>

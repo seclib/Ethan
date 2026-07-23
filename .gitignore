@@ -174,11 +174,12 @@ dist/
 build/
 *.log
 nyarch/
-tests/*
 docs/seclib/
 jarvis-OS/
 design/
 engineering/
 examples/
 logs/
-tests/
+# Tests directory is tracked, but ignore pytest cache
+tests/.pytest_cache/
+tests/.ruff_cache/

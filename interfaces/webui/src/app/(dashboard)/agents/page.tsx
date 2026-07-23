@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "@/components/shared/metric-card";
 import { useAgents } from "@/features/agents/hooks/use-agents";
-import { Play, Pause, Square, Plus, RefreshCw, AlertCircle, CheckCircle2, Clock, Cpu } from "lucide-react";
+import { AgentEditorDialog } from "@/features/agents/components/agent-editor-dialog";
+import { Play, Pause, Square, Plus, RefreshCw, AlertCircle, Clock, Cpu, Settings2 } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: "success" | "warning" | "error" | "default" | "info" | "dim" }> = {
   running: { label: "Running", color: "success" },
@@ -19,6 +20,13 @@ const statusConfig: Record<string, { label: string; color: "success" | "warning"
 
 export default function AgentsPage() {
   const { agents, isLoading, error, refetch } = useAgents();
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  const handleOpenEditor = (id: string | null = null) => {
+    setEditingId(id);
+    setEditorOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -63,7 +71,7 @@ export default function AgentsPage() {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
             <RefreshCw size={14} /> Refresh
           </Button>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => handleOpenEditor(null)}>
             <Plus size={14} /> New Agent
           </Button>
         </div>
@@ -100,7 +108,7 @@ export default function AgentsPage() {
               <Cpu size={48} className="text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground mb-2">No agents yet</p>
               <p className="text-sm text-muted-foreground/60 mb-4">Create your first agent to get started</p>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2" onClick={() => handleOpenEditor(null)}>
                 <Plus size={14} /> Create Agent
               </Button>
             </div>
@@ -129,6 +137,9 @@ export default function AgentsPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground">{status.label}</span>
                         <div className="flex items-center gap-1">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleOpenEditor(agent.id)}>
+                            <Settings2 size={14} />
+                          </Button>
                           {agent.status === "running" ? (
                             <>
                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Pause size={14} /></Button>
@@ -155,6 +166,12 @@ export default function AgentsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AgentEditorDialog 
+        open={editorOpen} 
+        onOpenChange={setEditorOpen} 
+        agentId={editingId} 
+      />
     </div>
   );
 }
