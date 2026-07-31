@@ -1,1 +1,1 @@
-s"""UI components for ETHAN CLI."""
+"""UI components for ETHAN CLI."""

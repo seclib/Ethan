@@ -60,8 +60,11 @@ async def create_kernel(
     return kernel
 
 
-# Entrypoint pour tests/dev
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point CLI (pyproject.toml: core.main:main).
+
+    Démarre un kernel minimal avec backend mémoire pour tests.
+    """
     logging.basicConfig(level=logging.INFO)
 
     async def _main():
@@ -89,3 +92,7 @@ if __name__ == "__main__":
             await kernel.stop()
 
     asyncio.run(_main())
+
+
+if __name__ == "__main__":
+    main()

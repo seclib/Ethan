@@ -20,7 +20,7 @@ export function MessageFooter({ durationMs, cost, tokensUsed, tokensTotal, model
   if (parts.length === 0) return null;
 
   return (
-    <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+    <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
       {parts.map((part, i) => (
         <span key={i}>{part}</span>
       ))}

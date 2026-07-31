@@ -114,3 +114,19 @@ class Event:
     def correlation_id(self, value: str) -> None:
         """Définit le correlation_id dans le metadata."""
         self.metadata["correlation_id"] = value
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "id": self.id,
+            "type": self.type.value if hasattr(self.type, "value") else str(self.type),
+            "source": self.source,
+            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
+            "payload": self.payload,
+            "metadata": self.metadata,
+        }
+
+    def to_json(self) -> bytes:
+        """Convert to JSON bytes for NATS."""
+        import json
+        return json.dumps(self.to_dict()).encode()

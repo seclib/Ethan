@@ -61,7 +61,7 @@ export default function AgentsPage() {
   const total = agents?.length || 0;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-8 pb-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Agents</h1>
@@ -121,9 +121,9 @@ export default function AgentsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`h-2.5 w-2.5 rounded-full ${
-                          agent.status === "running" ? "bg-green-500 animate-pulse" :
-                          agent.status === "error" ? "bg-red-500" :
-                          agent.status === "paused" ? "bg-yellow-500" :
+                          agent.status === "running" ? "bg-green animate-pulse" :
+                          agent.status === "error" ? "bg-red" :
+                          agent.status === "paused" ? "bg-amber" :
                           "bg-muted-foreground/30"
                         }`} />
                         <div>

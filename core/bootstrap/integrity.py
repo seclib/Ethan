@@ -78,15 +78,13 @@ class IntegrityChecker:
             report.state_ok = False
             report.issues.append(f"State check failed: {e}")
 
-        # 3. Check modules
+        # 3. Check modules — gracefully degrade if registry unavailable
         try:
-            from kernel.registry.module_registry import ModuleRegistry
-            registry = ModuleRegistry(self.bus, self.pg, self.redis)
-            modules = await registry.discover()
-            for m in modules:
-                if not m.capabilities:
-                    report.failed_modules.append(m.id)
-                    report.modules_ok = False
+            from core.registry.module import ModuleRegistry
+            from core.registry.capability import CapabilityRegistry
+            cap_registry = CapabilityRegistry()
+            registry = ModuleRegistry(self.bus, cap_registry)
+            modules = registry.list_all()
             if not modules:
                 report.missing_dependencies.append("No modules registered")
         except Exception as e:

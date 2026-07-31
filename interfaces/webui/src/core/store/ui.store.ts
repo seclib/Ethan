@@ -25,10 +25,6 @@ interface UIState {
   setMissionControlOpen: (open: boolean) => void;
   toggleMissionControl: () => void;
 
-  // Theme
-  theme: "dark" | "light" | "system";
-  setTheme: (theme: "dark" | "light" | "system") => void;
-
   // Loading states
   globalLoading: boolean;
   setGlobalLoading: (loading: boolean) => void;
@@ -48,7 +44,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       // Sidebar
-      sidebarExpanded: false,
+      sidebarExpanded: true,
       toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
       setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
 
@@ -69,10 +65,6 @@ export const useUIStore = create<UIState>()(
       missionControlOpen: false,
       setMissionControlOpen: (open) => set({ missionControlOpen: open }),
       toggleMissionControl: () => set((state) => ({ missionControlOpen: !state.missionControlOpen })),
-
-      // Theme
-      theme: "dark",
-      setTheme: (theme) => set({ theme }),
 
       // Loading states
       globalLoading: false,
@@ -104,7 +96,6 @@ export const useUIStore = create<UIState>()(
       name: "ethan-ui-storage",
       partialize: (state) => ({
         sidebarExpanded: state.sidebarExpanded,
-        theme: state.theme,
       }),
     }
   )

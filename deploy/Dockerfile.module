@@ -13,6 +13,6 @@ COPY sdk/    /app/sdk/
 ENV PYTHONPATH=/app/core:/app/sdk:/app
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=30s \
-    CMD python -c "import asyncio, os, nats; asyncio.run(nats.connect(os.environ.get('NATS_URL','nats://nats:4222'), timeout=2).__aenter__())" || exit 1
+    CMD python -c "import asyncio, os, nats; asyncio.run(asyncio.wait_for(nats.connect(os.environ.get('NATS_URL','nats://nats:4222')).__aenter__(), timeout=2))" || exit 1
 
 CMD ["python", "-m", "core.modules"]

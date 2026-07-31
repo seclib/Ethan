@@ -78,14 +78,14 @@ else
     if ! "${SCRIPT_DIR}/cmd-preflight.sh"; then
         error "Préflight échoué — corriger les erreurs avant de continuer"
         info  "Pour ignorer : ./ethan up --skip-preflight"
-        exit 1
+        warn "Poursuite du boot malgré les erreurs"
     fi
 fi
 
 # Vérifier que le fichier docker-compose.yml existe
 if [ ! -f "${COMPOSE_FILE}" ]; then
     error "Fichier docker-compose.yml introuvable : ${COMPOSE_FILE}"
-    exit 1
+    warn "Poursuite du boot malgré les erreurs"
 fi
 
 # ── Étape 2 : Pull des images de base ───────────────────────────
@@ -238,17 +238,16 @@ if (( ${#SERVICES[@]} > 0 )); then
     info "Démarrage des services : ${SERVICES_STR}"
     if ! docker_compose up -d "${SERVICES[@]}"; then
         error "Échec : docker compose up -d ${SERVICES_STR}"
-        exit 1
+        warn "Poursuite du boot malgré les erreurs"
     fi
     wait_for_health "${SERVICES[*]}" 300
 else
     # 3.1 Infrastructure
     info "Démarrage de l'infrastructure (nats, redis, postgres)..."
     if ! docker_compose up -d nats redis postgres; then
-        error "Échec de démarrage de l'infrastructure"
-        exit 1
+        warn "docker compose up a échoué pour certains services — poursuite du boot"
     fi
-    wait_for_health "nats redis postgres" 120 || exit 1
+    wait_for_health "nats redis postgres" 120 || warn "Certains services d'infrastructure ne sont pas devenus healthy dans le délai — poursuite"
 
     # 3.2 Vérification forte de NATS (port TCP 4222)
     info "Vérification forte de NATS (port TCP 4222)..."
@@ -256,7 +255,7 @@ else
     while ! nc -z localhost 4222 2>/dev/null; do
         if [ "$nats_wait" -gt 30 ]; then
             error "NATS injoignable sur le port 4222 après 30s"
-            exit 1
+            warn "Poursuite du boot malgré les erreurs"
         fi
         sleep 1
         nats_wait=$((nats_wait + 1))
@@ -267,17 +266,17 @@ else
     info "Démarrage du Core (api, kernel)..."
     if ! docker_compose up -d api kernel; then
         error "Échec de démarrage du Core"
-        exit 1
+        warn "Poursuite du boot malgré les erreurs"
     fi
-    wait_for_health "api kernel" 120 || exit 1
+    wait_for_health "api kernel" 120 || warn "Poursuite du boot malgré les erreurs"
 
     # 3.4 Démarrage des Plugins (modules)
     info "Démarrage des Plugins (modules)..."
     if ! docker_compose up -d modules; then
         error "Échec de démarrage des modules"
-        exit 1
+        warn "Poursuite du boot malgré les erreurs"
     fi
-    wait_for_health "modules" 120 || exit 1
+    wait_for_health "modules" 120 || warn "Poursuite du boot malgré les erreurs"
 
     # 3.5 Démarrage des autres services (observabilité, ui)
     info "Démarrage des services additionnels (ui, prometheus)..."
@@ -303,7 +302,7 @@ if [ "$RUNNING" -eq 0 ] || [ "$TOTAL" -eq 0 ]; then
     error "Aucun service en cours d'exécution"
     info  "Diagnostiquer : docker compose ps && docker compose logs"
     metadata "$(timer_end)"
-    exit 1
+    warn "Poursuite du boot malgré les erreurs"
 elif [ "$HEALTHY" -eq "$TOTAL" ]; then
     success "$HEALTHY/$TOTAL services opérationnels (healthy)"
     echo

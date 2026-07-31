@@ -6,12 +6,8 @@ import asyncio
 import logging
 import os
 import signal
-import sys
 
 from core.autonomy.controller import AutonomyLoopController
-from core.autonomy.curiosity import CuriosityEngine
-from core.autonomy.environment import EnvironmentAnalyzer
-from core.autonomy.weakness import WeaknessDetector
 from core.bootstrap.bootstrapper import SystemBootstrapper
 from core.bus.nats_bus import EventBus as NatsEventBus
 from core.goals.manager import GoalManager
@@ -26,6 +22,7 @@ from core.metacognition.load import CognitiveLoadManager
 from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
+from core.registry.capability import CapabilityRegistry
 from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
 from core.state.composite_backend import CompositeStateBackend
@@ -122,7 +119,8 @@ async def main():
     await bootstrapper.run()
 
     scheduler = Scheduler(bus)
-    registry = ModuleRegistry(bus, pg, redis)
+    capability_registry = CapabilityRegistry()
+    registry = ModuleRegistry(bus, capability_registry)
     goals = GoalManager(bus, pg, redis)
 
     learning = None
@@ -152,9 +150,6 @@ async def main():
 
     autonomy = None
     if enable_autonomy:
-        curiosity = CuriosityEngine()
-        weakness = WeaknessDetector()
-        environment = EnvironmentAnalyzer()
         autonomy = AutonomyLoopController(bus=bus, redis=redis)
         logger.info("Autonomy Loop Controller initialized")
 
@@ -174,11 +169,12 @@ async def main():
 
     await kernel.start()
 
-    loop = asyncio.get_event_loop()
-    stop = asyncio.Future()
+    # ── Gestion des signaux (asyncio.get_event_loop() déprécié depuis 3.10) ──
+    stop = asyncio.get_running_loop().create_future()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
+            loop = asyncio.get_running_loop()
             loop.add_signal_handler(
                 sig,
                 lambda: asyncio.ensure_future(_shutdown(kernel, stop)),

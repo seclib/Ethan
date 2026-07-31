@@ -13,6 +13,8 @@ export interface Agent {
   created_at: string;
   updated_at: string;
   metadata?: Record<string, any>;
+  model?: string;
+  provider?: string;
 }
 
 export type AgentStatus = "idle" | "running" | "paused" | "error" | "stopped";

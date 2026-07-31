@@ -13,7 +13,7 @@ section "CLI ETHAN"
 if [ -f "${CLI_DIR}/main.py" ]; then
     cd "$ETHAN_ROOT"
     PYTHONPATH="${ETHAN_ROOT}:${ETHAN_ROOT}/core:${ETHAN_ROOT}/interfaces/cli${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m cli.main "$@"
+    python3 -m interfaces.cli.main "$@"
 elif [ -f "${CLI_DIR}/ethan" ]; then
     "${CLI_DIR}/ethan" "$@"
 elif [ -f "${CLI_DIR}/ethan.py" ]; then

@@ -20,9 +20,9 @@ export function DocumentsSection({ documents }: DocumentsSectionProps) {
       {expanded && (
         <div className="px-3 pb-2 space-y-1">
           {documents.map((doc, i) => (
-            <div key={i} className="flex items-center justify-between text-xs text-gray-400">
+            <div key={i} className="flex items-center justify-between text-xs text-muted-foreground/70">
               <span>{doc.name}</span>
-              <span className="text-gray-500">{(doc.size / 1024).toFixed(0)} KB</span>
+              <span className="text-muted-foreground">{(doc.size / 1024).toFixed(0)} KB</span>
             </div>
           ))}
         </div>

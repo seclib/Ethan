@@ -25,7 +25,7 @@ export function ReasoningSection({ steps }: ReasoningSectionProps) {
       {expanded && (
         <div className="px-3 pb-2 space-y-1">
           {steps.map((step, i) => (
-            <div key={i} className="flex items-start gap-2 text-xs text-gray-400">
+            <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground/70">
               <span className="text-purple-400 mt-0.5">{i + 1}.</span>
               <span>{step}</span>
             </div>

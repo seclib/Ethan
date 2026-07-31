@@ -144,8 +144,9 @@ async def health_detailed():
     # NATS check
     try:
         import nats
+        import asyncio
         nats_url = os.getenv("NATS_URL", "nats://nats:4222")
-        nc = await nats.connect(nats_url, timeout=2)
+        nc = await asyncio.wait_for(nats.connect(nats_url), timeout=2)
         await nc.close()
         results["nats"] = "connected"
     except Exception as e:

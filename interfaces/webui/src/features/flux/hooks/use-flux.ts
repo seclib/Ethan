@@ -8,7 +8,7 @@ import type { FluxEvent } from "@/types";
 
 export function useFlux() {
   const queryClient = useQueryClient();
-  const { status, lastEvent, subscribe, unsubscribe } = useWebSocket();
+  const { status, lastEvent, subscribe, unsubscribe, replayedEvents } = useWebSocket();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["fluxEvents"],
@@ -40,6 +40,27 @@ export function useFlux() {
       });
     }
   }, [lastEvent, queryClient]);
+
+  // Process replayed events from buffer on reconnect
+  useEffect(() => {
+    if (replayedEvents.length > 0) {
+      replayedEvents.forEach((event) => {
+        if (event.type !== "ping" && event.type !== "pong") {
+          const newEvent: FluxEvent = {
+            id: event.payload?.id || `event-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            type: event.type,
+            source: event.source || "unknown",
+            payload: event.payload || {},
+            timestamp: event.timestamp || new Date().toISOString(),
+          };
+          queryClient.setQueryData(["fluxEvents"], (oldData: any) => {
+            const oldEvents = Array.isArray(oldData) ? oldData : [];
+            return [newEvent, ...oldEvents].slice(0, 500);
+          });
+        }
+      });
+    }
+  }, [replayedEvents, queryClient]);
 
   return { 
     events, 

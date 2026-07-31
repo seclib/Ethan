@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from core.state.interface import StateBackend
 
@@ -14,47 +14,25 @@ class MemoryStateBackend(StateBackend):
     """Backend mémoire pour tests."""
 
     def __init__(self):
-        self._store: dict[str, bytes] = {}
+        self._store: dict[str, Any] = {}
         self._ttl: dict[str, int] = {}
 
-    async def get(self, key: str, namespace: str = "") -> bytes | None:
-        full_key = f"{namespace}:{key}" if namespace else key
-        return self._store.get(full_key)
+    async def get(self, key: str) -> Optional[Any]:
+        return self._store.get(key)
 
-    async def set(
-        self,
-        key: str,
-        value: bytes,
-        ttl: int | None = None,
-        namespace: str = "",
-    ) -> None:
-        full_key = f"{namespace}:{key}" if namespace else key
-        self._store[full_key] = value
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        self._store[key] = value
         if ttl is not None:
-            self._ttl[full_key] = ttl
+            self._ttl[key] = ttl
 
-    async def delete(self, key: str, namespace: str = "") -> None:
-        full_key = f"{namespace}:{key}" if namespace else key
-        self._store.pop(full_key, None)
-        self._ttl.pop(full_key, None)
-
-    async def persist(self, event: Any) -> None:
-        """Persiste un événement."""
-        key = f"event:{event.id}"
-        import json
-        data = json.dumps(event.to_dict() if hasattr(event, 'to_dict') else dict(event))
-        await self.set(key, data.encode(), ttl=3600)
-
-    async def insert(self, table: str, payload: dict) -> Any | None:
+    async def insert(self, table: str, payload: dict) -> Optional[Any]:
         import uuid
         _id = str(uuid.uuid4())
         key = f"{table}:{_id}"
-        import json
-        await self.set(key, json.dumps(payload).encode())
+        self._store[key] = payload
         return payload
 
-    async def query(self, sql: str, params: tuple | None = None) -> list[dict]:
-        # Basic mock implementation that just returns empty for simplicity
+    async def query(self, sql: str, params: Optional[tuple] = None) -> list[dict]:
         return []
 
     async def sync_event(self, event_id: str, payload: dict) -> None:

@@ -57,8 +57,10 @@ export default function DashboardPage() {
     );
   }
 
+  const hasLiveData = activeAgents > 0 || activeGoals > 0 || totalFacts > 0 || eventsCount > 0;
+
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-8 pb-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
@@ -115,8 +117,8 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {(missions as Mission[])?.slice(0, 5).map((mission) => {
-            const stepsTotal = (mission as any).steps_total || 1;
-            const stepsCompleted = (mission as any).steps_completed || 0;
+            const stepsTotal = mission.steps_total || 1;
+            const stepsCompleted = mission.steps_completed || 0;
             const progress = Math.round((stepsCompleted / stepsTotal) * 100);
             return (
               <div key={mission.id} className="rounded-lg border bg-card p-4 transition-all hover:bg-accent/5">
@@ -129,7 +131,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-4 text-muted-foreground">
                     <span>Steps: {stepsCompleted}/{stepsTotal}</span>
                     <span className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                        <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
                       {mission.status}
                     </span>
                   </div>
@@ -177,6 +179,16 @@ export default function DashboardPage() {
           onResume={() => {}}
         />
       </div>
+
+      {!hasLiveData && (
+        <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-60"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent/80"></span>
+          </span>
+          Awaiting live data...
+        </div>
+      )}
     </div>
   );
 }

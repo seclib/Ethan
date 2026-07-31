@@ -20,22 +20,22 @@ export function AssistantMessageView({ message }: AssistantMessageProps) {
       <div className={`max-w-[85%] ${isUser ? "order-1" : "order-2"}`}>
         {/* Header */}
         <div className="flex items-center gap-2 mb-1 px-1">
-          <span className={`text-xs font-medium ${isUser ? "text-blue-400" : "text-purple-400"}`}>
+          <span className={`text-xs font-medium ${isUser ? "text-accent" : "text-purple-400"}`}>
             {isUser ? "Vous" : "Assistant"}
           </span>
-          <span className="text-xs text-gray-600">{time}</span>
+          <span className="text-xs text-muted-foreground">{time}</span>
         </div>
 
         {/* Bubble */}
         <div className={`
           rounded-lg px-4 py-3
           ${isUser
-            ? "bg-blue-500/10 border border-blue-500/20"
-            : "bg-gray-800/50 border border-gray-700/30"
+            ? "bg-accent-soft border border-accent-line"
+            : "bg-background/40 border border-line-1/20"
           }
         `}>
           {/* Main content */}
-          <p className="text-sm text-gray-200 whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap">{message.content}</p>
 
           {/* Assistant-only sections */}
           {!isUser && (

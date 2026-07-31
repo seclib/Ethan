@@ -4,7 +4,7 @@ ethan config [show|edit|set|get] [key] [value]
 """
 
 import os
-from interfaces.cli.core.colors import style
+from interfaces.cli.core import colors as clr
 
 
 def manage(config: dict, args) -> int:
@@ -27,7 +27,7 @@ def manage(config: dict, args) -> int:
         if value is not None:
             print(value)
         else:
-            print(style.error(f"Key not found: {args.key}"))
+            print(clr.error(f"Key not found: {args.key}"))
             return 1
 
     elif action == "set" and args.key and args.value:
@@ -38,7 +38,7 @@ def manage(config: dict, args) -> int:
                 current[k] = {}
             current = current[k]
         current[keys[-1]] = args.value
-        print(style.success("Config updated in memory"))
+        print(clr.success("Config updated in memory"))
 
     elif action == "edit":
         import subprocess

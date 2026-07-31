@@ -110,8 +110,12 @@ export function EventStream({
         style={{ maxHeight: `${maxHeight}px` }}
       >
         {filteredEvents.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-8">
-            No events to display
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-60"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-accent/80"></span>
+            </span>
+            <p className="text-xs">No events to display</p>
           </div>
         ) : (
           filteredEvents.map((event) => (

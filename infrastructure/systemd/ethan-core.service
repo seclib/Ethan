@@ -26,17 +26,17 @@ RemainAfterExit=yes
 # ETHAN_ROOT doit pointer vers l'emplacement réel du projet.
 # Par défaut : /opt/ethan (via le script d'install)
 # Chemin alternatif : /home/fatsio/AI/Ethan (via git clone local)
-Environment=ETHAN_ROOT=/opt/ethan
-EnvironmentFile=-/opt/ethan/.env
-WorkingDirectory=/opt/ethan
+Environment=ETHAN_ROOT=/home/fatsio/AI/Ethan/
+EnvironmentFile=-/home/fatsio/AI/Ethan/.env
+WorkingDirectory=/home/fatsio/AI/Ethan/
 
 # ── Démarrage avec préflight ───────────────────────────────────────
 # Le préflight vérifie les ports et les prérequis avant le vrai démarrage.
 # En cas d'échec du préflight, le service ne démarre pas.
 ExecStartPre=/opt/ethan/ethan preflight
-ExecStart=/opt/ethan/ethan up --skip-preflight
-ExecStop=/opt/ethan/ethan down
-ExecReload=/opt/ethan/ethan restart
+ExecStart=/home/fatsio/AI/Ethan/ethan up --skip-preflight
+ExecStop=/home/fatsio/AI/Ethan/ethan down
+ExecReload=/home/fatsio/AI/Ethan/ethan restart
 
 # ── Politique de redémarrage ───────────────────────────────────────
 Restart=on-failure
@@ -56,7 +56,7 @@ SupplementaryGroups=docker
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/opt/ethan /var/lib/ethan /var/log/ethan
+ReadWritePaths=/home/fatsio/AI/Ethan /var/lib/ethan /var/log/ethan
 
 # ── Logging ────────────────────────────────────────────────────────
 StandardOutput=journal

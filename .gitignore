@@ -183,3 +183,4 @@ logs/
 # Tests directory is tracked, but ignore pytest cache
 tests/.pytest_cache/
 tests/.ruff_cache/
+interfaces/webui/docs/

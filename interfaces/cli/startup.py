@@ -9,7 +9,7 @@ import sys
 from typing import Optional
 
 from ethan.client import RuntimeClient, RuntimeError
-from ethan.ui.colors import style
+from interfaces.cli.core import colors as clr
 
 
 def startup_and_chat(
@@ -18,12 +18,12 @@ def startup_and_chat(
     args,
 ) -> int:
     """Startup sequence: check Runtime → ensure services → start REPL."""
-    print(f"{style.section('Starting ETHAN...')}")
+    print(f"{clr.section('Starting ETHAN...')}")
 
     # ── Phase 1: Check Runtime ────────────────────────────────────
     try:
         if not runtime.is_available():
-            print(f"  {style.info('Runtime not running, starting...')}")
+            print(f"  {clr.info('Runtime not running, starting...')}")
             # In production, Runtime would auto-start via systemd
             # CLI can request Runtime to start via socket activation
     except RuntimeError:
@@ -39,30 +39,30 @@ def startup_and_chat(
                        for s in services)
 
     if not core_running:
-        print(f"  {style.info('Starting services...')}")
+        print(f"  {clr.info('Starting services...')}")
         for svc in ["nats", "redis", "postgres", "ethan-core", "ethan-plugins"]:
             try:
                 runtime.start_service(svc)
-                print(f"  {style.success(f'{svc} started')}")
+                print(f"  {clr.success(f'{svc} started')}")
             except RuntimeError as e:
-                print(f"  {style.error(f'{svc} failed: {e}')}")
+                print(f"  {clr.error(f'{svc} failed: {e}')}")
 
     # Wait for core
     for _ in range(30):
         try:
             status = runtime.get_status()
             if status.get("core_healthy"):
-                print(f"  {style.success('Core online')}")
+                print(f"  {clr.success('Core online')}")
                 break
         except RuntimeError:
             pass
         time.sleep(0.5)
     else:
-        print(f"  {style.error('Core failed to start')}")
+        print(f"  {clr.error('Core failed to start')}")
         return 1
 
     # ── Phase 3: Connect and start REPL ───────────────────────────
-    print(f"  {style.success('Connected')}\n")
+    print(f"  {clr.success('Connected')}\n")
 
     # Resume session if requested
     session_id = None
@@ -71,7 +71,7 @@ def startup_and_chat(
             resp = runtime.send({"command": "resume_last"})
             session_id = resp.get("session_id")
             sid = session_id[:8] if session_id else ""
-            print(f"  {style.info(f'Session resumed: {sid}')}\n")
+            print(f"  {clr.info(f'Session resumed: {sid}')}\n")
         except RuntimeError:
             pass
 

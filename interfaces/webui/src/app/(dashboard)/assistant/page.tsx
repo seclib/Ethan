@@ -4,18 +4,28 @@ import * as React from "react";
 import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { AssistantTopBar } from "@/features/assistant/components/assistant-top-bar";
 import { AssistantSidePanel } from "@/features/assistant/components/assistant-side-panel";
+import { useAgents } from "@/features/agents/hooks/use-agents";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import { apiClient } from "@/core/api/api-client";
 
 export default function AssistantPage() {
   const [messages, setMessages] = React.useState<AssistantMessage[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const { agents } = useAgents();
 
+  const primaryAgent = agents?.[0];
+  const agentStatusMap: Record<string, "run" | "idle" | "error"> = {
+    running: "run",
+    idle: "idle",
+    error: "error",
+    paused: "idle",
+    stopped: "idle",
+  };
   const metrics: SessionMetrics = {
-    agentName: "ETHAN Core",
-    agentStatus: "idle",
-    model: "claude-3-opus",
-    provider: "anthropic",
+    agentName: primaryAgent?.name || "ETHAN Core",
+    agentStatus: agentStatusMap[primaryAgent?.status || ""] || "idle",
+    model: primaryAgent?.model || "claude-3-opus",
+    provider: primaryAgent?.provider || "anthropic",
     cost: 0.0,
     duration: 0,
     tokensUsed: 0,
@@ -76,7 +86,7 @@ export default function AssistantPage() {
   const allActions = messages.flatMap(m => m.actions || []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.14)-theme(spacing.12))] animate-fade-in -m-6 bg-background">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.14)-theme(spacing.12))] -m-6 bg-background">
       <AssistantTopBar metrics={metrics} />
       
       <div className="flex flex-1 overflow-hidden">

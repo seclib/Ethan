@@ -249,3 +249,36 @@ def progress(current: int, total: int, width: int = 12, label: str = "") -> str:
     if label:
         suffix += f"  ({label})"
     return f"  [{C.CYAN}{bar}{C.RESET}]{suffix}"
+
+
+# ── Style facade (legacy API compatibility) ─────────────
+
+class style:
+    """Facade regroupant les formatters pour l'API legacy `style.section()` etc."""
+    section = staticmethod(section)
+    success = staticmethod(success)
+    error = staticmethod(error)
+    warn = staticmethod(warn)
+    warning = staticmethod(warning)
+    info = staticmethod(info)
+    item = staticmethod(item)
+    wrap = staticmethod(wrap)
+    metadata = staticmethod(metadata)
+    online = staticmethod(online)
+    offline = staticmethod(offline)
+    prompt = staticmethod(prompt)
+    spinner = staticmethod(spinner)
+    progress_bar = staticmethod(progress_bar)
+    print_section = staticmethod(print_section)
+    print_error = staticmethod(print_error)
+    subheader = staticmethod(subheader)
+    divider = staticmethod(divider)
+    inline_code = staticmethod(inline_code)
+    code_block = staticmethod(code_block)
+    output_lines = staticmethod(output_lines)
+    table = staticmethod(table)
+    numbered_list = staticmethod(numbered_list)
+    definition_list = staticmethod(definition_list)
+    timing = staticmethod(timing)
+    counters = staticmethod(counters)
+    progress = staticmethod(progress)

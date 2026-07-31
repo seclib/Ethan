@@ -7,16 +7,16 @@ import { Info, CheckCircle2, AlertTriangle, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const toastIcons = {
-  info: <Info className="text-blue-400" size={18} />,
+  info: <Info className="text-accent" size={18} />,
   success: <CheckCircle2 className="text-green-400" size={18} />,
-  warning: <AlertTriangle className="text-yellow-400" size={18} />,
+  warning: <AlertTriangle className="text-amber-400" size={18} />,
   error: <XCircle className="text-red-400" size={18} />,
 };
 
 const toastStyles = {
-  info: "border-blue-500/20 bg-blue-500/10",
+  info: "border-accent-line/20 bg-accent-soft",
   success: "border-green-500/20 bg-green-500/10",
-  warning: "border-yellow-500/20 bg-yellow-500/10",
+  warning: "border-amber-500/20 bg-amber-500/10",
   error: "border-red-500/20 bg-red-500/10",
 };
 

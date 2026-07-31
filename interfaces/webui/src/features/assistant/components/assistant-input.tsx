@@ -37,9 +37,9 @@ export function AssistantInput({ onSend, disabled }: AssistantInputProps) {
   };
 
   return (
-    <div className="border-t border-gray-800 bg-gray-900/50 p-4">
+    <div className="border-t border-line-2 bg-background/40 p-4">
       <div className="flex items-end gap-3 max-w-4xl mx-auto">
-        <button className="p-2 text-gray-400 hover:text-white transition-colors" title="Attacher un fichier">
+        <button className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Attacher un fichier">
           📎
         </button>
         <div className="flex-1 relative">
@@ -52,14 +52,14 @@ export function AssistantInput({ onSend, disabled }: AssistantInputProps) {
             placeholder="Envoyer un message..."
             rows={1}
             disabled={disabled}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50"
+            className="w-full bg-background/20 border border-line-1/20 rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
             style={{ minHeight: "42px", maxHeight: "200px" }}
           />
         </div>
         <button
           onClick={handleSend}
           disabled={disabled || !message.trim()}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+          className="px-4 py-2.5 bg-accent hover:bg-accent/90 disabled:bg-line-1/20 disabled:text-muted-foreground text-foreground rounded-lg text-sm font-medium transition-colors"
         >
           ▶
         </button>

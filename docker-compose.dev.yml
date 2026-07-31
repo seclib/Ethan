@@ -99,6 +99,3 @@ volumes:
     name: ethan-ollama-models
 
 # ── Réseau partagé avec docker-compose.yml ────────────────────────────────────
-networks:
-  ethan-core:
-    external: true

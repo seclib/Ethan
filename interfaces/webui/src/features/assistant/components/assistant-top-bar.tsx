@@ -7,7 +7,7 @@ interface AssistantTopBarProps {
 }
 
 export function AssistantTopBar({ metrics }: AssistantTopBarProps) {
-  const statusColor = metrics.agentStatus === "run" ? "text-green-400" : metrics.agentStatus === "error" ? "text-red-400" : "text-gray-400";
+  const statusColor = metrics.agentStatus === "run" ? "text-green-400" : metrics.agentStatus === "error" ? "text-red-400" : "text-muted-foreground";
 
   return (
     <div className="flex items-center gap-4 px-4 py-2 border-b border-line-2 bg-background/80 text-xs">

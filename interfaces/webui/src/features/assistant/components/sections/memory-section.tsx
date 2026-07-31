@@ -20,12 +20,12 @@ export function MemorySection({ entries }: MemorySectionProps) {
       {expanded && (
         <div className="px-3 pb-2 space-y-1">
           {entries.map((entry, i) => (
-            <div key={i} className="text-xs text-gray-400">
+            <div key={i} className="text-xs text-muted-foreground/70">
               <div className="flex items-center justify-between">
-                <span className="text-gray-300">{entry.key}</span>
-                <span className="text-gray-500">{Math.round(entry.relevance * 100)}%</span>
+                <span className="text-foreground/70">{entry.key}</span>
+                <span className="text-muted-foreground">{Math.round(entry.relevance * 100)}%</span>
               </div>
-              <p className="text-gray-500 truncate">{entry.snippet}</p>
+              <p className="text-muted-foreground truncate">{entry.snippet}</p>
             </div>
           ))}
         </div>

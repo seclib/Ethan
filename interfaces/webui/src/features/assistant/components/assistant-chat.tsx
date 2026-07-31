@@ -24,7 +24,7 @@ export function AssistantChat({ messages, metrics, onSend, disabled }: Assistant
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 text-sm mt-20">
+          <div className="text-center text-muted-foreground text-sm mt-20">
             <p className="text-lg mb-2">💬</p>
             <p>{`Commencez une conversation avec l'assistant`}</p>
           </div>

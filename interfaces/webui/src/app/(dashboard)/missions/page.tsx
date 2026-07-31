@@ -57,7 +57,7 @@ export default function MissionsPage() {
   const total = missions?.length || 0;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-8 pb-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Missions</h1>

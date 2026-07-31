@@ -128,8 +128,48 @@ fi
 
 section "3/7 — Disponibilité des ports"
 
-# Ports requis par les services ETHAN
-declare -A REQUIRED_PORTS=(
+# CAS 1 / CAS 2 — Stack déjà démarrée ?
+_stack_running=false
+if docker ps --filter "name=ethan-" --format '{{.Names}} {{.State}}' 2>/dev/null | grep -qE 'ethan-(api|kernel|modules|ui|nats|redis|postgres)\s+(Up|running)'; then
+    _stack_running=true
+    info "Stack ETHAN déjà active : sauter la vérification des ports"
+    _ok "Conteneurs ETHAN détectés"
+fi
+
+if [[ "$_stack_running" == "true" ]]; then
+    # CAS 2 : vérifier la santé des conteneurs existants
+    _check_container_health() {
+        local name="$1"
+        local state
+        state=$(docker inspect --format='{{.State.Status}}' "$name" 2>/dev/null || echo "unknown")
+        if [[ "$state" != "running" ]]; then
+            _warn "Conteneur $name : $state"
+            return 1
+        fi
+        local health
+        health=$(docker inspect --format='{{.State.Health.Status}}' "$name" 2>/dev/null || echo "none")
+        if [[ "$health" == "healthy" || "$health" == "none" ]]; then
+            _ok "Conteneur $name : $state / $health"
+            return 0
+        else
+            _warn "Conteneur $name : $state / $health"
+            return 1
+        fi
+    }
+
+    health_ok=true
+    for cname in $(docker ps --filter "name=ethan-" --format '{{.Names}}' 2>/dev/null); do
+        _check_container_health "$cname" || health_ok=false
+    done
+    if [[ "$health_ok" == "true" ]]; then
+        _ok "Tous les conteneurs ETHAN sont opérationnels"
+    else
+        _warn "Certains conteneurs ETHAN nécessitent une attention"
+    fi
+else
+    # CAS 1 : première install — vérifier les ports libres
+    # Ports requis par les services ETHAN
+    declare -A REQUIRED_PORTS=(
     [4222]="NATS (messaging)"
     [6222]="NATS (cluster)"
     [8222]="NATS (monitoring)"
@@ -179,6 +219,7 @@ done
 if (( port_errors > 0 )); then
     info "Astuce : identifier les processus → sudo ss -tlnp | grep ':<port>'"
     info "Astuce : tuer un processus → sudo kill -9 <PID>"
+fi
 fi
 
 # ── 4. Ressources système ───────────────────────────────────────

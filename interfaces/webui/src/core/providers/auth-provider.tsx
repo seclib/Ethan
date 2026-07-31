@@ -21,32 +21,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  // Check authentication on mount
+  // Check authentication on mount via httpOnly cookie
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem("ethan_token");
-        if (!token) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Verify token with API
         const response = await fetch("/api/v1/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          method: "GET",
+          credentials: "include", // Send httpOnly cookies
         });
 
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
         } else {
-          localStorage.removeItem("ethan_token");
+          setUser(null);
         }
       } catch (error) {
         logger.error("Auth check failed:", error);
-        localStorage.removeItem("ethan_token");
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -63,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password, operator_id: operatorId }),
+        credentials: "include", // Receive httpOnly cookie
       });
 
       if (!response.ok) {
@@ -71,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      localStorage.setItem("ethan_token", data.token);
+      // Token is now stored in httpOnly cookie, not localStorage
       if (operatorId) {
         localStorage.setItem("ethan_operator_id", operatorId);
       }
@@ -83,45 +76,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      const token = localStorage.getItem("ethan_token");
-      if (token) {
-        await fetch("/api/v1/auth/logout", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      }
+      await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } catch (error) {
       logger.error("Logout error:", error);
     } finally {
-      localStorage.removeItem("ethan_token");
       setUser(null);
     }
   };
 
   const refreshToken = async () => {
     try {
-      const token = localStorage.getItem("ethan_token");
-      if (!token) return;
-
       const response = await fetch("/api/v1/auth/refresh", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("ethan_token", data.token);
-      } else {
-        localStorage.removeItem("ethan_token");
+      if (!response.ok) {
         setUser(null);
       }
     } catch (error) {
       logger.error("Token refresh failed:", error);
-      localStorage.removeItem("ethan_token");
       setUser(null);
     }
   };

@@ -155,7 +155,8 @@ class AutonomyLoopController:
         """Select next goal from goal.proposed events."""
         # In production: use priority queue, self-model, context
         # Simplified: return trigger goal if present
-        data = trigger_event.data or {}
+        # Compatible avec Event (payload) et Event (sdk/data)
+        data = getattr(trigger_event, 'payload', None) or getattr(trigger_event, 'data', None) or {}
         return data.get("goal_id")
 
     async def _execute_goal(self, goal_id: str) -> None:
