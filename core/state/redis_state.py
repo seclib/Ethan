@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import asyncio
+import os
 from typing import Any, Dict, Optional
 
 import redis.asyncio as aioredis
@@ -23,10 +25,11 @@ class RedisLiveState(LiveState):
     async def connect(self) -> None:
         """Connect to Redis."""
         logger.info(f"Connecting to Redis: {self._url}")
-        self._redis = await aioredis.from_url(
-            self._url, decode_responses=True
+        self._redis = aioredis.from_url(
+            self._url, decode_responses=True, protocol=2
         )
-        await self._redis.ping()
+        timeout = float(os.getenv("REDIS_CONNECT_TIMEOUT", "10"))
+        await asyncio.wait_for(self._redis.ping(), timeout=timeout)
         logger.info("Redis connected")
 
     async def close(self) -> None:

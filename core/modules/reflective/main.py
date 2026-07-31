@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 import nats
 from nats.aio.msg import Msg
 
-from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 from core.ethan_types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
 from core.telemetry.logger import setup_logging
 
@@ -40,20 +40,29 @@ class ReflectiveModule(CognitiveModule):
 
     async def initialize(self, context: ModuleContext) -> None:
         self.module_id = context.module_id
-        self.nc = await nats.connect(context.nats_url, name=self.module_id)
+        timeout = float(os.getenv("MODULE_CONNECT_TIMEOUT", "10"))
+        self.nc = await asyncio.wait_for(
+            nats.connect(context.nats_url, name=self.module_id), timeout=timeout
+        )
 
         async def on_msg(msg: Msg):
             try:
                 data = json.loads(msg.data.decode())
                 event = Event.from_dict(data)
                 response = await self.handle_event(event)
-                if response and msg.reply:
-                    await self.nc.publish(msg.reply, json.dumps(response.dict()).encode())
+                if response:
+                    subject = (
+                        msg.reply
+                        or response.type.value
+                        if isinstance(response.type, EventType)
+                        else msg.reply or str(response.type)
+                    )
+                    await self.nc.publish(subject, response.to_json())
             except Exception as e:
                 logger.error(f"Reflective handler error: {e}")
 
         for topic in self.get_manifest().topics_subscribed:
-            await self.nc.subscribe(topic, cb=on_msg)
+            await asyncio.wait_for(self.nc.subscribe(topic, cb=on_msg), timeout=timeout)
             logger.info(f"Reflective subscribed to {topic}")
 
     async def handle_event(self, event: Event) -> Optional[Event]:

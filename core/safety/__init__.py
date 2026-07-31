@@ -16,7 +16,8 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from core.events import Event, EventBus, EventHandler, EventType
+from core.events import Event, EventBus, EventHandler
+from core.ethan_types.event import EventType
 
 
 logger = logging.getLogger(__name__)

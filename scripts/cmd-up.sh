@@ -150,7 +150,9 @@ wait_for_health() {
         for svc in $target; do
             # Vérifier le statut du service via docker inspect (plus fiable)
             local container
-            container=$(docker_compose ps --format "{{.Names}}" --filter "name=${svc}" 2>/dev/null | head -1 || true)
+            # Le filtre `name` n'est pas supporté par `docker compose ps`.
+            # Limiter directement la requête au service Compose demandé.
+            container=$(docker_compose ps --format "{{.Names}}" "$svc" 2>/dev/null | head -1 || true)
             if [[ -z "$container" ]]; then
                 ((expected++)) || true
                 continue
@@ -213,11 +215,9 @@ except Exception:
         fi
 
         # Détecter les crashs (exited avec code != 0)
-        local crashed
-        crashed=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | wc -l || echo "0")
-        if (( crashed > 0 )); then
-            local crashed_svcs
-            crashed_svcs=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | tr '\n' ' ' || true)
+        local crashed_svcs
+        crashed_svcs=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | sed '/^[[:space:]]*$/d' | tr '\n' ' ' || true)
+        if [[ -n "${crashed_svcs//[[:space:]]/}" ]]; then
             error "CRASH détecté pendant l'attente : ${crashed_svcs}"
             info "Logs : docker compose logs ${crashed_svcs}"
             return 1
@@ -249,18 +249,15 @@ else
     fi
     wait_for_health "nats redis postgres" 120 || warn "Certains services d'infrastructure ne sont pas devenus healthy dans le délai — poursuite"
 
-    # 3.2 Vérification forte de NATS (port TCP 4222)
-    info "Vérification forte de NATS (port TCP 4222)..."
-    nats_wait=0
-    while ! nc -z localhost 4222 2>/dev/null; do
-        if [ "$nats_wait" -gt 30 ]; then
-            error "NATS injoignable sur le port 4222 après 30s"
-            warn "Poursuite du boot malgré les erreurs"
-        fi
-        sleep 1
-        nats_wait=$((nats_wait + 1))
-    done
-    success "NATS TCP 4222 est actif"
+    # 3.2 Vérification bornée de NATS via son endpoint HTTP de santé.
+    # Le timeout est obligatoire : aucune boucle infinie si NATS est absent.
+    info "Vérification forte de NATS (HTTP 8222/healthz)..."
+    if wait_for_http "http://127.0.0.1:8222/healthz" 30; then
+        success "NATS HTTP healthz est actif"
+    else
+        error "NATS injoignable sur /healthz après 30s"
+        warn "Poursuite du boot malgré les erreurs"
+    fi
 
     # 3.3 Démarrage du Core
     info "Démarrage du Core (api, kernel)..."
@@ -278,9 +275,14 @@ else
     fi
     wait_for_health "modules" 120 || warn "Poursuite du boot malgré les erreurs"
 
-    # 3.5 Démarrage des autres services (observabilité, ui)
-    info "Démarrage des services additionnels (ui, prometheus)..."
-    docker_compose up -d ui prometheus 2>/dev/null || true
+    # 3.5 Démarrage des autres services déclarés par le Compose actif.
+    # `prometheus` n'existe pas dans docker-compose.yml : le demander ici
+    # faisait échouer toute la commande et empêchait même le lancement de UI.
+    info "Démarrage des services additionnels (pg_backup, ui)..."
+    if ! docker_compose up -d pg_backup ui; then
+        warn "Certains services additionnels n'ont pas pu démarrer — poursuite du boot"
+    fi
+    wait_for_health "pg_backup ui" 120 || warn "Poursuite du boot malgré les erreurs des services additionnels"
 fi
 
 # ── Étape 4 : Validation globale ────────────────────────────────
@@ -291,10 +293,30 @@ success "Séquencement terminé avec succès"
 # ── Rapport final ────────────────────────────────────────────────
 
 echo
-RUNNING=$(docker_compose ps --services --filter "status=running" 2>/dev/null | wc -l || echo "0")
-TOTAL=$(docker_compose ps --services 2>/dev/null | wc -l || echo "0")
-HEALTHY=$(docker_compose ps --services --filter "status=running" --filter "health=healthy" 2>/dev/null | wc -l || echo "0")
-EXITED=$(docker_compose ps --services --filter "status=exited" 2>/dev/null | wc -l || echo "0")
+# `docker compose ps` ne supporte pas le filtre `health=healthy` et un
+# pipeline `wc -l || echo 0` peut produire deux lignes. Lire un seul état
+# JSON par conteneur évite les faux rapports et les erreurs arithmétiques.
+read -r RUNNING TOTAL HEALTHY EXITED < <(
+    docker_compose ps --format json 2>/dev/null | python3 -c '
+import json, sys
+running = total = healthy = exited = 0
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        row = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    total += 1
+    state = str(row.get("State", "")).lower()
+    health = str(row.get("Health", "")).lower()
+    running += state == "running"
+    exited += state == "exited"
+    healthy += health == "healthy"
+print(running, total, healthy, exited)
+' || echo "0 0 0 0"
+)
 
 section "Résultat"
 
@@ -310,7 +332,6 @@ elif [ "$HEALTHY" -eq "$TOTAL" ]; then
     arrow "API        : http://localhost:8000"
     arrow "Kernel     : http://localhost:8080"
     arrow "NATS mon.  : http://localhost:8222"
-    arrow "Prometheus : http://localhost:9090"
     echo
     info  "Logs      : ./ethan logs [service]"
     info  "Status    : ./ethan status"

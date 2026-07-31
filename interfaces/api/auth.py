@@ -14,6 +14,7 @@ from typing import Optional
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ PUBLIC_PATHS = {
     "/docs",
     "/openapi.json",
     "/redoc",
+    "/auth/login",
+    "/v1/health",
+    "/v1/version",
 }
 
 security = HTTPBearer(auto_error=False)
@@ -93,7 +97,14 @@ async def auth_middleware(request: Request, call_next):
         # Injecter les infos utilisateur dans request.state pour les routes
         request.state.user = payload.get("sub", "unknown")
         request.state.token_payload = payload
-    except HTTPException:
-        raise
+    except HTTPException as exc:
+        # Une HTTPException levée directement depuis un middleware ASGI ne
+        # passe pas par le gestionnaire FastAPI et devenait donc un 500.
+        # Retourner explicitement la réponse d'authentification attendue.
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers or {},
+        )
 
     return await call_next(request)

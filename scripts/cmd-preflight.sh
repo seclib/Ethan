@@ -128,43 +128,50 @@ fi
 
 section "3/7 — Disponibilité des ports"
 
-# CAS 1 / CAS 2 — Stack déjà démarrée ?
-_stack_running=false
-if docker ps --filter "name=ethan-" --format '{{.Names}} {{.State}}' 2>/dev/null | grep -qE 'ethan-(api|kernel|modules|ui|nats|redis|postgres)\s+(Up|running)'; then
-    _stack_running=true
-    info "Stack ETHAN déjà active : sauter la vérification des ports"
-    _ok "Conteneurs ETHAN détectés"
+# CAS 1 / CAS 2 — Stack déjà provisionnée ?
+#
+# Ne pas déduire l'état du stack à partir du nom du conteneur : Compose
+# ajoute un suffixe (`api-1`) et certains services n'en ont pas (`nats`).
+# Les labels du projet Compose sont la source de vérité et couvrent aussi
+# les conteneurs arrêtés après un démarrage incomplet.
+_stack_container_ids="$(docker compose -f "${COMPOSE_FILE}" ps -aq 2>/dev/null || true)"
+_stack_existing=false
+if [[ -n "${_stack_container_ids//[[:space:]]/}" ]]; then
+    _stack_existing=true
+    info "Stack ETHAN déjà provisionnée : sauter la vérification des ports"
+    _ok "Conteneurs ETHAN détectés par le projet Compose"
 fi
 
-if [[ "$_stack_running" == "true" ]]; then
-    # CAS 2 : vérifier la santé des conteneurs existants
+if [[ "$_stack_existing" == "true" ]]; then
+    # CAS 2 : vérifier la santé des conteneurs existants sans bloquer.
     _check_container_health() {
-        local name="$1"
+        local id="$1"
+        local name="$2"
+        local service="$3"
+        local label="${service:-$name}"
         local state
-        state=$(docker inspect --format='{{.State.Status}}' "$name" 2>/dev/null || echo "unknown")
-        if [[ "$state" != "running" ]]; then
-            _warn "Conteneur $name : $state"
-            return 1
-        fi
+        state=$(docker inspect --format='{{.State.Status}}' "$id" 2>/dev/null || echo "unknown")
         local health
-        health=$(docker inspect --format='{{.State.Health.Status}}' "$name" 2>/dev/null || echo "none")
-        if [[ "$health" == "healthy" || "$health" == "none" ]]; then
-            _ok "Conteneur $name : $state / $health"
+        health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id" 2>/dev/null || echo "unknown")
+        if [[ "$state" == "running" && ( "$health" == "healthy" || "$health" == "none" ) ]]; then
+            _ok "Conteneur $label ($name) : $state / $health"
             return 0
-        else
-            _warn "Conteneur $name : $state / $health"
-            return 1
         fi
+        _warn "Conteneur $label ($name) : $state / $health"
+        return 1
     }
 
     health_ok=true
-    for cname in $(docker ps --filter "name=ethan-" --format '{{.Names}}' 2>/dev/null); do
-        _check_container_health "$cname" || health_ok=false
-    done
+    while IFS= read -r cid; do
+        [[ -z "$cid" ]] && continue
+        cname=$(docker inspect --format='{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##' || echo "$cid")
+        cservice=$(docker inspect --format='{{index .Config.Labels "com.docker.compose.service"}}' "$cid" 2>/dev/null || true)
+        _check_container_health "$cid" "$cname" "$cservice" || health_ok=false
+    done <<< "$_stack_container_ids"
     if [[ "$health_ok" == "true" ]]; then
-        _ok "Tous les conteneurs ETHAN sont opérationnels"
+        _ok "Tous les conteneurs ETHAN existants sont opérationnels"
     else
-        _warn "Certains conteneurs ETHAN nécessitent une attention"
+        _warn "Certains conteneurs ETHAN nécessitent une attention — le démarrage reste autorisé"
     fi
 else
     # CAS 1 : première install — vérifier les ports libres
@@ -178,7 +185,6 @@ else
     [8000]="API Gateway"
     [8080]="Kernel"
     [3000]="WebUI"
-    [9090]="Prometheus"
 )
 
 _port_in_use() {

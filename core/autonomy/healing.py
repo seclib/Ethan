@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
 from core.ethan_types.sdk.autonomy import HealthStatus
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class SelfHealingSystem:
             await self.bus.publish("autonomy.self_heal.triggered", Event(
                 type="autonomy.self_heal.triggered",
                 source="self-healing",
-                data={"status": status.dict()},
+                payload={"status": status.dict()},
             ))
         except Exception as e:
             logger.error(f"Self-healing handler failed: {e}")
@@ -70,7 +70,7 @@ class SelfHealingSystem:
         await self.bus.publish("system.module.unhealthy", Event(
             type="system.module.unhealthy",
             source="self-healing",
-            data={"module_id": module_id, "action": "isolate"},
+            payload={"module_id": module_id, "action": "isolate"},
         ))
 
     async def reset_failures(self, module_id: str) -> None:

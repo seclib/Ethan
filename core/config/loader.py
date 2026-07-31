@@ -149,14 +149,18 @@ class ConfigLoader:
         async def _probe():
             try:
                 import nats
-                nc = await nats.connect(
-                    "nats://localhost:4222",
+                nc = await asyncio.wait_for(
+                    nats.connect(
+                        "nats://localhost:4222",
+                        timeout=2,
+                        name="ethan-probe",
+                    ),
                     timeout=2,
-                    name="ethan-probe",
                 )
-                await nc.close()
+                await asyncio.wait_for(nc.close(), timeout=2)
                 return True
-            except Exception:
+            except Exception as exc:
+                logger.debug("NATS mode probe failed; using standalone mode: %s", exc, exc_info=True)
                 return False
 
         try:
@@ -164,8 +168,8 @@ class ConfigLoader:
             if reachable:
                 logger.info("NATS reachable → distributed mode")
                 return RuntimeMode.DISTRIBUTED
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("NATS mode detection failed; using standalone mode: %s", exc, exc_info=True)
 
         logger.info("NATS not reachable → standalone mode")
         return RuntimeMode.STANDALONE

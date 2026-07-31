@@ -1,21 +1,20 @@
-# syntax=docker/dockerfile:1.4
 # ─────────────────────────────────────────────────────────────────────────────
 # ETHAN — Kernel (moteur cognitif central)
 # Hérite de ethan/python-base. Aucune réinstallation de dépendances.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM ethan/python-base:latest
 
-# ── Code spécifique au kernel ─────────────────────────────────────────────
-# Cette couche est invalidée UNIQUEMENT si core/kernel/ ou core/bootstrap.py changent.
-COPY core/kernel.py core/kernel.py
-COPY core/bootstrap.py core/bootstrap.py
-COPY core/ethan_types/sdk/event.py core/ethan_types/sdk/event.py
+# ── Code du kernel et de ses dépendances ────────────────────────────────
+# Copier le package complet évite qu'une couche de base périmée ne réinjecte
+# un bus, un backend d'état ou un scheduler différent du kernel.
+COPY core/   /app/core/
+COPY sdk/    /app/sdk/
 
 ENV PYTHONPATH=/app/core:/app/sdk:/app
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=30s \
-    CMD python -c "import asyncio, os, nats; asyncio.run(asyncio.wait_for(nats.connect(os.environ.get('NATS_URL','nats://nats:4222')).__aenter__(), timeout=2))" || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=20s \
+    CMD curl -fsS http://localhost:8080/health/ready || exit 1
 
-CMD ["python", "core/bootstrap.py"]
+CMD ["python", "core/ethan_bootstrap.py"]

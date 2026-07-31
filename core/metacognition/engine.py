@@ -11,7 +11,7 @@ from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 from core.ethan_types.sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
 from core.ethan_types.sdk.learning import SelfModel
 
@@ -97,7 +97,7 @@ class MetaCognitionEngine:
         await self.bus.publish("meta.strategy_selected", Event(
             type="meta.strategy_selected",
             source="metacognition",
-            data={"strategy": strategy.dict(), "task_type": task_type},
+            payload={"strategy": strategy.dict(), "task_type": task_type},
             metadata=event.metadata or {},
         ))
 
@@ -111,20 +111,20 @@ class MetaCognitionEngine:
             await self.bus.publish("meta.mode_changed", Event(
                 type="meta.mode_changed",
                 source="metacognition",
-                data={"mode": self.current_mode.dict()},
+                payload={"mode": self.current_mode.dict()},
                 metadata=event.metadata or {},
             ))
 
         await self.bus.publish("meta.priority_updated", Event(
             type="meta.priority_updated",
             source="metacognition",
-            data={"priority": priority.dict()},
+            payload={"priority": priority.dict()},
             metadata=event.metadata or {},
         ))
 
         await self.bus.publish("meta.depth_adjusted", Event(
             type="meta.depth_adjusted",
             source="metacognition",
-            data={"depth": depth, "load": load},
+            payload={"depth": depth, "load": load},
             metadata=event.metadata or {},
         ))

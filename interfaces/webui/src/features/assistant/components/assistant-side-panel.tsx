@@ -23,7 +23,7 @@ export function AssistantSidePanel({ documents, memoryEntries, tools, mcpCalls, 
   const [activeTab, setActiveTab] = useState<SidePanelTab>("documents");
 
   return (
-    <div className="w-64 border-l border-line-2 bg-background/30 flex flex-col">
+    <div className="hidden w-64 shrink-0 flex-col border-l border-line-2 bg-background/30 md:flex">
       {/* Tabs */}
       <div className="flex border-b border-line-2">
         {TABS.map((tab) => (

@@ -10,7 +10,7 @@ from uuid import uuid4
 from core.bus.interface import EventBus
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class GoalManager:
         await self.bus.publish(EventType.GOAL_CREATED, Event(
             type=EventType.GOAL_CREATED,
             source="goal-manager",
-            data={"goal_id": goal.id, "user_id": user_id, "intent": intent},
+            payload={"goal_id": goal.id, "user_id": user_id, "intent": intent},
             metadata={"trace_id": trace_id, "session_id": session_id},
         ))
 
@@ -142,7 +142,7 @@ class GoalManager:
         await self.bus.publish(EventType.GOAL_COMPLETED, Event(
             type=EventType.GOAL_COMPLETED,
             source="goal-manager",
-            data={"goal_id": goal_id, "result": result or {}},
+            payload={"goal_id": goal_id, "result": result or {}},
         ))
 
         logger.info(f"Goal completed: {goal_id}")
@@ -154,7 +154,7 @@ class GoalManager:
         await self.bus.publish(EventType.GOAL_FAILED, Event(
             type=EventType.GOAL_FAILED,
             source="goal-manager",
-            data={"goal_id": goal_id, "error": error},
+            payload={"goal_id": goal_id, "error": error},
         ))
 
         logger.warning(f"Goal failed: {goal_id}: {error}")

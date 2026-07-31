@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 import asyncpg
@@ -22,7 +24,11 @@ class PostgresPersistentState(PersistentState):
     async def connect(self) -> None:
         """Connect to PostgreSQL."""
         logger.info(f"Connecting to PostgreSQL: {self._dsn.split('@')[1]}")
-        self._pool = await asyncpg.create_pool(self._dsn, min_size=2, max_size=10)
+        timeout = float(os.getenv("POSTGRES_CONNECT_TIMEOUT", "10"))
+        self._pool = await asyncio.wait_for(
+            asyncpg.create_pool(self._dsn, min_size=2, max_size=10),
+            timeout=timeout,
+        )
         logger.info("PostgreSQL connected")
 
     async def close(self) -> None:

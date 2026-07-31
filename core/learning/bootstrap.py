@@ -28,10 +28,15 @@ async def main():
     bus = NatsEventBus()
     redis = RedisLiveState(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
     pg = PostgresPersistentState(os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@localhost:5432/ethan"))
+    connect_timeout = float(os.getenv("CONNECT_TIMEOUT", "10"))
+    startup_timeout = float(os.getenv("STARTUP_TIMEOUT", "30"))
 
-    await bus.connect(os.getenv("NATS_URL", "nats://localhost:4222"))
-    await redis.connect()
-    await pg.connect()
+    await asyncio.wait_for(
+        bus.connect(os.getenv("NATS_URL", "nats://localhost:4222")),
+        timeout=connect_timeout,
+    )
+    await asyncio.wait_for(redis.connect(), timeout=connect_timeout)
+    await asyncio.wait_for(pg.connect(), timeout=connect_timeout)
 
     store = ExperienceStore(redis, pg)
     detector = PatternDetector(threshold=3)
@@ -39,7 +44,7 @@ async def main():
     modeler = SelfModelUpdater(redis)
 
     engine = LearningEngine(bus, store, detector, generator, modeler)
-    await engine.start()
+    await asyncio.wait_for(engine.start(), timeout=startup_timeout)
 
     try:
         await asyncio.Event().wait()

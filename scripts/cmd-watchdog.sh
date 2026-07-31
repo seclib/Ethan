@@ -15,12 +15,17 @@ MAX_RESTARTS=5
 # Fichier pour compter les restarts (dans /tmp car stateless)
 RESTART_COUNT_FILE="/tmp/ethan-watchdog-restarts"
 
-# Compter les conteneurs exited
-EXITED=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | wc -l || echo "0")
+# Compter les conteneurs exited sans transformer la ligne vide de Compose
+# en faux conteneur arrêté (`wc -l` retournait 1 sur une sortie vide).
+CRASHED_SVCS=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null \
+    | sed '/^[[:space:]]*$/d' | tr '\n' ' ' || true)
+if [[ -n "${CRASHED_SVCS//[[:space:]]/}" ]]; then
+    EXITED=$(wc -w <<< "$CRASHED_SVCS")
+else
+    EXITED=0
+fi
 
 if [ "$EXITED" -gt 0 ]; then
-    CRASHED_SVCS=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=exited" 2>/dev/null | tr '\n' ' ' || true)
-    
     # Incrémenter le compteur de restarts
     CURRENT_RESTARTS=$(cat "$RESTART_COUNT_FILE" 2>/dev/null || echo "0")
     NEW_RESTARTS=$((CURRENT_RESTARTS + EXITED))

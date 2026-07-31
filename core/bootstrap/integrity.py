@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
 from core.state.postgres_state import PostgresPersistentState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class IntegrityChecker:
             await self.bus.publish("bootstrap.integrity.check", Event(
                 type="bootstrap.integrity.check",
                 source="integrity-checker",
-                data={},
+                payload={},
             ))
             report.event_bus_ok = True
         except Exception as e:

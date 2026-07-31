@@ -1,4 +1,4 @@
-C"""ETHAN first-run experience — welcome screen, system check, first-run detection."""
+"""ETHAN first-run experience — welcome screen, system check, first-run detection."""
 
 import os
 

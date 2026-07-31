@@ -10,7 +10,7 @@ from core.autonomy.curiosity import CuriosityEngine
 from core.autonomy.environment import EnvironmentAnalyzer
 from core.autonomy.weakness import WeaknessDetector
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 from core.ethan_types.sdk.goals import GoalProposal, GoalScore
 
 logger = logging.getLogger(__name__)
@@ -109,5 +109,5 @@ class AutonomyEngine:
             await self.bus.publish("goal.proposed", Event(
                 type="goal.proposed",
                 source="autonomy",
-                data={"score": score.dict()},
+                payload={"score": score.dict()},
             ))

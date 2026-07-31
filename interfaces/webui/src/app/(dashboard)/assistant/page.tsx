@@ -86,7 +86,7 @@ export default function AssistantPage() {
   const allActions = messages.flatMap(m => m.actions || []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.14)-theme(spacing.12))] -m-6 bg-background">
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <AssistantTopBar metrics={metrics} />
       
       <div className="flex flex-1 overflow-hidden">

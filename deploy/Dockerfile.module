@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # ─────────────────────────────────────────────────────────────────────────────
 # ETHAN — Modules (exécution des capacités cognitives)
 # Hérite de ethan/python-base. Aucune réinstallation de dépendances.
@@ -12,7 +11,7 @@ COPY sdk/    /app/sdk/
 
 ENV PYTHONPATH=/app/core:/app/sdk:/app
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=30s \
-    CMD python -c "import asyncio, os, nats; asyncio.run(asyncio.wait_for(nats.connect(os.environ.get('NATS_URL','nats://nats:4222')).__aenter__(), timeout=2))" || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=25s \
+    CMD curl -fsS http://localhost:8081/health/ready || exit 1
 
 CMD ["python", "-m", "core.modules"]

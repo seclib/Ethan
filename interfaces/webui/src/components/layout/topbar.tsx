@@ -19,9 +19,9 @@ function Topbar() {
   const paths = pathname === "/" ? ["dashboard"] : pathname.split("/").filter(Boolean);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+    <header className="sticky top-0 z-30 flex h-14 min-w-0 shrink-0 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
         <Link href="/" className="hover:text-foreground transition-colors">ETHAN</Link>
         {paths.map((path, index) => {
           const href = "/" + paths.slice(0, index + 1).join("/");
@@ -31,7 +31,7 @@ function Topbar() {
               <Link 
                 href={href} 
                 className={cn(
-                  "hover:text-foreground transition-colors",
+                  "truncate hover:text-foreground transition-colors",
                   index === paths.length - 1 && "text-accent font-semibold"
                 )}
               >
@@ -43,7 +43,7 @@ function Topbar() {
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
         {/* Status indicator (Mock) */}
         <div className="hidden sm:flex items-center gap-2 mr-4 text-[11px] font-mono tracking-wider">
           <span className="relative flex h-2 w-2">
@@ -64,7 +64,7 @@ function Topbar() {
           title="Search (⌘K)"
         >
           <Search size={14} />
-          <span>Search...</span>
+          <span className="hidden sm:inline">Search...</span>
           <div className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-muted/50 ml-2">
             <Command size={10} />
             <span className="text-[9px]">K</span>

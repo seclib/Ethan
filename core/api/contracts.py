@@ -1,21 +1,17 @@
-"""ETHAN Core API Contracts — Types partagés pour l'API publique."""
+"""ETHAN Core API Contracts — Types partagés pour l'API publique.
+
+P0-3: Event is now imported from the canonical core.ethan_types.event module.
+This file previously defined a duplicate, incompatible Event class (timestamp: int
+vs datetime, no to_json/from_dict). That duplication is removed to enforce a
+single source of truth for the Event contract.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
 
-
-@dataclass
-class Event:
-    """Événement du système."""
-
-    id: str
-    type: str
-    source: str
-    timestamp: int  # Unix ms
-    payload: dict[str, Any] = field(default_factory=dict)
-    metadata: dict[str, str] = field(default_factory=dict)
+from core.ethan_types.event import Event  # noqa: F401 — re-exported for API consumers
 
 
 @dataclass

@@ -10,7 +10,7 @@ from core.learning.detector import PatternDetector
 from core.learning.generator import RuleGenerator
 from core.learning.modeler import SelfModelUpdater
 from core.learning.store import ExperienceStore
-from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 from core.ethan_types.sdk.learning import Experience, Pattern
 
 logger = logging.getLogger(__name__)
@@ -106,13 +106,13 @@ class LearningEngine:
                 await self.bus.publish(EventType.RULE_PROPOSAL, Event(
                     type=EventType.RULE_PROPOSAL,
                     source="learning-engine",
-                    data=rule.dict(),
+                    payload=rule.dict(),
                 ))
 
                 await self.bus.publish(EventType.LEARNING_INSIGHT, Event(
                     type=EventType.LEARNING_INSIGHT,
                     source="learning-engine",
-                    data={
+                    payload={
                         "pattern": pattern.dict(),
                         "rule": rule.dict(),
                     },
@@ -122,7 +122,7 @@ class LearningEngine:
             await self.bus.publish(EventType.SELF_MODEL_UPDATED, Event(
                 type=EventType.SELF_MODEL_UPDATED,
                 source="learning-engine",
-                data={"self_model": self_model},
+                payload={"self_model": self_model},
             ))
 
         except Exception as e:

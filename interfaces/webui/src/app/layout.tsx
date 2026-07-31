@@ -1,9 +1,7 @@
 import * as React from "react";
 import { ThemeProvider } from "@/core/providers/theme-provider";
 import { QueryProvider } from "@/core/providers/query-provider";
-import { WebSocketProvider } from "@/core/providers/websocket-provider";
 import { AuthProvider } from "@/core/providers/auth-provider";
-import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import "./globals.css";
 
@@ -23,13 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider>
           <QueryProvider>
-            <WebSocketProvider>
-              <AuthProvider>
-                <AtmosphereLayer />
-                {children}
-                <ToastProvider />
-              </AuthProvider>
-            </WebSocketProvider>
+            <AuthProvider>
+              {children}
+              <ToastProvider />
+            </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

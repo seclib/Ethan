@@ -12,7 +12,7 @@ from core.bootstrap.config_evolution import ConfigEvolutionEngine
 from core.bus.interface import EventBus
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class SystemBootstrapper:
         await self.bus.publish("bootstrap.integrity.completed", Event(
             type="bootstrap.integrity.completed",
             source="bootstrapper",
-            data={"report": report.dict()},
+            payload={"report": report.dict()},
         ))
 
         if not report.ok:
@@ -56,6 +56,11 @@ class SystemBootstrapper:
                 await self.repair.repair_module(module_id)
             for issue in report.issues:
                 logger.info(f"Repair attempted for: {issue}")
+            # Re-run the checks after repair attempts.  A repair request is
+            # not evidence that the dependency recovered; readiness must use
+            # the observed post-repair state.
+            logger.info("[2/5] Rechecking integrity after repair attempts...")
+            report = await self.integrity.check_all()
         else:
             logger.info("[2/5] No repair needed")
 
@@ -71,10 +76,13 @@ class SystemBootstrapper:
         await self.bus.publish("system.bootstrap.completed", Event(
             type="system.bootstrap.completed",
             source="bootstrapper",
-            data={"success": True},
+            payload={"success": report.ok, "issues": report.issues},
         ))
 
         # 5. Boot sequence complete
         logger.info("[5/5] Bootstrap sequence completed")
         logger.info("=" * 60)
-        return True
+        # A repair request is not proof that the component was repaired.  Keep
+        # the failed integrity result visible to readiness instead of
+        # reporting a successful bootstrap unconditionally.
+        return report.ok

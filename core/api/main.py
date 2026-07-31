@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import json
 import asyncio
+import os
 import nats
 from nats.aio.client import Client as NATSClient
+from fastapi import Response
 
 app = FastAPI(
     title="ETHAN API",
@@ -41,19 +43,36 @@ nats_client: Optional[NATSClient] = None
 async def startup():
     """Connect to NATS on startup"""
     global nats_client
-    try:
-        nats_client = await nats.connect("nats://nats:4222")
-        print("✓ Connected to NATS")
-    except Exception as e:
-        print(f"✗ Failed to connect to NATS: {e}")
-        nats_client = None
+    nats_url = os.getenv("NATS_URL", "nats://nats:4222")
+    startup_deadline = asyncio.get_running_loop().time() + float(
+        os.getenv("DEPENDENCY_STARTUP_TIMEOUT", "180")
+    )
+    for attempt in range(1, 11):
+        try:
+            remaining = startup_deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError("API dependency startup deadline exceeded")
+            nats_client = await asyncio.wait_for(
+                nats.connect(nats_url), timeout=min(10, remaining)
+            )
+            print("✓ Connected to NATS")
+            break
+        except Exception as e:
+            nats_client = None
+            if attempt == 10:
+                print(f"✗ Failed to connect to NATS after {attempt} attempts: {e}")
+                raise
+            wait = min(attempt * 2, 10)
+            wait = min(wait, max(0.0, startup_deadline - asyncio.get_running_loop().time()))
+            print(f"NATS connection failed ({e}); retrying in {wait}s")
+            await asyncio.sleep(wait)
 
 @app.on_event("shutdown")
 async def shutdown():
     """Disconnect from NATS on shutdown"""
     global nats_client
     if nats_client:
-        await nats_client.close()
+        await asyncio.wait_for(nats_client.close(), timeout=10)
         print("✓ Disconnected from NATS")
 
 @app.get("/")
@@ -67,11 +86,42 @@ async def root():
 
 @app.get("/v1/health")
 async def health():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "nats": nats_client is not None
+    """Compatibility readiness endpoint."""
+    return _health_response()
+
+
+@app.get("/health")
+async def root_health():
+    """Readiness endpoint used by container probes."""
+    return _health_response()
+
+
+@app.get("/health/live")
+async def health_live():
+    """Liveness endpoint that only asserts the HTTP process is serving."""
+    return {"status": "ok", "service": "api"}
+
+
+@app.get("/health/ready")
+async def health_ready():
+    """Readiness alias used by the Docker healthcheck contract."""
+    return _health_response()
+
+
+def _health_response() -> Response | dict:
+    nats_ok = nats_client is not None and nats_client.is_connected
+    payload = {
+        "status": "ok" if nats_ok else "degraded",
+        "service": "api",
+        "nats_connected": nats_ok,
     }
+    if not nats_ok:
+        return Response(
+            content=json.dumps(payload),
+            status_code=503,
+            media_type="application/json",
+        )
+    return payload
 
 @app.post("/v1/message", response_model=MessageResponse)
 async def send_message(request: MessageRequest):

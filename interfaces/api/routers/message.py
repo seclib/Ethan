@@ -7,11 +7,11 @@ import os
 from uuid import uuid4
 
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from nats.aio.client import Client as NatsClient
 
 from interfaces.api.models.requests import MessageRequest, MessageResponse, IntentRequest
-from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ async def post_message(request: MessageRequest) -> MessageResponse:
         },
     )
 
-    await _nats.publish("ethan.intent.user", json.dumps(event.dict()).encode())
+    await _nats.publish("ethan.intent.user", json.dumps(event.to_dict()).encode())
     logger.info(f"Published intent event {event_id} for user {request.user_id}")
 
     return MessageResponse(
@@ -97,7 +97,7 @@ async def post_intent(request: IntentRequest) -> MessageResponse:
         },
     )
 
-    await _nats.publish("ethan.intent.user", json.dumps(event.dict()).encode())
+    await _nats.publish("ethan.intent.user", json.dumps(event.to_dict()).encode())
 
     return MessageResponse(
         success=True,
@@ -108,9 +108,17 @@ async def post_intent(request: IntentRequest) -> MessageResponse:
 
 @router.get("/health")
 async def health():
-    """Health check."""
-    return {
-        "status": "ok",
+    """Compatibility health route with an honest HTTP status."""
+    nats_connected = _nats is not None and _nats.is_connected
+    payload = {
+        "status": "ok" if nats_connected else "degraded",
         "service": "api-gateway",
-        "nats_connected": _nats is not None and _nats.is_connected,
+        "nats_connected": nats_connected,
     }
+    if not nats_connected:
+        return Response(
+            content=json.dumps(payload),
+            status_code=503,
+            media_type="application/json",
+        )
+    return payload

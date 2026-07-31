@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 import nats
 from nats.aio.msg import Msg
 
-from core.ethan_types.sdk.event import Event, EventType
+from core.ethan_types.event import Event, EventType
 from core.ethan_types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
 from core.telemetry.logger import setup_logging
 
@@ -43,9 +43,9 @@ class ExampleModule(CognitiveModule):
         self.module_id = context.module_id
         logger.info(f"ExampleModule initializing: {self.module_id}")
 
-        self.nc = await nats.connect(
-            context.nats_url,
-            name=self.module_id,
+        timeout = float(os.getenv("MODULE_CONNECT_TIMEOUT", "10"))
+        self.nc = await asyncio.wait_for(
+            nats.connect(context.nats_url, name=self.module_id), timeout=timeout
         )
 
         # Subscribe to module topics
@@ -55,12 +55,12 @@ class ExampleModule(CognitiveModule):
                 event = Event.from_dict(data)
                 response = await self.handle_event(event)
                 if response and msg.reply:
-                    await self.nc.publish(msg.reply, json.dumps(response.dict()).encode())
+                    await self.nc.publish(msg.reply, response.to_json())
             except Exception as e:
                 logger.error(f"ExampleModule handler error: {e}")
 
         for topic in self.get_manifest().topics_subscribed:
-            await self.nc.subscribe(topic, cb=on_message)
+            await asyncio.wait_for(self.nc.subscribe(topic, cb=on_message), timeout=timeout)
             logger.info(f"ExampleModule subscribed to {topic}")
 
         # Register in PostgreSQL (via outbox for simplicity)

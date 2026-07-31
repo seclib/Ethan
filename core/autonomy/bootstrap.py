@@ -28,9 +28,14 @@ async def main():
 
     bus = NatsEventBus()
     redis = RedisLiveState(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    connect_timeout = float(os.getenv("CONNECT_TIMEOUT", "10"))
+    startup_timeout = float(os.getenv("STARTUP_TIMEOUT", "30"))
 
-    await bus.connect(os.getenv("NATS_URL", "nats://localhost:4222"))
-    await redis.connect()
+    await asyncio.wait_for(
+        bus.connect(os.getenv("NATS_URL", "nats://localhost:4222")),
+        timeout=connect_timeout,
+    )
+    await asyncio.wait_for(redis.connect(), timeout=connect_timeout)
 
     scheduler = PriorityScheduler()
     idle = IdleStateIntelligence(bus, redis)
@@ -40,9 +45,9 @@ async def main():
     environment = EnvironmentAnalyzer()
     controller = AutonomyLoopController(bus, redis)
 
-    await idle.start()
-    await healing.start()
-    await controller.start()
+    await asyncio.wait_for(idle.start(), timeout=startup_timeout)
+    await asyncio.wait_for(healing.start(), timeout=startup_timeout)
+    await asyncio.wait_for(controller.start(), timeout=startup_timeout)
     logger.info("Autonomy Service started")
 
     try:

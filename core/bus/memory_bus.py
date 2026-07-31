@@ -27,12 +27,12 @@ class InMemoryBus(EventBus):
     """
 
     def __init__(self, max_events: int = 10000):
-        self._subscriptions: dict[str, list[tuple[EventHandler, str | None]]] = {}
+        self._subscriptions: dict[str, list[tuple[Subscription, str | None]]] = {}
         self._history: deque[Event] = deque(maxlen=max_events)
         self._connected = False
         self._lock = asyncio.Lock()
 
-    async def connect(self, servers: str = "") -> None:
+    async def connect(self, servers: str | None = None) -> None:
         """Connexion au bus (immédiate pour in-memory).
 
         Args:
@@ -59,8 +59,9 @@ class InMemoryBus(EventBus):
         async with self._lock:
             for pattern, handlers in self._subscriptions.items():
                 if self._matches(pattern, subject):
-                    for handler, queue in handlers:
-                        tasks.append(self._dispatch(handler, event))
+                    for subscription, queue in handlers:
+                        if subscription.is_active:
+                            tasks.append(self._dispatch(subscription.handler, event))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -86,15 +87,30 @@ class InMemoryBus(EventBus):
         async with self._lock:
             if pattern not in self._subscriptions:
                 self._subscriptions[pattern] = []
-            self._subscriptions[pattern].append((handler, queue))
+        async def unsubscribe_from_memory() -> None:
+            async with self._lock:
+                handlers = self._subscriptions.get(pattern, [])
+                handlers[:] = [
+                    (candidate, candidate_queue)
+                    for candidate, candidate_queue in handlers
+                    if candidate is not subscription
+                ]
+                if not handlers:
+                    self._subscriptions.pop(pattern, None)
 
-        logger.debug("Subscribed: %s (id=%s)", pattern, sub_id)
-
-        return Subscription(
+        subscription = Subscription(
             id=sub_id,
             pattern=pattern,
             handler=handler,
+            bus=self,
+            unsubscribe_callback=unsubscribe_from_memory,
         )
+        async with self._lock:
+            self._subscriptions[pattern].append((subscription, queue))
+
+        logger.debug("Subscribed: %s (id=%s)", pattern, sub_id)
+
+        return subscription
 
     async def request(
         self,
@@ -147,7 +163,8 @@ class InMemoryBus(EventBus):
             self._connected = False
         logger.debug("InMemoryBus closed")
 
-    async def is_connected(self) -> bool:
+    @property
+    def is_connected(self) -> bool:
         """Vérifie si le bus est connecté."""
         return self._connected
 
@@ -222,6 +239,16 @@ class InMemoryBus(EventBus):
     def published_count(self) -> int:
         """Nombre d'événements publiés."""
         return len(self._history)
+
+    @property
+    def subscriber_count(self) -> int:
+        """Nombre d'abonnements actifs."""
+        return sum(
+            1
+            for subscriptions in self._subscriptions.values()
+            for subscription, _queue in subscriptions
+            if subscription.is_active
+        )
 
     def get_events_by_type(self, event_type: str) -> list[Event]:
         """Filtre l'historique par type d'événement.

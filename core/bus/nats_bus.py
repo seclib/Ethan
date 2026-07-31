@@ -1,9 +1,21 @@
-"""ETHAN Event Bus — NATS Implementation"""
+"""ETHAN Event Bus — NATS Implementation
+
+Uses the canonical Event from core.ethan_types.event for consistency.
+"""
+
+from __future__ import annotations
 
 import json
-import uuid
-from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+import inspect
+import logging
+import asyncio
+import os
+from typing import Any, Dict, Optional
+from uuid import uuid4
+
+from core.bus.interface import EventBus as EventBusContract
+from core.bus.interface import EventHandler, Subscription
+from core.ethan_types.event import Event
 
 try:
     import nats
@@ -13,124 +25,119 @@ try:
 except ImportError:
     NATS_AVAILABLE = False
 
-
-class Event:
-    """ETHAN Event — immutable event object"""
-    
-    def __init__(
-        self,
-        type: str,
-        source: str,
-        payload: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, str]] = None,
-        session_id: Optional[str] = None,
-    ):
-        self.id = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}.{uuid.uuid4().hex[:8]}"
-        self.type = type
-        self.source = source
-        self.timestamp = datetime.utcnow().isoformat() + "Z"
-        self.payload = payload or {}
-        self.context = context or {}
-        self.session_id = session_id or ""
-        
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "type": self.type,
-            "source": self.source,
-            "timestamp": self.timestamp,
-            "payload": self.payload,
-            "context": self.context,
-            "session_id": self.session_id,
-        }
-    
-    def to_json(self) -> bytes:
-        return json.dumps(self.to_dict()).encode()
-    
-    @classmethod
-    def from_json(cls, data: bytes) -> "Event":
-        obj = json.loads(data)
-        return cls(
-            type=obj.get("type", "unknown"),
-            source=obj.get("source", "unknown"),
-            payload=obj.get("payload", {}),
-            context=obj.get("context", {}),
-            session_id=obj.get("session_id", ""),
-        )
+logger = logging.getLogger(__name__)
 
 
-class EventBus:
-    """Event Bus — NATS-based communication"""
-    
+class EventBus(EventBusContract):
+    """Event Bus — NATS-based communication
+
+    Implements core.bus.interface.EventBus contract.
+    """
+
     def __init__(self, servers: str = "nats://nats:4222"):
         self.servers = servers
         self._client: Optional[NATSClient] = None
-        self._subscriptions: Dict[str, Any] = {}
-        
-    async def connect(self) -> None:
-        """Connect to NATS server"""
+        self._subscriptions: Dict[str, list[Any]] = {}
+
+    async def connect(self, servers: Optional[str] = None) -> None:
+        """Connect to NATS server.
+
+        Args:
+            servers: Optional URL override. If not provided, uses the URL
+                     passed to __init__. This signature is compatible with
+                     both the abstract EventBus.connect(servers) and the
+                     common pattern of calling bus.connect() without args.
+        """
         if not NATS_AVAILABLE:
             raise RuntimeError("NATS library not available. Install with: pip install nats-py")
-        
+
         if self._client is not None:
             return
-        
-        self._client = await nats.connect(self.servers)
-        
+
+        url = servers or self.servers
+        timeout = float(os.getenv("NATS_CONNECT_TIMEOUT", "10"))
+        self._client = await asyncio.wait_for(nats.connect(url), timeout=timeout)
+        logger.info("NATS EventBus connected to %s", url)
+
     async def disconnect(self) -> None:
-        """Disconnect from NATS server"""
+        """Disconnect from NATS server."""
         if self._client:
             await self._client.close()
             self._client = None
             self._subscriptions = {}
-    
+            logger.info("NATS EventBus disconnected")
+
+    async def close(self) -> None:
+        """Alias for disconnect — matches EventBus interface."""
+        await self.disconnect()
+
     async def publish(self, subject: str, event: Event) -> None:
-        """Publish an event to a subject"""
+        """Publish an event to a subject."""
         if self._client is None:
             raise RuntimeError("Not connected to NATS")
-        
+
         await self._client.publish(subject, event.to_json())
-        
+
     async def subscribe(
         self,
         subject: str,
-        callback: Callable[[Event], Any],
+        callback: EventHandler,
         queue: Optional[str] = None,
-    ) -> None:
-        """Subscribe to a subject"""
+    ) -> Subscription:
+        """Subscribe to a subject and return a contract-compliant handle."""
         if self._client is None:
             raise RuntimeError("Not connected to NATS")
-        
+
         async def handler(msg: Msg) -> None:
             event = Event.from_json(msg.data)
-            await callback(event)
-        
+            result = callback(event)
+            if inspect.isawaitable(result):
+                await result
+
         sub = await self._client.subscribe(subject, cb=handler, queue=queue)
-        self._subscriptions[subject] = sub
-    
-    async def request(self, subject: str, event: Event, timeout: float = 5.0) -> Optional[Event]:
-        """Request-reply pattern"""
+        self._subscriptions.setdefault(subject, []).append(sub)
+        subscription_id = str(uuid4())
+
+        async def unsubscribe_from_nats() -> None:
+            # Keep the public handle and the raw NATS subscription in sync.
+            subscriptions = self._subscriptions.get(subject, [])
+            if sub in subscriptions:
+                await sub.unsubscribe()
+                subscriptions.remove(sub)
+                if not subscriptions:
+                    self._subscriptions.pop(subject, None)
+
+        return Subscription(
+            id=subscription_id,
+            pattern=subject,
+            handler=callback,
+            bus=self,
+            unsubscribe_callback=unsubscribe_from_nats,
+        )
+
+    async def request(self, subject: str, event: Event, timeout: float = 30.0) -> Optional[Event]:
+        """Request-reply pattern."""
         if self._client is None:
             raise RuntimeError("Not connected to NATS")
-        
+
         msg = await self._client.request(subject, event.to_json(), timeout=timeout)
         if msg:
             return Event.from_json(msg.data)
         return None
-    
+
     async def unsubscribe(self, subject: str) -> None:
-        """Unsubscribe from a subject"""
-        if subject in self._subscriptions:
-            await self._subscriptions[subject].unsubscribe()
-            del self._subscriptions[subject]
-    
+        """Unsubscribe from a subject."""
+        for subscription in list(self._subscriptions.get(subject, [])):
+            await subscription.unsubscribe()
+        self._subscriptions.pop(subject, None)
+
     @property
     def is_connected(self) -> bool:
         return self._client is not None and self._client.is_connected
-    
+
     async def __aenter__(self):
         await self.connect()
         return self
-    
+
     async def __aexit__(self, *args):
         await self.disconnect()

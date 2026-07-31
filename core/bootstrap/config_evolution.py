@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 

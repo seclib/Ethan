@@ -134,6 +134,8 @@ class ModuleRegistry:
                 config=self._configs.get(name, {}),
             )
             await module.initialize(context)
+            if isinstance(module, ModuleInterface):
+                self._start_healthcheck(name)
             logger.info("Module started: %s", name)
         except Exception as e:
             raise ModuleStartupError(f"Failed to start module '{name}': {e}") from e
@@ -155,10 +157,7 @@ class ModuleRegistry:
     async def start_all(self) -> None:
         """Démarre tous les modules enregistrés."""
         for name in self._modules:
-            try:
-                await self.start(name)
-            except Exception as e:
-                logger.error("Failed to start module '%s': %s", name, e)
+            await self.start(name)
 
     async def stop_all(self) -> None:
         """Arrête tous les modules."""
@@ -185,7 +184,9 @@ class ModuleRegistry:
                     if module is None:
                         break
                     if isinstance(module, ModuleInterface):
-                        status = await module.health_check()
+                        status = await asyncio.wait_for(
+                            module.health_check(), timeout=min(interval, 10)
+                        )
                         if status.get("status") == "unhealthy":
                             logger.warning(
                                 "Module '%s' healthcheck: unhealthy", name
@@ -198,7 +199,22 @@ class ModuleRegistry:
                     )
 
         task = asyncio.create_task(_healthcheck_loop())
+        task.add_done_callback(self._health_task_done)
         self._health_tasks[name] = task
+
+    @staticmethod
+    def _health_task_done(task: asyncio.Task) -> None:
+        if task.cancelled():
+            return
+        try:
+            error = task.exception()
+        except asyncio.CancelledError:
+            return
+        if error is not None:
+            logger.error(
+                "Module healthcheck task failed",
+                exc_info=(type(error), error, error.__traceback__),
+            )
 
     def _stop_healthcheck(self, name: str) -> None:
         """Arrête la boucle de healthcheck.

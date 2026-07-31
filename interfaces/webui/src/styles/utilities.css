@@ -6,21 +6,21 @@
 .sidebar-tooltip::after {
   content: attr(data-tooltip);
   position: absolute;
-  left: 100%;
+  left: calc(100% + 8px);
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 8px;
+  z-index: 9999;
   padding: 4px 8px;
-  background: rgba(15, 23, 42, 0.95);
-  color: #f1f5f9;
+  background: var(--bg-3);
+  color: var(--fg-0);
   font-size: 11px;
   font-family: ui-monospace, monospace;
-  border-radius: 6px;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
-  z-index: 50;
   border: 0.5px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

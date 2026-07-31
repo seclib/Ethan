@@ -1,7 +1,8 @@
 """Event System — ADR-1007 (Backward Compatible)
 
 Ce module reste importable pour la rétrocompatibilité.
-Il réexporte les nouveaux types depuis core/types et core/bus.
+Il réexporte les types canoniques depuis core.ethan_types.event et le bus
+mémoire de compatibilité.
 
 Les anciennes importations continuent de fonctionner :
     from core.events import Event, EventType, EventBus, EventHandler

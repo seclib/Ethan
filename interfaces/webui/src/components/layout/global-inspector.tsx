@@ -95,7 +95,7 @@ export function GlobalInspector() {
       {/* Backdrop for mobile (optional) */}
       {inspectorOpen && (
         <div 
-          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden" 
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden"
           onClick={closeInspector}
         />
       )}
@@ -103,7 +103,7 @@ export function GlobalInspector() {
       {/* Inspector Panel */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-40 h-screen w-full md:w-[400px] border-l bg-background shadow-2xl transition-transform duration-300",
+          "fixed right-0 top-0 z-[60] h-[100dvh] w-full border-l bg-background shadow-2xl transition-transform duration-300 md:w-[400px]",
           inspectorOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -119,7 +119,7 @@ export function GlobalInspector() {
           </button>
         </div>
         
-        <div className="p-4 overflow-y-auto h-[calc(100vh-3.5rem)] custom-scrollbar">
+        <div className="h-[calc(100dvh-3.5rem)] overflow-y-auto p-4 custom-scrollbar">
           {!inspector.id ? (
             <div className="flex flex-col items-center justify-center h-40 text-center space-y-3">
               <Activity size={32} className="text-muted-foreground/30" />

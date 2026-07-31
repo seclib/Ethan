@@ -64,14 +64,14 @@ function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r bg-background transition-all duration-300",
-        sidebarExpanded ? "w-64" : "w-16"
+        "fixed inset-y-0 left-0 z-40 h-[100dvh] w-16 border-r bg-background transition-[width] duration-300",
+        sidebarExpanded ? "md:w-64" : "w-16"
       )}
     >
       <div className="flex h-full flex-col">
         <div className="flex h-14 items-center justify-between border-b px-4">
           {sidebarExpanded && (
-            <span className="font-mono text-sm font-semibold text-accent">
+            <span className="hidden font-mono text-sm font-semibold text-accent md:inline">
               ETHAN
             </span>
           )}
@@ -95,7 +95,7 @@ function Sidebar() {
             return Object.entries(groups).map(([group, items]) => (
               <div key={group} className="mb-6">
                 {sidebarExpanded && (
-                  <h3 className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <h3 className="mb-2 hidden px-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 md:block">
                     {group}
                   </h3>
                 )}
@@ -109,19 +109,20 @@ function Sidebar() {
                         <Link
                           href={item.href}
                           className={cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors relative",
+                            "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:justify-center max-md:px-0",
                             isActive
                               ? "bg-accent/15 text-accent font-medium"
                               : "hover:bg-accent/10 hover:text-accent text-muted-foreground",
                             !sidebarExpanded && "justify-center px-0 sidebar-tooltip"
                           )}
                           data-tooltip={!sidebarExpanded ? item.label : undefined}
+                          title={item.label}
                         >
                           {isActive && (
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-md" />
                           )}
                           <Icon size={18} className={cn(isActive && "text-accent")} />
-                          {sidebarExpanded && <span>{item.label}</span>}
+                          {sidebarExpanded && <span className="hidden md:inline">{item.label}</span>}
                         </Link>
                       </li>
                     );
@@ -138,7 +139,7 @@ function Sidebar() {
               <User size={16} className="text-accent" />
             </div>
             {sidebarExpanded && (
-              <div className="flex-1 overflow-hidden">
+              <div className="hidden min-w-0 flex-1 overflow-hidden md:block">
                 <p className="text-sm font-medium truncate">User</p>
                 <p className="text-xs text-muted-foreground truncate">user@ethan.ai</p>
               </div>

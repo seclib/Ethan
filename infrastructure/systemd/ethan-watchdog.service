@@ -14,7 +14,7 @@ User=ethan
 SupplementaryGroups=docker
 Environment=ETHAN_ROOT=/home/fatsio/AI/Ethan
 EnvironmentFile=-/home/fatsio/AI/Ethan/.env
-WorkingDirectory=/home/fatsio/AI/Ethan/
+WorkingDirectory=/home/fatsio/AI/Ethan
 ExecStart=/home/fatsio/AI/Ethan/ethan watchdog
 StandardOutput=journal
 StandardError=journal

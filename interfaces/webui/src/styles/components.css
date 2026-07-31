@@ -137,29 +137,6 @@
   margin: 0;
 }
 
-/* ───────── Tooltips (sidebar only) ───────── */
-.sidebar-tooltip {
-  position: relative;
-}
-.sidebar-tooltip:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 9999;
-  padding: 4px 8px;
-  background: var(--bg-3);
-  color: var(--fg-0);
-  font-family: ui-monospace, monospace;
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-  border-radius: 4px;
-  border: 0.5px solid var(--line-2);
-  pointer-events: none;
-  animation: fadeIn 0.15s ease;
-}
 /* ───────── Subpages pills ───────── */
 .subpages-pills {
   display: flex;

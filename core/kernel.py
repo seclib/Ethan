@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, Optional
 
 from core.autonomy.controller import AutonomyLoopController
-from core.bus.interface import EventBus
+from core.bus.interface import EventBus, Subscription
 from core.goals.manager import GoalManager
 from core.learning.engine import LearningEngine
 from core.metacognition.engine import MetaCognitionEngine
@@ -42,6 +43,9 @@ class CognitiveKernel:
         self.metacognition = metacognition
         self.autonomy = autonomy
         self._running = False
+        self._subscriptions: list[Subscription] = []
+        self._started_components: set[str] = set()
+        self._builtin_module_ids: set[str] = set()
 
     async def start(self) -> None:
         if self._running:
@@ -49,33 +53,54 @@ class CognitiveKernel:
             return
 
         self._running = True
+        self._started_components.clear()
+        self._subscriptions.clear()
         logger.info("Cognitive Kernel starting")
 
-        await self.bus.subscribe("kernel.>", self._on_system_event, queue="kernel-system")
-        await self.bus.subscribe("goal.>", self._on_goal_event, queue="kernel-goals")
-        await self.bus.subscribe("module.>", self._on_module_event, queue="kernel-dispatch")
-        await self.bus.subscribe("intent.>", self._on_intent_event, queue="kernel-intents")
-        await self._register_builtin_modules()
-        await self.scheduler.start()
+        try:
+            for pattern, handler, queue in (
+                ("kernel.>", self._on_system_event, "kernel-system"),
+                ("goal.>", self._on_goal_event, "kernel-goals"),
+                ("module.>", self._on_module_event, "kernel-dispatch"),
+                ("intent.>", self._on_intent_event, "kernel-intents"),
+            ):
+                subscription = await asyncio.wait_for(
+                    self.bus.subscribe(pattern, handler, queue=queue), timeout=10
+                )
+                if subscription is not None:
+                    self._subscriptions.append(subscription)
 
-        if self.learning:
-            await self.learning.start()
-            logger.info("Learning Engine started")
+            await self._register_builtin_modules()
+            self._started_components.add("scheduler")
+            await asyncio.wait_for(self.scheduler.start(), timeout=10)
 
-        if self.metacognition:
-            await self.metacognition.start()
-            logger.info("Meta-Cognition Engine started")
+            if self.learning:
+                self._started_components.add("learning")
+                await asyncio.wait_for(self.learning.start(), timeout=10)
+                logger.info("Learning Engine started")
 
-        if self.autonomy:
-            await self.autonomy.start()
-            logger.info("Autonomy Engine started")
+            if self.metacognition:
+                self._started_components.add("metacognition")
+                await asyncio.wait_for(self.metacognition.start(), timeout=10)
+                logger.info("Meta-Cognition Engine started")
 
-        await self.bus.publish("system.kernel.started", Event(
-            type=EventType.SYSTEM_BOOT,
-            source="kernel",
-            payload={"version": "0.7.0", "phase": "7.0"},
-        ))
-        logger.info("Cognitive Kernel started")
+            if self.autonomy:
+                self._started_components.add("autonomy")
+                await asyncio.wait_for(self.autonomy.start(), timeout=10)
+                logger.info("Autonomy Engine started")
+
+            await asyncio.wait_for(
+                self.bus.publish("system.kernel.started", Event(
+                    type=EventType.SYSTEM_BOOT,
+                    source="kernel",
+                    payload={"version": "0.7.0", "phase": "7.0"},
+                )),
+                timeout=10,
+            )
+            logger.info("Cognitive Kernel started")
+        except BaseException:
+            await self._rollback_startup()
+            raise
 
     async def stop(self) -> None:
         if not self._running:
@@ -83,24 +108,50 @@ class CognitiveKernel:
 
         self._running = False
         logger.info("Cognitive Kernel stopping")
+        first_error: BaseException | None = None
 
-        if self.learning:
-            await self.learning.stop()
+        async def shutdown_step(name: str, operation, timeout: float = 10) -> None:
+            nonlocal first_error
+            try:
+                await asyncio.wait_for(operation(), timeout=timeout)
+            except BaseException as exc:
+                if first_error is None:
+                    first_error = exc
+                logger.error("Kernel shutdown step failed: %s", name, exc_info=True)
 
-        if self.metacognition:
-            await self.metacognition.stop()
-
-        if self.autonomy:
-            await self.autonomy.stop()
-
-        await self.bus.publish("system.kernel.stopping", Event(
-            type=EventType.SYSTEM_SHUTDOWN,
-            source="kernel",
-        ))
-        await self.scheduler.stop()
-        await self.bus.close()
-        await self.state.close()
+        await shutdown_step("learning", self.learning.stop if self.learning and "learning" in self._started_components else _noop)
+        await shutdown_step("metacognition", self.metacognition.stop if self.metacognition and "metacognition" in self._started_components else _noop)
+        await shutdown_step("autonomy", self.autonomy.stop if self.autonomy and "autonomy" in self._started_components else _noop)
+        await shutdown_step(
+            "kernel stopping event",
+            lambda: self.bus.publish("system.kernel.stopping", Event(
+                type=EventType.SYSTEM_SHUTDOWN,
+                source="kernel",
+            )),
+        )
+        await shutdown_step("scheduler", self.scheduler.stop if "scheduler" in self._started_components else _noop)
+        for subscription in reversed(self._subscriptions):
+            await shutdown_step("subscription", subscription.unsubscribe, timeout=5)
+        await shutdown_step("bus", self.bus.close)
+        await shutdown_step("state", self.state.close)
+        for module_id in reversed(tuple(self._builtin_module_ids)):
+            try:
+                self.registry.unregister(module_id)
+            except Exception:
+                logger.exception("Failed to unregister builtin module: %s", module_id)
+        self._builtin_module_ids.clear()
+        self._subscriptions.clear()
+        self._started_components.clear()
         logger.info("Cognitive Kernel stopped")
+        if first_error is not None:
+            raise first_error
+
+    async def _rollback_startup(self) -> None:
+        """Best-effort cleanup after a failed startup, preserving the cause."""
+        try:
+            await self.stop()
+        except Exception:
+            logger.exception("Kernel rollback cleanup failed")
 
     async def register_module(self, module_id: str, capabilities: list[str]) -> None:
         from core.modules.base import Module, ModuleContext
@@ -153,6 +204,10 @@ class CognitiveKernel:
         await self.dispatch_event(event)
 
     async def _register_builtin_modules(self) -> None:
+        # These registry entries are lightweight kernel routing contracts. The
+        # executable cognitive implementations are loaded by the dedicated
+        # ``core.modules`` service (see core/modules/__main__.py); registering
+        # them here must not be mistaken for constructing a second NATS client.
         builtins = [
             ("module-executive", ["handle.intent"]),
             ("module-planner", ["handle.task"]),
@@ -161,9 +216,14 @@ class CognitiveKernel:
         ]
         for module_id, caps in builtins:
             try:
-                await self.register_module(module_id, caps)
-            except Exception:
-                pass
+                await asyncio.wait_for(self.register_module(module_id, caps), timeout=5)
+                self._builtin_module_ids.add(module_id)
+            except asyncio.TimeoutError as exc:
+                logger.error("Builtin module %s registration timed out", module_id)
+                raise RuntimeError(f"Module {module_id} registration timed out") from exc
+            except Exception as exc:
+                logger.error("Builtin module %s registration failed: %s", module_id, exc)
+                raise RuntimeError(f"Module {module_id} registration failed: {exc}") from exc
 
     async def _on_system_event(self, event: Event) -> None:
         logger.debug("System event: %s", event.type)
@@ -215,3 +275,7 @@ class CognitiveKernel:
             await self.state.sync_event(event.id, payload)
         except Exception as e:
             logger.warning("State sync failed: %s", e)
+
+
+async def _noop() -> None:
+    """No-op used to keep shutdown cleanup uniform."""

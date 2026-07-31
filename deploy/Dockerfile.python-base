@@ -17,12 +17,11 @@ LABEL maintainer="ETHAN Project" \
 WORKDIR /app
 
 # ── Dépendances système minimales ────────────────────────────────
-# curl : healthchecks HTTP
-# netcat-openbsd (nc) : test de connectivité TCP (healthchecks NATS)
+# curl : sondes HTTP des services applicatifs (NATS monitoring inclus dans
+# l'image NATS, les services ETHAN exposent leurs propres endpoints)
 # build-essential : compilateurs C pour les dépendances Python natives
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    netcat-openbsd \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 

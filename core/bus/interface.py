@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine
+from typing import Any, Awaitable, Callable, Coroutine
 
 from core.ethan_types.event import Event
 
@@ -25,11 +25,13 @@ class Subscription:
         pattern: str,
         handler: EventHandler,
         bus: EventBus | None = None,
+        unsubscribe_callback: Callable[[], Awaitable[None]] | None = None,
     ):
         self.id = id
         self.pattern = pattern
         self.handler = handler
         self._bus = bus
+        self._unsubscribe_callback = unsubscribe_callback
         self._active = True
 
     @property
@@ -38,7 +40,11 @@ class Subscription:
 
     async def unsubscribe(self) -> None:
         """Se désabonne du sujet."""
+        if not self._active:
+            return
         self._active = False
+        if self._unsubscribe_callback is not None:
+            await self._unsubscribe_callback()
 
 
 class EventBus(ABC):
@@ -52,11 +58,12 @@ class EventBus(ABC):
     """
 
     @abstractmethod
-    async def connect(self, servers: str) -> None:
+    async def connect(self, servers: str | None = None) -> None:
         """Connexion au bus.
         
         Args:
-            servers: URL ou liste d'URLs de serveurs (e.g., "nats://localhost:4222")
+            servers: URL ou liste d'URLs de serveurs (e.g., "nats://localhost:4222").
+                     If None, uses the URL provided at construction time.
         """
         ...
 
@@ -113,7 +120,8 @@ class EventBus(ABC):
         """Ferme la connexion au bus."""
         ...
 
+    @property
     @abstractmethod
-    async def is_connected(self) -> bool:
+    def is_connected(self) -> bool:
         """Vérifie si le bus est connecté."""
         ...

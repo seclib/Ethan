@@ -10,7 +10,7 @@ export function AssistantTopBar({ metrics }: AssistantTopBarProps) {
   const statusColor = metrics.agentStatus === "run" ? "text-green-400" : metrics.agentStatus === "error" ? "text-red-400" : "text-muted-foreground";
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 border-b border-line-2 bg-background/80 text-xs">
+    <div className="flex shrink-0 items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-line-2 bg-background/80 px-4 py-2 text-xs">
       <div className="flex items-center gap-2">
         <span className={`${statusColor}`}>●</span>
         <span className="text-foreground font-medium">{metrics.agentName}</span>

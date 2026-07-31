@@ -1,7 +1,12 @@
-"""ETHAN Core — Entry point isolated.
+"""ETHAN Core — compatibility CLI entry point.
 
 Reçoit la configuration en paramètre.
 ZÉRO dépendance OS (pas de os.getenv, sys.path, signal).
+
+The production Compose entrypoints are deliberately split: ``core/ethan_bootstrap.py``
+starts the kernel and ``python -m core.modules`` starts the four NATS cognitive
+modules. This CLI remains a minimal in-process harness and does not duplicate
+that module service wiring.
 """
 
 from __future__ import annotations
@@ -47,6 +52,51 @@ async def create_kernel(
     Returns:
         Kernel prêt à démarrer
     """
+    from core.learning.engine import LearningEngine
+    from core.learning.detector import PatternDetector
+    from core.learning.generator import RuleGenerator
+    from core.learning.modeler import SelfModelUpdater
+    from core.learning.store import ExperienceStore
+
+    from core.metacognition.engine import MetaCognitionEngine
+    from core.metacognition.load import CognitiveLoadManager
+    from core.metacognition.prioritizer import ModulePrioritizer
+    from core.metacognition.strategy import DecisionStrategySelector
+    from core.metacognition.trace import ThoughtTraceAnalyzer
+
+    from core.autonomy.controller import AutonomyLoopController
+
+    enable_learning = config.get("enable_learning", False)
+    enable_metacognition = config.get("enable_metacognition", False)
+    enable_autonomy = config.get("enable_autonomy", False)
+
+    learning = None
+    if enable_learning:
+        store = ExperienceStore(state, state)
+        detector = PatternDetector(threshold=3)
+        generator = RuleGenerator()
+        modeler = SelfModelUpdater(state)
+        learning = LearningEngine(bus, store, detector, generator, modeler)
+
+    metacognition = None
+    if enable_metacognition:
+        strategy = DecisionStrategySelector()
+        load_manager = CognitiveLoadManager()
+        prioritizer = ModulePrioritizer()
+        trace_analyzer = ThoughtTraceAnalyzer()
+        metacognition = MetaCognitionEngine(
+            bus=bus,
+            redis=state,
+            strategy=strategy,
+            load_manager=load_manager,
+            prioritizer=prioritizer,
+            trace_analyzer=trace_analyzer,
+        )
+
+    autonomy = None
+    if enable_autonomy:
+        autonomy = AutonomyLoopController(bus=bus, redis=state)
+
     goals = GoalManager(bus, state, state)
     scheduler = Scheduler(bus)
     
@@ -56,6 +106,9 @@ async def create_kernel(
         registry=registry,
         goals=goals,
         scheduler=scheduler,
+        learning=learning,
+        metacognition=metacognition,
+        autonomy=autonomy,
     )
     return kernel
 

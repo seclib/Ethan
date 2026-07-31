@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
 from core.state.postgres_state import PostgresPersistentState
-from core.ethan_types.sdk.event import Event
+from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class RepairEngine:
         await self.bus.publish("module.repair.requested", Event(
             type="module.repair.requested",
             source="repair-engine",
-            data={"module_id": module_id, "attempt": retries + 1},
+            payload={"module_id": module_id, "attempt": retries + 1},
         ))
 
         # Reset retry count on success
@@ -65,7 +65,7 @@ class RepairEngine:
         await self.bus.publish("system.module.unhealthy", Event(
             type="system.module.unhealthy",
             source="repair-engine",
-            data={"module_id": module_id, "action": "isolate"},
+            payload={"module_id": module_id, "action": "isolate"},
         ))
         logger.warning(f"Module {module_id} isolated")
 
