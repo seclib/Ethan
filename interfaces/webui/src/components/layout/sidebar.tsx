@@ -71,7 +71,7 @@ function Sidebar() {
       <div className="flex h-full flex-col">
         <div className="flex h-14 items-center justify-between border-b px-4">
           {sidebarExpanded && (
-            <span className="hidden font-mono text-sm font-semibold text-accent md:inline">
+            <span className="font-mono text-sm font-semibold text-accent">
               ETHAN
             </span>
           )}
@@ -95,34 +95,34 @@ function Sidebar() {
             return Object.entries(groups).map(([group, items]) => (
               <div key={group} className="mb-6">
                 {sidebarExpanded && (
-                  <h3 className="mb-2 hidden px-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 md:block">
+                  <h3 className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                     {group}
                   </h3>
                 )}
                 <ul className="space-y-1 px-2">
                   {items.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+                    const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href + "/"));
                     const Icon = item.icon;
                     
                     return (
                       <li key={item.id}>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:justify-center max-md:px-0",
-                            isActive
-                              ? "bg-accent/15 text-accent font-medium"
-                              : "hover:bg-accent/10 hover:text-accent text-muted-foreground",
-                            !sidebarExpanded && "justify-center px-0 sidebar-tooltip"
-                          )}
-                          data-tooltip={!sidebarExpanded ? item.label : undefined}
-                          title={item.label}
-                        >
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                              isActive
+                                ? "bg-accent/15 text-accent font-medium"
+                                : "hover:bg-accent/10 hover:text-accent text-muted-foreground",
+                              !sidebarExpanded && "justify-center px-2 sidebar-tooltip"
+                            )}
+                            data-tooltip={!sidebarExpanded ? item.label : undefined}
+                            aria-current={isActive ? "page" : undefined}
+                          >
                           {isActive && (
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-md" />
                           )}
                           <Icon size={18} className={cn(isActive && "text-accent")} />
-                          {sidebarExpanded && <span className="hidden md:inline">{item.label}</span>}
+                          {sidebarExpanded && <span>{item.label}</span>}
                         </Link>
                       </li>
                     );
@@ -134,12 +134,12 @@ function Sidebar() {
         </nav>
 
         <div className="border-t p-3">
-          <div className="flex items-center gap-3 rounded-md px-3 py-2">
+          <div className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent/10 transition-colors cursor-pointer">
             <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
               <User size={16} className="text-accent" />
             </div>
             {sidebarExpanded && (
-              <div className="hidden min-w-0 flex-1 overflow-hidden md:block">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium truncate">User</p>
                 <p className="text-xs text-muted-foreground truncate">user@ethan.ai</p>
               </div>

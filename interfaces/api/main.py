@@ -13,8 +13,9 @@ import logging
 import os
 import asyncio
 
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi.middleware import SlowAPIMiddleware
 
 import nats
@@ -23,7 +24,8 @@ from core.telemetry.logger import setup_logging
 from interfaces.api.routers.message import router as message_router, set_nats_client
 from interfaces.api.routers.state import router as state_router
 from interfaces.api.routers.internal import router as internal_router, init_modules
-from interfaces.api.auth import auth_middleware, create_access_token
+from interfaces.api.routers.v1 import router as v1_router
+from interfaces.api.auth import auth_middleware, create_access_token, verify_token, security
 from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
 
 try:
@@ -42,7 +44,8 @@ except ImportError:
     def generate_latest(*args, **kwargs):  # type: ignore[misc]
         raise RuntimeError("prometheus_client is not installed")
 
-    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4"
+    CONTENT_TYPE_LATEST = "text/plain; version=0.4"
+
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +77,7 @@ app.middleware("http")(auth_middleware)
 app.include_router(message_router)
 app.include_router(state_router)
 app.include_router(internal_router)
+app.include_router(v1_router)
 
 
 @app.on_event("startup")
@@ -87,9 +91,6 @@ async def startup():
         os.getenv("DEPENDENCY_STARTUP_TIMEOUT", "180")
     )
 
-    # Compose only guarantees that the NATS process has started.  Keep the
-    # API process alive while NATS is becoming ready and let /health report
-    # readiness accurately instead of failing the container immediately.
     for attempt in range(1, 11):
         try:
             remaining = startup_deadline - asyncio.get_running_loop().time()
@@ -115,10 +116,8 @@ async def startup():
             )
             await asyncio.sleep(wait)
 
-    # Initialiser les nouveaux modules (Audit, Budget, Facts, Approval, SkillLab)
     init_modules(pg_conn=None)
 
-    # Initialize OpenTelemetry if available
     if HAS_TELEMETRY:
         try:
             init_telemetry("ethan-api")
@@ -130,12 +129,7 @@ async def startup():
 
 @app.post("/auth/login")
 async def login(request: Request):
-    """Login endpoint — returns a JWT token.
-
-    In production, replace this with proper credential validation (API key, OAuth2, etc.).
-    For development, accepts any valid JSON body with a 'username' field.
-    Rate limited to 5 requests per minute.
-    """
+    """Login endpoint — returns a JWT token."""
     import json
 
     try:
@@ -154,12 +148,74 @@ async def login(request: Request):
     }
 
 
+@app.post("/auth/register")
+async def register(request: Request):
+    """Registration endpoint — public, returns a JWT token for the new user."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    username = body.get("username") or body.get("email") or body.get("name")
+    if not username:
+        raise HTTPException(status_code=400, detail="Username or email is required")
+    if not body.get("password"):
+        raise HTTPException(status_code=400, detail="Password is required")
+
+    token = create_access_token(data={"sub": username, "role": "user"})
+    return {
+        "access_token": token,
+        "token": token,
+        "token_type": "bearer",
+        "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+        "user": {"username": username, "email": body.get("email", ""), "role": "user"},
+    }
+
+
+@app.get("/auth/me")
+async def auth_me(request: Request):
+    """Return the current authenticated user from the JWT token.
+
+    The auth middleware already validated the token and injected the user
+    into request.state. We just return it.
+    """
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = getattr(request.state, "token_payload", {})
+    return {"user": {"username": user, "role": payload.get("role", "user")}}
+
+
+@app.post("/auth/refresh")
+async def auth_refresh(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Issue a new JWT token from a valid existing token."""
+    try:
+        payload = await verify_token(credentials)
+        username = payload.get("sub", "unknown")
+        role = payload.get("role", "user")
+        new_token = create_access_token(data={"sub": username, "role": role})
+        return {
+            "access_token": new_token,
+            "token": new_token,
+            "token_type": "bearer",
+            "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+            "user": {"username": username, "role": role},
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+@app.post("/auth/logout")
+async def auth_logout():
+    """Logout endpoint — token invalidation is client-side (clear localStorage)."""
+    return {"status": "ok", "message": "Logged out successfully"}
+
+
 @app.get("/health")
 async def health():
-    """Healthcheck endpoint used by Docker and scripts.
-
-    Vérifie la connectivité NATS pour éviter les faux positifs.
-    """
+    """Healthcheck endpoint used by Docker and scripts."""
     return await _health_readiness()
 
 
@@ -204,20 +260,14 @@ async def health_detailed():
 
     results = {}
 
-    # The probe must include the connection used by the API itself.  A fresh
-    # NATS socket alone would only prove that NATS is reachable, not that the
-    # gateway can publish requests.
     from interfaces.api.routers import message as _message_router
     api_nats = _message_router._nats
     results["api_nats"] = (
         "connected" if api_nats is not None and api_nats.is_connected else "error: API NATS disconnected"
     )
 
-    # NATS check
     nc = None
     try:
-        import nats
-        import asyncio
         nats_url = os.getenv("NATS_URL", "nats://nats:4222")
         nc = await asyncio.wait_for(nats.connect(nats_url), timeout=2)
         results["nats"] = "connected"
@@ -230,7 +280,6 @@ async def health_detailed():
             except Exception:
                 logger.exception("Detailed healthcheck could not close its NATS probe")
 
-    # Redis check
     r = None
     try:
         import redis.asyncio as aioredis
@@ -251,7 +300,6 @@ async def health_detailed():
             except Exception:
                 logger.exception("Detailed healthcheck could not close its Redis probe")
 
-    # PostgreSQL check
     conn = None
     try:
         import asyncpg

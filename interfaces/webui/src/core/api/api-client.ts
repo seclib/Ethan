@@ -1,8 +1,15 @@
 /**
  * Centralized API client with interceptors
+ *
+ * Toutes les requêtes utilisent des URLs relatives (/api/*) qui traversent le
+ * proxy Next.js défini dans next.config.js.  Le proxy effectue le rewriting
+ * /api/* → ETHAN_API_URL/* et supprime le préfixe /api.
+ *
+ * En développement, ETHAN_API_URL vaut http://localhost:8000.
+ * En Docker, il vaut http://api:8000 (défini dans docker-compose.yml).
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = ""; // URLs relatives → passent par le proxy Next.js
 
 class ApiClient {
   private baseURL: string;
@@ -74,26 +81,26 @@ class ApiClient {
 
   // Auth endpoints
   async login(email: string, password: string) {
-    return this.request<{ token: string; user: any }>("/api/v1/auth/login", {
+    return this.request<{ token: string; user: any }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username: email, password }),
     });
   }
 
   async logout() {
-    return this.request<void>("/api/v1/auth/logout", {
+    return this.request<void>("/api/auth/logout", {
       method: "POST",
     });
   }
 
   async refreshToken() {
-    return this.request<{ token: string }>("/api/v1/auth/refresh", {
+    return this.request<{ token: string }>("/api/auth/refresh", {
       method: "POST",
     });
   }
 
   async getCurrentUser() {
-    return this.request<any>("/api/v1/auth/me");
+    return this.request<any>("/api/auth/me");
   }
 
   // Agents endpoints

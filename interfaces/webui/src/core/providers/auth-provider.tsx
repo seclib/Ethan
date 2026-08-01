@@ -15,19 +15,42 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("ethan_token");
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
+function setAuthCookie(token: string) {
+  if (typeof window !== "undefined") {
+    document.cookie = `ethan_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+  }
+}
+
+function clearAuthCookie() {
+  if (typeof window !== "undefined") {
+    document.cookie = "ethan_token=; path=/; max-age=0";
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!user;
 
-  // Check authentication on mount via httpOnly cookie
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/v1/auth/me", {
+        const response = await fetch("/api/auth/me", {
           method: "GET",
-          credentials: "include", // Send httpOnly cookies
+          credentials: "include",
+          headers: getAuthHeaders(),
         });
 
         if (response.ok) {
@@ -49,13 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, operatorId?: string) => {
     try {
-      const response = await fetch("/api/v1/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password, operator_id: operatorId }),
-        credentials: "include", // Receive httpOnly cookie
+        body: JSON.stringify({ username: email, password, operator_id: operatorId }),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -64,11 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      // Token is now stored in httpOnly cookie, not localStorage
+      if (data.token || data.access_token) {
+        const token = data.token || data.access_token;
+        localStorage.setItem("ethan_token", token);
+        setAuthCookie(token);
+      }
       if (operatorId) {
         localStorage.setItem("ethan_operator_id", operatorId);
       }
-      setUser(data.user);
+      setUser(data.user?.username ? { ...data.user, email: data.user.username } : data.user);
     } catch (error) {
       throw error;
     }
@@ -76,26 +103,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/v1/auth/logout", {
+      await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        headers: getAuthHeaders(),
       });
     } catch (error) {
       logger.error("Logout error:", error);
     } finally {
       setUser(null);
+      localStorage.removeItem("ethan_token");
+      clearAuthCookie();
     }
   };
 
   const refreshToken = async () => {
     try {
-      const response = await fetch("/api/v1/auth/refresh", {
+      const response = await fetch("/api/auth/refresh", {
         method: "POST",
         credentials: "include",
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         setUser(null);
+      } else {
+        const data = await response.json();
+        if (data.token || data.access_token) {
+          const token = data.token || data.access_token;
+          localStorage.setItem("ethan_token", token);
+          setAuthCookie(token);
+        }
       }
     } catch (error) {
       logger.error("Token refresh failed:", error);

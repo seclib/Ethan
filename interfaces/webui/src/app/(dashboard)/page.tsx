@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { MetricCard } from "@/components/shared/metric-card";
 import { EventStream } from "@/components/shared/event-stream";
@@ -15,7 +14,7 @@ import { useGoals } from "@/features/goals/hooks/use-goals";
 import { useFacts } from "@/features/memory/hooks/use-memory";
 import { useFlux } from "@/features/flux/hooks/use-flux";
 import { useMissions } from "@/features/missions/hooks/use-missions";
-import { Play, Pause, Square, Plus, Search, Terminal } from "lucide-react";
+import { Play, Pause, Square, Plus, Search, Terminal, Activity } from "lucide-react";
 import type { Agent, Goal, Mission } from "@/types";
 
 export default function DashboardPage() {
@@ -41,14 +40,14 @@ export default function DashboardPage() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} variant="outlined">
+            <Card key={i}>
               <CardContent className="p-6">
                 <Skeleton variant="text" lines={3} />
               </CardContent>
             </Card>
           ))}
         </div>
-        <Card variant="outlined">
+        <Card>
           <CardContent className="p-6">
             <Skeleton variant="rectangle" className="w-full" style={{ height: 200 }} />
           </CardContent>
@@ -68,7 +67,7 @@ export default function DashboardPage() {
             System status and active operations
           </p>
         </div>
-        <Badge>Live</Badge>
+        {hasLiveData && <Badge>Live</Badge>}
       </div>
 
       {/* KPI Strip */}
@@ -94,7 +93,7 @@ export default function DashboardPage() {
           value={totalFacts}
           unit="entries"
           status="normal"
-          sparkline={[100, 150, 200, 180, 250, 300, 320]}
+          sparkline={[31, 47, 63, 56, 78, 94, 100]}
           href="/memory"
         />
         <MetricCard
@@ -108,61 +107,67 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Missions */}
-      <Card variant="outlined">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Recent Missions</CardTitle>
-          <Button size="sm" variant="outline" className="gap-2">
+          <Button size="sm" variant="outline" className="gap-2" aria-label="New Mission">
             <Plus size={14} /> New Mission
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(missions as Mission[])?.slice(0, 5).map((mission) => {
-            const stepsTotal = mission.steps_total || 1;
-            const stepsCompleted = mission.steps_completed || 0;
-            const progress = Math.round((stepsCompleted / stepsTotal) * 100);
-            return (
-              <div key={mission.id} className="rounded-lg border bg-card p-4 transition-all hover:bg-accent/5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-medium">{mission.title}</div>
-                  <div className="text-sm font-mono text-muted-foreground">{progress}%</div>
-                </div>
-                <Progress value={progress} className="h-2 mb-3" />
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-4 text-muted-foreground">
-                    <span>Steps: {stepsCompleted}/{stepsTotal}</span>
-                    <span className="flex items-center gap-1.5">
-                        <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                      {mission.status}
-                    </span>
+          {(missions as Mission[])?.length > 0 ? (
+            (missions as Mission[])?.slice(0, 5).map((mission) => {
+              const stepsTotal = mission.steps_total || 0;
+              const stepsCompleted = mission.steps_completed || 0;
+              const progress = stepsTotal > 0 ? Math.round((stepsCompleted / stepsTotal) * 100) : 0;
+              return (
+                <div key={mission.id} className="rounded-lg border border-line-2 bg-card p-4 transition-all hover:bg-accent/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium">{mission.title}</div>
+                    <div className="text-sm font-mono text-muted-foreground">{progress}%</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" className="h-8 px-2"><Pause size={14} className="mr-1" /> Pause</Button>
-                    <Button size="sm" variant="ghost" className="h-8 px-2 text-destructive"><Square size={14} className="mr-1" /> Kill</Button>
-                    <Button size="sm" variant="outline" className="h-8 px-2">View</Button>
+                  <Progress value={progress} className="h-2 mb-3" />
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-4 text-muted-foreground">
+                      <span>Steps: {stepsCompleted}/{stepsTotal}</span>
+                      <span className="flex items-center gap-1.5">
+                          <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                        {mission.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="ghost" className="h-8 px-2" aria-label="Pause mission"><Pause size={14} className="mr-1" /> Pause</Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2 text-destructive" aria-label="Kill mission"><Square size={14} className="mr-1" /> Kill</Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2" aria-label="View mission details">View</Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+              <Activity size={24} className="mb-2 opacity-50" />
+              <p className="text-sm">No missions yet</p>
+              <p className="text-xs mt-1">Create a mission to get started</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      <Separator />
 
       {/* Quick Actions */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" className="gap-2">
+          <Button variant="secondary" className="gap-2" aria-label="Create new mission">
             <Plus size={16} /> New Mission
           </Button>
-          <Button variant="secondary" className="gap-2">
+          <Button variant="secondary" className="gap-2" aria-label="Start a new agent">
             <Play size={16} /> Start Agent
           </Button>
-          <Button variant="secondary" className="gap-2">
+          <Button variant="secondary" className="gap-2" aria-label="Search memory facts">
             <Search size={16} /> Search Memory
           </Button>
-          <Button variant="secondary" className="gap-2">
+          <Button variant="secondary" className="gap-2" aria-label="Open terminal">
             <Terminal size={16} /> Open Terminal
           </Button>
         </div>

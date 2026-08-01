@@ -3,7 +3,9 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Pause, Play, Download } from "lucide-react";
 import type { FluxEvent } from "@/types";
 
 interface EventStreamProps {
@@ -61,19 +63,19 @@ export function EventStream({
             onClick={() => {
               const nextPaused = !isPaused;
               setIsPaused(nextPaused);
-              if (nextPaused && onResume) onResume();
-              if (!nextPaused && onPause) onPause();
+              if (nextPaused && onPause) onPause();
+              if (!nextPaused && onResume) onResume();
             }}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent/10 transition-colors"
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent/10 transition-colors flex items-center gap-1.5"
           >
-            {isPaused ? "▶ Resume" : "⏸ Pause"}
+            {isPaused ? <><Play size={14} /> Resume</> : <><Pause size={14} /> Pause</>}
           </button>
           {onExport && (
             <button
               onClick={onExport}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent/10 transition-colors"
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent/10 transition-colors flex items-center gap-1.5"
             >
-              📥 Export
+              <Download size={14} /> Export
             </button>
           )}
         </div>

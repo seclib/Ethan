@@ -1,6 +1,12 @@
 # Stage 1: Build Next.js app
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# ETHAN_API_URL is used at BUILD TIME by next.config.js rewrites.
+# Default to localhost for local builds; override via --build-arg in Docker Compose.
+ARG ETHAN_API_URL=http://localhost:8000
+ENV ETHAN_API_URL=${ETHAN_API_URL}
+
 COPY interfaces/webui/package.json interfaces/webui/package-lock.json* /app/
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY interfaces/webui/ /app/

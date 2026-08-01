@@ -42,7 +42,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--appendfsync", "everysec", "--save", "60", "100"]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
@@ -277,10 +277,14 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.ui
+      args:
+        ETHAN_API_URL: http://api:8000
     ports:
       - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
+      ETHAN_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://api:8000
     depends_on:
       api:
         condition: service_started

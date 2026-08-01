@@ -1,0 +1,22 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/(auth)/login/page": "/login",
+  "/(auth)/register/page": "/register",
+  "/(dashboard)/agents/page": "/agents",
+  "/(dashboard)/documents/page": "/documents",
+  "/(dashboard)/assistant/page": "/assistant",
+  "/(dashboard)/knowledge/page": "/knowledge",
+  "/(dashboard)/logs/flux/page": "/logs/flux",
+  "/(dashboard)/memory/page": "/memory",
+  "/(dashboard)/logs/page": "/logs",
+  "/(dashboard)/missions/page": "/missions",
+  "/(dashboard)/models/page": "/models",
+  "/(dashboard)/page": "/",
+  "/(dashboard)/planner/goals/page": "/planner/goals",
+  "/(dashboard)/planner/page": "/planner",
+  "/(dashboard)/plugins/page": "/plugins",
+  "/(dashboard)/providers/page": "/providers",
+  "/(dashboard)/settings/page": "/settings",
+  "/(dashboard)/terminal/page": "/terminal",
+  "/(dashboard)/tools/lab/page": "/tools/lab"
+}

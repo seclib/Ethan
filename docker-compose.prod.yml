@@ -112,3 +112,25 @@ services:
       timeout: 5s
       start_period: 10s
 
+
+  pg_backup:
+    environment:
+      LOG_LEVEL: WARNING
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # Restart policies — production safety
+  # All services use restart: unless-stopped (set in base compose)
+  # Max restart attempts to prevent crash loops
+  api:
+    deploy:
+      restart_roll:
+        parallelism: 1
+        failure_action: rollback
+        order: stop-first
