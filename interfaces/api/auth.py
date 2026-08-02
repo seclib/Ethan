@@ -11,10 +11,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from starlette.responses import JSONResponse
+
+from core.auth import rbac, Permission
 
 logger = logging.getLogger(__name__)
 
@@ -50,28 +52,30 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-async def verify_token(credentials: Optional[HTTPAuthorizationCredentials]) -> dict:
-    """Verify a JWT token and return its payload.
+async def verify_token_string(token: str) -> dict:
+    """Verify a JWT token string and return its payload.
 
-    Raises HTTPException 401 if token is invalid or missing.
+    Raises HTTPException 401 if token is invalid or expired.
     """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentification requise. Utilisez un Bearer token JWT.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except JWTError as e:
         logger.warning(f"JWT validation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token JWT invalide ou expiré.",
+        )
+
+async def verify_token(credentials: Optional[HTTPAuthorizationCredentials]) -> dict:
+    """Legacy helper for verifying Authorization header credentials."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentification requise.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    return await verify_token_string(credentials.credentials)
 
 
 def is_public_path(path: str) -> bool:
@@ -91,10 +95,22 @@ async def auth_middleware(request: Request, call_next):
     if is_public_path(path):
         return await call_next(request)
 
-    # Protected paths: require valid Bearer token
-    credentials: Optional[HTTPAuthorizationCredentials] = await security(request)
+    # Protected paths: require valid cookie or Bearer token
+    token = request.cookies.get("ethan_token")
+    if not token:
+        # Fallback to Authorization header if provided
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentification requise. Cookie ou Token manquant."},
+        )
+
     try:
-        payload = await verify_token(credentials)
+        payload = await verify_token_string(token)
         # Injecter les infos utilisateur dans request.state pour les routes
         request.state.user = payload.get("sub", "unknown")
         request.state.token_payload = payload
@@ -109,3 +125,25 @@ async def auth_middleware(request: Request, call_next):
         )
 
     return await call_next(request)
+
+
+def require_permission(permission: Permission):
+    """
+    FastAPI dependency to enforce RBAC permissions.
+    Expects auth_middleware to have populated request.state.token_payload.
+    
+    Usage:
+        @router.get("/something", dependencies=[Depends(require_permission(Permission.READ))])
+    """
+    def permission_checker(request: Request):
+        payload = getattr(request.state, "token_payload", {})
+        role = payload.get("role")
+        
+        if not role or not rbac.has_permission(role, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé. Permission requise : {permission.value}"
+            )
+        return True
+        
+    return permission_checker

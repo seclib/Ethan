@@ -15,29 +15,28 @@ export default function LoginPage() {
   const { login, isLoading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [pendingOperatorId, setPendingOperatorId] = useState<string>("");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const handleLogin = useCallback(
     async (operatorId: string, password: string) => {
       setError(null);
-      setPendingOperatorId(operatorId);
-      setShowOverlay(true);
+      setIsAuthenticating(true);
+      try {
+        await login(operatorId, password);
+        setIsAuthenticating(false);
+        setShowOverlay(true);
+      } catch (err) {
+        setIsAuthenticating(false);
+        setError(err instanceof Error ? err.message : "Authentication failed");
+      }
     },
-    []
+    [login]
   );
 
   const handleAuthComplete = useCallback(() => {
-    const fakeLogin = async () => {
-      try {
-        await login("admin@ethan.ai", "password", pendingOperatorId);
-        router.push("/");
-      } catch (err) {
-        setShowOverlay(false);
-        setError(err instanceof Error ? err.message : "Authentication failed");
-      }
-    };
-    fakeLogin();
-  }, [login, router, pendingOperatorId]);
+    router.push("/");
+    router.refresh();
+  }, [router]);
 
   const handleAuthError = useCallback((msg: string) => {
     setShowOverlay(false);
@@ -57,7 +56,7 @@ export default function LoginPage() {
               <LoginCard>
                 <LoginForm
                   onSubmit={handleLogin}
-                  isLoading={authLoading}
+                  isLoading={authLoading || isAuthenticating}
                   error={error}
                 />
               </LoginCard>

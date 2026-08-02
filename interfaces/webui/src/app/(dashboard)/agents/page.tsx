@@ -8,7 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "@/components/shared/metric-card";
 import { useAgents } from "@/features/agents/hooks/use-agents";
 import { AgentEditorDialog } from "@/features/agents/components/agent-editor-dialog";
-import { Play, Pause, Square, Plus, RefreshCw, AlertCircle, Clock, Cpu, Settings2 } from "lucide-react";
+import { useUIStore } from "@/core/store/ui.store";
+import { useRouter } from "next/navigation";
+import { Play, Pause, Square, Plus, RefreshCw, AlertCircle, Clock, Cpu, Settings2, MessageSquare } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: "success" | "warning" | "error" | "default" | "info" | "dim" }> = {
   running: { label: "Running", color: "success" },
@@ -22,6 +24,12 @@ export default function AgentsPage() {
   const { agents, isLoading, error, refetch } = useAgents();
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const router = useRouter();
+  const addToast = useUIStore((s) => s.addToast);
+
+  const notImplemented = () => {
+    addToast({ type: "info", message: "Feature not implemented yet" });
+  };
 
   const handleOpenEditor = (id: string | null = null) => {
     setEditingId(id);
@@ -137,18 +145,21 @@ export default function AgentsPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground">{status.label}</span>
                         <div className="flex items-center gap-1">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => router.push('/assistant')} aria-label="Chat with agent">
+                            <MessageSquare size={14} />
+                          </Button>
                           <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleOpenEditor(agent.id)}>
                             <Settings2 size={14} />
                           </Button>
                           {agent.status === "running" ? (
                             <>
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Pause size={14} /></Button>
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive"><Square size={14} /></Button>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={notImplemented}><Pause size={14} /></Button>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={notImplemented}><Square size={14} /></Button>
                             </>
                           ) : agent.status === "paused" ? (
-                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Play size={14} /></Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={notImplemented}><Play size={14} /></Button>
                           ) : (
-                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0"><Play size={14} /></Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={notImplemented}><Play size={14} /></Button>
                           )}
                         </div>
                       </div>

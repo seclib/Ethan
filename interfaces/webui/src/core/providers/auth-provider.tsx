@@ -8,34 +8,32 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string, operatorId?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("ethan_token");
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return headers;
-}
+// Cookie management is now handled securely by Next.js API routes (HttpOnly).
+// No localStorage or client-side cookie manipulation is needed.
 
-function setAuthCookie(token: string) {
-  if (typeof window !== "undefined") {
-    document.cookie = `ethan_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-  }
-}
-
-function clearAuthCookie() {
-  if (typeof window !== "undefined") {
-    document.cookie = "ethan_token=; path=/; max-age=0";
-  }
+/**
+ * Normalize the backend user payload into the full User interface.
+ * The backend returns { username, role } but the frontend expects
+ * { id, name, email, role, permissions, created_at }.
+ */
+function normalizeUser(raw: any): User | null {
+  if (!raw) return null;
+  const username = raw.username || raw.email || raw.name || "unknown";
+  return {
+    id: raw.id || username,
+    name: raw.name || username,
+    email: raw.email || username,
+    role: raw.role || "user",
+    permissions: raw.permissions || [],
+    created_at: raw.created_at || new Date().toISOString(),
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -50,12 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await fetch("/api/auth/me", {
           method: "GET",
           credentials: "include",
-          headers: getAuthHeaders(),
         });
 
         if (response.ok) {
           const data = await response.json();
-          setUser(data.user);
+          setUser(normalizeUser(data.user));
         } else {
           setUser(null);
         }
@@ -70,32 +67,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string, operatorId?: string) => {
+  const login = async (email: string, password: string) => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username: email, password, operator_id: operatorId }),
+        body: JSON.stringify({ username: email, password }),
         credentials: "include",
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Authentication failed");
+        throw new Error(error.detail || error.message || "Authentication failed");
       }
 
       const data = await response.json();
-      if (data.token || data.access_token) {
-        const token = data.token || data.access_token;
-        localStorage.setItem("ethan_token", token);
-        setAuthCookie(token);
-      }
-      if (operatorId) {
-        localStorage.setItem("ethan_operator_id", operatorId);
-      }
-      setUser(data.user?.username ? { ...data.user, email: data.user.username } : data.user);
+      // The API route handler reads the token from the body and sets
+      // the ethan_token HttpOnly cookie on the NextResponse.
+      setUser(normalizeUser(data.user));
     } catch (error) {
       throw error;
     }
@@ -106,14 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
-        headers: getAuthHeaders(),
       });
     } catch (error) {
       logger.error("Logout error:", error);
     } finally {
       setUser(null);
-      localStorage.removeItem("ethan_token");
-      clearAuthCookie();
     }
   };
 
@@ -122,19 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/auth/refresh", {
         method: "POST",
         credentials: "include",
-        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         setUser(null);
-      } else {
-        const data = await response.json();
-        if (data.token || data.access_token) {
-          const token = data.token || data.access_token;
-          localStorage.setItem("ethan_token", token);
-          setAuthCookie(token);
-        }
       }
+      // Assuming /api/auth/refresh sets the new HttpOnly cookie if successful
     } catch (error) {
       logger.error("Token refresh failed:", error);
       setUser(null);

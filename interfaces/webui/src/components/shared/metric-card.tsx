@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,9 +41,11 @@ export function MetricCard({
   className = "",
   dragHandleProps,
 }: MetricCardProps) {
+  const router = useRouter();
+
   const handleClick = () => {
     if (href) {
-      window.location.href = href;
+      router.push(href);
     } else if (onClick) {
       onClick();
     }

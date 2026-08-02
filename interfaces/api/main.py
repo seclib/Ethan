@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +26,11 @@ from interfaces.api.routers.message import router as message_router, set_nats_cl
 from interfaces.api.routers.state import router as state_router
 from interfaces.api.routers.internal import router as internal_router, init_modules
 from interfaces.api.routers.v1 import router as v1_router
-from interfaces.api.auth import auth_middleware, create_access_token, verify_token, security
+from interfaces.api.routers.providers import router as providers_router, set_provider_manager
+from interfaces.api.auth import auth_middleware, create_access_token, verify_token, verify_token_string, security
 from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
+from core.llm.provider_manager import ProviderManager
+from core.llm.store import ProviderStore
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -49,40 +53,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="Ethan Cognitive OS API",
-    version="0.2.0",
-    description="Event-driven cognitive operating system API Gateway",
-)
-
-# CORS — restrict origins in production via CORS_ORIGINS env var
-_cors_origins = os.getenv("CORS_ORIGINS", "*")
-_cors_origins_list = [o.strip() for o in _cors_origins.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Rate limiting middleware (must be before auth middleware)
-app.state.limiter = limiter
-app.add_middleware(SlowAPIMiddleware)
-app.add_exception_handler(429, rate_limit_exceeded_handler)
-
-# Middleware d'authentification JWT (protège les routes sauf /health, /metrics, /docs)
-app.middleware("http")(auth_middleware)
-
-app.include_router(message_router)
-app.include_router(state_router)
-app.include_router(internal_router)
-app.include_router(v1_router)
-
-
-@app.on_event("startup")
-async def startup():
-    """Connect to NATS on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # --- Startup ---
     setup_logging(os.getenv("LOG_LEVEL", "INFO"))
 
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -126,10 +100,56 @@ async def startup():
         except Exception as e:
             logger.warning(f"Failed to initialize OpenTelemetry: {e}")
 
+    yield
+
+    # --- Shutdown ---
+    from interfaces.api.routers import message as _message_router
+    nc = _message_router._nats
+    if nc:
+        try:
+            await asyncio.wait_for(nc.drain(), timeout=10)
+            logger.info("API Gateway NATS connection closed")
+        except Exception as e:
+            logger.error(f"Error during NATS shutdown: {e}")
+
+app = FastAPI(
+    title="Ethan Cognitive OS API",
+    version="0.2.0",
+    description="Event-driven cognitive operating system API Gateway",
+    lifespan=lifespan,
+)
+
+# CORS — restrict origins in production via CORS_ORIGINS env var
+_cors_origins = os.getenv("CORS_ORIGINS", "*")
+_cors_origins_list = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Rate limiting middleware (must be before auth middleware)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(429, rate_limit_exceeded_handler)
+
+# Middleware d'authentification JWT (protège les routes sauf /health, /metrics, /docs)
+app.middleware("http")(auth_middleware)
+
+app.include_router(message_router)
+app.include_router(state_router)
+app.include_router(internal_router)
+app.include_router(v1_router)
+
+
+# Old startup code removed as it's now in the lifespan context manager.
+
 
 @app.post("/auth/login")
-async def login(request: Request):
-    """Login endpoint — returns a JWT token."""
+async def login(request: Request, response: Response):
+    """Login endpoint — returns a JWT token and sets an HttpOnly cookie."""
     import json
 
     try:
@@ -138,7 +158,53 @@ async def login(request: Request):
         body = {}
 
     username = body.get("username", "developer")
-    token = create_access_token(data={"sub": username, "role": "user"})
+    password = body.get("password", "")
+    
+    role = "user"
+    try:
+        import asyncpg
+        import asyncio
+        import bcrypt
+        
+        db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
+        
+        # Connect to DB with timeout
+        conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
+        try:
+            row = await conn.fetchrow("SELECT password_hash, roles, is_active FROM users WHERE username = $1", username)
+            if not row:
+                # Prevent timing attacks
+                bcrypt.checkpw(password.encode('utf-8'), b"$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK")
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+            
+            if not row["is_active"]:
+                raise HTTPException(status_code=401, detail="User account is disabled")
+                
+            if not bcrypt.checkpw(password.encode('utf-8'), row["password_hash"].encode('utf-8')):
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+                
+            role = row["roles"][0] if row["roles"] else "user"
+        finally:
+            await conn.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"DB Auth unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable")
+        
+    token = create_access_token(data={"sub": username, "role": role})
+    
+    response.set_cookie(
+        key="ethan_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=86400,
+        path="/",
+        secure=os.getenv("NODE_ENV") == "production"
+    )
+
     return {
         "access_token": token,
         "token": token,
@@ -187,13 +253,34 @@ async def auth_me(request: Request):
 
 
 @app.post("/auth/refresh")
-async def auth_refresh(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def auth_refresh(response: Response, credentials: HTTPAuthorizationCredentials = Depends(security), request: Request = None):
     """Issue a new JWT token from a valid existing token."""
+    # We must explicitly read the token since Depends(security) might miss the cookie if no Bearer header is present.
+    token = request.cookies.get("ethan_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentification requise.")
+
     try:
-        payload = await verify_token(credentials)
+        payload = await verify_token_string(token)
         username = payload.get("sub", "unknown")
         role = payload.get("role", "user")
         new_token = create_access_token(data={"sub": username, "role": role})
+        
+        response.set_cookie(
+            key="ethan_token",
+            value=new_token,
+            httponly=True,
+            samesite="lax",
+            max_age=86400,
+            path="/",
+            secure=os.getenv("NODE_ENV") == "production"
+        )
+        
         return {
             "access_token": new_token,
             "token": new_token,
@@ -208,8 +295,14 @@ async def auth_refresh(credentials: HTTPAuthorizationCredentials = Depends(secur
 
 
 @app.post("/auth/logout")
-async def auth_logout():
-    """Logout endpoint — token invalidation is client-side (clear localStorage)."""
+async def auth_logout(response: Response):
+    """Logout endpoint — clears the HttpOnly cookie."""
+    response.delete_cookie(
+        key="ethan_token",
+        httponly=True,
+        samesite="lax",
+        path="/"
+    )
     return {"status": "ok", "message": "Logged out successfully"}
 
 
@@ -333,11 +426,4 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.on_event("shutdown")
-async def shutdown():
-    """Close NATS on shutdown."""
-    from interfaces.api.routers import message as _message_router
-    nc = _message_router._nats
-    if nc:
-        await asyncio.wait_for(nc.drain(), timeout=10)
-        logger.info("API Gateway NATS connection closed")
+# Old shutdown code removed as it's now in the lifespan context manager.

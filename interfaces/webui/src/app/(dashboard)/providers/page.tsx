@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { apiClient } from "@/core/api/api-client";
 import { useUIStore } from "@/core/store/ui.store";
 
@@ -19,6 +21,13 @@ interface Provider {
 export default function ProvidersPage() {
   const queryClient = useQueryClient();
   const addToast = useUIStore((s) => s.addToast);
+  const [configOpen, setConfigOpen] = React.useState(false);
+  const [configuringProvider, setConfiguringProvider] = React.useState<Provider | null>(null);
+
+  const handleConfigureClick = (p: Provider) => {
+    setConfiguringProvider(p);
+    setConfigOpen(true);
+  };
 
   const { data: providers = [], isLoading, error } = useQuery<Provider[]>({
     queryKey: ["providers"],
@@ -34,6 +43,7 @@ export default function ProvidersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["providers"] });
       addToast({ type: "success", message: "Provider updated successfully" });
+      setConfigOpen(false);
     },
     onError: (err) => {
       addToast({ type: "error", message: err instanceof Error ? err.message : "Failed to update provider" });
@@ -66,9 +76,8 @@ export default function ProvidersPage() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => updateMutation.mutate({ id: p.id, data: { status: p.status === "connected" ? "disconnected" : "connected" } })}
-                disabled={updateMutation.isPending}
-                aria-label={`Toggle ${p.name}`}
+                onClick={() => handleConfigureClick(p)}
+                aria-label={`Configure ${p.name}`}
               >
                 {p.configured ? "Reconfigure" : "Configure"}
               </Button>
@@ -76,6 +85,36 @@ export default function ProvidersPage() {
           </Card>
         ))}
       </div>
+
+      <Dialog 
+        open={configOpen} 
+        onOpenChange={setConfigOpen} 
+        title={`Configure ${configuringProvider?.name}`}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">API Key</label>
+            <Input type="password" placeholder="sk-..." />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Base URL (Optional)</label>
+            <Input placeholder="https://api.example.com" />
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t border-line-1 mt-4">
+            <Button variant="ghost" onClick={() => setConfigOpen(false)}>Cancel</Button>
+            <Button 
+              variant="primary" 
+              onClick={() => configuringProvider && updateMutation.mutate({ 
+                id: configuringProvider.id, 
+                data: { status: configuringProvider.status === "connected" ? "disconnected" : "connected" } 
+              })}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Saving..." : "Save & Toggle Status"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

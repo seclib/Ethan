@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useUIStore } from "@/core/store/ui.store";
 import { Search, Plus } from "lucide-react";
 
 export default function PluginsPage() {
@@ -15,6 +16,11 @@ export default function PluginsPage() {
     { id: "slack", name: "Slack Notifier", version: "1.2.0", enabled: false },
   ]);
   const [search, setSearch] = React.useState("");
+  const addToast = useUIStore((s) => s.addToast);
+
+  const notImplemented = () => {
+    addToast({ type: "info", message: "Feature not implemented yet" });
+  };
 
   const togglePlugin = (id: string) => {
     setPlugins((prev) =>
@@ -31,7 +37,7 @@ export default function PluginsPage() {
           <h1 className="text-3xl font-bold text-foreground">Plugins</h1>
           <p className="text-foreground-secondary mt-2">Plugin marketplace and management</p>
         </div>
-        <Button variant="primary" icon={<Plus className="w-4 h-4" />}>Install</Button>
+        <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={notImplemented}>Install</Button>
       </div>
 
       <Input placeholder="Search plugins..." value={search} onChange={(e) => setSearch(e.target.value)} icon={<Search className="w-4 h-4" />} />

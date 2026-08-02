@@ -12,21 +12,13 @@ ALEMBIC_INI="${ALEMBIC_DIR}/alembic.ini"
 
 section "Migrations PostgreSQL"
 
-# Check if alembic is installed
-if ! command -v alembic &>/dev/null; then
-    error "alembic non installé. Installer avec: pip install alembic sqlalchemy"
+# Utilise le conteneur API pour exécuter alembic (pas de dépendance host)
+if ! docker compose ps api | grep -q "Up"; then
+    error "Le conteneur 'api' doit être en cours d'exécution. Lancez './ethan up api' d'abord."
     exit 1
 fi
 
-# Check if alembic directory exists
-if [ ! -f "$ALEMBIC_INI" ]; then
-    warn "Aucun fichier alembic.ini trouvé, génération..."
-    cd "${SCRIPT_DIR}/.."
-    alembic init deploy/postgres/alembic
-fi
-
-# Build alembic command
-ALEMBIC_CMD="alembic -c ${ALEMBIC_INI}"
+ALEMBIC_CMD="docker compose exec api alembic"
 
 # Parse options
 OFFLINE=""
@@ -69,6 +61,10 @@ fi
 
 info "Exécution : $CMD"
 cd "${SCRIPT_DIR}/.."
-$CMD
+if [ -f "$ALEMBIC_INI" ]; then
+    $CMD
+else
+    warn "Aucun alembic.ini trouvé (Migrations non initialisées). Ignoré."
+fi
 
 success "Migrations appliquées"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface LoadingOverlayProps {
@@ -22,6 +22,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
   const [currentStep, setCurrentStep] = useState(-1);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"authenticating" | "granted" | "failed">("authenticating");
+  const cancelledRef = useRef(false);
 
   // Reset state when overlay becomes visible
   useEffect(() => {
@@ -29,6 +30,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
       setCurrentStep(-1);
       setProgress(0);
       setStatus("authenticating");
+      cancelledRef.current = false;
     }
   }, [isVisible]);
 
@@ -36,20 +38,12 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
   useEffect(() => {
     if (!isVisible || status !== "authenticating") return;
 
-    let cancelled = false;
     let stepIndex = 0;
 
     const runStep = () => {
-      if (cancelled || stepIndex >= AUTH_STEPS.length) return;
+      if (cancelledRef.current || stepIndex >= AUTH_STEPS.length) return;
 
       setCurrentStep(stepIndex);
-
-      // 5% failure chance for realism
-      if (stepIndex === 2 && Math.random() < 0.03) {
-        setStatus("failed");
-        onError("Hardware fingerprint validation failed — terminal not authorized");
-        return;
-      }
 
       const step = AUTH_STEPS[stepIndex];
       const startProgress = (stepIndex / AUTH_STEPS.length) * 100;
@@ -59,7 +53,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
       // Animate progress bar for this step
       const stepStart = performance.now();
       const animateProgress = (now: number) => {
-        if (cancelled) return;
+        if (cancelledRef.current) return;
         const elapsed = now - stepStart;
         const t = Math.min(elapsed / stepDuration, 1);
         // Ease-in-out for smooth progress
@@ -75,7 +69,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
             setStatus("granted");
             // Small delay before triggering completion
             setTimeout(() => {
-              if (!cancelled) onComplete();
+              if (!cancelledRef.current) onComplete();
             }, 1200);
           } else {
             setTimeout(runStep, 150);
@@ -89,7 +83,6 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
     const initialDelay = setTimeout(runStep, 400);
 
     return () => {
-      cancelled = true;
       clearTimeout(initialDelay);
     };
   }, [isVisible, status, onComplete, onError]);

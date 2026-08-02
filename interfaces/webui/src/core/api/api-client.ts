@@ -13,17 +13,8 @@ const API_BASE_URL = ""; // URLs relatives → passent par le proxy Next.js
 
 class ApiClient {
   private baseURL: string;
-  private token: string | null = null;
-
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    this.loadToken();
-  }
-
-  private loadToken() {
-    if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("ethan_token");
-    }
   }
 
   async request<T>(
@@ -37,11 +28,8 @@ class ApiClient {
       ...(options.headers as Record<string, string> | undefined),
     };
 
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
     const config: RequestInit = {
+      credentials: "include",
       ...options,
       headers,
     };
@@ -51,10 +39,6 @@ class ApiClient {
 
       // Handle 401 Unauthorized
       if (response.status === 401) {
-        this.token = null;
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("ethan_token");
-        }
         throw new Error("Unauthorized");
       }
 
@@ -168,7 +152,7 @@ class ApiClient {
   }
 
   async storeMemory(entry: any) {
-    return this.request<any>("/api/v1/memory/store", {
+    return this.request<any>("/api/v1/memory/ingest", {
       method: "POST",
       body: JSON.stringify(entry),
     });

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from core.llm.types import ChatMessage, ChatResponse, ModelInfo
 
@@ -54,3 +54,17 @@ class LLMProvider(ABC):
     async def list_models(self) -> list[ModelInfo]:
         """List available models."""
         pass
+
+    async def test_connection(self) -> bool:
+        """Teste la connexion au provider.
+
+        Tente un `list_models()` — si cela réussit, le provider est joignable.
+
+        Returns:
+            True si la connexion est fonctionnelle, False sinon.
+        """
+        try:
+            await self.list_models()
+            return True
+        except Exception:
+            return False

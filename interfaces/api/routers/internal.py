@@ -10,13 +10,15 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 from core.audit import AuditStore, AuditCategory, AuditDecision
 from core.cost import BudgetGuard, CostTracker, BudgetScope
 from core.facts import FactStore, Fact, FactCategory, FactStatus
 from core.approval import ApprovalEngine
 from core.skills.lab import SkillLab
+from core.auth import Permission
+from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +123,7 @@ async def get_budget_status():
     return _budget_guard.status()
 
 
-@router.post("/budget/reserve")
+@router.post("/budget/reserve", dependencies=[Depends(require_permission(Permission.WRITE))])
 async def reserve_budget(data: dict[str, Any]):
     """Réserve un montant sur un scope budgétaire."""
     if _budget_guard is None:
@@ -139,7 +141,7 @@ async def reserve_budget(data: dict[str, Any]):
     return {"allowed": allowed, "remaining": _budget_guard.remaining(scope, data.get("scope_id", ""))}
 
 
-@router.post("/budget/record")
+@router.post("/budget/record", dependencies=[Depends(require_permission(Permission.WRITE))])
 async def record_cost(data: dict[str, Any]):
     """Enregistre une dépense."""
     if _cost_tracker is None:
@@ -263,7 +265,7 @@ async def list_pending_approvals():
     return _approval_engine.list_pending()
 
 
-@router.post("/approval/resolve")
+@router.post("/approval/resolve", dependencies=[Depends(require_permission(Permission.EXECUTE))])
 async def resolve_approval(data: dict[str, Any]):
     """Résout une approbation."""
     if _approval_engine is None:
@@ -282,7 +284,7 @@ async def resolve_approval(data: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.post("/skilllab/test")
+@router.post("/skilllab/test", dependencies=[Depends(require_permission(Permission.EXECUTE))])
 async def test_skill(data: dict[str, Any]):
     """Teste un skill candidat."""
     if _skill_lab is None:

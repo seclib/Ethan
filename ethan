@@ -61,11 +61,13 @@ shift || true
 case "$CMD" in
     install)      exec "${ETHAN_ROOT}/scripts/cmd-install.sh"    "$@" ;;
     up)           exec "${ETHAN_ROOT}/scripts/cmd-up.sh"         "$@" ;;
+    migrate)      exec "${ETHAN_ROOT}/scripts/cmd-migrate.sh"    "$@" ;;
     down)         exec "${ETHAN_ROOT}/scripts/cmd-down.sh"       "$@" ;;
     restart)      exec "${ETHAN_ROOT}/scripts/cmd-restart.sh"    "$@" ;;
     status)       exec "${ETHAN_ROOT}/scripts/cmd-status.sh"     "$@" ;;
     preflight)    exec "${ETHAN_ROOT}/scripts/cmd-preflight.sh" "$@" ;;
     pull-images)  exec "${ETHAN_ROOT}/scripts/cmd-pull-images.sh" "$@" ;;
+    wait-for-services) exec "${ETHAN_ROOT}/scripts/cmd-wait-for-services.sh" "$@" ;;
     doctor)       exec "${ETHAN_ROOT}/scripts/cmd-doctor.sh"     "$@" ;;
     logs)         exec "${ETHAN_ROOT}/scripts/cmd-logs.sh"       "$@" ;;
     api)          exec "${ETHAN_ROOT}/scripts/cmd-api.sh"        "$@" ;;

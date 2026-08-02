@@ -259,6 +259,21 @@ else
         warn "Poursuite du boot malgré les erreurs"
     fi
 
+    # 3.2.1 Migrations de la base de données
+    # Le backend (api, kernel) requiert que le schéma soit à jour.
+    # On démarre le conteneur 'api' seul pour lancer la migration.
+    info "Application des migrations PostgreSQL..."
+    if ! docker_compose up -d api; then
+        error "Échec de démarrage de l'API pour les migrations"
+    else
+        wait_for_health "api" 120 || true
+        if [ -f "${ETHAN_ROOT}/deploy/postgres/alembic/alembic.ini" ]; then
+            "${SCRIPT_DIR}/cmd-migrate.sh" || warn "Les migrations ont retourné une erreur — poursuite du boot"
+        else
+            info "Aucun fichier de migration détecté. Ignoré."
+        fi
+    fi
+
     # 3.3 Démarrage du Core
     info "Démarrage du Core (api, kernel)..."
     if ! docker_compose up -d api kernel; then

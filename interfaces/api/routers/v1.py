@@ -21,8 +21,9 @@ import logging
 import uuid
 from typing import Any
 import datetime
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from core.auth import Permission
+from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ async def list_agents():
     return list(_store.agents.values())
 
 
-@router.post("/agents")
+@router.post("/agents", dependencies=[Depends(require_permission(Permission.AGENTS))])
 async def create_agent(data: dict[str, Any]):
     agent_id = str(uuid.uuid4())
     agent = {
@@ -151,7 +152,7 @@ async def list_missions():
     return list(_store.missions.values())
 
 
-@router.post("/missions")
+@router.post("/missions", dependencies=[Depends(require_permission(Permission.EXECUTE))])
 async def create_mission(data: dict[str, Any]):
     mission_id = str(uuid.uuid4())
     mission = {
@@ -188,6 +189,20 @@ async def delete_mission(mission_id: str):
         raise HTTPException(404, f"Mission {mission_id} not found")
     del _store.missions[mission_id]
     return {"status": "deleted"}
+
+
+@router.post("/missions/{mission_id}/steps/{step_id}/verify")
+async def verify_mission_step(mission_id: str, step_id: str):
+    if mission_id not in _store.missions:
+        raise HTTPException(404, f"Mission {mission_id} not found")
+    return {"verified": True}
+
+
+@router.post("/missions/{mission_id}/steps/{step_id}/approve")
+async def approve_mission_step(mission_id: str, step_id: str):
+    if mission_id not in _store.missions:
+        raise HTTPException(404, f"Mission {mission_id} not found")
+    return {"status": "approved"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -287,7 +302,7 @@ async def list_skills():
     return list(_store.skills.values())
 
 
-@router.post("/skills")
+@router.post("/skills", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def create_skill(data: dict[str, Any]):
     skill_id = str(uuid.uuid4())
     skill = {
@@ -476,3 +491,43 @@ async def update_provider(provider_id: str, data: dict[str, Any]):
             p.update(data)
             return p
     raise HTTPException(404, f"Provider {provider_id} not found")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PLUGINS
+# ═══════════════════════════════════════════════════════════════════════════
+
+_default_plugins = [
+    {"id": "github", "name": "GitHub Integration", "status": "active", "version": "1.0.0"},
+    {"id": "slack", "name": "Slack Notifier", "status": "inactive", "version": "1.2.0"},
+]
+
+@router.get("/plugins")
+async def list_plugins():
+    return _default_plugins
+
+@router.get("/plugins/{plugin_id}")
+async def get_plugin(plugin_id: str):
+    for p in _default_plugins:
+        if p["id"] == plugin_id:
+            return p
+    raise HTTPException(404, f"Plugin {plugin_id} not found")
+
+@router.post("/plugins/install")
+async def install_plugin(data: dict[str, Any]):
+    new_plugin = {
+        "id": data.get("id", str(uuid.uuid4())),
+        "name": data.get("name", "Unknown Plugin"),
+        "status": "inactive",
+        "version": "0.1.0"
+    }
+    _default_plugins.append(new_plugin)
+    return new_plugin
+
+@router.put("/plugins/{plugin_id}/toggle")
+async def toggle_plugin(plugin_id: str):
+    for p in _default_plugins:
+        if p["id"] == plugin_id:
+            p["status"] = "active" if p["status"] == "inactive" else "inactive"
+            return p
+    raise HTTPException(404, f"Plugin {plugin_id} not found")

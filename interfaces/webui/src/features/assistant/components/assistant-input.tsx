@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
+import { useUIStore } from "@/core/store/ui.store";
 
 interface AssistantInputProps {
   onSend: (message: string) => void;
@@ -10,6 +11,11 @@ interface AssistantInputProps {
 export function AssistantInput({ onSend, disabled }: AssistantInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const addToast = useUIStore((s) => s.addToast);
+
+  const notImplemented = () => {
+    addToast({ type: "info", message: "Feature not implemented yet" });
+  };
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -39,7 +45,7 @@ export function AssistantInput({ onSend, disabled }: AssistantInputProps) {
   return (
     <div className="border-t border-line-2 bg-background/40 p-4">
       <div className="flex items-end gap-3 max-w-4xl mx-auto">
-        <button className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Attacher un fichier">
+        <button onClick={notImplemented} className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="Attacher un fichier">
           📎
         </button>
         <div className="flex-1 relative">

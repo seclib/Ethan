@@ -14,6 +14,10 @@ COPY core/ core/
 COPY sdk/ sdk/
 COPY interfaces/api/ interfaces/api/
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
 
 EXPOSE 8000
@@ -21,4 +25,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
     CMD curl -fsS http://localhost:8000/health/ready || exit 1
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["sh", "-c", "until pg_isready -h postgres -p 5432 -U ethan; do echo 'Waiting for PostgreSQL...'; sleep 2; done; uvicorn interfaces.api.main:app --host 0.0.0.0 --port 8000 --workers 1"]

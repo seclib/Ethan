@@ -117,11 +117,11 @@ services:
       LOG_FORMAT: "${LOG_FORMAT:-text}"
     depends_on:
       nats:
-        condition: service_started
+        condition: service_healthy
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     command: uvicorn interfaces.api.main:app --host 0.0.0.0 --port 8000 --workers 1
     restart: unless-stopped
     networks:
@@ -163,11 +163,11 @@ services:
       ENABLE_AUTONOMY: "${ENABLE_AUTONOMY:-false}"
     depends_on:
       nats:
-        condition: service_started
+        condition: service_healthy
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     command: python core/ethan_bootstrap.py
     restart: unless-stopped
     networks:
@@ -206,15 +206,15 @@ services:
     command: python -m core.modules
     depends_on:
       nats:
-        condition: service_started
+        condition: service_healthy
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       api:
-        condition: service_started
+        condition: service_healthy
       kernel:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8081/health/ready"]
       interval: 10s
@@ -287,9 +287,7 @@ services:
       NEXT_PUBLIC_API_URL: http://api:8000
     depends_on:
       api:
-        condition: service_started
-      kernel:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
       interval: 10s

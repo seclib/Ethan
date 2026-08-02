@@ -136,3 +136,35 @@ def get_provider(name: str | None = None) -> LLMProvider:
     if name is None:
         return registry.get_default()
     return registry.get(name)
+
+
+# ── Provider Manager (système centralisé) ────────────────────────────────
+
+try:
+    from core.llm.provider_manager import ProviderManager
+    from core.llm.provider_factory import create_provider_from_config, create_default_providers
+    from core.llm.store import ProviderStore
+
+    __all__ = [
+        "ChatMessage",
+        "ChatResponse",
+        "ModelInfo",
+        "LLMProvider",
+        "ProviderRegistry",
+        "registry",
+        "get_provider",
+        "ProviderManager",
+        "create_provider_from_config",
+        "create_default_providers",
+        "ProviderStore",
+    ]
+except ImportError:  # pragma: no cover - partial environment
+    __all__ = [
+        "ChatMessage",
+        "ChatResponse",
+        "ModelInfo",
+        "LLMProvider",
+        "ProviderRegistry",
+        "registry",
+        "get_provider",
+    ]
