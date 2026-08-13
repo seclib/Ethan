@@ -95,3 +95,17 @@ class Capability(ABC):
     async def post_execute(self, context: CapabilityContext, result: CapabilityResult) -> None:
         """Hook appelé après execute(). Override si nécessaire."""
         pass
+
+
+# Capability Registry — Registre central des capacités ETHAN
+from core.capabilities.registry import CapabilityRegistry, CapabilityInfo
+
+__all__ = [
+    "CapabilityStatus",
+    "RiskLevel",
+    "CapabilityContext",
+    "CapabilityResult",
+    "Capability",
+    "CapabilityRegistry",
+    "CapabilityInfo",
+]

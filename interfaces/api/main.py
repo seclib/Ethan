@@ -25,12 +25,32 @@ from core.telemetry.logger import setup_logging
 from interfaces.api.routers.message import router as message_router, set_nats_client
 from interfaces.api.routers.state import router as state_router
 from interfaces.api.routers.internal import router as internal_router, init_modules
-from interfaces.api.routers.v1 import router as v1_router
+from interfaces.api.routers.v1 import (
+    CoreDomainServices,
+    router as v1_router,
+    set_core_domain_services,
+    set_provider_manager as set_v1_provider_manager,
+)
 from interfaces.api.routers.providers import router as providers_router, set_provider_manager
+from interfaces.api.routers.config import router as config_router, set_configuration_service
+from interfaces.api.routers.domains import router as domains_router, set_domain_managers
+from interfaces.api.routers.capabilities import (
+    CapabilityManagers,
+    router as capabilities_router,
+    set_capability_managers,
+)
+from interfaces.api.routers.v1 import set_webui_store
+from core.config import ConfigurationService, ConfigStore
+from core.state import CoreRecordStore
+from core.state.webui_store import CoreWebUIStore
 from interfaces.api.auth import auth_middleware, create_access_token, verify_token, verify_token_string, security
 from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
 from core.llm.provider_manager import ProviderManager
 from core.llm.store import ProviderStore
+from core.agents import AgentManager
+from core.knowledge import KnowledgeManager
+from core.missions import MissionManager
+from core.rag import RAGPipeline
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -92,6 +112,128 @@ async def lifespan(app: FastAPI):
 
     init_modules(pg_conn=None)
 
+    # --- LLM Provider Manager ---
+    # Store (persistance) + Manager (logique) pour les providers LLM.
+    # Redis/PG sont optionnels : en leur défaut, le ProviderStore bascule
+    # automatiquement en mode mémoire.
+    redis_client = None
+    pg_pool = None
+    provider_manager: ProviderManager | None = None
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan@postgres:5432/ethan")
+
+    try:
+        import redis.asyncio as aioredis
+        redis_client = aioredis.from_url(redis_url, decode_responses=True, protocol=2)
+        await asyncio.wait_for(redis_client.ping(), timeout=5)
+        logger.info("ProviderManager Redis cache connected")
+    except Exception as exc:
+        logger.warning("Redis unavailable for ProviderStore, using in-memory only: %s", exc)
+
+    try:
+        import asyncpg
+        pg_pool = await asyncio.wait_for(
+            asyncpg.create_pool(db_url, min_size=1, max_size=5), timeout=10
+        )
+        logger.info("ProviderManager PostgreSQL pool connected")
+    except Exception as exc:
+        logger.warning("PostgreSQL unavailable for ProviderStore, using in-memory only: %s", exc)
+
+    # --- Core domain managers ---
+    # The API owns only dependency composition.  The managers and their record
+    # store live in core/ and remain usable by the CLI or another interface.
+    domain_store = CoreRecordStore(pg_pool=pg_pool, redis_client=redis_client)
+    core_domains = CoreDomainServices(
+        agents=AgentManager(store=domain_store),
+        missions=MissionManager(store=domain_store),
+        knowledge=KnowledgeManager(store=domain_store),
+        rag=RAGPipeline(store=domain_store),
+    )
+    set_core_domain_services(core_domains)
+    app.state.core_domains = core_domains
+    logger.info("Core domain managers ready")
+
+    # --- Domain managers (chats, files, users, groups) ---
+    from core.auth.groups import GroupManager
+    from core.auth.users import UserManager
+    from core.state.chats import ChatStore
+    from core.state.files import FileStore
+
+    set_domain_managers(
+        chats=ChatStore(store=domain_store),
+        files=FileStore(store=domain_store),
+        users=UserManager(store=domain_store),
+        groups=GroupManager(store=domain_store),
+    )
+    logger.info("Domain managers ready (chats, files, users, groups)")
+
+    # --- WebUI-facing records store (goals, facts, skills, events, settings, providers, plugins) ---
+    # Replaces the old process-local MemoryStore in routers/v1.py.  Persistence
+    # lives in Core (CoreRecordStore) so the interface stays a thin HTTP gateway.
+    webui_store = CoreWebUIStore(store=domain_store)
+    set_webui_store(webui_store)
+    app.state.webui_store = webui_store
+    logger.info("CoreWebUIStore ready (persistent WebUI records)")
+
+    # --- Capability managers (automations, calendar, tts, images, evaluations,
+    #     analytics, channels, notes, tool servers, functions, prompts, scim) ---
+    # All managers are Core-owned and share the same CoreRecordStore.  They are
+    # injected here so the capabilities router stays a thin HTTP gateway.
+    from core.scheduler.automations import AutomationManager
+    from core.scheduler.calendar import CalendarManager
+    from core.llm.tts import TTSEngine
+    from core.llm.images import ImageGenerator
+    from core.learning.evaluations import EvaluationManager
+    from core.metrics.analytics import AnalyticsManager
+    from core.state.channels import ChannelStore
+    from core.state.notes import NoteStore
+    from core.tools.servers import ToolServerManager
+    from core.tools.functions import FunctionManager
+    from core.config.prompts import PromptManager
+    from core.auth.scim import SCIMManager
+
+    capability_managers = CapabilityManagers(
+        automations=AutomationManager(store=domain_store),
+        calendar=CalendarManager(store=domain_store),
+        tts=TTSEngine(store=domain_store),
+        images=ImageGenerator(store=domain_store),
+        evaluations=EvaluationManager(store=domain_store),
+        analytics=AnalyticsManager(store=domain_store),
+        channels=ChannelStore(store=domain_store),
+        notes=NoteStore(store=domain_store),
+        tool_servers=ToolServerManager(store=domain_store),
+        functions=FunctionManager(store=domain_store),
+        prompts=PromptManager(store=domain_store),
+        scim=SCIMManager(store=domain_store),
+    )
+    set_capability_managers(capability_managers)
+    app.state.capability_managers = capability_managers
+    logger.info("Capability managers ready (12 Core capabilities exposed)")
+
+    try:
+        store = ProviderStore(redis_client=redis_client, pg_pool=pg_pool)
+        provider_manager = ProviderManager(store=store)
+        await provider_manager.initialize()
+        set_provider_manager(provider_manager)
+        set_v1_provider_manager(provider_manager)
+        logger.info("ProviderManager ready (default=%s, providers=%d)",
+                    provider_manager._default_provider,
+                    len(provider_manager._registry.list_providers()))
+    except Exception as exc:
+        logger.exception("Failed to initialize ProviderManager: %s", exc)
+        provider_manager = None
+
+    # --- Configuration Service (source de vérité unique) ---
+    try:
+        config_store = ConfigStore(redis_client=redis_client, pg_pool=pg_pool)
+        config_service = ConfigurationService(store=config_store)
+        await config_service.load()
+        set_configuration_service(config_service)
+        app.state.config_service = config_service
+        logger.info("ConfigurationService ready")
+    except Exception as exc:
+        logger.exception("Failed to initialize ConfigurationService: %s", exc)
+
     if HAS_TELEMETRY:
         try:
             init_telemetry("ethan-api")
@@ -111,6 +253,19 @@ async def lifespan(app: FastAPI):
             logger.info("API Gateway NATS connection closed")
         except Exception as e:
             logger.error(f"Error during NATS shutdown: {e}")
+
+    # Fermer le.ProviderManager (clients providers + store/redis)
+    if provider_manager is not None:
+        try:
+            await provider_manager.close()
+            logger.info("ProviderManager closed")
+        except Exception as exc:
+            logger.warning("Error closing ProviderManager: %s", exc)
+    if pg_pool is not None:
+        try:
+            await asyncio.wait_for(pg_pool.close(), timeout=5)
+        except Exception as exc:
+            logger.warning("Error closing PostgreSQL pool: %s", exc)
 
 app = FastAPI(
     title="Ethan Cognitive OS API",
@@ -142,6 +297,10 @@ app.include_router(message_router)
 app.include_router(state_router)
 app.include_router(internal_router)
 app.include_router(v1_router)
+app.include_router(providers_router)
+app.include_router(config_router)
+app.include_router(domains_router)
+app.include_router(capabilities_router)
 
 
 # Old startup code removed as it's now in the lifespan context manager.

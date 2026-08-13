@@ -12,6 +12,15 @@ async function proxyRequest(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete("host"); // Let fetch set the correct host
 
+  // ── JWT Cookie → Authorization header ─────────────────────────────────
+  // The browser stores the JWT in an HttpOnly cookie (ethan_token), but the
+  // backend API expects it in the Authorization: Bearer header.  Convert
+  // the cookie to a header so authenticated requests reach the backend.
+  const authToken = request.cookies.get("ethan_token")?.value;
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
   try {
     let body;
     if (request.method !== "GET" && request.method !== "HEAD") {

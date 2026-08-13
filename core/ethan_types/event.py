@@ -117,6 +117,66 @@ class EventType(str, Enum):
     GOAL_FAILED = "ethan.goal.failed"
     NEW_GOAL_CREATED = "ethan.goal.new_created"
 
+    # Agents
+    AGENT_CREATED = "ethan.agent.created"
+    AGENT_UPDATED = "ethan.agent.updated"
+    AGENT_DELETED = "ethan.agent.deleted"
+
+    # Missions
+    MISSION_CREATED = "ethan.mission.created"
+    MISSION_UPDATED = "ethan.mission.updated"
+    MISSION_COMPLETED = "ethan.mission.completed"
+    MISSION_FAILED = "ethan.mission.failed"
+    MISSION_STEP_VERIFIED = "ethan.mission.step.verified"
+    MISSION_STEP_APPROVED = "ethan.mission.step.approved"
+
+    # Knowledge
+    KNOWLEDGE_CREATED = "ethan.knowledge.created"
+    KNOWLEDGE_UPDATED = "ethan.knowledge.updated"
+    KNOWLEDGE_DELETED = "ethan.knowledge.deleted"
+
+    # Chats
+    CHAT_CREATED = "ethan.chat.created"
+    CHAT_UPDATED = "ethan.chat.updated"
+    CHAT_DELETED = "ethan.chat.deleted"
+    CHAT_MESSAGE = "ethan.chat.message"
+
+    # Files
+    FILE_UPLOADED = "ethan.file.uploaded"
+    FILE_DELETED = "ethan.file.deleted"
+
+    # Users
+    USER_CREATED = "ethan.user.created"
+    USER_UPDATED = "ethan.user.updated"
+    USER_DELETED = "ethan.user.deleted"
+
+    # Groups
+    GROUP_CREATED = "ethan.group.created"
+    GROUP_UPDATED = "ethan.group.updated"
+    GROUP_DELETED = "ethan.group.deleted"
+
+    # Automations
+    AUTOMATION_CREATED = "ethan.automation.created"
+    AUTOMATION_UPDATED = "ethan.automation.updated"
+    AUTOMATION_DELETED = "ethan.automation.deleted"
+    AUTOMATION_TRIGGERED = "ethan.automation.triggered"
+
+    # Channels
+    CHANNEL_CREATED = "ethan.channel.created"
+    CHANNEL_UPDATED = "ethan.channel.updated"
+    CHANNEL_DELETED = "ethan.channel.deleted"
+    CHANNEL_MESSAGE = "ethan.channel.message"
+
+    # Notes
+    NOTE_CREATED = "ethan.note.created"
+    NOTE_UPDATED = "ethan.note.updated"
+    NOTE_DELETED = "ethan.note.deleted"
+
+    # Tool Servers
+    TOOL_SERVER_REGISTERED = "ethan.tool.server.registered"
+    TOOL_SERVER_UPDATED = "ethan.tool.server.updated"
+    TOOL_SERVER_DELETED = "ethan.tool.server.deleted"
+
     # Scheduler and Security
     SCHEDULE_TRIGGER = "ethan.schedule.trigger"
     SECURITY_AUDIT = "ethan.security.audit"

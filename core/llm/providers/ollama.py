@@ -15,7 +15,7 @@ class OllamaProvider(LLMProvider):
     """Provider Ollama (local)."""
 
     name = "ollama"
-    default_model = "llama2:70b"
+    default_model = "llama3.1"
 
     def __init__(self, base_url: str = "http://localhost:11434"):
         self._base_url = base_url

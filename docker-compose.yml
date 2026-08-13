@@ -107,14 +107,25 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.api
+    container_name: ethan-api
     ports:
       - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
       LOG_LEVEL: INFO
       LOG_FORMAT: "${LOG_FORMAT:-text}"
+      # ── LLM Provider configuration ──────────────────────────────────
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      OLLAMA_DEFAULT_MODEL: "${OLLAMA_DEFAULT_MODEL:-llama3.1}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      VLLM_BASE_URL: "${VLLM_BASE_URL:-http://vllm:8000}"
+      CUSTOM_OPENAI_BASE_URL: "${CUSTOM_OPENAI_BASE_URL:-http://localhost:8000/v1}"
     depends_on:
       nats:
         condition: service_healthy
@@ -150,6 +161,7 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-kernel
     ports:
       - "127.0.0.1:8080:8080"
     environment:
@@ -197,6 +209,7 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.module
+    container_name: ethan-modules
     environment:
       NATS_URL: nats://nats:4222
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
@@ -243,6 +256,7 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile.pg_backup
+    container_name: ethan-pg_backup
     environment:
       PGHOST: postgres
       PGPORT: "5432"
@@ -279,6 +293,7 @@ services:
       dockerfile: deploy/Dockerfile.ui
       args:
         ETHAN_API_URL: http://api:8000
+    container_name: ethan-ui
     ports:
       - "127.0.0.1:3000:3000"
     environment:

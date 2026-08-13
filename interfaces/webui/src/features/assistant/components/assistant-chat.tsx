@@ -4,15 +4,17 @@ import { useState, useRef, useEffect } from "react";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import { AssistantMessageView } from "./assistant-message";
 import { AssistantInput } from "./assistant-input";
+import { TypingIndicator } from "./typing-indicator";
 
 interface AssistantChatProps {
   messages: AssistantMessage[];
   metrics: SessionMetrics;
   onSend: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
 }
 
-export function AssistantChat({ messages, metrics, onSend, disabled }: AssistantChatProps) {
+export function AssistantChat({ messages, metrics, onSend, onStop, disabled }: AssistantChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,11 +34,12 @@ export function AssistantChat({ messages, metrics, onSend, disabled }: Assistant
         {messages.map((msg) => (
           <AssistantMessageView key={msg.id} message={msg} />
         ))}
+        {disabled && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <AssistantInput onSend={onSend} disabled={disabled} />
+      <AssistantInput onSend={onSend} onStop={onStop} disabled={disabled} />
     </div>
   );
 }

@@ -58,6 +58,26 @@ class ScoredModel:
 
 
 @dataclass
+class ChatMessage:
+    """Message de chat standardisé."""
+    role: str  # "system", "user", "assistant", "tool"
+    content: str
+    name: str | None = None
+    tool_calls: list[dict] | None = None
+    tool_call_id: str | None = None
+
+
+@dataclass
+class ChatResponse:
+    """Réponse de chat standardisée."""
+    content: str
+    model: str
+    provider: str
+    usage: dict | None = None
+    finish_reason: str | None = None
+
+
+@dataclass
 class UsageStats:
     """Statistiques d'utilisation."""
     prompt_tokens: int = 0

@@ -6,6 +6,8 @@ import { ToolsSection } from "./sections/tools-section";
 import { DocumentsSection } from "./sections/documents-section";
 import { MemorySection } from "./sections/memory-section";
 import { MessageFooter } from "./sections/message-footer";
+import { MessageActions } from "./message-actions";
+import { MarkdownContent } from "./markdown-content";
 
 interface AssistantMessageProps {
   message: AssistantMessage;
@@ -28,14 +30,23 @@ export function AssistantMessageView({ message }: AssistantMessageProps) {
 
         {/* Bubble */}
         <div className={`
-          rounded-lg px-4 py-3
+          group relative rounded-lg px-4 py-3
           ${isUser
             ? "bg-accent-soft border border-accent-line"
             : "bg-background/40 border border-line-1/20"
           }
         `}>
-          {/* Main content */}
-          <p className="text-sm text-foreground whitespace-pre-wrap">{message.content}</p>
+          {/* Actions */}
+          <div className="absolute -top-2 right-2">
+            <MessageActions
+              messageId={message.id}
+              content={message.content}
+              isUser={isUser}
+            />
+          </div>
+
+          {/* Main content — rendu markdown (puces, gras, code, tableaux, liens) */}
+          <MarkdownContent content={message.content} />
 
           {/* Assistant-only sections */}
           {!isUser && (

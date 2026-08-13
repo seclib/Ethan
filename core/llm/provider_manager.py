@@ -13,6 +13,7 @@ Fonctionnalités :
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from core.llm.types import ChatMessage, ChatResponse, LLMRequirements, ModelInfo
@@ -52,37 +53,143 @@ class ProviderManager:
     # ── Initialisation ──────────────────────────────────────────────────
 
     async def initialize(self) -> None:
-        """Charge la config depuis le store et instancie les providers."""
+        """Charge la config depuis le store et instancie les providers.
+
+        - Charge les configs persistées (sans clés API).
+        - Si le store est vide/absent, seed les providers par défaut.
+        - Injecte les clés API depuis les secrets/env (mémoire, jamais persistées).
+        - Instancie et enregistre les providers activés.
+        """
         try:
             self._providers_config = await self._store.get_all()
         except Exception as e:
             logger.warning("Failed to load providers from store: %s", e)
             self._providers_config = {}
 
+        # Seed les configs par défaut si le store est vide
+        if not self._providers_config:
+            logger.info("No provider configs found - seeding defaults")
+            self._providers_config = self._default_provider_configs()
+            for pid, cfg in self._providers_config.items():
+                try:
+                    await self._store.save(pid, cfg)
+                except Exception as exc:
+                    logger.debug("Could not persist default provider %s: %s", pid, exc)
+
+        # Injecter les clés API (secrets/env) en mémoire — jamais persistées
+        await self._inject_secrets()
+
         # Charger le provider par défaut
         self._default_provider = await self._store.get_default()
+        if self._default_provider is None:
+            for pid, cfg in self._providers_config.items():
+                if cfg.get("enabled", False):
+                    self._default_provider = pid
+                    break
 
-        # Instancier les providers actifs
+        # Instancier les providers activés
         for provider_id, config in self._providers_config.items():
             if config.get("enabled", False):
                 try:
-                    provider = create_provider_from_config({
-                        **config,
-                        "name": provider_id,
-                    })
+                    provider = create_provider_from_config({**config, "name": provider_id})
                     await self._register(provider, provider_id)
                 except Exception as e:
                     logger.error("Failed to instantiate provider %s: %s", provider_id, e)
 
-        # Si aucun provider actif, créer les défauts actifs
-        if not self._registry.list_providers():
-            logger.info("No active providers — creating defaults")
-            from core.llm.provider_factory import create_default_providers
-            for provider in create_default_providers():
-                await self.register_provider(provider, config={"enabled": provider.name == "ollama"})
-
         await self._client.initialize()
-        logger.info("ProviderManager initialized with %d providers", len(self._registry.list_providers()))
+        logger.info(
+            "ProviderManager initialized with %d providers (default=%s)",
+            len(self._registry.list_providers()),
+            self._default_provider,
+        )
+
+    def _default_provider_configs(self) -> dict[str, dict[str, Any]]:
+        """Retourne les configs de providers par défaut (sans clés API)."""
+        return {
+            "ollama": {
+                "name": "ollama",
+                "type": "ollama",
+                "enabled": True,
+                "base_url": os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434"),
+                "default_model": os.getenv("OLLAMA_DEFAULT_MODEL", ""),
+                "display_name": "Ollama (local)",
+            },
+            "openai": {
+                "name": "openai",
+                "type": "openai",
+                "enabled": False,
+                "base_url": "",
+                "default_model": "gpt-4o-mini",
+                "display_name": "OpenAI",
+            },
+            "anthropic": {
+                "name": "anthropic",
+                "type": "anthropic",
+                "enabled": False,
+                "base_url": "",
+                "default_model": "claude-3-5-sonnet-20241022",
+                "display_name": "Anthropic Claude",
+            },
+            "vllm": {
+                "name": "vllm",
+                "type": "vllm",
+                "enabled": False,
+                "base_url": os.getenv("VLLM_BASE_URL", "http://vllm:8000"),
+                "default_model": "",
+                "display_name": "vLLM (local)",
+            },
+            "custom": {
+                "name": "custom",
+                "type": "openai-compatible",
+                "enabled": False,
+                "base_url": os.getenv("CUSTOM_OPENAI_BASE_URL", "http://localhost:8000/v1"),
+                "default_model": "gpt-4",
+                "display_name": "Custom OpenAI-Compatible",
+            },
+        }
+
+    async def _inject_secrets(self) -> None:
+        """Injecte les clés API des providers cloud depuis les secrets/env.
+
+        Mémoire uniquement — aucune clé n'est écrite dans le store.
+        Un provider cloud disposant d'une clé est automatiquement activé.
+        """
+        keys: dict[str, str | None] = {}
+        try:
+            from core.config.secrets import get_secrets
+            secrets = get_secrets()
+            keys["openai"] = getattr(secrets, "openai_api_key", None)
+            keys["anthropic"] = getattr(secrets, "anthropic_api_key", None)
+            keys["gemini"] = getattr(secrets, "gemini_api_key", None)
+        except Exception as exc:
+            logger.debug("get_secrets() unavailable, falling back to env: %s", exc)
+        keys.setdefault("openai", os.getenv("OPENAI_API_KEY"))
+        keys.setdefault("anthropic", os.getenv("ANTHROPIC_API_KEY"))
+        keys.setdefault("gemini", os.getenv("GEMINI_API_KEY"))
+
+        for provider_id, config in self._providers_config.items():
+            ptype = config.get("type", "")
+            key = keys.get(ptype)
+            if ptype in keys and key:
+                config["api_key"] = key
+                config["enabled"] = True
+                logger.info("Auto-enabled provider %s (%s) from secret/env", provider_id, ptype)
+
+    async def close(self) -> None:
+        """Libère les ressources des providers et du store."""
+        for provider in self._registry._providers.values():
+            close_fn = getattr(provider, "close", None)
+            if close_fn is not None:
+                try:
+                    await close_fn()
+                except Exception as exc:
+                    logger.debug("Error closing provider %s: %s", getattr(provider, "name", "?"), exc)
+        if self._store is not None:
+            try:
+                await self._store.close()
+            except Exception as exc:
+                logger.debug("Error closing provider store: %s", exc)
+        logger.info("ProviderManager closed")
 
     # ── Enregistrement / suppression ────────────────────────────────────
 
@@ -113,8 +220,20 @@ class ProviderManager:
 
         provider_id = config.get("name", provider.name) if config else provider.name
 
-        # Enregistrer dans le registry
-        await self._register(provider, provider_id)
+        # Enregistrer dans le registry uniquement si activé
+        enabled = bool(config.get("enabled", True)) if config else True
+        if enabled:
+            await self._register(provider, provider_id)
+        else:
+            # Provider désactivé : on valide la config sans l'instancier
+            try:
+                await provider.initialize()
+            except Exception as exc:
+                logger.debug(
+                    "Provider %s désactivé — skip initialization: %s",
+                    provider_id,
+                    exc,
+                )
 
         # Persister la config (sans la clé API)
         safe_config = dict(config or {})
@@ -282,6 +401,8 @@ class ProviderManager:
             Nom du modèle actif.
         """
         pid = provider_id or self._default_provider
+        if pid is None:
+            return ""
         config = self._providers_config.get(pid, {})
         if config.get("default_model"):
             return config["default_model"]
@@ -365,6 +486,14 @@ class ProviderManager:
             except Exception:
                 connection_status = "error"
 
+        # Les modèles d'un provider désactivé/ne-initialisé pas sont inaccessibles.
+        # describe_provider() est appelé par list_providers() et set_enabled() et
+        # ne doit jamais planter à cause d'un provider injoignable.
+        try:
+            models = [m.id for m in await self.list_models(provider_id)]
+        except Exception:
+            models = []
+
         return {
             "id": provider_id,
             "name": config.get("display_name", config.get("name", provider_id)),
@@ -374,7 +503,7 @@ class ProviderManager:
             "default_model": config.get("default_model", ""),
             "is_default": provider_id == self._default_provider,
             "base_url": config.get("base_url", ""),
-            "models": [m.id for m in await self.list_models(provider_id)],
+            "models": models,
         }
 
     async def list_providers(self) -> list[dict[str, Any]]:

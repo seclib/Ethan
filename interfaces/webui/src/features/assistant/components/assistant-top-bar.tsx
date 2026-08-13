@@ -1,6 +1,7 @@
 "use client";
 
 import type { SessionMetrics } from "@/types/assistant";
+import { ModelSelector } from "@/components/shared/model-selector";
 
 interface AssistantTopBarProps {
   metrics: SessionMetrics;
@@ -16,9 +17,7 @@ export function AssistantTopBar({ metrics }: AssistantTopBarProps) {
         <span className="text-foreground font-medium">{metrics.agentName}</span>
       </div>
       <span className="text-muted-foreground/70">|</span>
-      <span className="text-muted-foreground">🤖 {metrics.model}</span>
-      <span className="text-muted-foreground/70">|</span>
-      <span className="text-muted-foreground">🔌 {metrics.provider}</span>
+      <ModelSelector variant="full" />
       <span className="text-muted-foreground/70">|</span>
       <span className="text-muted-foreground">💰 ${metrics.cost.toFixed(4)}</span>
       <span className="text-muted-foreground/70">|</span>

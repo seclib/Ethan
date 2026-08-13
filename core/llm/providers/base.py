@@ -68,3 +68,12 @@ class LLMProvider(ABC):
             return True
         except Exception:
             return False
+
+    async def initialize(self) -> None:
+        """Hook d'initialisation asynchrone — à surcharger si besoin.
+
+        Les providers concrets préparent leur client HTTP ici. L'implémentation
+        par défaut est un no-op afin de rester safe pour les providers qui
+        n'ont rien à initialiser.
+        """
+        pass

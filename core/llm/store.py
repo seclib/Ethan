@@ -194,3 +194,12 @@ class ProviderStore:
                 logger.debug("Provider cache invalidated")
             except Exception as e:
                 logger.warning("Redis cache invalidation failed: %s", e)
+
+    async def close(self) -> None:
+        """Ferme la connexion Redis éventuelle détenue par le store."""
+        if self._redis:
+            try:
+                await self._redis.close()
+                logger.debug("ProviderStore Redis connection closed")
+            except Exception as e:
+                logger.warning("Error closing Redis for ProviderStore: %s", e)

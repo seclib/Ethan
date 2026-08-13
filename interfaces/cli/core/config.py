@@ -1,26 +1,27 @@
-"""ETHAN Configuration Manager.
+"""ETHAN CLI — Configuration Manager.
+
+Délègue au ConfigurationService centralisé (core/config/service.py).
+Le CLI ne stocke plus de configuration métier — il utilise la même
+source de vérité que le Core, la WebUI et le Desktop.
 
 Priority chain:
   1. CLI argument / explicit override
   2. Environment variable
   3. User config file (~/.config/ethan/*)
   4. Default value
-
-Config sources (merged in order):
-  ~/.config/ethan/config.json        # User config
-  ~/.config/ethan/config.local.json  # Local override (never committed)
-  env vars                           # ETHAN_ prefix
 """
 
 import json
 import os
 from pathlib import Path
 
+from core.config import ConfigurationService, ConfigStore
+
 CONFIG_DIR = Path.home() / ".config" / "ethan"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 CONFIG_LOCAL_FILE = CONFIG_DIR / "config.local.json"
 
-# Default configuration
+# Default configuration (CLI-specific, not business logic)
 DEFAULTS = {
     "api": {
         "base_url": "http://localhost:8000",
@@ -42,6 +43,17 @@ DEFAULTS = {
         "enabled": True,
     },
 }
+
+# Instance globale du service de configuration centralisé
+_service: ConfigurationService | None = None
+
+
+def _get_service() -> ConfigurationService:
+    """Retourne le ConfigurationService global (lazy init)."""
+    global _service
+    if _service is None:
+        _service = ConfigurationService(store=ConfigStore())
+    return _service
 
 
 def _ensure():
@@ -104,7 +116,26 @@ def load():
 
 
 def get(key: str, default=None):
-    """Get a dot-separated config value, e.g. 'api.base_url'."""
+    """Get a dot-separated config value, e.g. 'api.base_url'.
+
+    Délègue au ConfigurationService centralisé pour les domaines métier
+    (providers, models, rag, memory, agents, planner, plugins, authentication).
+    Pour les clés CLI-spécifiques, utilise le fichier local.
+    """
+    # Domaines métier → ConfigurationService centralisé
+    business_domains = (
+        "providers", "models", "rag", "memory",
+        "agents", "planner", "plugins", "authentication", "runtime",
+    )
+    first = key.split(".")[0]
+    if first in business_domains:
+        try:
+            service = _get_service()
+            return service.get(key, default)
+        except Exception:
+            pass
+
+    # CLI-specific → fichier local
     config = load()
     parts = key.split(".")
     current = config

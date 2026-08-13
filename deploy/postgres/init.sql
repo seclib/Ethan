@@ -120,6 +120,36 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 
+-- LLM provider configurations (managed by ProviderManager / ProviderStore).
+-- ⚠️ La table ne stocke JAMAIS les clés API (secrets via core/config/secrets.py).
+CREATE TABLE IF NOT EXISTS llm_providers (
+    provider_id TEXT PRIMARY KEY,
+    config      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+    is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_llm_providers_enabled
+    ON llm_providers (enabled);
+CREATE INDEX IF NOT EXISTS idx_llm_providers_default
+    ON llm_providers (is_default);
+
+-- Durable JSON records owned by Core domain managers.  The domain-specific
+-- managers validate their own types; this table supplies a small common
+-- persistence boundary while keeping the API gateway stateless.
+CREATE TABLE IF NOT EXISTS core_domain_records (
+    domain      TEXT NOT NULL CHECK (length(domain) > 0),
+    record_id   TEXT NOT NULL CHECK (length(record_id) > 0),
+    record      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (domain, record_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_core_domain_records_domain_updated
+    ON core_domain_records (domain, updated_at DESC);
+
 -- AuditStore's canonical row order is intentionally preserved: it reads rows
 -- with SELECT * and reconstructs AuditEntry by position.
 CREATE TABLE IF NOT EXISTS audit_log (

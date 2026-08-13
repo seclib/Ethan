@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/core/api/api-client";
 import { useUIStore } from "@/core/store/ui.store";
+import { AIProvidersSection } from "@/components/settings/ai-providers-section";
 
 interface Settings {
   llm: { provider: string; model: string; temperature: number };
@@ -68,6 +69,8 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <AIProvidersSection />
+
       <div>
         <h1 className="text-3xl font-bold text-foreground">Settings</h1>
         <p className="text-foreground-secondary mt-2">System configuration and governance</p>

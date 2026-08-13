@@ -34,6 +34,7 @@ SERVICES_LIST=(
     "ethan-kernel:Core Kernel:8080"
     "ethan-modules:Cognitive Modules:—"
     "ethan-ui:WebUI:3000"
+    "ethan-pg_backup:PostgreSQL Backup:—"
 )
 
 section "Healthchecks détaillés"
@@ -41,8 +42,9 @@ section "Healthchecks détaillés"
 for svc_info in "${SERVICES_LIST[@]}"; do
     IFS=':' read -r container label port <<< "$svc_info"
 
-    # Conteneur existe ?
-    if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+    # Conteneur existe ? (docker ps OU docker_compose ps)
+    if docker ps --format '{{.Names}}' | grep -q "^${container}$" || \
+       docker_compose ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
         # Healthcheck
         health=$(docker inspect "$container" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || echo "unknown")
         case "$health" in

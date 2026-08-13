@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { MetricCard } from "@/components/shared/metric-card";
 import { EventStream } from "@/components/shared/event-stream";
+import { ModelSelector } from "@/components/shared/model-selector";
 import { useAgents } from "@/features/agents/hooks/use-agents";
 import { useGoals } from "@/features/goals/hooks/use-goals";
 import { useFacts } from "@/features/memory/hooks/use-memory";
@@ -67,7 +68,10 @@ export default function DashboardPage() {
             System status and active operations
           </p>
         </div>
-        {hasLiveData && <Badge>Live</Badge>}
+        <div className="flex items-center gap-4">
+          <ModelSelector variant="full" />
+          {hasLiveData && <Badge>Live</Badge>}
+        </div>
       </div>
 
       {/* KPI Strip */}

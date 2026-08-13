@@ -351,14 +351,16 @@ check_docker_services() {
         "ethan-kernel:Core Kernel:8080"
         "ethan-modules:Cognitive Modules:—"
         "ethan-ui:WebUI:3000"
+        "ethan-pg_backup:PostgreSQL Backup:—"
     )
 
     for svc_info in "${services[@]}"; do
         IFS=':' read -r container label port <<< "$svc_info"
         info "Vérification de ${label} (${container})..."
 
-        # Conteneur existe-t-il ?
-        if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+        # Conteneur existe-t-il ? (docker ps OU docker_compose ps)
+        if docker ps --format '{{.Names}}' | grep -q "^${container}$" || \
+           docker_compose ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container}$"; then
             check_pass "${label} : container en cours d'exécution"
 
             # Healthcheck Docker
