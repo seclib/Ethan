@@ -136,6 +136,15 @@ class ProvidersConfig:
                     display_name="Google Gemini",
                     api_key_env="GEMINI_API_KEY",
                 ),
+                "openrouter": ProviderConfig(
+                    name="openrouter",
+                    type="openrouter",
+                    enabled=False,
+                    default_model="openrouter/auto",
+                    display_name="OpenRouter",
+                    api_key_env="OPENROUTER_API_KEY",
+                    options={"routing": {"allow_fallbacks": True}},
+                ),
             }
 
 

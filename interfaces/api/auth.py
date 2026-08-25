@@ -38,6 +38,12 @@ PUBLIC_PATHS = {
     "/auth/register",
     "/v1/health",
     "/v1/version",
+    # Open WebUI-compatible adapter endpoints (Phase 1 — auth is public).
+    "/api/v1/auths/signin",
+    "/api/v1/auths/signup",
+    "/api/v1/auths/",
+    "/api/v1/auths/signout",
+    "/openai/config",
 }
 
 security = HTTPBearer(auto_error=False)

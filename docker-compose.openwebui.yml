@@ -1,0 +1,85 @@
+# =============================================================================
+# docker-compose.openwebui.yml — Open WebUI (Interface indépendante)
+# =============================================================================
+#
+# Open WebUI est une interface de référence pour le chat et la gestion des
+# modèles LLM. Elle fonctionne de manière indépendante d'ETHAN et communique
+# directement avec Ollama sur l'hôte.
+#
+# Ollama est installé sur l'hôte (systemd) et n'est PAS géré par ETHAN.
+# Open WebUI y accède via host.docker.internal:11434.
+#
+# Usage :
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.openwebui.yml \
+#     up -d
+#
+# Pour démarrer uniquement Open WebUI :
+#   docker compose -f docker-compose.openwebui.yml up -d open-webui
+#
+# =============================================================================
+
+services:
+
+  # ============================================================================
+  # Open WebUI — Reference Chat Interface
+  # ============================================================================
+  # Open WebUI utilise sa propre base de données interne (SQLite dans le volume).
+  # Elle possède son propre système d'authentification et de gestion des
+  # utilisateurs, indépendant d'ETHAN Core.
+  #
+  # Architecture :
+  #   Host :11434 (Ollama) ←── open-webui (Docker)
+  #   ETHAN Core (:8000)   ←── (future: bridge API)
+  # ============================================================================
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: ethan-open-webui
+    hostname: open-webui
+    ports:
+      - "127.0.0.1:${OPEN_WEBUI_PORT:-3080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # ── Ollama (host-native) ──────────────────────────────────────────
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      # ── Open WebUI internals ──────────────────────────────────────────
+      WEBUI_SECRET_KEY: "${OPEN_WEBUI_SECRET_KEY:-change-me-in-prod}"
+      # Désactiver la télémétrie Open WebUI
+      SCARF_NO_ANALYTICS: "true"
+      DO_NOT_TRACK: "true"
+      ANONYMIZED_TELEMETRY: "false"
+    volumes:
+      - open_webui_data:/app/backend/data
+    depends_on:
+      # Aucune dépendance hard sur les services ETHAN — Open WebUI est
+      # indépendant. Il peut démarrer seul tant qu'Ollama est accessible.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  open_webui_data:
+    driver: local
+

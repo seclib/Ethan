@@ -6,10 +6,12 @@ thin gateways: all business logic lives in core/state and core/auth.
 
 from __future__ import annotations
 
+import io
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 
 from core.auth import Permission
 from interfaces.api.auth import require_permission
@@ -56,6 +58,18 @@ def _require_files() -> FileStore:
 
 
 def _require_users() -> UserManager:
+    if _users is None:
+        raise HTTPException(503, "User manager not initialized")
+    return _users
+
+
+def get_user_manager() -> UserManager:
+    """Public accessor for the Core UserManager.
+
+    Unlike ``_require_users`` this is exposed so the Open WebUI-compatible
+    adapter router (interfaces/api/routers/openwebui.py) can resolve the
+    Core user manager without owning any user logic itself (AGENTS.md).
+    """
     if _users is None:
         raise HTTPException(503, "User manager not initialized")
     return _users
@@ -167,12 +181,51 @@ async def register_file(data: dict[str, Any]):
         raise HTTPException(422, str(exc)) from exc
 
 
+@router.post("/files/upload", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def upload_file(
+    file: UploadFile = File(...),
+    user_id: str = Form(default="anonymous"),
+):
+    """Upload a binary file and persist it in Core.
+
+    The bytes are stored in the Core FileStore so they can later be
+    downloaded or ingested into RAG by ETHAN Core (not the WebUI).
+    """
+    content = await file.read()
+    try:
+        return await _require_files().register(
+            filename=file.filename or "unnamed",
+            content_type=file.content_type or "application/octet-stream",
+            size=len(content),
+            user_id=user_id,
+            content=content,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 @router.get("/files/{file_id}")
 async def get_file(file_id: str):
     file = await _require_files().get(file_id)
     if file is None:
         raise HTTPException(404, f"File {file_id} not found")
     return file
+
+
+@router.get("/files/{file_id}/download")
+async def download_file(file_id: str):
+    """Stream the binary content of a Core-owned file."""
+    result = await _require_files().download(file_id)
+    if result is None:
+        raise HTTPException(404, f"File {file_id} not found")
+    content, record = result
+    filename = record.get("filename", "download.bin")
+    content_type = record.get("content_type", "application/octet-stream")
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/files/{file_id}", dependencies=[Depends(require_permission(Permission.WRITE))])

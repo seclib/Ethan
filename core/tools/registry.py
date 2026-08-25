@@ -18,6 +18,16 @@ class ToolRegistry:
         self._tools: dict[str, Tool] = {}
         self._categories: dict[str, list[str]] = defaultdict(list)
         self._capabilities: dict[str, list[str]] = defaultdict(list)
+        self._register_builtins()
+
+    def _register_builtins(self) -> None:
+        """Enregistre les outils natifs."""
+        try:
+            from core.tools.builtin import get_builtin_tools
+            for tool in get_builtin_tools():
+                self.register(tool)
+        except ImportError as e:
+            logger.warning(f"Could not load builtin tools: {e}")
 
     def register(self, tool: Tool) -> None:
         """Enregistre un outil.
@@ -25,6 +35,10 @@ class ToolRegistry:
         Args:
             tool: Outil à enregistrer
         """
+        existing = self._tools.get(tool.id)
+        if existing is not None:
+            self._unindex(existing)
+
         self._tools[tool.id] = tool
         self._categories[tool.category].append(tool.id)
 
@@ -42,14 +56,25 @@ class ToolRegistry:
         if tool_id not in self._tools:
             return
 
-        tool = self._tools[tool_id]
-        del self._tools[tool_id]
-
-        self._categories[tool.category].remove(tool_id)
-        for capability in tool.capabilities:
-            self._capabilities[capability].remove(tool_id)
+        tool = self._tools.pop(tool_id)
+        self._unindex(tool)
 
         logger.info(f"Tool unregistered: {tool_id}")
+
+    def _unindex(self, tool: Tool) -> None:
+        """Remove a tool from secondary indexes before replacing it."""
+        category_tools = self._categories.get(tool.category, [])
+        if tool.id in category_tools:
+            category_tools.remove(tool.id)
+        if not category_tools:
+            self._categories.pop(tool.category, None)
+
+        for capability in tool.capabilities:
+            capability_tools = self._capabilities.get(capability, [])
+            if tool.id in capability_tools:
+                capability_tools.remove(tool.id)
+            if not capability_tools:
+                self._capabilities.pop(capability, None)
 
     def get(self, tool_id: str) -> Tool | None:
         """Récupère un outil par ID.

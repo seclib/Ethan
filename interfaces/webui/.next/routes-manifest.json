@@ -79,16 +79,28 @@
       "namedRegex": "^/agents(?:/)?$"
     },
     {
-      "page": "/assistant",
-      "regex": "^/assistant(?:/)?$",
+      "page": "/calendar",
+      "regex": "^/calendar(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/assistant(?:/)?$"
+      "namedRegex": "^/calendar(?:/)?$"
     },
     {
-      "page": "/documents",
-      "regex": "^/documents(?:/)?$",
+      "page": "/cookbook",
+      "regex": "^/cookbook(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/documents(?:/)?$"
+      "namedRegex": "^/cookbook(?:/)?$"
+    },
+    {
+      "page": "/icon.png",
+      "regex": "^/icon\\.png(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/icon\\.png(?:/)?$"
+    },
+    {
+      "page": "/inbox",
+      "regex": "^/inbox(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/inbox(?:/)?$"
     },
     {
       "page": "/knowledge",
@@ -103,24 +115,6 @@
       "namedRegex": "^/login(?:/)?$"
     },
     {
-      "page": "/logs",
-      "regex": "^/logs(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/logs(?:/)?$"
-    },
-    {
-      "page": "/logs/flux",
-      "regex": "^/logs/flux(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/logs/flux(?:/)?$"
-    },
-    {
-      "page": "/memory",
-      "regex": "^/memory(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/memory(?:/)?$"
-    },
-    {
       "page": "/missions",
       "regex": "^/missions(?:/)?$",
       "routeKeys": {},
@@ -133,22 +127,10 @@
       "namedRegex": "^/models(?:/)?$"
     },
     {
-      "page": "/planner",
-      "regex": "^/planner(?:/)?$",
+      "page": "/notes",
+      "regex": "^/notes(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/planner(?:/)?$"
-    },
-    {
-      "page": "/planner/goals",
-      "regex": "^/planner/goals(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/planner/goals(?:/)?$"
-    },
-    {
-      "page": "/plugins",
-      "regex": "^/plugins(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/plugins(?:/)?$"
+      "namedRegex": "^/notes(?:/)?$"
     },
     {
       "page": "/providers",
@@ -163,16 +145,28 @@
       "namedRegex": "^/register(?:/)?$"
     },
     {
+      "page": "/research",
+      "regex": "^/research(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/research(?:/)?$"
+    },
+    {
+      "page": "/security",
+      "regex": "^/security(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/security(?:/)?$"
+    },
+    {
       "page": "/settings",
       "regex": "^/settings(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/settings(?:/)?$"
     },
     {
-      "page": "/terminal",
-      "regex": "^/terminal(?:/)?$",
+      "page": "/skills",
+      "regex": "^/skills(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/terminal(?:/)?$"
+      "namedRegex": "^/skills(?:/)?$"
     },
     {
       "page": "/tools",
@@ -181,10 +175,10 @@
       "namedRegex": "^/tools(?:/)?$"
     },
     {
-      "page": "/tools/lab",
-      "regex": "^/tools/lab(?:/)?$",
+      "page": "/workspace",
+      "regex": "^/workspace(?:/)?$",
       "routeKeys": {},
-      "namedRegex": "^/tools/lab(?:/)?$"
+      "namedRegex": "^/workspace(?:/)?$"
     }
   ],
   "dataRoutes": [],

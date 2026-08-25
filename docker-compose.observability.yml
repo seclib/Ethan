@@ -17,7 +17,7 @@ services:
     image: hashicorp/vault:1.17
     hostname: vault
     ports:
-      - "${VAULT_PORT:-8200}:8200"
+      - "127.0.0.1:${VAULT_PORT:-8200}:8200"
     environment:
       VAULT_LOG_LEVEL: ${VAULT_LOG_LEVEL:-warn}
     volumes:
@@ -50,7 +50,7 @@ services:
     container_name: ethan-prometheus
     hostname: prometheus
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - prometheus_data:/prometheus
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -83,7 +83,7 @@ services:
     container_name: ethan-loki
     hostname: loki
     ports:
-      - "${LOKI_PORT:-3100}:3100"
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
     volumes:
       - loki_data:/loki
       - ./infrastructure/loki/loki.yml:/etc/loki/loki.yml:ro
@@ -115,7 +115,7 @@ services:
     container_name: ethan-alloy
     hostname: alloy
     ports:
-      - "12345:12345"
+      - "127.0.0.1:12345:12345"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -151,7 +151,7 @@ services:
     container_name: ethan-grafana
     hostname: grafana
     ports:
-      - "${GRAFANA_PORT:-3001}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-ethan-grafana}
@@ -192,8 +192,8 @@ services:
     container_name: ethan-otel-collector
     hostname: otel-collector
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
     volumes:
       - ./infrastructure/otel/otel-collector-config.yml:/etc/otelcol/config.yaml:ro
     command: ["--config=/etc/otelcol/config.yaml"]
@@ -210,8 +210,8 @@ services:
     container_name: ethan-jaeger
     hostname: jaeger
     ports:
-      - "16686:16686"
-      - "6831:6831/udp"
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:6831:6831/udp"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     volumes:

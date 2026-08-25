@@ -82,8 +82,9 @@ frontend/src-tauri/target/
 # Rust
 target/
 
-# Claude plan artifacts
-docs/plans/
+# Claude plan artifacts, except the repository implementation source of truth.
+docs/plans/*
+!docs/plans/ETHAN_WEBUI_MASTER_PLAN.md
 docs/superpowers/
 .superpowers/
 
@@ -184,3 +185,4 @@ logs/
 tests/.pytest_cache/
 tests/.ruff_cache/
 interfaces/webui/docs/
+.claude/

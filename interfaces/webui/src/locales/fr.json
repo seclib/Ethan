@@ -1,0 +1,7 @@
+{
+  "app": { "title": "ETHAN", "subtitle": "Cognitive Runtime Interface" },
+  "chat": { "placeholder": "Demander quelque chose à ETHAN…", "send": "Envoyer", "clear": "Effacer la conversation", "retry": "Réessayer", "stop": "Arrêter" },
+  "navigation": { "dashboard": "Assistant", "workspace": "Espace de travail", "knowledge": "Connaissances", "agents": "Agents", "tools": "Outils", "missions": "Missions", "settings": "Paramètres", "activity": "Activité" },
+  "actions": { "save": "Enregistrer", "cancel": "Annuler", "delete": "Supprimer", "edit": "Modifier", "close": "Fermer", "refresh": "Actualiser" },
+  "common": { "loading": "Chargement…", "error": "Erreur", "no_results": "Aucun résultat", "search": "Rechercher…" }
+}

@@ -20,7 +20,7 @@
 ```
 
 Services exposés :
-- WebUI : http://localhost:3000
+- WebUI : http://localhost:3001
 - API : http://localhost:8000/health
 - NATS : http://localhost:8222
 

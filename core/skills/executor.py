@@ -8,6 +8,7 @@ from typing import Any
 
 from core.skills.types import Skill, SkillContext, SkillResult, SkillStatus, SkillStep
 from core.tools.manager import ToolManager
+from core.tools.types import ToolContext
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +61,25 @@ class SkillExecutor:
                             duration_ms=(time.time() - start) * 1000,
                         )
 
-                # Exécuter l'outil via ToolManager
+                # Exécuter l'outil via ToolManager.
+                # Le SkillContext est traduit en ToolContext (type attendu par
+                # ToolManager.select_and_execute) sans logique métier dans l'UI.
                 logger.debug(f"Executing step: {step.name} (tool: {step.tool_id})")
+                tool_context = ToolContext(
+                    query=step.name,
+                    source="skill",
+                    user_id=context.user_id,
+                    session_id=context.session_id,
+                    trust_level="default",
+                    max_cost=context.max_cost,
+                    max_duration_ms=context.max_duration_ms,
+                    required_capabilities=[step.tool_id] if step.tool_id else [],
+                    constraints=context.constraints,
+                )
                 result = await self._tool_manager.select_and_execute(
                     query=step.name,
                     params=step.parameters,
-                    context=context,  # type: ignore
+                    context=tool_context,
                 )
 
                 # Stocker le résultat
@@ -137,9 +151,20 @@ class SkillExecutor:
         Returns:
             Résultat
         """
+        tool_context = ToolContext(
+            query=step.name,
+            source="skill",
+            user_id=context.user_id,
+            session_id=context.session_id,
+            trust_level="default",
+            max_cost=context.max_cost,
+            max_duration_ms=context.max_duration_ms,
+            required_capabilities=[step.tool_id] if step.tool_id else [],
+            constraints=context.constraints,
+        )
         result = await self._tool_manager.select_and_execute(
             query=step.name,
             params=step.parameters,
-            context=context,  # type: ignore
+            context=tool_context,
         )
         return result.output

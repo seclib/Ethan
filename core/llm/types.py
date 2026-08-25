@@ -38,6 +38,7 @@ class ModelInfo:
     id: str
     provider: str
     name: str
+    model: str = ""
     context_length: int = 4096
     pricing: dict | None = None
     quality_score: float = 0.8

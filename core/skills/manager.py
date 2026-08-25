@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.skills.executor import SkillExecutor
 from core.skills.registry import SkillRegistry
 from core.skills.types import Skill, SkillContext, SkillResult, SkillStatus
 from core.tools.manager import ToolManager
@@ -24,6 +25,7 @@ class SkillManager:
     def __init__(self, tool_manager: ToolManager):
         self._registry = SkillRegistry()
         self._tool_manager = tool_manager
+        self._executor = SkillExecutor(tool_manager)
         self._executions: dict[str, SkillResult] = {}
 
     def register_skill(self, skill: Skill) -> None:
@@ -99,13 +101,8 @@ class SkillManager:
 
         logger.info(f"Executing skill: {skill.name} ({skill.id})")
 
-        # TODO: Implémenter l'exécution via SkillExecutor
-        result = SkillResult(
-            skill_id=skill.id,
-            status=SkillStatus.COMPLETED,
-            steps_completed=len(skill.steps),
-            steps_total=len(skill.steps),
-        )
+        # Exécution réelle via SkillExecutor (pattern Core, jamais un stub).
+        result = await self._executor.execute(skill, context)
 
         self._executions[skill.id] = result
         return result

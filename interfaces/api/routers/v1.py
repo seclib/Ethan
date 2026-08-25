@@ -17,18 +17,22 @@ Core. Les routes restent des passerelles HTTP sans logique métier propre.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from typing import Any
 from fastapi import APIRouter, HTTPException, Depends
 from core.agents import AgentExecutionUnavailable, AgentManager
 from core.auth import Permission
-from core.knowledge import KnowledgeManager
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from interfaces.api.auth import require_permission
+from core.chat import ChatPipeline
 from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage, LLMRequirements
 from core.missions import MissionManager
 from core.rag import RAGPipeline
+from core.skills.store import SkillStore
+from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
 
 logger = logging.getLogger(__name__)
@@ -41,6 +45,22 @@ _manager: ProviderManager | None = None
 # Instance globale du CoreWebUIStore (records persistants goals/facts/skills/
 # events/settings/providers/plugins) — injectée au démarrage via set_webui_store().
 _webui_store: CoreWebUIStore | None = None
+
+# Instance globale du SkillStore Core (records persistants skills) — injectée
+# au démarrage via set_skill_store().
+_skill_store: SkillStore | None = None
+
+# Instance globale du ChatStore Core (conversations persistantes) — injectée
+# au démarrage via set_chat_store().
+_chat_store: ChatStore | None = None
+
+# Instance globale du ChatPipeline Core (orchestration du chat) — injectée
+# au démarrage via set_chat_pipeline().
+_chat_pipeline: ChatPipeline | None = None
+
+# Instance globale du KnowledgeCollectionManager Core (collections de
+# documents RAG) — injectée au démarrage via set_knowledge_collections().
+_knowledge_collections: KnowledgeCollectionManager | None = None
 
 
 def set_webui_store(store: CoreWebUIStore) -> None:
@@ -58,6 +78,74 @@ def get_webui_store() -> CoreWebUIStore:
     if _webui_store is None:
         raise HTTPException(status_code=503, detail="WebUI store not initialized")
     return _webui_store
+
+
+def set_skill_store(store: SkillStore) -> None:
+    """Injecte le SkillStore Core dans le router (appelé au startup)."""
+    global _skill_store
+    _skill_store = store
+
+
+def get_skill_store() -> SkillStore:
+    """Retourne le SkillStore Core global.
+
+    Raises:
+        HTTPException 503 si le store n'est pas initialisé.
+    """
+    if _skill_store is None:
+        raise HTTPException(status_code=503, detail="Skill store not initialized")
+    return _skill_store
+
+
+def set_chat_store(store: ChatStore) -> None:
+    """Injecte le ChatStore Core dans le router (appelé au startup)."""
+    global _chat_store
+    _chat_store = store
+
+
+def get_chat_store() -> ChatStore:
+    """Retourne le ChatStore Core global.
+
+    Raises:
+        HTTPException 503 si le store n'est pas initialisé.
+    """
+    if _chat_store is None:
+        raise HTTPException(status_code=503, detail="Chat store not initialized")
+    return _chat_store
+
+
+def set_chat_pipeline(pipeline: ChatPipeline) -> None:
+    """Injecte le ChatPipeline Core dans le router (appelé au startup)."""
+    global _chat_pipeline
+    _chat_pipeline = pipeline
+
+
+def get_chat_pipeline() -> ChatPipeline:
+    """Retourne le ChatPipeline Core global.
+
+    Raises:
+        HTTPException 503 si le pipeline n'est pas initialisé.
+    """
+    if _chat_pipeline is None:
+        raise HTTPException(status_code=503, detail="Chat pipeline not initialized")
+    return _chat_pipeline
+
+
+def set_knowledge_collections(manager: KnowledgeCollectionManager) -> None:
+    """Injecte le KnowledgeCollectionManager Core dans le router (startup)."""
+    global _knowledge_collections
+    _knowledge_collections = manager
+
+
+def get_knowledge_collections() -> KnowledgeCollectionManager:
+    """Retourne le KnowledgeCollectionManager Core global.
+
+    Raises:
+        HTTPException 503 si le manager n'est pas initialisé.
+    """
+    if _knowledge_collections is None:
+        raise HTTPException(status_code=503, detail="Knowledge collections not initialized")
+    return _knowledge_collections
 
 
 class CoreDomainServices:
@@ -362,17 +450,25 @@ async def get_memory_entry(memory_id: str):
 
 @router.get("/skills")
 async def list_skills():
-    return await get_webui_store().list_skills()
+    return await get_skill_store().list_skills()
 
 
 @router.post("/skills", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def create_skill(data: dict[str, Any]):
-    return await get_webui_store().create_skill(data)
+    try:
+        return await get_skill_store().create_skill(data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/skills/search")
+async def search_skills(q: str = ""):
+    return await get_skill_store().search_skills(q)
 
 
 @router.get("/skills/{skill_id}")
 async def get_skill(skill_id: str):
-    skill = await get_webui_store().get_skill(skill_id)
+    skill = await get_skill_store().get_skill(skill_id)
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
     return skill
@@ -380,7 +476,7 @@ async def get_skill(skill_id: str):
 
 @router.put("/skills/{skill_id}")
 async def update_skill(skill_id: str, data: dict[str, Any]):
-    skill = await get_webui_store().update_skill(skill_id, data)
+    skill = await get_skill_store().update_skill(skill_id, data)
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
     return skill
@@ -388,21 +484,17 @@ async def update_skill(skill_id: str, data: dict[str, Any]):
 
 @router.delete("/skills/{skill_id}")
 async def delete_skill(skill_id: str):
-    if not await get_webui_store().delete_skill(skill_id):
+    if not await get_skill_store().delete_skill(skill_id):
         raise HTTPException(404, f"Skill {skill_id} not found")
     return {"status": "deleted"}
 
 
-@router.post("/skills/{skill_id}/execute")
-async def execute_skill(skill_id: str, params: dict[str, Any]):
-    skill = await get_webui_store().get_skill(skill_id)
+@router.post("/skills/{skill_id}/toggle")
+async def toggle_skill(skill_id: str):
+    skill = await get_skill_store().toggle_skill(skill_id)
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
-    return {
-        "skill_id": skill_id,
-        "status": "executed",
-        "result": {"message": f"Skill {skill_id} executed with params {params}"},
-    }
+    return skill
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -417,6 +509,88 @@ async def list_knowledge():
 @router.get("/knowledge/search")
 async def search_knowledge(q: str = ""):
     return [node.to_dict() for node in await _domains.knowledge.search(q)]
+
+
+@router.get("/knowledge/collections")
+async def list_collections(user_id: str | None = None):
+    return await get_knowledge_collections().list_collections(user_id=user_id)
+
+
+@router.post("/knowledge/collections")
+async def create_collection(data: dict[str, Any]):
+    try:
+        return await get_knowledge_collections().create_collection(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            user_id=data.get("user_id", "anonymous"),
+            metadata=data.get("metadata"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/knowledge/collections/{collection_id}")
+async def get_collection(collection_id: str):
+    collection = await get_knowledge_collections().get_collection(collection_id)
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.put("/knowledge/collections/{collection_id}")
+async def update_collection(collection_id: str, data: dict[str, Any]):
+    collection = await get_knowledge_collections().update_collection(collection_id, data)
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.delete("/knowledge/collections/{collection_id}")
+async def delete_collection(collection_id: str):
+    if not await get_knowledge_collections().delete_collection(collection_id):
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return {"status": "deleted"}
+
+
+@router.get("/knowledge/collections/{collection_id}/documents")
+async def list_collection_documents(collection_id: str):
+    documents = await get_knowledge_collections().list_documents(collection_id)
+    return documents
+
+
+@router.post("/knowledge/collections/{collection_id}/documents")
+async def add_collection_document(collection_id: str, data: dict[str, Any]):
+    try:
+        collection = await get_knowledge_collections().add_document(
+            collection_id, data.get("document_id", "")
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.delete("/knowledge/collections/{collection_id}/documents/{document_id}")
+async def remove_collection_document(collection_id: str, document_id: str):
+    collection = await get_knowledge_collections().remove_document(collection_id, document_id)
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.post("/knowledge/collections/{collection_id}/retrieve")
+async def retrieve_collection(data: dict[str, Any], collection_id: str):
+    """Retrieval RAG restreint à une collection."""
+    query = data.get("query", "")
+    try:
+        top_k = int(data["top_k"]) if data.get("top_k") is not None else None
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "top_k must be an integer") from exc
+    try:
+        return await get_knowledge_collections().retrieve(query, collection_id, top_k=top_k)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @router.get("/knowledge/{knowledge_id}")
@@ -589,121 +763,178 @@ async def update_settings(data: dict[str, Any]):
 # CHAT
 # ═══════════════════════════════════════════════════════════════════════════
 
-@router.post("/chat")
-async def chat(data: dict[str, Any]):
-    """Chat completion via le ProviderManager.
+@router.post("/chat/completions/stream")
+async def chat_completions_stream(data: dict[str, Any]):
+    """Chat completion streaming via le ChatPipeline Core (SSE).
 
-    Le frontend envoie le provider_id et le modèle actifs. Le backend
-    utilise le ProviderManager pour générer une vraie réponse LLM.
+    Le frontend envoie le provider_id, le modèle et le message. Le backend
+    orchestre la génération via le ChatPipeline Core et renvoie les tokens
+    un par un au format Server-Sent Events.
+
+    La conversation est persistée dans le ChatStore Core (``/chats``) avec
+    l'arbre de messages (parent_id / children_ids).
     """
+    from fastapi.responses import StreamingResponse
+
+    pipeline = get_chat_pipeline()
+
     user_message = data.get("message", "")
     provider_id = data.get("provider_id") or data.get("provider")
     model = data.get("model")
+    chat_id: str | None = data.get("chat_id")
+    user_id = data.get("user_id", "anonymous")
 
-    webui_store = get_webui_store()
+    async def event_stream():
+        try:
+            # 1. Créer ou réutiliser la conversation.
+            cid = chat_id
+            if cid:
+                chat_record = await pipeline._chats.get_chat(cid)
+                if chat_record is None:
+                    raise HTTPException(404, f"Chat {cid} not found")
+            else:
+                chat_record = await pipeline._chats.create_chat(
+                    title=user_message[:60] or "New Chat",
+                    user_id=user_id,
+                    metadata=data.get("metadata"),
+                )
+                cid = chat_record["id"]
+            assert cid is not None
 
-    # Enregistrer le message utilisateur
-    await webui_store.append_chat_message({"role": "user", "content": user_message})
+            # 2. Persister le message utilisateur.
+            user_msg = await pipeline._chats.add_message(
+                cid,
+                role="user",
+                content=user_message,
+                user_id=user_id,
+                metadata={"provider_id": provider_id, "model": model} if provider_id or model else None,
+            )
 
-    # Si le ProviderManager n'est pas initialisé, fallback sur l'écho
-    if _manager is None:
-        logger.warning("ProviderManager not initialized — falling back to echo")
-        response = {
-            "id": str(uuid.uuid4()),
-            "message": f"[ECHO] {user_message}",
-            "role": "assistant",
-            "timestamp": _utc_now_rfc3339(),
-            "metadata": {"provider": "mock", "model": "echo"},
-        }
-        await webui_store.append_chat_message(response)
-        return response
+            # 3. Construire le contexte LLM.
+            llm_messages = await pipeline._build_llm_messages(
+                chat_id=cid,
+                user_message=user_message,
+                user_id=user_id,
+                skill_ids=data.get("skill_ids"),
+                knowledge_ids=data.get("knowledge_ids"),
+                file_ids=data.get("file_ids"),
+            )
 
-    try:
-        # Construire les messages de conversation
-        messages = [ChatMessage(role="user", content=user_message)]
+            # 4. Générer en streaming.
+            if pipeline._manager is None:
+                # Fallback écho.
+                content = f"[ECHO] {user_message}"
+                yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': content})}\n\n"
+                await pipeline._chats.add_message(
+                    cid, role="assistant", content=content, user_id=user_id,
+                    parent_id=user_msg["id"], metadata={"provider": "mock", "model": "echo"},
+                )
+                yield f"data: {json.dumps({'type': 'done', 'chat_id': cid})}\n\n"
+                return
 
-        # Si un provider_id est fourni, utiliser le provider directement
-        # pour forcer le modèle demandé par l'utilisateur.
-        if provider_id:
-            provider = _manager._registry.get_provider(provider_id)
-            if provider is None:
-                # Tenter d'instancier depuis la config
-                config = _manager._providers_config.get(provider_id)
-                if config and config.get("enabled", False):
-                    from core.llm.provider_factory import create_provider_from_config
-                    provider = create_provider_from_config({**config, "name": provider_id})
-                    await provider.initialize()
-            if provider is not None:
-                result = await provider.chat(messages, model=model or None)
-                response = {
-                    "id": str(uuid.uuid4()),
-                    "message": result.content,
-                    "role": "assistant",
-                    "timestamp": _utc_now_rfc3339(),
-                    "metadata": {
-                        "provider": provider_id,
-                        "model": result.model,
-                        "usage": result.usage,
-                    },
-                }
-                await webui_store.append_chat_message(response)
-                return response
+            # Provider direct ou sélection automatique.
+            if provider_id:
+                provider = pipeline._manager._registry.get_provider(provider_id)
+                if provider is None:
+                    config = pipeline._manager._providers_config.get(provider_id)
+                    if config and config.get("enabled", False):
+                        from core.llm.provider_factory import create_provider_from_config
+                        provider = create_provider_from_config({**config, "name": provider_id})
+                        await provider.initialize()
+                if provider is not None:
+                    stream = await provider.chat_stream(llm_messages, model=model or None)
+                else:
+                    raise HTTPException(502, f"Provider {provider_id} unavailable")
+            else:
+                requirements = LLMRequirements(task_type="chat")
+                stream = pipeline._manager.chat_stream(llm_messages, requirements)
 
-        # Fallback : sélection automatique via le ProviderManager
-        requirements = LLMRequirements(
-            task_type="chat",
-            preferred_providers=[provider_id] if provider_id else [],
-        )
+            # 5. Persister le message assistant (vide, on le met à jour en streaming).
+            assistant_msg = await pipeline._chats.add_message(
+                cid,
+                role="assistant",
+                content="",
+                user_id=user_id,
+                parent_id=user_msg["id"],
+                model=model,
+                status="pending",
+                done=False,
+            )
 
-        # Appeler le LLM via le ProviderManager
-        result = await _manager.chat(messages, requirements)
+            full_content = ""
+            async for chunk in stream:
+                if chunk:
+                    full_content += chunk
+                    yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"
 
-        response = {
-            "id": str(uuid.uuid4()),
-            "message": result.content,
-            "role": "assistant",
-            "timestamp": _utc_now_rfc3339(),
-            "metadata": {
-                "provider": result.provider,
-                "model": result.model,
-                "usage": result.usage,
-            },
-        }
-        await webui_store.append_chat_message(response)
-        return response
-    except Exception as exc:
-        logger.exception("Chat failed: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Chat failed: {exc}")
+            # 6. Finaliser le message assistant.
+            await pipeline._chats.update_message(
+                cid, assistant_msg["id"],
+                {"content": full_content, "status": "done", "done": True},
+            )
+            yield f"data: {json.dumps({'type': 'done', 'chat_id': cid, 'message_id': assistant_msg['id']})}\n\n"
+
+        except Exception as exc:
+            logger.exception("Chat stream failed: %s", exc)
+            yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/chat/completions")
+async def chat_completions(data: dict[str, Any]):
+    """Chat completion non-streaming via le ChatPipeline Core.
+
+    Le frontend envoie le provider_id, le modèle et le message. Le backend
+    orchestre la génération via le ChatPipeline Core et renvoie la réponse
+    complète.
+
+    La conversation est persistée dans le ChatStore Core (``/chats``) avec
+    l'arbre de messages (parent_id / children_ids).
+    """
+    pipeline = get_chat_pipeline()
+
+    result = await pipeline.run(
+        message=data.get("message", ""),
+        chat_id=data.get("chat_id"),
+        user_id=data.get("user_id", "anonymous"),
+        provider_id=data.get("provider_id") or data.get("provider"),
+        model=data.get("model"),
+        parent_id=data.get("parent_id"),
+        skill_ids=data.get("skill_ids"),
+        tool_ids=data.get("tool_ids"),
+        knowledge_ids=data.get("knowledge_ids"),
+        file_ids=data.get("file_ids"),
+        metadata=data.get("metadata"),
+    )
+
+    return {
+        "id": str(uuid.uuid4()),
+        "chat_id": result["chat_id"],
+        "message": result["assistant_message"]["content"],
+        "role": "assistant",
+        "timestamp": _utc_now_rfc3339(),
+        "metadata": {
+            "provider": result["assistant_message"]["metadata"].get("provider"),
+            "model": result["assistant_message"]["metadata"].get("model"),
+            "usage": result["assistant_message"]["metadata"].get("usage"),
+        },
+    }
 
 
 @router.get("/chat/history")
 async def chat_history(limit: int = 50):
-    return await get_webui_store().list_chat_messages(limit=limit)
+    """Historique des conversations Core (ChatStore), plus le store WebUI.
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# PROVIDERS
-# ═══════════════════════════════════════════════════════════════════════════
-
-@router.get("/providers")
-async def list_providers():
-    return await get_webui_store().list_providers()
-
-
-@router.get("/providers/{provider_id}")
-async def get_provider(provider_id: str):
-    provider = await get_webui_store().get_provider(provider_id)
-    if provider is None:
-        raise HTTPException(404, f"Provider {provider_id} not found")
-    return provider
-
-
-@router.put("/providers/{provider_id}")
-async def update_provider(provider_id: str, data: dict[str, Any]):
-    provider = await get_webui_store().update_provider(provider_id, data)
-    if provider is None:
-        raise HTTPException(404, f"Provider {provider_id} not found")
-    return provider
+    Retourne les messages de toutes les conversations du ChatStore Core.
+    """
+    chat_store = get_chat_store()
+    chats = await chat_store.list_chats()
+    messages: list[dict[str, Any]] = []
+    for chat_record in chats:
+        messages.extend(await chat_store.list_messages(chat_record["id"]))
+    messages.sort(key=lambda m: m.get("created_at", ""))
+    return messages[-limit:]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

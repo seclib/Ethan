@@ -34,13 +34,59 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
     onOpenChange?.(false);
   }, [onClose, onOpenChange]);
 
-  // Focus trap + escape key
+    // Save & restore focus on open/close for keyboard accessibility
+  const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+
+  // Focus trap + Escape + tab cycling (a11y)
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      previouslyFocusedRef.current?.focus?.();
+      previouslyFocusedRef.current = null;
+      return;
+    }
+
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    // Focus the dialog panel itself
+    dialogRef.current?.focus();
+
+    const focusableSelectors = [
+      "button",
+      "input",
+      "textarea",
+      "select",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",");
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         handleClose();
+        return;
+      }
+
+      // Tab key focus trap
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusableEls: HTMLElement[] = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(focusableSelectors),
+        ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
+
+        if (focusableEls.length === 0) return;
+
+        const firstEl = focusableEls[0];
+        const lastEl = focusableEls[focusableEls.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     };
 
@@ -77,10 +123,12 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
           aria-hidden="true"
         />
 
-        {/* Panel */}
+                {/* Panel — style Odysseus (.modal-content) */}
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           className={cn(
-            "relative w-full mx-4 rounded-xl border border-line-2 bg-background shadow-xl",
+            "modal-content relative w-full mx-4",
             "animate-in fade-in zoom-in-95 duration-200",
             sizeClasses[size]
           )}

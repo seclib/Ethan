@@ -3,6 +3,10 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // NOTE: le proxying /api/* → ETHAN API est assuré par le route handler
+  // src/app/api/[...path]/route.ts (conversion cookie JWT → Bearer, SSE,
+  // uploads binaires). Aucun rewrite ici : une destination malformée
+  // casse le serveur ("Can not repeat path without a prefix and suffix").
   async headers() {
     return [
       {

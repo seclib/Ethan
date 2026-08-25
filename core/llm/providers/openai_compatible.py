@@ -135,6 +135,7 @@ class OpenAICompatibleProvider(LLMProvider):
                         id=m.id,
                         provider=self.name,
                         name=m.id,
+                        model=m.id,
                         is_local=True,
                     )
                 )

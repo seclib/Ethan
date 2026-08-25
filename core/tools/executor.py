@@ -26,7 +26,9 @@ class ToolExecutor:
         self._max_retries = 3
         self._retry_delay = 1.0  # secondes
 
-    async def execute(self, tool: Tool, params: dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(
+        self, tool: Tool, params: dict[str, Any], context: ToolContext
+    ) -> ToolResult:
         """Exécute un outil.
 
         Args:
@@ -95,7 +97,7 @@ class ToolExecutor:
         )
 
     async def _run_tool(self, tool: Tool, params: dict[str, Any]) -> Any:
-        """Exécute l'outil (MVP: simulation).
+        """Exécute l'outil.
 
         Args:
             tool: Outil
@@ -104,9 +106,48 @@ class ToolExecutor:
         Returns:
             Résultat
         """
-        # MVP: simulation
+        # Exécution MCP
+        if tool.provider == "mcp":
+            return await self._run_mcp_tool(tool, params)
+
+        # MVP: simulation pour les outils builtin
         await asyncio.sleep(0.1)  # Simuler l'exécution
         return {"status": "ok", "params": params}
+
+    async def _run_mcp_tool(self, tool: Tool, params: dict[str, Any]) -> Any:
+        """Exécute un outil MCP via le client MCP.
+
+        Args:
+            tool: Outil MCP
+            params: Paramètres
+
+        Returns:
+            Résultat de l'exécution MCP
+        """
+        from core.tools.mcp_client import MCPClient
+
+        metadata = tool.metadata or {}
+        server_url = metadata.get("mcp_server_url")
+        transport = metadata.get("mcp_transport", "http")
+        command = metadata.get("mcp_command")
+        args = metadata.get("mcp_args")
+        auth_type = metadata.get("mcp_auth_type", "none")
+
+        if not server_url:
+            raise ValueError(f"Tool {tool.id} has no MCP server URL in metadata")
+
+        client = MCPClient()
+        try:
+            await client.connect(
+                server_url,
+                transport=transport,
+                command=command,
+                args=args,
+                auth_type=auth_type,
+            )
+            return await client.call_tool(tool.name, params)
+        finally:
+            await client.disconnect()
 
     async def _check_dependencies(self, tool: Tool) -> None:
         """Vérifie les dépendances.

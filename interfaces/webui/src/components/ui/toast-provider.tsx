@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useUIStore } from "@/core/store/ui.store";
+import { useUIStore } from "@/store/ui.store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, CheckCircle2, AlertTriangle, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ const toastIcons = {
 };
 
 const toastStyles = {
-  info: "border-accent-line/20 bg-accent-soft",
+  info: "border-accent-line bg-accent-soft",
   success: "border-green-500/20 bg-green-500/10",
   warning: "border-amber-500/20 bg-amber-500/10",
   error: "border-red-500/20 bg-red-500/10",

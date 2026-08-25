@@ -125,6 +125,7 @@ class VLLMProvider(LLMProvider):
                     id=model_id,
                     provider=self.name,
                     name=model_id,
+                    model=model_id,
                     context_length=4096,
                     quality_score=0.85,
                     avg_latency_ms=200.0,  # Rapide (GPU)

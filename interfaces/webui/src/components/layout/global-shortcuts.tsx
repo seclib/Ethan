@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useUIStore } from "@/core/store/ui.store";
+import { useUIStore } from "@/store/ui.store";
 
 export function GlobalShortcuts() {
   const router = useRouter();
@@ -31,7 +31,10 @@ export function GlobalShortcuts() {
         return;
       }
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                  // Detect platform : `navigator.platform` is deprecated/undefined in modern
+      // browsers, so we fall back to userAgent sniffing (Mac/Windows/Linux).
+      const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+      const isMac = /Mac|iPhone|iPad|iPod/.test(userAgent);
       const isCmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
       const key = e.key.toLowerCase();
 
@@ -67,13 +70,6 @@ export function GlobalShortcuts() {
         return;
       }
 
-      // ⌘ + Shift + T = Terminal
-      if (isCmdOrCtrl && e.shiftKey && key === "t") {
-        e.preventDefault();
-        router.push("/terminal");
-        return;
-      }
-
       // ⌘ + , = Settings
       if (isCmdOrCtrl && key === ",") {
         e.preventDefault();
@@ -92,14 +88,13 @@ export function GlobalShortcuts() {
 
       if (keySequence[0] === "g") {
         const routes: Record<string, string> = {
-          "d": "/",
-          "a": "/assistant",
-          "m": "/memory",
-          "p": "/planner",
-          "l": "/logs",
+          "d": "/workspace",
+          "a": "/",
+          "m": "/missions",
           "k": "/knowledge",
+          "e": "/agents",
+          "t": "/tools",
           "s": "/settings",
-          "c": "/documents"
         };
 
         if (routes[key]) {

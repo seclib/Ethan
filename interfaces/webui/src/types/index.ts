@@ -15,6 +15,8 @@ export interface Agent {
   metadata?: Record<string, any>;
   model?: string;
   provider?: string;
+  skill_ids?: string[];
+  memory_scope?: string;
 }
 
 export type AgentStatus = "idle" | "running" | "paused" | "error" | "stopped";
@@ -223,6 +225,12 @@ export interface Settings {
   permissions: PermissionsConfig;
   governance: GovernanceConfig;
   budget: BudgetConfig;
+  system: SystemConfig;
+}
+
+export interface SystemConfig {
+  log_level: string;
+  max_workers: number;
 }
 
 export interface LLMSettings {

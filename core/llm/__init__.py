@@ -2,37 +2,9 @@
 # Abstraction unifiée pour tous les fournisseurs LLM
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import AsyncIterator
 
-
-@dataclass
-class ChatMessage:
-    """Message de chat standardisé."""
-    role: str  # "system", "user", "assistant", "tool"
-    content: str
-    name: str | None = None
-    tool_calls: list[dict] | None = None
-    tool_call_id: str | None = None
-
-
-@dataclass
-class ChatResponse:
-    """Réponse de chat standardisée."""
-    content: str
-    model: str
-    provider: str
-    usage: dict | None = None
-    finish_reason: str | None = None
-
-
-@dataclass
-class ModelInfo:
-    """Informations sur un modèle."""
-    id: str
-    provider: str
-    context_length: int = 4096
-    pricing: dict | None = None
+from core.llm.types import ChatMessage, ChatResponse, ModelInfo
 
 
 class LLMProvider(ABC):

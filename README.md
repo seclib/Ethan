@@ -69,7 +69,7 @@ sudo apt install docker.io docker-compose-v2 curl wget
 | Service | URL |
 |---------|-----|
 | API Gateway | http://localhost:8000 |
-| WebUI | http://localhost:3000 |
+| WebUI | http://localhost:3001 |
 | NATS Monitoring | http://localhost:8222 |
 | Prometheus | http://localhost:9090 |
 

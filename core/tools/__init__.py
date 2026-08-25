@@ -13,6 +13,7 @@ from .selector import ToolSelector
 from .executor import ToolExecutor
 from .monitor import ToolMonitor
 from .types import Tool, ToolContext, ToolResult, ScoredTool, RiskLevel
+from .builtin import get_builtin_tools
 
 __all__ = [
     "ToolManager",
@@ -25,4 +26,5 @@ __all__ = [
     "ToolResult",
     "ScoredTool",
     "RiskLevel",
+    "get_builtin_tools",
 ]

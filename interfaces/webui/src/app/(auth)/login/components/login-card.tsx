@@ -2,6 +2,7 @@
 
 import { type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { LogoSquare } from "@/components/shared/logo";
 
 interface LoginCardProps {
   children: ReactNode;
@@ -17,10 +18,8 @@ export function LoginCard({ children }: LoginCardProps) {
     >
       {/* Logo */}
       <div className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-line-2 bg-surface mb-4">
-          <span className="text-xl font-bold tracking-tight text-accent select-none">
-            E
-          </span>
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-line-2 bg-surface mb-4 overflow-hidden">
+          <LogoSquare size={56} className="rounded-full" priority />
         </div>
         <h1 className="text-xl font-semibold tracking-[0.15em] text-white/90 uppercase select-none">
           ETHAN

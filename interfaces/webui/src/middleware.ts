@@ -30,11 +30,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static assets
+  // Allow static assets (images, fonts, manifest, favicon…)
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon") ||
-    pathname.startsWith("/icons/")
+    pathname.startsWith("/icons/") ||
+    /\.[a-zA-Z0-9]+$/.test(pathname)
   ) {
     return NextResponse.next();
   }

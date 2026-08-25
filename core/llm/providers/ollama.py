@@ -30,6 +30,23 @@ class OllamaProvider(LLMProvider):
         except ImportError:
             logger.warning("httpx package not installed")
 
+    async def test_connection(self) -> bool:
+        """Healthcheck rapide avec un timeout court.
+
+        Ne réutilise PAS le client principal (timeout=300s, adapté aux
+        générations LLM longues) : un healthcheck qui bloque 5 minutes
+        fige /providers et /models entiers. On utilise un client jetable
+        avec un timeout de connexion de 3s.
+        """
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+                return response.status_code == 200
+        except Exception as e:
+            logger.debug("Ollama healthcheck failed (%s): %s", self._base_url, e)
+            return False
+
     async def chat(
         self,
         messages: list[ChatMessage],
@@ -131,6 +148,7 @@ class OllamaProvider(LLMProvider):
                     id=model_name,
                     provider=self.name,
                     name=model_name,
+                    model=model_name,
                     context_length=4096,  # Ollama ne retourne pas cette info
                     quality_score=0.80,  # Par défaut
                     avg_latency_ms=100.0,  # Local = rapide

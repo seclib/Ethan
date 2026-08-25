@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 # Record domains in the shared CoreRecordStore.
 _DOMAIN_GOALS = "webui_goals"
 _DOMAIN_FACTS = "webui_facts"
-_DOMAIN_SKILLS = "webui_skills"
 _DOMAIN_EVENTS = "webui_events"
 _DOMAIN_CHAT = "webui_chat"
 _DOMAIN_SETTINGS = "webui_settings"
@@ -120,39 +119,6 @@ class CoreWebUIStore:
         }
         await self._store.save(_DOMAIN_FACTS, fact_id, record)
         return deepcopy(record)
-
-    # ── Skills ─────────────────────────────────────────────────────────
-
-    async def list_skills(self) -> list[dict[str, Any]]:
-        return await self._store.list(_DOMAIN_SKILLS)
-
-    async def get_skill(self, skill_id: str) -> dict[str, Any] | None:
-        return await self._store.get(_DOMAIN_SKILLS, skill_id)
-
-    async def create_skill(self, data: dict[str, Any]) -> dict[str, Any]:
-        skill_id = str(uuid4())
-        record = {
-            "id": skill_id,
-            "name": data.get("name", "unnamed"),
-            "description": data.get("description", ""),
-            "version": "1.0.0",
-            "status": "active",
-            "created_at": _utc_now(),
-        }
-        await self._store.save(_DOMAIN_SKILLS, skill_id, record)
-        return deepcopy(record)
-
-    async def update_skill(self, skill_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
-        record = await self._store.get(_DOMAIN_SKILLS, skill_id)
-        if record is None:
-            return None
-        record.update(data)
-        record["id"] = skill_id
-        await self._store.save(_DOMAIN_SKILLS, skill_id, record)
-        return deepcopy(record)
-
-    async def delete_skill(self, skill_id: str) -> bool:
-        return await self._store.delete(_DOMAIN_SKILLS, skill_id)
 
     # ── Events (Flux) ──────────────────────────────────────────────────
 

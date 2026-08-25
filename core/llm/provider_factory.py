@@ -1,7 +1,7 @@
 """Provider Factory — Crée une instance LLMProvider depuis une config.
 
-Supporte : ollama, openai, anthropic, vllm, llamacpp, lmstudio, gemini,
-openai-compatible, custom.
+Supporte : ollama, openai, azure, anthropic, vllm, llamacpp, lmstudio,
+gemini, OpenRouter, openai-compatible, custom.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from core.llm.providers.llamacpp import LlamaCppProvider
 from core.llm.providers.lmstudio import LMStudioProvider
 from core.llm.providers.gemini import GeminiProvider
 from core.llm.providers.openai_compatible import OpenAICompatibleProvider
+from core.llm.providers.openrouter import OpenRouterProvider
+from core.llm.providers.azure import AzureOpenAIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +27,14 @@ logger = logging.getLogger(__name__)
 SUPPORTED_PROVIDER_TYPES = {
     "ollama",
     "openai",
+    "azure",
     "anthropic",
     "vllm",
     "llamacpp",
     "lmstudio",
     "gemini",
     "openai-compatible",
+    "openrouter",
     "custom",
 }
 
@@ -96,6 +100,17 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
             provider.default_model = default_model
         return provider
 
+    if provider_type == "azure":
+        # Azure typically requires api_version in config. We fallback to default if not provided.
+        api_version = config.get("api_version", "2023-05-15")
+        provider = AzureOpenAIProvider(
+            api_key=api_key,
+            base_url=base_url,
+            api_version=api_version,
+            default_model=default_model or "gpt-4",
+        )
+        return provider
+
     if provider_type == "anthropic":
         provider = AnthropicProvider(api_key=api_key)
         if default_model:
@@ -106,6 +121,20 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
         provider = GeminiProvider(api_key=api_key)
         if default_model:
             provider.default_model = default_model
+        return provider
+
+    if provider_type == "openrouter":
+        options = config.get("options") or {}
+        routing = options.get("routing", options.get("provider", {}))
+        if not isinstance(routing, dict):
+            raise ValueError("OpenRouter routing options must be an object")
+        provider = OpenRouterProvider(
+            api_key=api_key,
+            default_model=default_model or "openrouter/auto",
+            site_url=options.get("site_url", ""),
+            site_name=options.get("site_name", "Ethan"),
+            routing=routing,
+        )
         return provider
 
     # openai-compatible / custom → générique
@@ -128,8 +157,10 @@ def create_default_providers() -> list[LLMProvider]:
     return [
         create_provider_from_config({"type": "ollama", "name": "ollama", "enabled": True}),
         create_provider_from_config({"type": "openai", "name": "openai", "enabled": False}),
+        create_provider_from_config({"type": "azure", "name": "azure", "enabled": False}),
         create_provider_from_config({"type": "anthropic", "name": "anthropic", "enabled": False}),
         create_provider_from_config({"type": "vllm", "name": "vllm", "enabled": False}),
+        create_provider_from_config({"type": "openrouter", "name": "openrouter", "enabled": False}),
         create_provider_from_config(
             {"type": "openai-compatible", "name": "custom", "enabled": False, "default_model": ""}
         ),

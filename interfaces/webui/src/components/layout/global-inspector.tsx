@@ -1,25 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { useUIStore } from "@/core/store/ui.store";
-import { X, Play, Pause, Square, Terminal, FileJson, Activity } from "lucide-react";
+import { useUIStore } from "@/store/ui.store";
+import { X, Play, Pause, Square, FileJson, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import { useMission } from "@/features/missions/hooks/use-missions";
-import { useAgent } from "@/features/agents/hooks/use-agents";
-import { useGoal } from "@/features/goals/hooks/use-goals";
+import { useMission } from "@/components/features/missions/hooks/use-missions";
+import { useAgent, useUpdateAgent } from "@/components/features/agents/hooks/use-agents";
+import { useGoal } from "@/components/features/goals/hooks/use-goals";
 import { Spinner } from "@/components/ui/spinner";
 
 function EntityDetails({ type, id }: { type: string; id: string }) {
   const { mission, isLoading: missionLoading } = useMission(type === "mission" ? id : null);
   const { agent, isLoading: agentLoading } = useAgent(type === "agent" ? id : null);
   const { goal, isLoading: goalLoading } = useGoal(type === "goal" ? id : null);
+  const updateAgent = useUpdateAgent();
+  const addToast = useUIStore((s) => s.addToast);
 
   const isLoading = missionLoading || agentLoading || goalLoading;
-  
+  const isAgent = type === "agent";
+
   if (isLoading) {
     return <div className="flex justify-center p-8"><Spinner /></div>;
   }
@@ -29,6 +32,15 @@ function EntityDetails({ type, id }: { type: string; id: string }) {
   if (!data) {
     return <p className="text-sm text-destructive">Entity not found.</p>;
   }
+
+  const controlAgent = async (status: "running" | "paused" | "stopped") => {
+    const result = await updateAgent.mutate(id, { status });
+    if (result.error) {
+      addToast({ type: "error", message: result.error });
+    } else {
+      addToast({ type: "success", message: `Agent ${status}` });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -51,24 +63,26 @@ function EntityDetails({ type, id }: { type: string; id: string }) {
       <div className="space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick Actions</h4>
         <div className="grid grid-cols-2 gap-2">
-          {data.status === "running" ? (
-            <Button size="sm" variant="outline" className="w-full gap-2">
-              <Pause size={14} /> Pause
-            </Button>
+          {isAgent ? (
+            <>
+              {data.status === "running" ? (
+                <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => controlAgent("paused")}>
+                  <Pause size={14} /> Pause
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => controlAgent("running")}>
+                  <Play size={14} /> Start
+                </Button>
+              )}
+              <Button size="sm" variant="outline" className="w-full gap-2 text-destructive hover:bg-destructive/10" onClick={() => controlAgent("stopped")}>
+                <Square size={14} /> Stop
+              </Button>
+            </>
           ) : (
-            <Button size="sm" variant="outline" className="w-full gap-2">
-              <Play size={14} /> Start
-            </Button>
+            <p className="col-span-2 text-xs text-muted-foreground">
+              Le contrôle direct n&apos;est disponible que pour les agents. Les missions et objectifs sont pilotés depuis Workspace.
+            </p>
           )}
-          <Button size="sm" variant="outline" className="w-full gap-2 text-destructive hover:bg-destructive/10">
-            <Square size={14} /> Kill
-          </Button>
-          <Button size="sm" variant="outline" className="w-full gap-2">
-            <Terminal size={14} /> Logs
-          </Button>
-          <Button size="sm" variant="outline" className="w-full gap-2">
-            <Activity size={14} /> Metrics
-          </Button>
         </div>
       </div>
 

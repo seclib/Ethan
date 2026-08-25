@@ -49,12 +49,19 @@ function CommandPalette({
     return items.filter((item) => fuzzySearch(query, item.label));
   }, [query, items]);
 
-  // Reset on open/close
+  // Reset on open/close + save/restore focus for a11y
+  const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
+
   React.useEffect(() => {
     if (open) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
       setQuery("");
       setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+    } else {
+      // Restore focus to the previously-focused element
+      previouslyFocusedRef.current?.focus?.();
+      previouslyFocusedRef.current = null;
     }
   }, [open]);
 

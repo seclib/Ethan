@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/core/providers/auth-provider";
+import { useAuth } from "@/providers/auth-provider";
 import { AnimatedBackground } from "./components/animated-background";
 import { TopBar } from "./components/top-bar";
 import { StatusPanel } from "./components/status-panel";

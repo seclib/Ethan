@@ -8,6 +8,8 @@ from .ollama import OllamaProvider
 from .lmstudio import LMStudioProvider
 from .llamacpp import LlamaCppProvider
 from .vllm import VLLMProvider
+from .azure import AzureOpenAIProvider
+from .openrouter import OpenRouterProvider
 
 __all__ = [
     "LLMProvider",
@@ -18,4 +20,6 @@ __all__ = [
     "LMStudioProvider",
     "LlamaCppProvider",
     "VLLMProvider",
+    "AzureOpenAIProvider",
+    "OpenRouterProvider",
 ]

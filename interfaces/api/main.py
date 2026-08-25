@@ -32,6 +32,7 @@ from interfaces.api.routers.v1 import (
     set_provider_manager as set_v1_provider_manager,
 )
 from interfaces.api.routers.providers import router as providers_router, set_provider_manager
+from interfaces.api.routers.models import router as models_router, set_provider_manager as set_models_provider_manager, set_model_store
 from interfaces.api.routers.config import router as config_router, set_configuration_service
 from interfaces.api.routers.domains import router as domains_router, set_domain_managers
 from interfaces.api.routers.capabilities import (
@@ -39,7 +40,20 @@ from interfaces.api.routers.capabilities import (
     router as capabilities_router,
     set_capability_managers,
 )
-from interfaces.api.routers.v1 import set_webui_store
+from interfaces.api.routers.realtime import router as realtime_router
+from interfaces.api.routers.security import router as security_router, set_security_pool
+from interfaces.api.routers.openwebui import router as openwebui_router
+from interfaces.api.routers.v1 import (
+    set_chat_pipeline,
+    set_chat_store,
+    set_knowledge_collections,
+    set_skill_store,
+    get_skill_store,
+    set_webui_store,
+)
+from interfaces.api.routers.cookbook import router as cookbook_router, set_cookbook_manager
+from interfaces.api.routers.email import router as email_router, set_email_manager
+from interfaces.api.routers.research import router as research_router, set_research_engine
 from core.config import ConfigurationService, ConfigStore
 from core.state import CoreRecordStore
 from core.state.webui_store import CoreWebUIStore
@@ -51,6 +65,7 @@ from core.agents import AgentManager
 from core.knowledge import KnowledgeManager
 from core.missions import MissionManager
 from core.rag import RAGPipeline
+from core.skills.store import SkillStore
 
 try:
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -143,6 +158,7 @@ async def lifespan(app: FastAPI):
     # The API owns only dependency composition.  The managers and their record
     # store live in core/ and remain usable by the CLI or another interface.
     domain_store = CoreRecordStore(pg_pool=pg_pool, redis_client=redis_client)
+    set_security_pool(pg_pool)
     core_domains = CoreDomainServices(
         agents=AgentManager(store=domain_store),
         missions=MissionManager(store=domain_store),
@@ -159,15 +175,19 @@ async def lifespan(app: FastAPI):
     from core.state.chats import ChatStore
     from core.state.files import FileStore
 
+    chat_store = ChatStore(store=domain_store)
+    file_store = FileStore(store=domain_store)
     set_domain_managers(
-        chats=ChatStore(store=domain_store),
-        files=FileStore(store=domain_store),
+        chats=chat_store,
+        files=file_store,
         users=UserManager(store=domain_store),
         groups=GroupManager(store=domain_store),
     )
+    # Le router v1 partage la même instance ChatStore pour /v1/chat.
+    set_chat_store(chat_store)
     logger.info("Domain managers ready (chats, files, users, groups)")
 
-    # --- WebUI-facing records store (goals, facts, skills, events, settings, providers, plugins) ---
+    # --- WebUI-facing records store (goals, facts, events, settings, providers, plugins) ---
     # Replaces the old process-local MemoryStore in routers/v1.py.  Persistence
     # lives in Core (CoreRecordStore) so the interface stays a thin HTTP gateway.
     webui_store = CoreWebUIStore(store=domain_store)
@@ -175,8 +195,47 @@ async def lifespan(app: FastAPI):
     app.state.webui_store = webui_store
     logger.info("CoreWebUIStore ready (persistent WebUI records)")
 
+    # --- Skill store (Core-owned skills) ---
+    # Skills now use their dedicated Core store instead of the duplicated
+    # ``webui_skills`` records inside CoreWebUIStore.
+    skill_store = SkillStore(store=domain_store)
+    set_skill_store(skill_store)
+    app.state.skill_store = skill_store
+    logger.info("SkillStore ready (Core-owned skills)")
+
+    # --- Knowledge collections (Core-owned grouping of RAG documents) ---
+    # Collections group RAG documents so the WebUI can offer Open-WebUI-style
+    # selection ("use this collection in the chat") without owning any data.
+    from core.knowledge import KnowledgeCollectionManager
+
+    knowledge_collections = KnowledgeCollectionManager(
+        store=domain_store,
+        rag=core_domains.rag,
+    )
+    set_knowledge_collections(knowledge_collections)
+    app.state.knowledge_collections = knowledge_collections
+    logger.info("KnowledgeCollectionManager ready (Core-owned collections)")
+
+    # --- Chat pipeline (Core-owned orchestration) ---
+    # The pipeline composes the ChatStore, ProviderManager, RAG, SkillStore
+    # and memory facts.  It is injected into the v1 router so /chat/completions
+    # stays a thin HTTP gateway over Core orchestration.
+    from core.chat import ChatPipeline
+
+    chat_pipeline = ChatPipeline(
+        chat_store=chat_store,
+        provider_manager=provider_manager,
+        rag=core_domains.rag,
+        skill_store=skill_store,
+        memory_store=webui_store,
+        file_store=file_store,
+    )
+    set_chat_pipeline(chat_pipeline)
+    app.state.chat_pipeline = chat_pipeline
+    logger.info("ChatPipeline ready (Core-owned chat orchestration)")
+
     # --- Capability managers (automations, calendar, tts, images, evaluations,
-    #     analytics, channels, notes, tool servers, functions, prompts, scim) ---
+    #     analytics, channels, notes, tools, tool servers, prompts, scim) ---
     # All managers are Core-owned and share the same CoreRecordStore.  They are
     # injected here so the capabilities router stays a thin HTTP gateway.
     from core.scheduler.automations import AutomationManager
@@ -187,13 +246,43 @@ async def lifespan(app: FastAPI):
     from core.metrics.analytics import AnalyticsManager
     from core.state.channels import ChannelStore
     from core.state.notes import NoteStore
+    from core.tools.manager import ToolManager
     from core.tools.servers import ToolServerManager
-    from core.tools.functions import FunctionManager
     from core.config.prompts import PromptManager
     from core.auth.scim import SCIMManager
 
+    tool_manager = ToolManager(store=domain_store)
+    await tool_manager.initialize()
+
+    # --- Skill manager (Core-owned skill execution) ---
+    # The SkillManager composes a ToolManager (for step execution via
+    # ToolManager.select_and_execute) and hydrates its registry with the
+    # built-in Core skills so /v1/skills/{id}/execute is a real execution.
+    from core.skills.manager import SkillManager
+    from core.skills.builtin import (
+        ProgrammingSkill,
+        WebSearchSkill,
+        PDFAnalysisSkill,
+        EmailReaderSkill,
+        ProjectCreatorSkill,
+    )
+
+    skill_manager = SkillManager(tool_manager=tool_manager)
+    for cls in (
+        ProgrammingSkill,
+        WebSearchSkill,
+        PDFAnalysisSkill,
+        EmailReaderSkill,
+        ProjectCreatorSkill,
+    ):
+        skill_manager.register_skill(cls().get_skill())
+    app.state.skill_manager = skill_manager
+
+    automation_manager = AutomationManager(store=domain_store)
+    prompt_manager = PromptManager(store=domain_store)
+
     capability_managers = CapabilityManagers(
-        automations=AutomationManager(store=domain_store),
+        automations=automation_manager,
         calendar=CalendarManager(store=domain_store),
         tts=TTSEngine(store=domain_store),
         images=ImageGenerator(store=domain_store),
@@ -201,14 +290,34 @@ async def lifespan(app: FastAPI):
         analytics=AnalyticsManager(store=domain_store),
         channels=ChannelStore(store=domain_store),
         notes=NoteStore(store=domain_store),
-        tool_servers=ToolServerManager(store=domain_store),
-        functions=FunctionManager(store=domain_store),
-        prompts=PromptManager(store=domain_store),
+        tools=tool_manager,
+        tool_servers=ToolServerManager(store=domain_store, registry=tool_manager.registry),
+        prompts=prompt_manager,
         scim=SCIMManager(store=domain_store),
+        skills=skill_manager,
     )
     set_capability_managers(capability_managers)
     app.state.capability_managers = capability_managers
-    logger.info("Capability managers ready (12 Core capabilities exposed)")
+    app.state.tool_manager = tool_manager
+    logger.info("Capability managers ready (13 Core capabilities exposed, incl. skills)")
+
+    # --- Cookbook / Email / Research (Core-owned, RFC-0001/2/3) ---
+    from core.cookbook.manager import CookbookManager
+    from core.mailbox.manager import EmailManager
+    from core.research.engine import DeepResearchEngine
+
+    cookbook_manager = CookbookManager(
+        recipes_dir=os.environ.get("ETHAN_COOKBOOK_DIR", "/app/cookbook/recipes"),
+        skill_store=skill_store,
+        prompt_manager=prompt_manager,
+        automation_manager=automation_manager,
+        store=domain_store,
+    )
+    set_cookbook_manager(cookbook_manager)
+    app.state.cookbook_manager = cookbook_manager
+    logger.info("Cookbook manager ready (%d recipes)", len(cookbook_manager.list_recipes()))
+
+    set_email_manager(EmailManager())
 
     try:
         store = ProviderStore(redis_client=redis_client, pg_pool=pg_pool)
@@ -216,12 +325,48 @@ async def lifespan(app: FastAPI):
         await provider_manager.initialize()
         set_provider_manager(provider_manager)
         set_v1_provider_manager(provider_manager)
+        # Réinjecte le manager dans le ChatPipeline (créé plus tôt dans le
+        # lifespan, avant que le ProviderManager n'existe) — sinon le chat
+        # tombe sur le fallback echo/mock.
+        chat_pipeline.set_provider_manager(provider_manager)
+
+        # Deep Research : moteur Core réutilisant le LLM par défaut + web_search
+        set_research_engine(
+            DeepResearchEngine(provider_manager=provider_manager, tool_manager=tool_manager)
+        )
+        logger.info("Deep research engine ready")
+        # Injecte l'exécuteur d'agents (Core real LLM adapter) : l'AgentManager
+        # est créé plus haut sans executor afin de rester testable en isolation ;
+        # le runtime fournit maintenant l'adapter de production qui route la
+        # tâche de l'agent vers son provider LLM configuré.
+        from core.agents.executor import create_agent_executor
+
+        await core_domains.agents.set_executor(
+            create_agent_executor(
+                provider_manager=provider_manager,
+                skill_store=get_skill_store(),
+            )
+        )
+        logger.info("Agent executor injected (Core real LLM adapter)")
         logger.info("ProviderManager ready (default=%s, providers=%d)",
                     provider_manager._default_provider,
                     len(provider_manager._registry.list_providers()))
     except Exception as exc:
         logger.exception("Failed to initialize ProviderManager: %s", exc)
         provider_manager = None
+
+    # --- Model store (Core-owned custom model cards) ---
+    # The ModelStore persists custom model cards (base_model_id, params, meta,
+    # is_active, ACL) via the same CoreRecordStore.  It is injected into the
+    # /models router which aggregates discovered models + custom cards.
+    from core.llm.model_store import ModelStore
+
+    model_store = ModelStore(store=domain_store)
+    set_model_store(model_store)
+    if provider_manager is not None:
+        set_models_provider_manager(provider_manager)
+    app.state.model_store = model_store
+    logger.info("ModelStore ready (Core-owned custom model cards)")
 
     # --- Configuration Service (source de vérité unique) ---
     try:
@@ -297,10 +442,20 @@ app.include_router(message_router)
 app.include_router(state_router)
 app.include_router(internal_router)
 app.include_router(v1_router)
+app.include_router(security_router)
 app.include_router(providers_router)
+app.include_router(models_router)
 app.include_router(config_router)
 app.include_router(domains_router)
 app.include_router(capabilities_router)
+app.include_router(cookbook_router)
+app.include_router(email_router)
+app.include_router(research_router)
+app.include_router(realtime_router)
+# Open WebUI-compatible adapter — exposes /api/v1/auths/*, /api/v1/models/*,
+# /openai/config and /api/chat/completions so the Open WebUI frontend fork
+# (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.
+app.include_router(openwebui_router)
 
 
 # Old startup code removed as it's now in the lifespan context manager.
@@ -330,7 +485,7 @@ async def login(request: Request, response: Response):
         # Connect to DB with timeout
         conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
         try:
-            row = await conn.fetchrow("SELECT password_hash, roles, is_active FROM users WHERE username = $1", username)
+            row = await conn.fetchrow("SELECT password_hash, roles, is_active, totp_secret, totp_enabled FROM users WHERE username = $1", username)
             if not row:
                 # Prevent timing attacks
                 bcrypt.checkpw(password.encode('utf-8'), b"$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK")
@@ -342,6 +497,15 @@ async def login(request: Request, response: Response):
             if not bcrypt.checkpw(password.encode('utf-8'), row["password_hash"].encode('utf-8')):
                 raise HTTPException(status_code=401, detail="Invalid username or password")
                 
+            # 2FA — TOTP verification (Core-owned: core/auth/totp.py)
+            if row["totp_enabled"]:
+                from core.auth.totp import verify_code
+                totp_code = str(body.get("totp_code", ""))
+                if not totp_code:
+                    raise HTTPException(status_code=401, detail="Code 2FA requis.")
+                if not verify_code(row["totp_secret"], totp_code):
+                    raise HTTPException(status_code=401, detail="Code 2FA invalide.")
+
             role = row["roles"][0] if row["roles"] else "user"
         finally:
             await conn.close()
@@ -369,13 +533,18 @@ async def login(request: Request, response: Response):
         "token": token,
         "token_type": "bearer",
         "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
-        "user": {"username": username, "role": "user"},
+        "user": {"username": username, "role": role},
     }
 
 
 @app.post("/auth/register")
 async def register(request: Request):
-    """Registration endpoint — public, returns a JWT token for the new user."""
+    """Registration endpoint — public, creates a durable user and returns a JWT.
+
+    The user is persisted in PostgreSQL (table ``users``) so the registered
+    account can later log in via /auth/login.  The password is stored as a
+    bcrypt hash, never as plain text.
+    """
     try:
         body = await request.json()
     except Exception:
@@ -386,6 +555,41 @@ async def register(request: Request):
         raise HTTPException(status_code=400, detail="Username or email is required")
     if not body.get("password"):
         raise HTTPException(status_code=400, detail="Password is required")
+
+    # Hacher le mot de passe avec bcrypt directement (passlib 1.7.4 est
+    # incompatible avec bcrypt>=4.0 : ValueError "password cannot be longer
+    # than 72 bytes" même pour des mots de passe courts).
+    import bcrypt
+
+    password_hash = bcrypt.hashpw(
+        body.get("password").encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+
+    import asyncpg
+
+    # Persister l'utilisateur en base — la table users est la source de vérité
+    # utilisée par /auth/login.  En cas d'infrastructure indisponible,
+    # l'inscription échoue explicitement plutôt que de créer un compte fantôme.
+    try:
+        db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
+        conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
+        try:
+            await conn.execute(
+                """
+                INSERT INTO users (username, password_hash, roles, is_active)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (username) DO NOTHING
+                """,
+                username,
+                password_hash,
+                ["user"],
+                True,
+            )
+        finally:
+            await conn.close()
+    except Exception as exc:
+        logger.error("Register failed — user %s not persisted: %s", username, exc)
+        raise HTTPException(status_code=503, detail="Registration service unavailable")
 
     token = create_access_token(data={"sub": username, "role": "user"})
     return {

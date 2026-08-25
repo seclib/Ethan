@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, AsyncIterator
 
 from core.llm.types import ChatMessage, ChatResponse, LLMRequirements, ModelInfo
 from core.llm.registry import LLMProviderRegistry
@@ -122,6 +122,14 @@ class ProviderManager:
                 "default_model": "gpt-4o-mini",
                 "display_name": "OpenAI",
             },
+            "azure": {
+                "name": "azure",
+                "type": "azure",
+                "enabled": False,
+                "base_url": os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+                "default_model": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4"),
+                "display_name": "Azure OpenAI",
+            },
             "anthropic": {
                 "name": "anthropic",
                 "type": "anthropic",
@@ -137,6 +145,15 @@ class ProviderManager:
                 "base_url": os.getenv("VLLM_BASE_URL", "http://vllm:8000"),
                 "default_model": "",
                 "display_name": "vLLM (local)",
+            },
+            "openrouter": {
+                "name": "openrouter",
+                "type": "openrouter",
+                "enabled": False,
+                "base_url": "https://openrouter.ai/api/v1",
+                "default_model": os.getenv("OPENROUTER_DEFAULT_MODEL", "openrouter/auto"),
+                "display_name": "OpenRouter",
+                "options": {"routing": {"allow_fallbacks": True}},
             },
             "custom": {
                 "name": "custom",
@@ -161,11 +178,15 @@ class ProviderManager:
             keys["openai"] = getattr(secrets, "openai_api_key", None)
             keys["anthropic"] = getattr(secrets, "anthropic_api_key", None)
             keys["gemini"] = getattr(secrets, "gemini_api_key", None)
+            keys["azure"] = getattr(secrets, "azure_openai_api_key", None)
+            keys["openrouter"] = getattr(secrets, "openrouter_api_key", None)
         except Exception as exc:
             logger.debug("get_secrets() unavailable, falling back to env: %s", exc)
         keys.setdefault("openai", os.getenv("OPENAI_API_KEY"))
         keys.setdefault("anthropic", os.getenv("ANTHROPIC_API_KEY"))
         keys.setdefault("gemini", os.getenv("GEMINI_API_KEY"))
+        keys.setdefault("azure", os.getenv("AZURE_OPENAI_API_KEY"))
+        keys.setdefault("openrouter", os.getenv("OPENROUTER_API_KEY"))
 
         for provider_id, config in self._providers_config.items():
             ptype = config.get("type", "")
@@ -477,12 +498,17 @@ class ProviderManager:
                 "default_model": provider.default_model,
             }
 
-        # Tester la connexion si activé
+        # Tester la connexion si activé — avec un délai borné : un healthcheck
+        # ne doit jamais bloquer list_providers() pendant plusieurs minutes
+        # (ex: provider injoignable + client HTTP longue durée).
         connection_status = "unknown"
         if config.get("enabled", False):
             try:
-                result = await self.test_connection(provider_id)
+                import asyncio
+                result = await asyncio.wait_for(self.test_connection(provider_id), timeout=12.0)
                 connection_status = result["status"]
+            except asyncio.TimeoutError:
+                connection_status = "error"
             except Exception:
                 connection_status = "error"
 
@@ -538,6 +564,23 @@ class ProviderManager:
             Réponse du LLM.
         """
         return await self._client.chat(messages, requirements)
+
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        requirements: LLMRequirements | None = None,
+    ) -> AsyncIterator[str]:
+        """Chat completion streaming via le LLMClient.
+
+        Args:
+            messages: Messages de conversation
+            requirements: Requirements pour la sélection
+
+        Yields:
+            Chunks de texte (tokens) un par un.
+        """
+        async for chunk in self._client.chat_stream(messages, requirements):
+            yield chunk
 
     # ── Helpers privés ──────────────────────────────────────────────────
 

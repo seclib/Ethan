@@ -91,7 +91,7 @@ curl http://localhost:8000/health/detailed
 # → {"status":"ok","checks":{"nats":"connected","redis":"connected","postgresql":"connected"}}
 
 # WebUI (si activé)
-# http://localhost:3000
+# http://localhost:3001
 ```
 
 ## Architecture des services
@@ -130,7 +130,7 @@ Chaque service a un healthcheck qui vérifie sa fonctionnalité réelle :
 | kernel    | Connexion NATS avec `asyncio.wait_for`         | 10s        |
 | modules   | Connexion NATS avec `asyncio.wait_for`         | 10s        |
 | pg_backup | `pg_isready`                                   | 30s        |
-| ui        | `curl http://localhost:3000`                   | 10s        |
+| ui        | `curl http://localhost:3001`                   | 10s        |
 
 ## En cas d'échec
 
@@ -242,6 +242,55 @@ nc -zv localhost 8000      # API doit répondre
 curl http://localhost:8000/health  # Doit retourner 200
 curl http://localhost:8000/health/detailed  # Doit retourner 200
 ```
+
+## Comptes et authentification
+
+### Compte par défaut (installation vierge)
+
+La migration `deploy/postgres/migrations/003_create_users_table.sql` crée un compte admin :
+
+| Champ | Valeur (dev uniquement) |
+|---|---|
+| Utilisateur | `admin` |
+| Mot de passe | `admin` |
+| Rôle | `admin` |
+
+> ⚠️ **À changer immédiatement en production** (voir `docs/hardening.md`).
+> L'activation de la 2FA TOTP est disponible sur la page `/security` de la WebUI
+> ou via `POST /auth/2fa/setup` + `/auth/2fa/confirm`.
+
+### Instance de développement actuelle
+
+Le mot de passe du compte `admin` a été réinitialisé le 2026-08-24 :
+
+| Champ | Valeur |
+|---|---|
+| Utilisateur | `admin` |
+| Mot de passe | `admin123` |
+
+### Réinitialiser le mot de passe admin
+
+Générer un hash bcrypt dans le conteneur API (qui dispose de bcrypt) puis
+l'appliquer en base :
+
+```bash
+docker exec ethan-api python3 -c \
+  "import bcrypt; print(\"UPDATE users SET password_hash='\" + \
+   bcrypt.hashpw(b'<NOUVEAU_MOT_DE_PASSE>', bcrypt.gensalt()).decode() + \
+   \"' WHERE username='admin';\")" > /tmp/pwd.sql
+
+docker exec -i ethan-postgres psql -U ethan -d ethan < /tmp/pwd.sql
+rm /tmp/pwd.sql   # ne pas laisser le hash traîner dans /tmp
+```
+
+### Notes importantes
+
+- La base PostgreSQL vit sur le volume Docker `ethan_postgres_data` :
+  les mots de passe **persistent** aux redémarrages et rebuilds d'images.
+- En revanche, `docker compose down -v` (suppression des volumes) repart
+  d'une base vierge → la migration 003 recrée `admin` / `admin`.
+- Le login refuse les comptes avec 2FA activée si aucun code TOTP valide
+  n'est fourni (`totp_code` dans le payload de `/auth/login`).
 
 ## Références
 

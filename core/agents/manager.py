@@ -132,6 +132,16 @@ class AgentManager:
         status_value = status.value if isinstance(status, AgentStatus) else status
         return await self.update(agent_id, {"status": status_value})
 
+    async def set_executor(self, executor: AgentExecutor | None) -> None:
+        """Injecte ou remplace l'exécuteur d'agents après construction.
+
+        Le manager est créé dans la composition root avant que le
+        ProviderManager LLM n'existe ; l'exécuteur est fourni plus tard une
+        fois le runtime prêt. Sans exécuteur, execute() lève
+        AgentExecutionUnavailable (aucun mock silencieux).
+        """
+        self._executor = executor
+
     async def start(self, agent_id: str) -> Agent | None:
         """Mark an agent available for work."""
         return await self.set_status(agent_id, AgentStatus.RUNNING)

@@ -43,7 +43,17 @@ class ProviderStore:
                 rows = await self._pg.fetch(
                     "SELECT provider_id, config FROM llm_providers"
                 )
-                return {row["provider_id"]: row["config"] for row in rows}
+                configs: dict[str, dict[str, Any]] = {}
+                for row in rows:
+                    cfg = row["config"]
+                    # asyncpg retourne JSONB en str par défaut → désérialiser
+                    if isinstance(cfg, str):
+                        try:
+                            cfg = json.loads(cfg)
+                        except (TypeError, ValueError):
+                            cfg = {}
+                    configs[row["provider_id"]] = cfg if isinstance(cfg, dict) else {}
+                return configs
             except Exception as e:
                 logger.warning("PostgreSQL provider load failed, falling back: %s", e)
 

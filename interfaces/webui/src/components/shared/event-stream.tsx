@@ -126,12 +126,7 @@ export function EventStream({
               className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/5 transition-colors"
             >
               {/* Severity indicator */}
-              <div className="h-2 w-2 rounded-full mt-1.5 flex-shrink-0" style={{
-                backgroundColor: event.type.includes("error") ? "#ef4444" :
-                               event.type.includes("warning") ? "#f59e0b" :
-                               event.type.includes("success") ? "#10b981" : "#3b82f6"
-              }} />
-
+              <div className={cn("h-2 w-2 rounded-full mt-1.5 flex-shrink-0", { error: "bg-red", warning: "bg-amber", success: "bg-green", info: "bg-accent", dim: "bg-muted" }[getSeverityColor(event.type)])} />
               {/* Event content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

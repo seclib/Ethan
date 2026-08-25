@@ -22,22 +22,96 @@ async function proxyRequest(request: NextRequest) {
   }
 
   try {
-    let body;
+    let body: BodyInit | null = null;
     if (request.method !== "GET" && request.method !== "HEAD") {
-      body = await request.text();
+      const contentType = request.headers.get("content-type") || "";
+      if (contentType.includes("multipart/form-data") || contentType.includes("application/octet-stream")) {
+        // Preserve binary payloads for file uploads.
+        body = await request.arrayBuffer();
+      } else {
+        body = await request.text();
+      }
     }
 
     const response = await fetch(url, {
       method: request.method,
       headers,
       body,
-    });
+      ...(body instanceof ArrayBuffer ? { duplex: "half" } : {}),
+    } as RequestInit);
 
-    const responseText = await response.text();
-    const nextResponse = new NextResponse(responseText, {
-      status: response.status,
-      statusText: response.statusText,
-    });
+    // Preserve binary responses (file downloads) by using arrayBuffer.
+    const responseContentType = response.headers.get("content-type") || "";
+    const isBinary =
+      responseContentType.includes("application/octet-stream") ||
+      responseContentType.includes("application/pdf") ||
+      responseContentType.includes("image/") ||
+      responseContentType.includes("font/");
+
+        // ── Handle Server-Sent Events (SSE) streaming ─────────────────────
+    // For chat completion streams (content-type: text/event-stream), we MUST
+    // pipe the body chunks directly so the browser receives each token in real
+    // time. We never buffer the full response.
+    const isStreaming =
+      responseContentType.includes("text/event-stream") ||
+      responseContentType.includes("text/stream");
+
+    if (isStreaming && typeof response.body?.getReader === "function") {
+      // Build headers excluding hop-by-hop fields
+      const responseHeaders = new Headers();
+      response.headers.forEach((value, key) => {
+        const lowerKey = key.toLowerCase();
+        if (
+          lowerKey !== "content-encoding" &&
+          lowerKey !== "transfer-encoding" &&
+          lowerKey !== "content-length" &&
+          lowerKey !== "set-cookie"
+        ) {
+          responseHeaders.set(key, value);
+        }
+      });
+      // Force connection upgrade headers for SSE
+      responseHeaders.set("Cache-Control", "no-cache, no-transform, permanent-store");
+      responseHeaders.set("Connection", "keep-alive");
+
+      // Pipe the raw stream through the proxy
+      const proxyStream = response.body.pipeThrough(
+        new TransformStream({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        }),
+      ) as ReadableStream;
+
+      return new NextResponse(proxyStream, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      });
+    }
+
+    // ── Non-streaming responses ──────────────────────────────────────────
+    // Read the body ONCE — binary → ArrayBuffer, text → string.
+    let responseText = "";
+    let responseBuffer: ArrayBuffer | null = null;
+    if (isBinary) {
+      responseBuffer = await response.arrayBuffer();
+    } else {
+      responseText = await response.text();
+    }
+
+    let nextResponse: NextResponse;
+    if (isBinary) {
+      nextResponse = new NextResponse(responseBuffer, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    } else {
+      nextResponse = new NextResponse(responseText, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
 
     // Copy all headers
     response.headers.forEach((value, key) => {

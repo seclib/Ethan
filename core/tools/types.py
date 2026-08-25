@@ -22,6 +22,7 @@ class Tool:
     id: str
     name: str
     description: str
+    parameters: dict[str, Any] = field(default_factory=dict)
     version: str = "1.0.0"
     category: str = "generic"
     capabilities: list[str] = field(default_factory=list)
@@ -40,6 +41,7 @@ class Tool:
     success_count: int = 0
     tags: list[str] = field(default_factory=list)
     provider: str = "builtin"
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 

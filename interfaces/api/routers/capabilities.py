@@ -3,8 +3,8 @@
 Core modules live in core/ and stay usable by the CLI or another interface.
 This router is a thin HTTP gateway (no business logic): it simply maps REST
 verbs onto the Core managers for automations, calendar, TTS, image
-generation, evaluations, analytics, channels, notes, tool servers,
-functions/pipelines and SCIM.
+generation, evaluations, analytics, channels, notes, Core tools and tool
+servers, prompts and SCIM.
 """
 
 from __future__ import annotations
@@ -37,10 +37,11 @@ class CapabilityManagers:
         analytics: Any | None = None,
         channels: Any | None = None,
         notes: Any | None = None,
+        tools: Any | None = None,
         tool_servers: Any | None = None,
-        functions: Any | None = None,
         prompts: Any | None = None,
         scim: Any | None = None,
+        skills: Any | None = None,
     ) -> None:
         self.automations = automations
         self.calendar = calendar
@@ -50,10 +51,11 @@ class CapabilityManagers:
         self.analytics = analytics
         self.channels = channels
         self.notes = notes
+        self.tools = tools
         self.tool_servers = tool_servers
-        self.functions = functions
         self.prompts = prompts
         self.scim = scim
+        self.skills = skills
 
 
 _managers = CapabilityManagers()
@@ -475,8 +477,82 @@ async def delete_note(note_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TOOL SERVERS
+# TOOLS AND TOOL SERVERS
 # ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/tools")
+async def list_tools():
+    """List the Core-owned builtin, custom and discovered MCP tool catalogue."""
+    manager = _require(_managers.tools, "Tool")
+    return manager.list_tools()
+
+
+@router.post("/tools", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def create_tool(data: dict[str, Any]):
+    """Create a persistent custom Tool definition in ETHAN Core."""
+    manager = _require(_managers.tools, "Tool")
+    try:
+        return await manager.create_tool(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            parameters=data.get("parameters", {}),
+            code=data.get("code", ""),
+            category=data.get("category", "custom"),
+            capabilities=data.get("capabilities"),
+            tags=data.get("tags"),
+            metadata=data.get("metadata"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.delete("/tools/{tool_id}", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def delete_tool(tool_id: str):
+    manager = _require(_managers.tools, "Tool")
+    try:
+        deleted = await manager.delete_tool(tool_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if not deleted:
+        raise HTTPException(404, f"Tool {tool_id} not found")
+    return {"status": "deleted"}
+
+
+@router.get("/tools/pipelines")
+async def list_tool_pipelines():
+    manager = _require(_managers.tools, "Tool")
+    return await manager.list_pipelines()
+
+
+@router.post("/tools/pipelines", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def create_tool_pipeline(data: dict[str, Any]):
+    manager = _require(_managers.tools, "Tool")
+    try:
+        return await manager.create_pipeline(
+            name=data.get("name", ""),
+            steps=data.get("steps", []),
+            description=data.get("description", ""),
+            metadata=data.get("metadata"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/tools/pipelines/{pipeline_id}")
+async def get_tool_pipeline(pipeline_id: str):
+    manager = _require(_managers.tools, "Tool")
+    pipeline = await manager.get_pipeline(pipeline_id)
+    if pipeline is None:
+        raise HTTPException(404, f"Tool pipeline {pipeline_id} not found")
+    return pipeline
+
+
+@router.delete("/tools/pipelines/{pipeline_id}")
+async def delete_tool_pipeline(pipeline_id: str):
+    manager = _require(_managers.tools, "Tool")
+    if not await manager.delete_pipeline(pipeline_id):
+        raise HTTPException(404, f"Tool pipeline {pipeline_id} not found")
+    return {"status": "deleted"}
 
 @router.get("/tools/servers")
 async def list_tool_servers(enabled: bool | None = None):
@@ -530,6 +606,20 @@ async def set_tool_server_status(server_id: str, data: dict[str, Any]):
     return server
 
 
+@router.post("/tools/servers/{server_id}/sync")
+async def sync_tool_server(server_id: str):
+    manager = _require(_managers.tool_servers, "ToolServer")
+    try:
+        if not hasattr(manager, "sync_tools"):
+            raise HTTPException(501, "Sync feature not implemented by manager")
+        tools = await manager.sync_tools(server_id)
+        return {"status": "synced", "tools_discovered": len(tools), "tools": tools}
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(500, f"Sync failed: {exc}") from exc
+
+
 @router.delete("/tools/servers/{server_id}")
 async def delete_tool_server(server_id: str):
     manager = _require(_managers.tool_servers, "ToolServer")
@@ -539,82 +629,40 @@ async def delete_tool_server(server_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FUNCTIONS / PIPELINES
+# SKILLS EXECUTION
 # ═══════════════════════════════════════════════════════════════════════════
 
-@router.get("/functions")
-async def list_functions():
-    manager = _require(_managers.functions, "Function")
-    return await manager.list_functions()
+@router.post("/skills/{skill_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+async def execute_skill(skill_id: str, data: dict[str, Any]):
+    """Execute a Core skill through the SkillManager (not a stub)."""
+    from core.skills.types import SkillContext
 
+    manager = _require(_managers.skills, "Skill")
+    skill = manager.get_skill(skill_id)
+    if skill is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
 
-@router.post("/functions", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def create_function(data: dict[str, Any]):
-    manager = _require(_managers.functions, "Function")
-    try:
-        return await manager.create_function(
-            name=data.get("name", ""),
-            description=data.get("description", ""),
-            parameters=data.get("parameters", {}),
-            code=data.get("code", ""),
-            metadata=data.get("metadata"),
-        )
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
-
-
-@router.get("/functions/{func_id}")
-async def get_function(func_id: str):
-    manager = _require(_managers.functions, "Function")
-    function = await manager.get_function(func_id)
-    if function is None:
-        raise HTTPException(404, f"Function {func_id} not found")
-    return function
-
-
-@router.delete("/functions/{func_id}")
-async def delete_function(func_id: str):
-    manager = _require(_managers.functions, "Function")
-    if not await manager.delete_function(func_id):
-        raise HTTPException(404, f"Function {func_id} not found")
-    return {"status": "deleted"}
-
-
-@router.get("/pipelines")
-async def list_pipelines():
-    manager = _require(_managers.functions, "Function")
-    return await manager.list_pipelines()
-
-
-@router.post("/pipelines", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def create_pipeline(data: dict[str, Any]):
-    manager = _require(_managers.functions, "Function")
-    try:
-        return await manager.create_pipeline(
-            name=data.get("name", ""),
-            description=data.get("description", ""),
-            steps=data.get("steps", []),
-            metadata=data.get("metadata"),
-        )
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
-
-
-@router.get("/pipelines/{pipeline_id}")
-async def get_pipeline(pipeline_id: str):
-    manager = _require(_managers.functions, "Function")
-    pipeline = await manager.get_pipeline(pipeline_id)
-    if pipeline is None:
-        raise HTTPException(404, f"Pipeline {pipeline_id} not found")
-    return pipeline
-
-
-@router.delete("/pipelines/{pipeline_id}")
-async def delete_pipeline(pipeline_id: str):
-    manager = _require(_managers.functions, "Function")
-    if not await manager.delete_pipeline(pipeline_id):
-        raise HTTPException(404, f"Pipeline {pipeline_id} not found")
-    return {"status": "deleted"}
+    context = SkillContext(
+        skill_id=skill_id,
+        user_id=data.get("user_id", "anonymous"),
+        session_id=data.get("session_id", "default"),
+        parameters=data.get("parameters", {}),
+        constraints=data.get("constraints", {}),
+        metadata=data.get("metadata", {}),
+        max_cost=data.get("max_cost"),
+        max_duration_ms=data.get("max_duration_ms"),
+    )
+    result = await manager.execute(context)
+    return {
+        "skill_id": result.skill_id,
+        "status": result.status.value,
+        "error": result.error,
+        "steps_completed": result.steps_completed,
+        "steps_total": result.steps_total,
+        "duration_ms": result.duration_ms,
+        "output": result.output,
+        "metadata": result.metadata,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════

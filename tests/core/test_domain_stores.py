@@ -19,8 +19,8 @@ from core.auth.api_keys import APIKeyManager
 from core.auth.scim import SCIMManager
 from core.scheduler.automations import AutomationManager
 from core.scheduler.calendar import CalendarManager
+from core.tools.manager import ToolManager
 from core.tools.servers import ToolServerManager
-from core.tools.functions import FunctionManager
 from core.llm.tts import TTSEngine
 from core.llm.images import ImageGenerator
 from core.learning.evaluations import EvaluationManager
@@ -73,8 +73,8 @@ def tool_server_manager():
 
 
 @pytest.fixture
-def function_manager():
-    return FunctionManager()
+def tool_manager():
+    return ToolManager()
 
 
 @pytest.fixture
@@ -316,16 +316,17 @@ async def test_tool_server_manager_register_and_list(tool_server_manager):
     assert len(servers) == 1
 
 
-# ── FunctionManager ────────────────────────────────────────────────────
+# ── ToolManager ────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_function_manager_create_and_pipeline(function_manager):
-    func = await function_manager.create_function(
+async def test_tool_manager_create_custom_tool_and_pipeline(tool_manager):
+    tool = await tool_manager.create_tool(
         "greet", "Say hello", {"name": {"type": "string"}}
     )
-    assert func["name"] == "greet"
+    assert tool.name == "greet"
+    assert tool.provider == "custom"
 
-    pipeline = await function_manager.create_pipeline(
+    pipeline = await tool_manager.create_pipeline(
         "Greeting Pipeline", [{"function": "greet", "args": {"name": "World"}}]
     )
     assert pipeline["name"] == "Greeting Pipeline"

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useUIStore } from "@/core/store/ui.store";
-import { useMissions } from "@/features/missions/hooks/use-missions";
+import { useUIStore } from "@/store/ui.store";
+import { useMissions } from "@/components/features/missions/hooks/use-missions";
 import type { Mission } from "@/types";
 import { X, Target, Play, Pause, Plus } from "lucide-react";
 

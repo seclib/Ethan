@@ -16,7 +16,7 @@ import logging
 from typing import Any
 
 from core.orchestrator.context import OrchestratorContext
-from core.orchestrator.pipeline import Pipeline, PipelineStep
+from core.orchestrator.pipeline import CapabilityPipeline
 from core.orchestrator.router import RequestRouter
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class Orchestrator:
     def __init__(self):
         self._context: OrchestratorContext | None = None
         self._router = RequestRouter()
-        self._pipelines: dict[str, Pipeline] = {}
+        self._pipelines: dict[str, CapabilityPipeline] = {}
         self._modules: dict[str, Any] = {}
 
     def register_module(self, name: str, module: Any) -> None:
@@ -59,7 +59,7 @@ class Orchestrator:
         """
         return self._modules.get(name)
 
-    def register_pipeline(self, name: str, pipeline: Pipeline) -> None:
+    def register_pipeline(self, name: str, pipeline: CapabilityPipeline) -> None:
         """Enregistre un pipeline.
 
         Args:
@@ -126,7 +126,10 @@ class Orchestrator:
         pipeline = self._pipelines.get(pipeline_name)
 
         if pipeline:
-            result = await pipeline.execute(context)
+            # OrchestratorContext is duck-compatible with CapabilityContext
+            # for pipeline execution; the runtime fields (user_id/session_id/metadata)
+            # are shared. type: ignore suppresses the static annotation mismatch.
+            result = await pipeline.execute(context)  # type: ignore[misc]
         else:
             # Fallback : exécuter directement via cognition
             result = await self._execute_default(context, request)

@@ -47,6 +47,7 @@ from .service import ConfigurationService, DOMAINS
 from .store import ConfigStore
 from .secrets import Secrets, get_secrets
 from .prompts import PromptManager
+from .jsonschema import config_to_json_schema, get_domains
 
 __all__ = [
     # Loader
@@ -79,4 +80,7 @@ __all__ = [
     "get_secrets",
     # Prompts
     "PromptManager",
+    # JSON Schema
+    "config_to_json_schema",
+    "get_domains",
 ]

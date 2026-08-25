@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException
 
 from core.auth import Permission
 from interfaces.api.auth import require_permission
-from core.config import ConfigurationService, DOMAINS
+from core.config import ConfigurationService, DOMAINS, config_to_json_schema
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,29 @@ async def get_config():
     """Retourne la configuration complète (fusionnée)."""
     service = get_service()
     return service.get_all()
+
+
+# ── GET /config/schema ──────────────────────────────────────────────────────
+
+@router.get("/schema")
+async def get_config_schema():
+    """Retourne le JSON Schema complet de la configuration (auto-généré)."""
+    return config_to_json_schema()
+
+
+# ── GET /config/schema/{domain} ─────────────────────────────────────────────
+
+@router.get("/schema/{domain}")
+async def get_domain_schema(domain: str):
+    """Retourne le JSON Schema d'un domaine de configuration.
+
+    Raises:
+        HTTPException 404 si le domaine est inconnu.
+    """
+    try:
+        return config_to_json_schema(domain)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown domain '{domain}'")
 
 
 # ── GET /config/{domain} ────────────────────────────────────────────────────

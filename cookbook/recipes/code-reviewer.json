@@ -1,0 +1,25 @@
+{
+  "id": "code-reviewer",
+  "name": "+ Revue de code systématique",
+  "version": "1.0.0",
+  "description": "Skill d'analyse de code avec checklist qualité et prompt de revue PR.",
+  "requires": {},
+  "installs": {
+    "skill": [
+      {
+        "name": "Code Review Checklist",
+        "description": "Analyse un diff et produit une revue structurée (sécurité, perfs, lisibilité).",
+        "content": "Analyse le code fourni selon : 1) bugs potentiels, 2) failles sécurité (OWASP top 10), 3) performance, 4) lisibilité/nommage, 5) tests manquants. Format : tableau priorisé avec sévérité.",
+        "version": "1.0.0"
+      }
+    ],
+    "prompt": [
+      {
+        "name": "Revue de Pull Request",
+        "description": "Revue concise et actionnable d'une PR.",
+        "text": "Examine cette PR : résume l'intention, liste les risques bloquants puis les suggestions non bloquantes. Termine par APPROVE ou REQUEST_CHANGES justifié.",
+        "tags": ["developpement"]
+      }
+    ]
+  }
+}

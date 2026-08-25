@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useActiveModel } from "@/features/assistant/hooks/use-active-model";
-import { useModels, type PinnedModel } from "@/features/providers/hooks/use-models";
-import type { ProviderModel } from "@/core/api/providers.types";
+import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
+import { useModels, type PinnedModel } from "@/components/features/providers/hooks/use-models";
+import type { ModelInfo } from "@/lib/api/models";
 
 interface ModelSelectorProps {
   variant?: "full" | "compact";
@@ -62,8 +62,8 @@ export function ModelSelector({ variant = "full", className = "" }: ModelSelecto
   }
 
   const allModels = searchModels(search);
-  const pinnedModels = allModels.filter((m) => isPinned(m.providerId, m.id));
-  const otherModels = allModels.filter((m) => !isPinned(m.providerId, m.id));
+  const pinnedModels = allModels.filter((m) => isPinned(m.provider, m.id));
+  const otherModels = allModels.filter((m) => !isPinned(m.provider, m.id));
 
   const handleSelect = (providerId: string, modelId: string) => {
     setProvider(providerId);
@@ -129,12 +129,12 @@ export function ModelSelector({ variant = "full", className = "" }: ModelSelecto
                 </div>
                 {pinnedModels.map((model) => (
                   <ModelItem
-                    key={`${model.providerId}-${model.id}`}
+                    key={`${model.provider}-${model.id}`}
                     model={model}
-                    isSelected={activeProvider?.id === model.providerId && selectedModel === model.id}
+                    isSelected={activeProvider?.id === model.provider && selectedModel === model.id}
                     isPinned={true}
-                    onSelect={() => handleSelect(model.providerId, model.id)}
-                    onTogglePin={() => handleTogglePin(null as unknown as React.MouseEvent, model.providerId, model.id)}
+                    onSelect={() => handleSelect(model.provider, model.id)}
+                    onTogglePin={() => handleTogglePin(null as unknown as React.MouseEvent, model.provider, model.id)}
                   />
                 ))}
               </div>
@@ -149,12 +149,12 @@ export function ModelSelector({ variant = "full", className = "" }: ModelSelecto
                 )}
                 {otherModels.map((model) => (
                   <ModelItem
-                    key={`${model.providerId}-${model.id}`}
+                    key={`${model.provider}-${model.id}`}
                     model={model}
-                    isSelected={activeProvider?.id === model.providerId && selectedModel === model.id}
+                    isSelected={activeProvider?.id === model.provider && selectedModel === model.id}
                     isPinned={false}
-                    onSelect={() => handleSelect(model.providerId, model.id)}
-                    onTogglePin={() => handleTogglePin(null as unknown as React.MouseEvent, model.providerId, model.id)}
+                    onSelect={() => handleSelect(model.provider, model.id)}
+                    onTogglePin={() => handleTogglePin(null as unknown as React.MouseEvent, model.provider, model.id)}
                   />
                 ))}
               </div>
@@ -173,7 +173,7 @@ export function ModelSelector({ variant = "full", className = "" }: ModelSelecto
 }
 
 interface ModelItemProps {
-  model: ProviderModel & { providerId: string; providerName: string };
+  model: ModelInfo;
   isSelected: boolean;
   isPinned: boolean;
   onSelect: () => void;
@@ -198,7 +198,7 @@ function ModelItem({ model, isSelected, isPinned, onSelect, onTogglePin }: Model
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-foreground-tertiary">
-          <span>{model.providerName}</span>
+          <span>{model.provider}</span>
           {model.context_length > 0 && (
             <>
               <span>•</span>
@@ -210,7 +210,7 @@ function ModelItem({ model, isSelected, isPinned, onSelect, onTogglePin }: Model
       <button
         onClick={onTogglePin}
         className={`p-1 rounded hover:bg-bg-1 ${
-          isPinned ? "text-yellow-400" : "text-foreground-tertiary"
+          isPinned ? "text-amber" : "text-foreground-tertiary"
         }`}
         title={isPinned ? "Unpin" : "Pin"}
       >
