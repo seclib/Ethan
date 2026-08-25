@@ -142,6 +142,7 @@ export function AppSidebar() {
           onSelectChat={chatState.onSelectChat}
           onDeleteChat={chatState.onDeleteChat}
           onTogglePin={chatState.onTogglePin}
+          onRenameChat={chatState.onRenameChat}
         />
       ) : (
         <NavigationContent pathname={pathname} />
@@ -192,6 +193,7 @@ interface ChatSidebarViewProps {
   onSelectChat: ((chatId: string) => void) | null;
   onDeleteChat: ((chatId: string) => void) | null;
   onTogglePin: ((chatId: string, currentPinned: boolean) => void) | null;
+  onRenameChat: ((chatId: string, title: string) => void) | null;
 }
 
 function ChatSidebarContent(props: ChatSidebarViewProps) {
@@ -240,6 +242,7 @@ function ChatSidebarContent(props: ChatSidebarViewProps) {
               onSelect={() => props.onSelectChat?.(chat.id)}
               onDelete={(e) => { e.stopPropagation(); props.onDeleteChat?.(chat.id); }}
               onPin={(e) => { e.stopPropagation(); props.onTogglePin?.(chat.id, chat.pinned); }}
+              onRename={(title) => props.onRenameChat?.(chat.id, title)}
             />
           ))}
         </div>
@@ -256,6 +259,7 @@ function ChatSidebarContent(props: ChatSidebarViewProps) {
               onSelect={() => props.onSelectChat?.(chat.id)}
               onDelete={(e) => { e.stopPropagation(); props.onDeleteChat?.(chat.id); }}
               onPin={(e) => { e.stopPropagation(); props.onTogglePin?.(chat.id, chat.pinned); }}
+              onRename={(title) => props.onRenameChat?.(chat.id, title)}
             />
           ))}
         </div>
@@ -275,23 +279,63 @@ function ChatSidebarContent(props: ChatSidebarViewProps) {
   );
 }
 
-function ChatItem({ chat, isActive, onSelect, onDelete, onPin }: {
+function ChatItem({ chat, isActive, onSelect, onDelete, onPin, onRename }: {
   chat: EthChat;
   isActive: boolean;
   onSelect: () => void;
   onDelete: (e: React.MouseEvent) => void;
   onPin: (e: React.MouseEvent) => void;
+  onRename: (title: string) => void;
 }) {
+  const [renaming, setRenaming] = React.useState(false);
+  const [value, setValue] = React.useState(chat.title);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (renaming) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [renaming]);
+
+  const commit = () => {
+    setRenaming(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== chat.title) onRename(trimmed);
+  };
+
   return (
     <div
       onClick={onSelect}
       className={cn("list-item", isActive && "active")}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === "Enter") onSelect(); }}
+      onKeyDown={(e) => { if (e.key === "Enter" && !renaming) onSelect(); }}
     >
       <MessageSquare size={14} className="shrink-0 opacity-50" />
-      <span className="flex-1 truncate">{chat.title}</span>
+      {renaming ? (
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setRenaming(false); setValue(chat.title); }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="sidebar-rename-input"
+          aria-label="Renommer la conversation"
+        />
+      ) : (
+        <span
+          className="flex-1 truncate"
+          title="Double-clic pour renommer"
+          onDoubleClick={(e) => { e.stopPropagation(); setValue(chat.title); setRenaming(true); }}
+        >
+          {chat.title}
+        </span>
+      )}
       <span className="sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
         <button onClick={onPin} className="sidebar-action-btn" title={chat.pinned ? "Désépingler" : "Épingler"}>
           <Pin size={12} />

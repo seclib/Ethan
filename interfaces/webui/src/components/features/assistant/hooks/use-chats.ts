@@ -58,10 +58,13 @@ export interface UseChatsActions {
 	selectChat: (chatId: string) => void;
 	createChat: (title?: string) => Promise<EthChat>;
 	deleteChat: (chatId: string) => Promise<void>;
+	renameChat: (chatId: string, title: string) => Promise<void>;
 	togglePin: (chatId: string, currentPinned: boolean) => Promise<void>;
 	addMessage: (chatId: string, role: string, content: string) => Promise<void>;
 	sendMessage: (request: ChatCompletionRequest) => Promise<void>;
 	sendMessageStream: (request: ChatCompletionRequest) => AsyncGenerator<Record<string, unknown>>;
+	/** Stoppe la génération en cours (AbortController sur le flux SSE). */
+	stopGeneration: () => void;
 	clearError: () => void;
 }
 
@@ -74,6 +77,8 @@ export function useChats(): UseChatsState & UseChatsActions {
 	const [error, setError] = useState<string | null>(null);
 
 	const streamingBufferRef = useRef<string>('');
+	/** Contrôleur du flux en cours — permet l'arrêt réel de la génération. */
+	const abortRef = useRef<AbortController | null>(null);
 
 	const pinnedChats = chats.filter((c) => c.pinned && !c.archived);
 	const regularChats = chats.filter((c) => !c.pinned && !c.archived);
@@ -148,6 +153,24 @@ export function useChats(): UseChatsState & UseChatsActions {
 		}
 	}, [currentChatId]);
 
+	/** Renomme une conversation (PUT /chats/{id} — ChatStore Core). */
+	const renameChat = useCallback(async (chatId: string, title: string) => {
+		const trimmed = title.trim();
+		if (!trimmed) return;
+		// Mise à jour optimiste, puis persistance Core.
+		setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title: trimmed } : c)));
+		try {
+			await apiFetch<EthChat>(`/chats/${chatId}`, {
+				method: 'PUT',
+				body: JSON.stringify({ title: trimmed }),
+			});
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to rename chat');
+			// Rollback en cas d'échec : on recharge l'état Core.
+			loadChats();
+		}
+	}, [loadChats]);
+
 	const togglePin = useCallback(async (chatId: string, currentPinned: boolean) => {
 		try {
 			await apiFetch<EthChat>(`/chats/${chatId}`, {
@@ -215,6 +238,10 @@ export function useChats(): UseChatsState & UseChatsActions {
 		setIsStreaming(true);
 		setError(null);
 
+		// Contrôleur d'arrêt : stopGeneration() avorte le fetch SSE sous-jacent.
+		const controller = new AbortController();
+		abortRef.current = controller;
+
 		// Optimistically add the user message
 		const userMessage: EthMessage = {
 			id: `temp-${Date.now()}`,
@@ -238,43 +265,64 @@ export function useChats(): UseChatsState & UseChatsActions {
 
 		streamingBufferRef.current = '';
 
+		/** Met à jour le message assistant en cours de streaming. */
+		const patchAssistant = (patch: Partial<EthMessage>) =>
+			setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, ...patch } : m)));
+
 		try {
-			for await (const event of streamChatMessage(request)) {
+			for await (const event of streamChatMessage(request, controller.signal)) {
 				const eventType = event.type as string;
 
 				if (eventType === 'content') {
 					const chunk = event.content as string;
 					streamingBufferRef.current += chunk;
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantId
-								? { ...m, content: streamingBufferRef.current }
-								: m,
-						),
-					);
+					patchAssistant({ content: streamingBufferRef.current });
 					yield event;
 				} else if (eventType === 'done') {
 					const messageId = (event.message_id as string) || assistantId;
-					setMessages((prev) =>
-						prev.map((m) =>
-							m.id === assistantId
-								? { ...m, status: 'done', done: true, id: messageId }
-								: m,
-						),
-					);
+					patchAssistant({ status: 'done', done: true, id: messageId });
 					setCurrentChatId(event.chat_id as string);
 					yield event;
 				} else if (eventType === 'error') {
-					setError(event.error as string);
+					const message = String(event.error ?? 'Generation failed');
+					setError(message);
+					patchAssistant({
+						status: 'error',
+						done: true,
+						content: streamingBufferRef.current || '',
+						metadata: { error: message },
+					});
 					yield event;
 				}
 			}
+			// Flux terminé sans événement done (connexion coupée) : figer l'état.
+			patchAssistant({ status: 'done', done: true });
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Streaming failed');
-			throw err;
+			if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+				// Arrêt demandé par l'utilisateur : contenu partiel conservé,
+				// pas d'erreur globale affichée.
+				patchAssistant({ status: 'stopped', done: true });
+			} else {
+				const message = err instanceof Error ? err.message : 'Streaming failed';
+				setError(message);
+				patchAssistant({
+					status: 'error',
+					done: true,
+					metadata: { error: message },
+				});
+			}
 		} finally {
+			abortRef.current = null;
 			setIsStreaming(false);
 		}
+	}, []);
+
+	/**
+	 * Arrêt réel de la génération : avorte le flux SSE. Le contenu déjà
+	 * reçu est conservé et marqué « stopped » (voir sendMessageStream).
+	 */
+	const stopGeneration = useCallback(() => {
+		abortRef.current?.abort();
 	}, []);
 
 	const clearError = useCallback(() => setError(null), []);
@@ -293,10 +341,12 @@ export function useChats(): UseChatsState & UseChatsActions {
 		selectChat,
 		createChat,
 		deleteChat,
+		renameChat,
 		togglePin,
 		addMessage,
 		sendMessage,
 		sendMessageStream,
+		stopGeneration,
 		clearError,
 	};
 }

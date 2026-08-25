@@ -76,14 +76,21 @@ export async function sendChatMessage(
  * Send a chat message with SSE streaming.
  * Maps to POST /v1/chat/completions/stream
  *
+ * @param signal Optional AbortSignal to stop generation mid-stream.
+ *
  * Yields events: { type: 'content', content: string, chat_id: string }
  *                { type: 'done', chat_id: string, message_id: string }
  *                { type: 'error', error: string }
  */
 export async function* streamChatMessage(
 	request: ChatCompletionRequest,
+	signal?: AbortSignal,
 ): AsyncGenerator<Record<string, unknown>, void, unknown> {
-	yield* streamEvents('/v1/chat/completions/stream', request as unknown as Record<string, unknown>);
+	yield* streamEvents(
+		'/v1/chat/completions/stream',
+		request as unknown as Record<string, unknown>,
+		signal,
+	);
 }
 
 /**

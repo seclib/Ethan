@@ -67,10 +67,14 @@ export async function apiFetch<T = unknown>(
 
 /**
  * SSE streaming helper for chat completions.
+ *
+ * @param signal Optional AbortSignal — allows the UI to stop generation
+ *               mid-stream (the reader throws AbortError on abort).
  */
 export async function* streamEvents(
 	path: string,
 	body: Record<string, unknown>,
+	signal?: AbortSignal,
 ): AsyncGenerator<Record<string, unknown>, void, unknown> {
 	const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
 	const response = await fetch(url, {
@@ -78,6 +82,7 @@ export async function* streamEvents(
 		credentials: 'include',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(body),
+		signal,
 	});
 
 	if (!response.ok) {

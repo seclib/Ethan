@@ -21,6 +21,7 @@ export interface ChatSidebarState {
   onSelectChat: ((chatId: string) => void) | null;
   onDeleteChat: ((chatId: string) => void) | null;
   onTogglePin: ((chatId: string, currentPinned: boolean) => void) | null;
+  onRenameChat: ((chatId: string, title: string) => void) | null;
   /** Enregistrement par la page chat */
   setChatSidebar: (state: Partial<Omit<ChatSidebarState, "setChatSidebar" | "clearChatSidebar">>) => void;
   clearChatSidebar: () => void;
@@ -31,6 +32,7 @@ const emptyHandlers = {
   onSelectChat: null,
   onDeleteChat: null,
   onTogglePin: null,
+  onRenameChat: null,
 };
 
 export const useChatSidebarStore = create<ChatSidebarState>((set) => ({

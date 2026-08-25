@@ -1,79 +1,78 @@
 "use client";
 
 import * as React from "react";
+import { Copy, Check, RefreshCw, Pencil } from "lucide-react";
+import { useUIStore } from "@/store/ui.store";
 
 interface MessageActionsProps {
   messageId: string;
   content: string;
   isUser: boolean;
-  onCopy?: () => void;
+  /** Régénération disponible (dernière réponse, génération terminée). */
+  canRegenerate?: boolean;
+  /** Édition disponible (messages utilisateur). */
+  canEdit?: boolean;
   onRegenerate?: () => void;
-  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
+/**
+ * Actions par message — toutes fonctionnelles :
+ * - Copier     : presse-papiers + feedback visuel ✓
+ * - Régénérer  : renvoi du dernier message utilisateur (nouvelle branche Core)
+ * - Éditer     : édition inline + renvoi du contenu modifié
+ */
 export function MessageActions({
-  messageId,
   content,
-  isUser,
-  onCopy,
+  canRegenerate,
+  canEdit,
   onRegenerate,
-  onDelete,
+  onEdit,
 }: MessageActionsProps) {
-  const [showMenu, setShowMenu] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const addToast = useUIStore((s) => s.addToast);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(content);
-    onCopy?.();
-    setShowMenu(false);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      addToast({ type: "error", message: "Copie impossible (presse-papiers indisponible)" });
+    }
   };
 
   return (
-    <div className="relative">
+    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
       <button
-        onClick={() => setShowMenu(!showMenu)}
-        className="p-1 rounded hover:bg-bg-1 text-foreground-tertiary opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Actions"
+        onClick={handleCopy}
+        className="rounded p-1 text-foreground-tertiary hover:bg-bg-1 hover:text-foreground"
+        title="Copier"
+        aria-label="Copier le message"
       >
-        <svg
-          className="h-4 w-4"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-        </svg>
+        {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
 
-      {showMenu && (
-        <div className="absolute right-0 mt-1 w-32 rounded-md border border-line-1 bg-bg-2 shadow-lg z-10">
-          <button
-            onClick={handleCopy}
-            className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-bg-3"
-          >
-            📋 Copier
-          </button>
-          {!isUser && onRegenerate && (
-            <button
-              onClick={() => {
-                onRegenerate();
-                setShowMenu(false);
-              }}
-              className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-bg-3"
-            >
-              🔄 Régénérer
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => {
-                onDelete();
-                setShowMenu(false);
-              }}
-              className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-bg-3"
-            >
-              🗑 Supprimer
-            </button>
-          )}
-        </div>
+      {canRegenerate && (
+        <button
+          onClick={onRegenerate}
+          className="rounded p-1 text-foreground-tertiary hover:bg-bg-1 hover:text-foreground"
+          title="Régénérer la réponse"
+          aria-label="Régénérer la réponse"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      {canEdit && (
+        <button
+          onClick={onEdit}
+          className="rounded p-1 text-foreground-tertiary hover:bg-bg-1 hover:text-foreground"
+          title="Modifier et renvoyer"
+          aria-label="Modifier le message"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );

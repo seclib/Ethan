@@ -7,6 +7,7 @@ import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useAgents } from "@/components/features/agents/hooks/use-agents";
 import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
 import { useChats, type EthMessage } from "@/components/features/assistant/hooks/use-chats";
+import { listCollections } from "@/lib/api/knowledge";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
@@ -16,6 +17,8 @@ function toDisplayMessage(msg: EthMessage): AssistantMessage {
     role: isUser ? "user" : "assistant",
     content: msg.content,
     timestamp: new Date(msg.created_at).getTime(),
+    status: msg.status,
+    done: msg.done,
   };
 }
 
@@ -33,9 +36,13 @@ export default function ChatHomePage() {
     loadChat,
     selectChat,
     deleteChat,
+    renameChat,
     togglePin,
     sendMessageStream,
+    stopGeneration,
     isStreaming,
+    error,
+    clearError,
   } = useChats();
   const [attachedFileIds, setAttachedFileIds] = React.useState<string[]>([]);
   const [attachedFileNames, setAttachedFileNames] = React.useState<string[]>([]);
@@ -45,6 +52,22 @@ export default function ChatHomePage() {
   const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
   const [selectedCollectionIds, setSelectedCollectionIds] = React.useState<string[]>([]);
   const [selectedToolIds, setSelectedToolIds] = React.useState<string[]>([]);
+
+  // Collections knowledge chargées à l'activation du toggle (source : Core).
+  React.useEffect(() => {
+    if (!knowledgeEnabled || selectedCollectionIds.length > 0) return;
+    let cancelled = false;
+    listCollections()
+      .then((collections) => {
+        if (!cancelled) setSelectedCollectionIds(collections.map((c) => c.id));
+      })
+      .catch(() => {
+        // Pas de collections disponibles : le toggle restera sans effet RAG.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [knowledgeEnabled, selectedCollectionIds.length]);
 
   // Load chats on mount
   React.useEffect(() => {
@@ -111,21 +134,19 @@ export default function ChatHomePage() {
       onSelectChat: selectChat,
       onDeleteChat: deleteChat,
       onTogglePin: togglePin,
+      onRenameChat: renameChat,
     });
     return () => clearChatSidebar();
-  }, [chats, pinnedChats, regularChats, currentChatId, handleNewChat, selectChat, deleteChat, togglePin, setChatSidebar, clearChatSidebar]);
+  }, [chats, pinnedChats, regularChats, currentChatId, handleNewChat, selectChat, deleteChat, togglePin, renameChat, setChatSidebar, clearChatSidebar]);
 
-  const handleSend = async (content: string) => {
+  /**
+   * Flux d'envoi partagé : message simple, régénération (renvoi du dernier
+   * message utilisateur) et édition (renvoi du contenu modifié) passent
+   * tous par ici — un seul point de vérité pour le streaming.
+   */
+  const runStream = async (content: string) => {
     if (!content.trim() || isStreaming) return;
-
     const trimmed = content.trim();
-    if (trimmed === "/model" || trimmed.startsWith("/model ")) {
-      const parts = trimmed.split(/\s+/).slice(1);
-      if (parts.length > 0) {
-        setModel(parts[0]);
-      }
-      return;
-    }
 
     const generator = sendMessageStream({
       message: trimmed,
@@ -134,6 +155,8 @@ export default function ChatHomePage() {
       model: selectedModel ?? undefined,
       file_ids: attachedFileIds.length > 0 ? attachedFileIds : undefined,
       tool_ids: toolsEnabled && selectedToolIds.length > 0 ? selectedToolIds : undefined,
+      // Le backend (/v1/chat/completions/stream) lit knowledge_ids.
+      knowledge_ids: knowledgeEnabled && selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
       collection_ids: knowledgeEnabled && selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
       metadata: agentEnabled && selectedAgentId ? { agent_id: selectedAgentId } : undefined,
     });
@@ -142,13 +165,60 @@ export default function ChatHomePage() {
     setAttachedFileNames([]);
 
     try {
-      for await (const _event of generator) {}
+      for await (const event of generator) {
+        // Le backend titre la conversation d'après le 1er message :
+        // on rafraîchit l'historique à la fin de chaque génération.
+        if ((event as Record<string, unknown>).type === "done") {
+          loadChats();
+        }
+      }
     } catch (error) {
+      // Les erreurs de flux sont déjà capturées dans use-chats (état error).
       console.error("Chat streaming failed:", error);
     }
   };
 
-  const handleStop = () => {};
+  const handleSend = (content: string) => {
+    const trimmed = content.trim();
+    if (trimmed === "/model" || trimmed.startsWith("/model ")) {
+      const parts = trimmed.split(/\s+/).slice(1);
+      if (parts.length > 0) {
+        setModel(parts[0]);
+      }
+      return;
+    }
+    runStream(trimmed);
+  };
+
+  /** Arrêt réel : avorte le flux SSE, conserve le contenu partiel reçu. */
+  const handleStop = () => {
+    stopGeneration();
+  };
+
+  /**
+   * Régénération : renvoie le contenu du dernier message utilisateur
+   * précédant la réponse visée. Le backend crée une nouvelle branche
+   * (arbre de messages ChatStore) — l'ancienne réponse est conservée.
+   */
+  const handleRegenerate = (assistantMessageId: string) => {
+    if (isStreaming) return;
+    const index = messages.findIndex((m) => m.id === assistantMessageId);
+    if (index === -1) return;
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        runStream(messages[i].content);
+        return;
+      }
+    }
+  };
+
+  /** Édition d'un message utilisateur : renvoi du contenu modifié (nouvelle branche). */
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    if (isStreaming) return;
+    const target = messages.find((m) => m.id === messageId);
+    if (!target || target.role !== "user") return;
+    runStream(newContent);
+  };
 
   const handleFileAttached = (fileId: string, filename: string) => {
     setAttachedFileIds((prev) => [...prev, fileId]);
@@ -172,6 +242,10 @@ export default function ChatHomePage() {
           onToggleTools={() => setToolsEnabled((v) => !v)}
           onToggleAgent={() => setAgentEnabled((v) => !v)}
           onToggleKnowledge={() => setKnowledgeEnabled((v) => !v)}
+          error={error}
+          onDismissError={clearError}
+          onRegenerate={handleRegenerate}
+          onEditMessage={handleEditMessage}
         />
       </div>
     </div>

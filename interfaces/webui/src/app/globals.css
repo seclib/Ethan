@@ -399,6 +399,22 @@ body {
   height: 14px;
 }
 
+/* Input de renommage inline d'une conversation (sidebar) */
+.sidebar .list-item .sidebar-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 13px;
+  padding: 2px 6px;
+  outline: none;
+}
+.sidebar .list-item .sidebar-rename-input::placeholder {
+  color: var(--fg-muted, var(--fg-secondary));
+}
+
 /* ─── Chat Input Bar (Odysseus .chat-input-bar) ─── */
 .chat-input-bar {
   background: var(--panel);

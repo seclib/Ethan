@@ -17,6 +17,7 @@ Core. Les routes restent des passerelles HTTP sans logique métier propre.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
@@ -862,18 +863,31 @@ async def chat_completions_stream(data: dict[str, Any]):
             )
 
             full_content = ""
-            async for chunk in stream:
-                if chunk:
-                    full_content += chunk
-                    yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"
+            aborted = False
+            try:
+                async for chunk in stream:
+                    if chunk:
+                        full_content += chunk
+                        yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"
+            except asyncio.CancelledError:
+                # Client interrompu (stop generation) : on conserve le
+                # contenu partiel reçu et on le marque comme arrêté.
+                aborted = True
+                raise
+            finally:
+                # Toujours finaliser le message, même en cas de coupure :
+                # le contenu partiel est persisté (pas de trou dans l'historique).
+                status = "stopped" if aborted else "done"
+                await pipeline._chats.update_message(
+                    cid, assistant_msg["id"],
+                    {"content": full_content, "status": status, "done": True},
+                )
+                if not aborted:
+                    yield f"data: {json.dumps({'type': 'done', 'chat_id': cid, 'message_id': assistant_msg['id']})}\n\n"
 
-            # 6. Finaliser le message assistant.
-            await pipeline._chats.update_message(
-                cid, assistant_msg["id"],
-                {"content": full_content, "status": "done", "done": True},
-            )
-            yield f"data: {json.dumps({'type': 'done', 'chat_id': cid, 'message_id': assistant_msg['id']})}\n\n"
-
+        except asyncio.CancelledError:
+            logger.info("Chat stream cancelled by client (chat %s)", data.get("chat_id"))
+            raise
         except Exception as exc:
             logger.exception("Chat stream failed: %s", exc)
             yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"

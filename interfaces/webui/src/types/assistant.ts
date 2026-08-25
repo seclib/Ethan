@@ -37,6 +37,10 @@ export interface AssistantMessage {
   content: string;
   timestamp: number;
 
+  /** État du message : pending (génération), done, stopped, error. */
+  status?: string;
+  done?: boolean;
+
   // Assistant only
   reasoning?: string[];
   documents?: DocumentRef[];
