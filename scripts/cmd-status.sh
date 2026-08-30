@@ -33,7 +33,7 @@ SERVICES_LIST=(
     "ethan-api:API Gateway:8000"
     "ethan-kernel:Core Kernel:8080"
     "ethan-modules:Cognitive Modules:—"
-    "ethan-ui:WebUI:3000"
+    "ethan-ui:WebUI:3001"
     "ethan-pg_backup:PostgreSQL Backup:—"
 )
 
@@ -91,7 +91,7 @@ for svc_info in "${SERVICES_LIST[@]}"; do
                 else
                     error "$label : injoignable"
                 fi
-            elif [ "$port" = "3000" ]; then
+            elif [ "$port" = "3001" ]; then
                 # WebUI
                 if wait_for_http "http://localhost:${port}/" 3; then
                     success "$label : répond"

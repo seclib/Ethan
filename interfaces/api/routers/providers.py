@@ -61,6 +61,23 @@ async def list_providers():
     return [ProviderResponse(**p) for p in providers]
 
 
+# ── GET /providers/{id} ────────────────────────────────────────────────────
+
+@router.get("/{provider_id}", response_model=ProviderResponse)
+async def get_provider(provider_id: str):
+    """Détail d'un provider (statut de connexion rafraîchi)."""
+    manager = get_manager()
+
+    try:
+        provider = await manager.describe_provider(provider_id)
+        return ProviderResponse(**provider)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to get provider %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to get provider: {e}")
+
+
 # ── POST /providers ────────────────────────────────────────────────────────
 
 @router.post("", response_model=ProviderResponse, status_code=201)

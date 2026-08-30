@@ -350,7 +350,7 @@ check_docker_services() {
         "ethan-api:API Gateway:8000"
         "ethan-kernel:Core Kernel:8080"
         "ethan-modules:Cognitive Modules:—"
-        "ethan-ui:WebUI:3000"
+        "ethan-ui:WebUI:3001"
         "ethan-pg_backup:PostgreSQL Backup:—"
     )
 
@@ -419,7 +419,7 @@ check_http_connectivity() {
     section "5. Connectivité HTTP"
 
     local API_PORT="${API_PORT:-8000}"
-    local WEBUI_PORT="${PORT:-3000}"
+    local WEBUI_PORT="${PORT:-3001}"
 
     # API Gateway
     info "API Gateway (port ${API_PORT})..."

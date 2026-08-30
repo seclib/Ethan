@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { restoreAccent } from "@/lib/accent";
 
 type Theme = "dark" | "light" | "high-contrast" | "oled" | "system";
 
@@ -22,6 +23,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (stored) {
       setTheme(stored);
     }
+    // Restore persisted accent color (interface preference)
+    restoreAccent();
   }, []);
 
     // Helper : safely check a media query match (works in all environments)

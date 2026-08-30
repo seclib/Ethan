@@ -8,7 +8,7 @@ export interface DocumentRef {
 export interface ToolCall {
   name: string;
   durationMs: number;
-  status: "success" | "error";
+  status: "running" | "success" | "error";
   result?: string;
 }
 

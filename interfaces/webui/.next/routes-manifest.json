@@ -91,6 +91,12 @@
       "namedRegex": "^/cookbook(?:/)?$"
     },
     {
+      "page": "/diagnostics",
+      "regex": "^/diagnostics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/diagnostics(?:/)?$"
+    },
+    {
       "page": "/icon.png",
       "regex": "^/icon\\.png(?:/)?$",
       "routeKeys": {},

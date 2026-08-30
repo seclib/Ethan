@@ -208,3 +208,21 @@ export async function deleteRagDocument(id: string): Promise<{ status: string }>
 		method: 'DELETE',
 	});
 }
+
+/**
+ * Ingest an uploaded file (FileStore Core) into RAG.
+ * Optionally attaches the created document to a Knowledge collection.
+ * Maps to POST /v1/rag/documents/from-file/{file_id}
+ */
+export async function ingestFileIntoRag(
+	fileId: string,
+	opts?: { title?: string; collection_id?: string; force?: boolean },
+): Promise<RagDocument & { attached_collection_id?: string | null }> {
+	return apiFetch<RagDocument & { attached_collection_id?: string | null }>(
+		`/v1/rag/documents/from-file/${fileId}`,
+		{
+			method: 'POST',
+			body: JSON.stringify(opts ?? {}),
+		},
+	);
+}

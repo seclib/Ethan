@@ -18,7 +18,7 @@
 | `doctor` | Diagnostiquer l'installation | — |
 | `logs` | Afficher les logs | `[service...] [-f] [--tail=N]` |
 | `api` | Lancer l'API Gateway en dev | `[--port=8000] [--reload]` |
-| `webui` | Lancer l'interface web (dev) | `[--build] [--port=3000]` |
+| `webui` | Lancer l'interface web (dev) | `[--build] [--port=3001]` |
 | `cli` | Lancer le CLI | `[arguments...]` |
 | `desktop` | Lancer l'application desktop | `[--dev]` |
 | `update` | Mettre à jour ETHAN | `[--branch=main]` |
@@ -75,10 +75,10 @@ ethan/                    ← racine
 3. Vérifie si l'API répond sur `http://localhost:8000/api/v1/version`
 4. Si l'API est absente, lance `./ethan api` en arrière-plan
 5. Attend le healthcheck HTTP (timeout 30s)
-6. Lance Next.js en dev sur `http://localhost:3000`
+6. Lance Next.js en dev sur `http://localhost:3001`
 
 Résultat :
-- Frontend : `http://localhost:3000`
+- Frontend : `http://localhost:3001`
 - API : `http://localhost:8000`
 
 ### ./ethan api (dev local)
@@ -94,7 +94,7 @@ Résultat :
 1. Vérifie Docker (`require_docker`)
 2. Lance `docker compose up -d`
 3. Affiche les ports :
-   - Frontend : `http://localhost:3000`
+   - Frontend : `http://localhost:3001`
    - API : `http://localhost:8000`
    - NATS : `http://localhost:8222`
 

@@ -30,6 +30,11 @@ class RAGContext:
         self._max_context_chars = max_context_chars
         self._include_sources = include_sources
 
+    def set_max_context_chars(self, max_context_chars: int) -> None:
+        """Reconfigure la borne de contexte à chaud."""
+        if max_context_chars > 0:
+            self._max_context_chars = int(max_context_chars)
+
     def build_context(
         self,
         chunks: list[RetrievedChunk],

@@ -79,7 +79,7 @@ export async function toggleSkill(id: string): Promise<Skill> {
 	});
 }
 
-/** Execute a skill */
+/** Execute a skill (builtins, moteur à étapes du SkillManager) */
 export async function executeSkill(
 	id: string,
 	params: Record<string, unknown>,
@@ -91,4 +91,22 @@ export async function executeSkill(
 			body: JSON.stringify(params),
 		},
 	);
+}
+
+/** Run a catalogue skill via the ChatPipeline Core (moteur réel, contenu = instructions) */
+export async function runSkill(
+	id: string,
+	input: string,
+	opts?: { chat_id?: string; provider_id?: string; model?: string; user_id?: string },
+): Promise<{ skill_id: string; status: string; chat_id: string; output: string; metadata: Record<string, unknown> }> {
+	return apiFetch<{
+		skill_id: string;
+		status: string;
+		chat_id: string;
+		output: string;
+		metadata: Record<string, unknown>;
+	}>(`/v1/skills/${id}/run`, {
+		method: 'POST',
+		body: JSON.stringify({ input, ...opts }),
+	});
 }

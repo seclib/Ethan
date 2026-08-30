@@ -11,6 +11,7 @@ import {
   listEmailMessages, getEmailMessage, type EmailSummary,
 } from "@/lib/api/extensions";
 import { Inbox, RefreshCw, MailOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function InboxPage() {
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -36,14 +37,16 @@ export default function InboxPage() {
         <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, color: "var(--fg)" }}>
           <Inbox size={18} /> Boîte de réception
         </h1>
-        <button
-          className="icon-rail-btn"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
           title="Rafraîchir"
+          aria-label="Rafraîchir"
           onClick={() => messages.refetch()}
-          style={{ width: 32, height: 32 }}
         >
           <RefreshCw size={14} />
-        </button>
+        </Button>
       </header>
 
       {notConfigured ? (

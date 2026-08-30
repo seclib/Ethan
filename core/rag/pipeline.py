@@ -107,3 +107,86 @@ class RAGPipeline:
             self._ingestion.register_document(document)
             self._retrieval.register_document(document)
         self._loaded = True
+
+    # ── Configuration & statut du moteur (Step 4) ──────────────────────
+
+    def attach_llm_client(self, llm_client: Any) -> None:
+        """Branche un client LLM réel sur les embeddings (sortie du mode textuel)."""
+        self._ingestion._embeddings.configure(llm_client=llm_client)
+
+    def configure(
+        self,
+        *,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
+        top_k: int | None = None,
+        max_context_chars: int | None = None,
+        embedding_model: str | None = None,
+    ) -> dict[str, Any]:
+        """Applique une configuration au moteur existant (à chaud).
+
+        Les documents déjà ingérés conservent leur découpage : les nouveaux
+        paramètres s'appliquent aux ingestions suivantes.
+        """
+        self._ingestion.set_chunking(chunk_size, chunk_overlap)
+        if top_k is not None:
+            self._retrieval.set_top_k(int(top_k))
+        if max_context_chars is not None:
+            self._context.set_max_context_chars(int(max_context_chars))
+        if embedding_model is not None:
+            embeddings = self._ingestion._embeddings
+            embeddings.configure(model=embedding_model or None)
+        return self.get_config()
+
+    def get_config(self) -> dict[str, Any]:
+        """Retourne la configuration courante du moteur."""
+        embeddings = self._ingestion._embeddings
+        return {
+            "chunk_size": self._ingestion._chunk_size,
+            "chunk_overlap": self._ingestion._chunk_overlap,
+            "top_k": self._retrieval._top_k,
+            "max_context_chars": self._context._max_context_chars,
+            "embedding_model": embeddings._model,
+        }
+
+    def stats(self) -> dict[str, Any]:
+        """Statut d'indexation : volumes et mode d'embedding réel."""
+        embeddings = self._ingestion._embeddings
+        documents = self._ingestion.list_documents()
+        chunks = sum(len(doc.chunks) for doc in documents)
+        has_real_embeddings = (
+            embeddings._llm_client is not None
+            and any(
+                any(v != 0.0 for v in chunk.embedding)
+                for doc in documents
+                for chunk in doc.chunks
+            )
+        )
+        return {
+            "documents": len(documents),
+            "chunks": chunks,
+            "embedding_mode": "llm" if embeddings._llm_client is not None else "textual-fallback",
+            "indexed_embeddings": has_real_embeddings,
+            "embedding_model": embeddings._model,
+        }
+
+    _CONFIG_DOMAIN = "rag-config"
+
+    async def persist_config(self) -> None:
+        """Persiste la configuration courante (survit aux redémarrages)."""
+        await self._store.save(self._CONFIG_DOMAIN, "global", self.get_config())
+
+    async def load_persisted_config(self) -> dict[str, Any] | None:
+        """Applique la configuration persistée si elle existe."""
+        record = await self._store.get(self._CONFIG_DOMAIN, "global")
+        if not record:
+            return None
+        allowed = (
+            "chunk_size",
+            "chunk_overlap",
+            "top_k",
+            "max_context_chars",
+            "embedding_model",
+        )
+        payload = {k: v for k, v in record.items() if k in allowed and v is not None}
+        return self.configure(**payload)

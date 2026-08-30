@@ -22,7 +22,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
   const [currentStep, setCurrentStep] = useState(-1);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"authenticating" | "granted" | "failed">("authenticating");
-  const cancelledRef = useRef(false);
+    const cancelledRef = useRef(false);
 
   // Reset state when overlay becomes visible
   useEffect(() => {
@@ -97,7 +97,22 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#07090d]/95 backdrop-blur-sm"
         >
-          <div className="w-full max-w-[420px] px-6">
+                              <div className="w-full max-w-[420px] px-6">
+            {/* ANFSI Logo */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="flex justify-center mb-8"
+            >
+              <img
+                src="/anfsi-logo.png"
+                alt="ANFSI"
+                className="h-12 w-auto opacity-90"
+                draggable={false}
+              />
+            </motion.div>
+
             {/* Status title */}
             <motion.div
               initial={{ opacity: 0, y: -8 }}

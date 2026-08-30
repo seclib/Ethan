@@ -4,10 +4,11 @@ import * as React from "react";
 import { useProviders } from "@/components/features/providers/hooks/use-providers";
 import { ProviderFormDialog } from "@/components/features/providers/components/provider-form-dialog";
 import { ModelsPopover } from "@/components/features/providers/components/models-popover";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, RefreshCw, TestTube, Globe, Wifi, AlertCircle, LoaderCircle, ChevronDown } from "lucide-react";
+import { Plus, RefreshCw, TestTube, Globe, Wifi, AlertCircle, LoaderCircle, ChevronDown, Search, Server } from "lucide-react";
 import type { Provider, ProviderCreate, ProviderUpdate } from "@/lib/api/providers";
 
 const STATUS_CONFIG = {
@@ -111,6 +112,8 @@ export function ProvidersWorkspace() {
   const [editingProvider, setEditingProvider] = React.useState<Provider | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">("create");
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "connected" | "offline">("all");
 
   const handleCreate = () => {
     setEditingProvider(null);
@@ -130,17 +133,62 @@ export function ProvidersWorkspace() {
     }
   };
 
+  const q = search.trim().toLowerCase();
+  const filtered = providers.filter((p) => {
+    const matchesSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.type.toLowerCase().includes(q) ||
+      (p.base_url || "").toLowerCase().includes(q);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "connected" && p.status === "connected") ||
+      (statusFilter === "offline" && p.status !== "connected");
+    return matchesSearch && matchesStatus;
+  });
+
+  const StatusFilterButton = ({ value, label }: { value: "all" | "connected" | "offline"; label: string }) => (
+    <Button
+      size="sm"
+      variant={statusFilter === value ? "default" : "secondary"}
+      onClick={() => setStatusFilter(value)}
+    >
+      {label}
+    </Button>
+  );
+
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Providers LLM</h1>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isLoading} aria-label="Actualiser">
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          </Button>
+        <div className="flex h-full min-h-0 flex-col gap-4 p-6 overflow-y-auto">
+      <PageHeader
+        title="Providers LLM"
+        description="Connexions aux moteurs LLM (Ollama, OpenAI, Anthropic…) via le ProviderManager du Core."
+        icon={<Server className="h-5 w-5" />}
+        count={providers.length}
+        actions={
           <Button variant="default" size="sm" onClick={handleCreate} disabled={isCreating}>
             <Plus className="h-4 w-4" />
             Ajouter un provider
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un provider (nom, type, URL)…"
+            className="w-full rounded-lg border border-line-1 bg-bg-1 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-accent/50"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusFilterButton value="all" label="Tous" />
+          <StatusFilterButton value="connected" label="Connectés" />
+          <StatusFilterButton value="offline" label="Hors ligne" />
+          <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isLoading} aria-label="Actualiser">
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
         </div>
       </div>
@@ -150,9 +198,15 @@ export function ProvidersWorkspace() {
           <LoaderCircle className="mx-auto h-8 w-8 animate-spin" />
           <p className="mt-2">Chargement des providers…</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <p className="py-12 text-center text-foreground-tertiary">
+          {providers.length === 0
+            ? "Aucun provider configuré. Cliquez sur « Ajouter un provider » pour commencer."
+            : "Aucun provider ne correspond à cette recherche."}
+        </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {providers.map((p) => (
+          {filtered.map((p) => (
             <ProviderCard
               key={p.id}
               provider={p}
@@ -163,11 +217,6 @@ export function ProvidersWorkspace() {
               onRefetch={refetch}
             />
           ))}
-          {providers.length === 0 && !isLoading && (
-            <p className="text-center text-foreground-tertiary md:col-span-full">
-              Aucun provider configuré. Cliquez sur « Ajouter un provider » pour commencer.
-            </p>
-          )}
         </div>
       )}
 

@@ -49,6 +49,7 @@ from interfaces.api.routers.v1 import (
     set_knowledge_collections,
     set_skill_store,
     get_skill_store,
+    set_tool_manager,
     set_webui_store,
 )
 from interfaces.api.routers.cookbook import router as cookbook_router, set_cookbook_manager
@@ -229,6 +230,7 @@ async def lifespan(app: FastAPI):
         skill_store=skill_store,
         memory_store=webui_store,
         file_store=file_store,
+        knowledge_collections=knowledge_collections,
     )
     set_chat_pipeline(chat_pipeline)
     app.state.chat_pipeline = chat_pipeline
@@ -253,6 +255,12 @@ async def lifespan(app: FastAPI):
 
     tool_manager = ToolManager(store=domain_store)
     await tool_manager.initialize()
+
+    # Tools + Agents dans le ChatPipeline : la logique de tool-calling et de
+    # routage agent vit dans le Core ; l'API reste une passerelle HTTP.
+    chat_pipeline.set_tool_manager(tool_manager)
+    chat_pipeline.set_agent_manager(core_domains.agents)
+    set_tool_manager(tool_manager)
 
     # --- Skill manager (Core-owned skill execution) ---
     # The SkillManager composes a ToolManager (for step execution via
@@ -354,6 +362,22 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.exception("Failed to initialize ProviderManager: %s", exc)
         provider_manager = None
+
+    # ── RAG : embeddings réels + configuration persistée (Step 4) ──────
+    if provider_manager is not None:
+        try:
+            # Sort le RAG du mode textuel : les embeddings passent par les
+            # providers Core (ollama en priorité).
+            core_domains.rag.attach_llm_client(provider_manager)
+        except Exception as exc:
+            logger.exception("Failed to attach RAG embeddings client: %s", exc)
+    try:
+        applied = await core_domains.rag.load_persisted_config()
+        if applied:
+            logger.info("RAG config restored: %s", applied)
+        logger.info("RAG engine status: %s", core_domains.rag.stats())
+    except Exception as exc:
+        logger.exception("Failed to restore RAG config: %s", exc)
 
     # --- Model store (Core-owned custom model cards) ---
     # The ModelStore persists custom model cards (base_model_id, params, meta,

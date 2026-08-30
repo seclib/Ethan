@@ -18,8 +18,18 @@ import {
   Pencil,
   X,
   Loader2,
+  Upload,
+  Settings2,
 } from "lucide-react";
+import { uploadFile } from "@/lib/api/files";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  getRagConfig,
+  updateRagConfig,
+  type RagStats,
+} from "@/lib/api/rag";
+import { useUIStore } from "@/store/ui.store";
 
 export function KnowledgeWorkspace() {
   const {
@@ -35,6 +45,9 @@ export function KnowledgeWorkspace() {
     listCollectionDocuments,
     retrieveFromCollection,
     ingestDocument,
+    ingestFile,
+    isUploadingFile,
+    deleteDocument,
   } = useKnowledge();
 
   // Selection state
@@ -58,11 +71,64 @@ export function KnowledgeWorkspace() {
   const [addDocOpen, setAddDocOpen] = React.useState(false);
   const [selectedDocId, setSelectedDocId] = React.useState("");
   const [addingDoc, setAddingDoc] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Retrieve
   const [retrieveQuery, setRetrieveQuery] = React.useState("");
   const [retrieveResults, setRetrieveResults] = React.useState<any[]>([]);
   const [retrieving, setRetrieving] = React.useState(false);
+
+  // RAG engine (configuration réelle du moteur Core)
+  const addToast = useUIStore((s) => s.addToast);
+  const [ragOpen, setRagOpen] = React.useState(false);
+  const [ragStats, setRagStats] = React.useState<RagStats | null>(null);
+  const [ragForm, setRagForm] = React.useState({
+    chunk_size: 1000,
+    chunk_overlap: 200,
+    top_k: 5,
+    max_context_chars: 8000,
+    embedding_model: "",
+  });
+  const [ragSaving, setRagSaving] = React.useState(false);
+
+  const openRagPanel = async () => {
+    setRagOpen(true);
+    try {
+      const res = await getRagConfig();
+      setRagStats(res.stats);
+      setRagForm({
+        chunk_size: res.config.chunk_size,
+        chunk_overlap: res.config.chunk_overlap,
+        top_k: res.config.top_k,
+        max_context_chars: res.config.max_context_chars,
+        embedding_model: res.config.embedding_model || "",
+      });
+    } catch (err) {
+      addToast({ type: "error", message: err instanceof Error ? err.message : "Chargement RAG échoué" });
+      setRagOpen(false);
+    }
+  };
+
+  const handleRagSave = async () => {
+    setRagSaving(true);
+    try {
+      const res = await updateRagConfig({
+        chunk_size: Number(ragForm.chunk_size),
+        chunk_overlap: Number(ragForm.chunk_overlap),
+        top_k: Number(ragForm.top_k),
+        max_context_chars: Number(ragForm.max_context_chars),
+        ...(ragForm.embedding_model.trim()
+          ? { embedding_model: ragForm.embedding_model.trim() }
+          : {}),
+      });
+      setRagStats(res.stats);
+      addToast({ type: "success", message: "Configuration RAG appliquée" });
+    } catch (err) {
+      addToast({ type: "error", message: err instanceof Error ? err.message : "Sauvegarde RAG échouée" });
+    } finally {
+      setRagSaving(false);
+    }
+  };
 
   const filteredCollections = collections.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
@@ -132,6 +198,53 @@ export function KnowledgeWorkspace() {
     }
   };
 
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!window.confirm("Supprimer définitivement ce document du RAG ?")) return;
+    deleteDocument(documentId);
+    if (selectedCollectionId) {
+      // Rafraîchit la liste après la mutation (le document peut y être attaché).
+      window.setTimeout(async () => {
+        try {
+          const docs = await listCollectionDocuments(selectedCollectionId);
+          setCollectionDocs((prev) => ({ ...prev, [selectedCollectionId]: docs }));
+        } catch {
+          /* invalidation query suffit */
+        }
+      }, 500);
+    }
+  };
+
+  /**
+   * Upload → ingestion RAG → attachement à la collection courante.
+   * Réutilise le FileStore Core : aucun second système de fichiers.
+   */
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0 || !selectedCollectionId) return;
+    try {
+      for (const file of files) {
+        const record = await uploadFile(file, "admin");
+        ingestFile(record.id, { collection_id: selectedCollectionId });
+      }
+      // Rafraîchit la liste des documents après ingestion.
+      window.setTimeout(async () => {
+        try {
+          const docs = await listCollectionDocuments(selectedCollectionId);
+          setCollectionDocs((prev) => ({ ...prev, [selectedCollectionId]: docs }));
+        } catch {
+          /* invalidation query suffit */
+        }
+      }, 800);
+      setAddDocOpen(false);
+    } catch (err) {
+      console.error("Upload/ingestion failed", err);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleRetrieve = async () => {
     if (!selectedCollectionId || !retrieveQuery.trim()) return;
     setRetrieving(true);
@@ -146,15 +259,29 @@ export function KnowledgeWorkspace() {
   };
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title="Knowledge"
+        description="Bases de connaissances, documents et moteur RAG"
+        icon={<Database className="h-5 w-5" />}
+        count={collections.length}
+        actions={
+          <>
+            <Button size="sm" variant="secondary" onClick={openRagPanel} title="Moteur RAG">
+              <Settings2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              <span className="ml-1">Nouvelle</span>
+            </Button>
+          </>
+        }
+      />
+      <div className="flex min-h-0 flex-1">
       {/* Left panel: collections list */}
       <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1/40">
-        <div className="flex items-center justify-between border-b border-line-1 px-4 py-3">
-          <h2 className="text-sm font-semibold text-foreground">Knowledge Bases</h2>
-          <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            <span className="ml-1">Nouvelle</span>
-          </Button>
+        <div className="border-b border-line-1 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Bases de connaissances</h2>
         </div>
 
         <div className="p-3">
@@ -263,13 +390,22 @@ export function KnowledgeWorkspace() {
                           {doc.title || doc.id.slice(0, 12)}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleRemoveDocument(doc.id)}
-                        className="shrink-0 rounded p-1 text-foreground-tertiary opacity-0 transition-opacity hover:bg-bg-1 hover:text-red-400 group-hover:opacity-100"
-                        title="Retirer"
-                      >
-                        <FileMinus2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          onClick={() => handleRemoveDocument(doc.id)}
+                          className="rounded p-1 text-foreground-tertiary hover:bg-bg-1 hover:text-red-400"
+                          title="Retirer de la knowledge base"
+                        >
+                          <FileMinus2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDocument(doc.id)}
+                          className="rounded p-1 text-foreground-tertiary hover:bg-bg-1 hover:text-red-400"
+                          title="Supprimer définitivement du RAG"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {(collectionDocs[selectedCollection.id] || []).length === 0 && (
@@ -378,9 +514,149 @@ export function KnowledgeWorkspace() {
         </div>
       </Dialog>
 
+      {/* RAG engine dialog — configuration du moteur Core */}
+      <Dialog open={ragOpen} onOpenChange={setRagOpen} title="Moteur RAG ETHAN" size="md">
+        <div className="space-y-4">
+          {/* Statut d'indexation */}
+          {ragStats && (
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-line-1 bg-bg-1/50 p-3 text-sm">
+              <div>
+                <p className="text-xs text-foreground-tertiary">Mode d&apos;embedding</p>
+                <p
+                  className={cn(
+                    "font-medium",
+                    ragStats.embedding_mode === "llm" ? "text-green-500" : "text-amber-400",
+                  )}
+                >
+                  {ragStats.embedding_mode === "llm"
+                    ? `Réel (${ragStats.embedding_model || "défaut provider"})`
+                    : "Textuel (fallback)"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-foreground-tertiary">Index</p>
+                <p className="font-medium">
+                  {ragStats.documents} document(s) · {ragStats.chunks} chunk(s)
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Configuration — seuls les paramètres supportés par core/rag */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Chunk size (caractères)</label>
+              <Input
+                type="number"
+                min={100}
+                value={ragForm.chunk_size}
+                onChange={(e) => setRagForm((f) => ({ ...f, chunk_size: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Chunk overlap</label>
+              <Input
+                type="number"
+                min={0}
+                value={ragForm.chunk_overlap}
+                onChange={(e) => setRagForm((f) => ({ ...f, chunk_overlap: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Top-k (retrieval)</label>
+              <Input
+                type="number"
+                min={1}
+                value={ragForm.top_k}
+                onChange={(e) => setRagForm((f) => ({ ...f, top_k: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Contexte max (caractères)</label>
+              <Input
+                type="number"
+                min={500}
+                value={ragForm.max_context_chars}
+                onChange={(e) =>
+                  setRagForm((f) => ({ ...f, max_context_chars: Number(e.target.value) }))
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Modèle d&apos;embedding</label>
+            <Input
+              placeholder="ex : nomic-embed-text (vide = défaut du provider)"
+              value={ragForm.embedding_model}
+              onChange={(e) => setRagForm((f) => ({ ...f, embedding_model: e.target.value }))}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Utilisé via le provider Core (ollama en priorité). Les documents déjà
+              ingérés conservent leur index : ré-ingérez pour re-indexer.
+            </p>
+          </div>
+
+          <p className="rounded-lg border border-line-1 bg-bg-1/50 px-3 py-2 text-xs text-muted-foreground">
+            Moteur : <code>core/rag/pipeline.py</code> — indexation mémoire avec
+            persistance Core. Aucun vector store externe n&apos;est utilisé par ETHAN ;
+            ce paramètre n&apos;est donc pas exposé.
+          </p>
+
+          <div className="flex justify-end gap-2 border-t border-line-1 pt-4">
+            <Button variant="ghost" onClick={() => setRagOpen(false)}>
+              Fermer
+            </Button>
+            <Button variant="primary" onClick={handleRagSave} disabled={ragSaving}>
+              {ragSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Appliquer
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
       {/* Add document dialog */}
       <Dialog open={addDocOpen} onOpenChange={setAddDocOpen} title="Ajouter un document">
         <div className="space-y-4">
+          {/* Upload → ingestion RAG → attachement à la collection courante */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              Uploader un fichier
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingFile || !selectedCollectionId}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line-2 px-3 py-4 text-sm text-foreground-secondary transition-colors hover:border-accent/50 hover:bg-bg-3/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isUploadingFile ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {isUploadingFile
+                ? "Ingestion en cours…"
+                : "Cliquez pour choisir un fichier (ingéré puis attaché)"}
+            </button>
+            {!selectedCollectionId && (
+              <p className="text-xs text-foreground-tertiary">
+                Sélectionnez d&apos;abord une knowledge base.
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-foreground-tertiary">
+            <span className="h-px flex-1 bg-line-1" /> ou existant{" "}
+            <span className="h-px flex-1 bg-line-1" />
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Document</label>
             <select
@@ -404,6 +680,7 @@ export function KnowledgeWorkspace() {
           </div>
         </div>
       </Dialog>
+      </div>
     </div>
   );
 }

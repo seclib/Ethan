@@ -3,9 +3,16 @@ import { persist } from "zustand/middleware";
 
 interface UIState {
   // Sidebar
+  /** État runtime (ce qui est rendu). Toujours `true` au boot. */
   sidebarExpanded: boolean;
+  /**
+   * Préférence explicite de l'utilisateur (persistée). `null` = aucune
+   * préférence → la sidebar est DÉPLOYÉE par défaut à chaque session.
+   * Le collapse automatique mobile n'écrit JAMAIS cette préférence.
+   */
+  sidebarPreference: boolean | null;
   toggleSidebar: () => void;
-  setSidebarExpanded: (expanded: boolean) => void;
+  setSidebarExpanded: (expanded: boolean, persistPreference?: boolean) => void;
 
   // Inspector
   inspectorOpen: boolean;
@@ -45,8 +52,19 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       // Sidebar
       sidebarExpanded: true,
-      toggleSidebar: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-      setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
+      sidebarPreference: null,
+      // Action utilisateur (bouton collapse/expand) → mémorise la préférence.
+      toggleSidebar: () =>
+        set((state) => ({
+          sidebarExpanded: !state.sidebarExpanded,
+          sidebarPreference: !state.sidebarExpanded,
+        })),
+      // Changement programmatique (responsive, overlay…) : ne persiste que si demandé.
+      setSidebarExpanded: (expanded, persistPreference = false) =>
+        set((state) => ({
+          sidebarExpanded: expanded,
+          ...(persistPreference ? { sidebarPreference: expanded } : {}),
+        })),
 
       // Inspector
       inspectorOpen: false,
@@ -95,8 +113,17 @@ export const useUIStore = create<UIState>()(
     {
       name: "ethan-ui-storage",
       partialize: (state) => ({
-        sidebarExpanded: state.sidebarExpanded,
+        // Seule la préférence EXPLICITE est persistée — jamais l'état runtime,
+        // afin qu'une session neuve démarre toujours avec la sidebar déployée
+        // sauf choix explicite de l'utilisateur.
+        sidebarPreference: state.sidebarPreference,
       }),
+      // À l'hydratation : applique la préférence explicite s'il y en a une.
+      onRehydrateStorage: () => (state) => {
+        if (state && state.sidebarPreference !== null) {
+          state.sidebarExpanded = state.sidebarPreference;
+        }
+      },
     }
   )
 );

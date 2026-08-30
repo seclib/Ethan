@@ -9,7 +9,9 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { WebSocketProvider } from "@/providers/websocket-provider";
 import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/toast-provider";
-import { IconRail, AppSidebar } from "@/components/layout/sidebar";
+import { useUIStore } from "@/store/ui.store";
+import { AppSidebar } from "@/components/layout/sidebar";
+import { AppHeader } from "@/components/layout/app-header";
 import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { GlobalCommandPalette } from "@/components/layout/global-command-palette";
 import { GlobalInspector } from "@/components/layout/global-inspector";
@@ -23,6 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { sidebarExpanded, toggleSidebar } = useUIStore();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -43,16 +46,16 @@ export default function RootLayout({
                   <MissionControlOverlay />
                   <AtmosphereLayer />
 
-                  {/* Icon Rail — toujours visible (modèle Odysseus) */}
-                  <IconRail />
-
-                  {/* AppSidebar — LA sidebar unique, contenu contextuel */}
-                  <AppSidebar />
+                                    {/* AppSidebar — LA sidebar unique (chat + nav), repliable */ }
+                  <AppSidebar expanded={sidebarExpanded} onToggle={toggleSidebar} />
 
                   {/* Main Content */}
-                  <main
-                    style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column", background: "var(--bg)" }}
+                   <main
+                    style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column", background: "var(--bg)", overflow: "auto" }}
                   >
+                  {/* App Header global — masqué sur "/" (top bar chat dédiée) */}
+                                    {pathname !== "/" && <AppHeader />}
+
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.div
                         key={pathname}

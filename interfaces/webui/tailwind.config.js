@@ -96,7 +96,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
+        mono: ["Fira Code", "JetBrains Mono", "monospace"],
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       animation: {

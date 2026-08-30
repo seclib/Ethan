@@ -34,6 +34,8 @@ export interface ChatCompletionRequest {
 	collection_ids?: string[];
 	tool_ids?: string[];
 	file_ids?: string[];
+	/** Routage Chat → Agent (résolu par le Core). */
+	agent_id?: string;
 	metadata?: Record<string, unknown>;
 	knowledge_ids?: string[];
 }

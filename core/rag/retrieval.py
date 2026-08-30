@@ -64,6 +64,11 @@ class RAGRetrieval:
         """Remove a document from the retrieval index."""
         self._documents.pop(document_id, None)
 
+    def set_top_k(self, top_k: int) -> None:
+        """Reconfigure le nombre de chunks retournés par défaut."""
+        if top_k > 0:
+            self._top_k = int(top_k)
+
     async def retrieve(
         self,
         query: str,

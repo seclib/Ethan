@@ -85,6 +85,7 @@ export function useCreateAgent() {
 			model?: string;
 			provider?: string;
 			skill_ids?: string[];
+			metadata?: Record<string, unknown>;
 		}) => createAgent(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["agents"] });
@@ -102,6 +103,7 @@ export function useCreateAgent() {
 			model?: string;
 			provider?: string;
 			skill_ids?: string[];
+			metadata?: Record<string, unknown>;
 		}) => {
 			try {
 				const result = await mutation.mutateAsync(data);

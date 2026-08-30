@@ -22,7 +22,7 @@ npm run build
 npm run test:e2e
 ```
 
-Ouvrir [http://localhost:3000](http://localhost:3000)
+Ouvrir [http://localhost:3001](http://localhost:3001)
 
 ---
 

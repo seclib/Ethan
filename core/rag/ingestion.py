@@ -154,6 +154,13 @@ class RAGIngestion:
         logger.info("RAGIngestion: document %s ingested (%d chunks)", doc.id, len(doc.chunks))
         return doc
 
+    def set_chunking(self, chunk_size: int | None = None, chunk_overlap: int | None = None) -> None:
+        """Reconfigure le découpage à chaud (les documents déjà ingérés ne sont pas re-découpés)."""
+        if chunk_size is not None and chunk_size > 0:
+            self._chunk_size = int(chunk_size)
+        if chunk_overlap is not None and chunk_overlap >= 0:
+            self._chunk_overlap = int(chunk_overlap)
+
     def _chunk_text(self, text: str) -> list[str]:
         """Découpe un texte en chunks.
 

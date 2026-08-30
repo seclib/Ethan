@@ -58,3 +58,18 @@ class RAGEmbeddings:
         """
         result = await self.embed_texts([text])
         return result[0] if result else []
+
+    def configure(
+        self,
+        llm_client: Any | None = None,
+        model: str | None = None,
+    ) -> None:
+        """Reconfigure les embeddings à chaud (client LLM et/ou modèle).
+
+        Permet de passer du mode dégradé (fallback textuel) au mode réel
+        dès qu'un client LLM est disponible dans le Core.
+        """
+        if llm_client is not None:
+            self._llm_client = llm_client
+        if model is not None:
+            self._model = model

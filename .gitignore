@@ -186,3 +186,4 @@ tests/.pytest_cache/
 tests/.ruff_cache/
 interfaces/webui/docs/
 .claude/
+.venv-1/

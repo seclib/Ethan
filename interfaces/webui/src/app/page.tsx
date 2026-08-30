@@ -4,11 +4,19 @@ import * as React from "react";
 import { AssistantChat } from "@/components/features/assistant/components/assistant-chat";
 import { AssistantTopBar } from "@/components/features/assistant/components/assistant-top-bar";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
-import { useAgents } from "@/components/features/agents/hooks/use-agents";
 import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
+import { useActiveAgent } from "@/components/features/assistant/hooks/use-active-agent";
 import { useChats, type EthMessage } from "@/components/features/assistant/hooks/use-chats";
 import { listCollections } from "@/lib/api/knowledge";
+import { listSkills } from "@/lib/api/skills";
+import { listTools } from "@/lib/api/tools";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
+import {
+  ChatContextBar,
+  type ChatContextItem,
+} from "@/components/features/assistant/components/chat-context-bar";
+import { useRouter } from "next/navigation";
+import { useFacts } from "@/components/features/memory/hooks/use-memory";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
   const isUser = msg.role === "user";
@@ -19,11 +27,26 @@ function toDisplayMessage(msg: EthMessage): AssistantMessage {
     timestamp: new Date(msg.created_at).getTime(),
     status: msg.status,
     done: msg.done,
+    // Appels d'outils (builtin/MCP) — source de vérité ETHAN Core.
+    tools: msg.tools,
+    mcpCalls: msg.metadata?.mcpCalls as AssistantMessage["mcpCalls"],
+    model: msg.metadata?.model as string | undefined,
+    provider: msg.metadata?.provider as string | undefined,
   };
 }
 
 export default function ChatHomePage() {
-  const { agents } = useAgents();
+  // État agent UNIQUE (header [Agent ▼] ↔ composer ↔ payload) : le sélecteur
+  // du header et les cases du composer partagent ce même état via props.
+  const {
+    agents,
+    activeAgent,
+    selectedAgentId,
+    selectAgent,
+    recentAgentIds,
+    agentsLoading,
+    agentsError,
+  } = useActiveAgent();
   const { activeProvider, selectedProviderId, selectedModel, setModel } = useActiveModel();
   const {
     chats,
@@ -31,6 +54,7 @@ export default function ChatHomePage() {
     regularChats,
     messages,
     currentChatId,
+    isLoading,
     createChat,
     loadChats,
     loadChat,
@@ -46,28 +70,87 @@ export default function ChatHomePage() {
   } = useChats();
   const [attachedFileIds, setAttachedFileIds] = React.useState<string[]>([]);
   const [attachedFileNames, setAttachedFileNames] = React.useState<string[]>([]);
-  const [toolsEnabled, setToolsEnabled] = React.useState(false);
-  const [agentEnabled, setAgentEnabled] = React.useState(false);
-  const [knowledgeEnabled, setKnowledgeEnabled] = React.useState(false);
-  const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
+
+  // ── Catalogues (source : ETHAN Core via l'API) ─────────────────────────
+  const [skills, setSkills] = React.useState<{ id: string; name: string }[]>([]);
+  const [collections, setCollections] = React.useState<{ id: string; name: string }[]>([]);
+  const [tools, setTools] = React.useState<{ id: string; name: string }[]>([]);
+
+  // ── Sélections pour le chat (Open-WebUI style) ──────────────────────────
+  const [selectedSkillIds, setSelectedSkillIds] = React.useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = React.useState<string[]>([]);
   const [selectedToolIds, setSelectedToolIds] = React.useState<string[]>([]);
 
-  // Collections knowledge chargées à l'activation du toggle (source : Core).
+  // ── Contexte actif (ChatContextBar rendue sous le header) ────────────────
+  const [modelSelectorOpen, setModelSelectorOpen] = React.useState(false);
+  /** Facts mémoire (hook dédié — cache partagé avec /workspace). */
+  const { facts: memoryFacts } = useFacts();
+  const router = useRouter();
+
+  /**
+   * Capacités RÉSOLUES pour l'affichage = UNION (agent ∪ sélection composer),
+   * mêmes règles que core/chat/pipeline.py — recalculées ici UNIQUEMENT pour
+   * rendre le contexte visible. Un id non résoluble dans un catalogue chargé
+   * est exclu : la barre n'affiche jamais une capacité fantôme.
+   */
+  const resolveCapabilities = (
+    manual: string[],
+    fromAgent: unknown,
+    catalog: { id: string; name: string; detail?: string }[],
+  ): ChatContextItem[] => {
+    const ids = Array.from(new Set([...manual, ...((fromAgent ?? []) as string[])]));
+    return ids
+      .map((id) => catalog.find((c) => c.id === id))
+      .filter(
+        (c): c is { id: string; name: string; detail?: string } => !!c,
+      )
+      .map(({ id, name, detail }) => (detail ? { id, name, detail } : { id, name }));
+  };
+  const activeTools = resolveCapabilities(
+    selectedToolIds,
+    activeAgent?.metadata?.tool_ids,
+    tools.map((t) => ({ id: t.id, name: t.name, detail: (t as { badge?: string }).badge })),
+  );
+  const activeSkills = resolveCapabilities(
+    selectedSkillIds,
+    activeAgent?.skill_ids,
+    skills,
+  );
+  const activeKnowledge = resolveCapabilities(
+    selectedCollectionIds,
+    activeAgent?.metadata?.knowledge_ids,
+    collections,
+  );
+
+  // Charger les catalogues une seule fois au montage (source de vérité Core).
   React.useEffect(() => {
-    if (!knowledgeEnabled || selectedCollectionIds.length > 0) return;
     let cancelled = false;
-    listCollections()
-      .then((collections) => {
-        if (!cancelled) setSelectedCollectionIds(collections.map((c) => c.id));
-      })
-      .catch(() => {
-        // Pas de collections disponibles : le toggle restera sans effet RAG.
-      });
+    Promise.allSettled([listSkills(), listCollections(), listTools()]).then(
+      ([skillsRes, colsRes, toolsRes]) => {
+        if (cancelled) return;
+        if (skillsRes.status === "fulfilled") {
+          setSkills(skillsRes.value.map((s) => ({ id: s.id, name: s.name })));
+        }
+        if (colsRes.status === "fulfilled") {
+          setCollections(colsRes.value.map((c) => ({ id: c.id, name: c.name })));
+        }
+        if (toolsRes.status === "fulfilled") {
+          setTools(toolsRes.value.map((t) => ({ id: t.id, name: t.name, badge: t.provider })));
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [knowledgeEnabled, selectedCollectionIds.length]);
+  }, []);
+
+  // Helpers de bascule de sélection (opérateur toggle sur les ensembles).
+  const toggleSelection = (
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    id: string,
+  ) => {
+    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   // Load chats on mount
   React.useEffect(() => {
@@ -82,6 +165,21 @@ export default function ChatHomePage() {
     }
   }, [chats.length, createChat]);
 
+  /**
+   * Au chargement (refresh) : sélectionne automatiquement la conversation
+   * la plus récente afin d'afficher l'historique existant — comportement
+   * Open-WebUI. S'exécute aussi après la suppression de la conversation
+   * courante (currentChatId repasse à null).
+   */
+  React.useEffect(() => {
+    if (!currentChatId && chats.length > 0) {
+      const latest = [...chats].sort((a, b) =>
+        (b.updated_at || "").localeCompare(a.updated_at || ""),
+      )[0];
+      selectChat(latest.id);
+    }
+  }, [currentChatId, chats, selectChat]);
+
   // Load messages when a chat is selected
   React.useEffect(() => {
     if (currentChatId) {
@@ -94,7 +192,6 @@ export default function ChatHomePage() {
     [messages]
   );
 
-  const primaryAgent = agents?.[0];
   const agentStatusMap: Record<string, "run" | "idle" | "error"> = {
     running: "run",
     idle: "idle",
@@ -104,10 +201,12 @@ export default function ChatHomePage() {
   };
   
   const metrics: SessionMetrics = {
-    agentName: primaryAgent?.name || "ETHAN Core",
-    agentStatus: agentStatusMap[primaryAgent?.status || ""] || "idle",
-    model: selectedModel || primaryAgent?.model || "qwen2.5-coder",
-    provider: activeProvider?.name || primaryAgent?.provider || "ollama",
+    // Vérité affichée = agent réellement actif (sélection header/composer),
+    // plus le « premier agent de la liste ».
+    agentName: activeAgent?.name || "ETHAN Core",
+    agentStatus: agentStatusMap[activeAgent?.status || ""] || "idle",
+    model: selectedModel || activeAgent?.model || "qwen2.5-coder",
+    provider: activeProvider?.name || activeAgent?.provider || "ollama",
     cost: 0.0,
     duration: 0,
     tokensUsed: 0,
@@ -116,9 +215,9 @@ export default function ChatHomePage() {
 
   const currentChat = chats.find((c) => c.id === currentChatId);
 
-  const handleNewChat = async () => {
+  const handleNewChat = React.useCallback(async () => {
     await createChat("Nouvelle conversation");
-  };
+  }, [createChat]);
 
   // Publie l'état des conversations vers l'AppSidebar du shell (modèle Odysseus :
   // la sidebar du layout affiche les chats sur cette page).
@@ -139,6 +238,17 @@ export default function ChatHomePage() {
     return () => clearChatSidebar();
   }, [chats, pinnedChats, regularChats, currentChatId, handleNewChat, selectChat, deleteChat, togglePin, renameChat, setChatSidebar, clearChatSidebar]);
 
+  // Sélection déclenchée depuis la sidebar hors page chat (conversation-centric
+  // Open-WebUI) : la navigation vers "/" est déjà faite, on ouvre la conversation.
+  const pendingChatId = useChatSidebarStore((s) => s.pendingChatId);
+  const setPendingChat = useChatSidebarStore((s) => s.setPendingChat);
+  React.useEffect(() => {
+    if (pendingChatId) {
+      void selectChat(pendingChatId);
+      setPendingChat(null);
+    }
+  }, [pendingChatId, selectChat, setPendingChat]);
+
   /**
    * Flux d'envoi partagé : message simple, régénération (renvoi du dernier
    * message utilisateur) et édition (renvoi du contenu modifié) passent
@@ -154,11 +264,14 @@ export default function ChatHomePage() {
       provider_id: selectedProviderId ?? undefined,
       model: selectedModel ?? undefined,
       file_ids: attachedFileIds.length > 0 ? attachedFileIds : undefined,
-      tool_ids: toolsEnabled && selectedToolIds.length > 0 ? selectedToolIds : undefined,
+      skill_ids: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
+      tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
       // Le backend (/v1/chat/completions/stream) lit knowledge_ids.
-      knowledge_ids: knowledgeEnabled && selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
-      collection_ids: knowledgeEnabled && selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
-      metadata: agentEnabled && selectedAgentId ? { agent_id: selectedAgentId } : undefined,
+      knowledge_ids: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
+      collection_ids: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
+      // Routage Chat → Agent : résolu par le Core (provider/model/skills).
+      agent_id: selectedAgentId ?? undefined,
+      metadata: selectedAgentId ? { agent_id: selectedAgentId } : undefined,
     });
 
     setAttachedFileIds([]);
@@ -228,20 +341,51 @@ export default function ChatHomePage() {
   return (
     <div className="flex h-full min-h-0 w-full">
       <div className="flex h-full min-h-0 flex-1 flex-col">
-        <AssistantTopBar title={currentChat?.title || "Nouvelle conversation"} metrics={metrics} />
+        <AssistantTopBar
+          title={currentChat?.title || "Nouvelle conversation"}
+          metrics={metrics}
+          agents={agents}
+          agentsLoading={agentsLoading}
+          agentsError={agentsError}
+          selectedAgentId={selectedAgentId}
+          recentAgentIds={recentAgentIds}          onSelectAgent={selectAgent}
+          modelSelectorOpen={modelSelectorOpen}
+          onModelSelectorOpenChange={setModelSelectorOpen}
+        />
+        <ChatContextBar
+          tools={activeTools}
+          skills={activeSkills}
+          knowledge={activeKnowledge}
+          onCapabilityPageClick={(kind) =>
+            router.push(
+              kind === "tool" ? "/tools" : kind === "skill" ? "/skills" : "/knowledge",
+            )
+          }
+          memoryFactCount={memoryFacts?.length ?? null}
+          onMemoryClick={() => router.push("/workspace")}
+        />
         <AssistantChat
           messages={displayMessages}
           metrics={metrics}
+          chatId={currentChatId}
+          isLoading={isLoading}
           onSend={handleSend}
           onStop={handleStop}
           disabled={isStreaming}
           onFileAttached={handleFileAttached}
-          toolsEnabled={toolsEnabled}
-          agentEnabled={agentEnabled}
-          knowledgeEnabled={knowledgeEnabled}
-          onToggleTools={() => setToolsEnabled((v) => !v)}
-          onToggleAgent={() => setAgentEnabled((v) => !v)}
-          onToggleKnowledge={() => setKnowledgeEnabled((v) => !v)}
+          skills={skills}
+          collections={collections}
+          tools={tools}
+          agents={agents?.map((a) => ({ id: a.id, name: a.name })) || []}
+          selectedSkillIds={selectedSkillIds}
+          selectedCollectionIds={selectedCollectionIds}
+          selectedToolIds={selectedToolIds}
+          selectedAgentId={selectedAgentId}
+          selectedAgentName={activeAgent?.name ?? undefined}
+          onToggleSkill={(id) => toggleSelection(setSelectedSkillIds, id)}
+          onToggleCollection={(id) => toggleSelection(setSelectedCollectionIds, id)}
+          onToggleTool={(id) => toggleSelection(setSelectedToolIds, id)}
+          onSelectAgent={selectAgent}
           error={error}
           onDismissError={clearError}
           onRegenerate={handleRegenerate}

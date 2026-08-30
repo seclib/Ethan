@@ -145,8 +145,7 @@ export default function NotesPage() {
         >
           <Input placeholder="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required />
           <textarea
-            className="input min-h-[140px] w-full resize-y"
-            style={{ background: "var(--bg)" }}
+            className="min-h-[140px] w-full rounded-[var(--radius-sm)] border border-line-2 bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground-tertiary shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
             placeholder="Contenu…"
             value={content}
             onChange={(e) => setContent(e.target.value)}

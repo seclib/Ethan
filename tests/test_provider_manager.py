@@ -130,10 +130,20 @@ def test_default_provider_configs_shape():
     """Les configs par défaut seedent ollama activé + cloud désactivés."""
     manager = _new_manager()
     configs = manager._default_provider_configs()
-    assert set(configs.keys()) == {"ollama", "openai", "anthropic", "vllm", "custom"}
+    assert set(configs.keys()) == {
+        "ollama",
+        "openai",
+        "azure",
+        "anthropic",
+        "vllm",
+        "openrouter",
+        "custom",
+    }
     assert configs["ollama"]["enabled"] is True
     assert configs["openai"]["enabled"] is False
     assert configs["openai"]["type"] == "openai"
+    assert configs["azure"]["enabled"] is False
+    assert configs["openrouter"]["enabled"] is False
     assert configs["custom"]["type"] == "openai-compatible"
     # Aucune clé API dans les configs seedées
     for cfg in configs.values():

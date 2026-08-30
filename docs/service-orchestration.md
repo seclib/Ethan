@@ -191,9 +191,9 @@ curl -f http://localhost:8000/health
 curl -f http://localhost:8000/version
 ```
 
-### WebUI (port 3000)
+### WebUI (port 3001)
 ```bash
-curl -f http://localhost:3000/
+curl -f http://localhost:3001/
 ```
 
 ## Healthchecks Docker

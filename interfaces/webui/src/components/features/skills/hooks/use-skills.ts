@@ -15,6 +15,7 @@ import {
 	deleteSkill as apiDeleteSkill,
 	toggleSkill as apiToggleSkill,
 	executeSkill as apiExecuteSkill,
+	runSkill as apiRunSkill,
 	searchSkills,
 	type Skill,
 } from "@/lib/api/skills";
@@ -93,6 +94,17 @@ export function useSkills() {
 		},
 	});
 
+	/** Exécution d'une skill catalogue via le ChatPipeline (moteur réel). */
+	const runMutation = useMutation({
+		mutationFn: ({ id, input }: { id: string; input: string }) => apiRunSkill(id, input),
+		onSuccess: (result) => {
+			addToast({ type: "success", message: `Skill exécuté (${result.status})` });
+		},
+		onError: (err: Error) => {
+			addToast({ type: "error", message: err.message || "Échec d'exécution" });
+		},
+	});
+
 	return {
 		skills,
 		isLoading,
@@ -139,7 +151,16 @@ export function useSkills() {
 				return { data: null, error: err instanceof Error ? err.message : "Failed" };
 			}
 		},
+		runSkill: async (id: string, input: string) => {
+			try {
+				const result = await runMutation.mutateAsync({ id, input });
+				return { data: result, error: null };
+			} catch (err) {
+				return { data: null, error: err instanceof Error ? err.message : "Failed" };
+			}
+		},
 		isCreating: createMutation.isPending,
 		isExecuting: executeMutation.isPending,
+		isRunning: runMutation.isPending,
 	};
 }

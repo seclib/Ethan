@@ -10,6 +10,7 @@
 import * as React from "react";
 import { useSkills } from "@/components/features/skills/hooks/use-skills";
 import { SkillDialog, ExecuteSkillDialog } from "@/components/features/skills/components/skill-dialog";
+import { PageHeader } from "@/components/shared/page-header";
 import { useUIStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,9 +27,9 @@ export function SkillsWorkspace() {
     updateSkill,
     deleteSkill,
     toggleSkill,
-    executeSkill,
+    runSkill,
     isCreating,
-    isExecuting,
+    isRunning,
   } = useSkills();
   const addToast = useUIStore((s) => s.addToast);
 
@@ -37,6 +38,7 @@ export function SkillsWorkspace() {
   const [editingSkill, setEditingSkill] = React.useState<Skill | null>(null);
   const [execOpen, setExecOpen] = React.useState(false);
   const [execSkill, setExecSkill] = React.useState<Skill | null>(null);
+  const [execInput, setExecInput] = React.useState("");
   const [execResult, setExecResult] = React.useState<string>("");
   const [execError, setExecError] = React.useState<string | null>(null);
 
@@ -107,22 +109,24 @@ export function SkillsWorkspace() {
     if (!execSkill) return;
     setExecError(null);
     setExecResult("");
-    const r = await executeSkill(execSkill.id, {});
+    const r = await runSkill(execSkill.id, execInput);
     if (r.error) setExecError(r.error);
-    else if (r.data) {
-      if (r.data.status === "failed") setExecError(String(r.data.result) || "Échec");
-      else setExecResult(String(r.data.result ?? "(pas de résultat)"));
-    }
+    else if (r.data) setExecResult(String(r.data.output ?? "(pas de sortie)"));
   };
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Skills</h1>
-        <Button variant="default" size="sm" onClick={openCreate} disabled={isCreating}>
-          <Plus className="h-4 w-4" />
-          Nouveau skill
-        </Button>
-      </div>
+        <div className="flex h-full min-h-0 flex-col gap-4 p-6 overflow-y-auto">
+      <PageHeader
+        title="Skills"
+        description="Compétences ETHAN — instructions structurées pour outils et agents, gérées par SkillStore."
+        icon={<Code2 className="h-5 w-5" />}
+        count={skills.length}
+        actions={
+          <Button variant="default" size="sm" onClick={openCreate} disabled={isCreating}>
+            <Plus className="h-4 w-4" />
+            Nouveau skill
+          </Button>
+        }
+      />
 
       <Input
         placeholder="Rechercher un skill…"
@@ -178,21 +182,30 @@ export function SkillsWorkspace() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setExecSkill(skill);
-                    setExecResult("");
-                    setExecError(null);
-                    setExecOpen(true);
-                  }}
-                  disabled={!skill.is_active}
-                  title={skill.is_active ? "Exécuter" : "Activer le skill pour l'exécuter"}
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  Exécuter
-                </Button>
+                {(() => {
+                  const executable = !!(skill.content && skill.content.trim());
+                  // Condition B : on ne montre « Exécuter » que si la skill a un
+                  // contenu exécutable (injecté comme instructions par Core).
+                  if (!executable) return null;
+                  return (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setExecSkill(skill);
+                        setExecInput("");
+                        setExecResult("");
+                        setExecError(null);
+                        setExecOpen(true);
+                      }}
+                      disabled={!skill.is_active}
+                      title={skill.is_active ? "Exécuter la skill" : "Activer la skill pour l'exécuter"}
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      Exécuter
+                    </Button>
+                  );
+                })()}
               </div>
             </div>
           ))}
@@ -218,7 +231,9 @@ export function SkillsWorkspace() {
       <ExecuteSkillDialog
         open={execOpen}
         skill={execSkill}
-        isExecuting={isExecuting}
+        isExecuting={isRunning}
+        input={execInput}
+        setInput={setExecInput}
         error={execError}
         result={execResult}
         onClose={() => setExecOpen(false)}

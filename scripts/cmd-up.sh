@@ -343,7 +343,7 @@ if [ "$RUNNING" -eq 0 ] || [ "$TOTAL" -eq 0 ]; then
 elif [ "$HEALTHY" -eq "$TOTAL" ]; then
     success "$HEALTHY/$TOTAL services opérationnels (healthy)"
     echo
-    arrow "WebUI      : http://localhost:3000"
+    arrow "WebUI      : http://localhost:3001"
     arrow "API        : http://localhost:8000"
     arrow "Kernel     : http://localhost:8080"
     arrow "NATS mon.  : http://localhost:8222"

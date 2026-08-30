@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Wrench,
   Server,
@@ -62,6 +63,22 @@ export function ToolsWorkspace() {
   // Actions
   const [syncingId, setSyncingId] = React.useState<string | null>(null);
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
+
+  // Onglet piloté par le hash URL (#available | #configured | #mcp) :
+  // la sidebar v3 peut ouvrir directement « MCP » (/tools#mcp).
+  React.useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash.replace("#", "");
+      if (h === "mcp" || h === "available" || h === "configured") {
+        setActiveSection(h);
+        setSelectedToolId(null);
+        setSelectedServerId(null);
+      }
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
 
   const { data: tools = [], isLoading: toolsLoading, refetch: refetchTools } = useQuery({
     queryKey: ["tools"],
@@ -174,15 +191,24 @@ export function ToolsWorkspace() {
   };
 
   return (
-    <div className="flex h-full min-h-0">
-      {/* Left panel */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1/40">
-        <div className="flex items-center justify-between border-b border-line-1 px-4 py-3">
-          <h2 className="text-sm font-semibold text-foreground">Tools & MCP</h2>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader
+        title="Tools & MCP"
+        description="Outils du noyau, serveurs MCP et test des capacités"
+        icon={<Wrench className="h-5 w-5" />}
+        count={tools.length + servers.length}
+        actions={
           <Button size="sm" variant="primary" onClick={() => setAddServerOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
-            <span className="ml-1">MCP</span>
+            <span className="ml-1">Serveur MCP</span>
           </Button>
+        }
+      />
+      <div className="flex min-h-0 flex-1">
+      {/* Left panel */}
+      <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1/40">
+        <div className="border-b border-line-1 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Catalogue</h2>
         </div>
 
         <div className="p-3">
@@ -373,6 +399,7 @@ export function ToolsWorkspace() {
           </div>
         )}
       </Dialog>
+      </div>
     </div>
   );
 }

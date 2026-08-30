@@ -4,57 +4,67 @@ import * as React from "react";
 import { useUIStore } from "@/store/ui.store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Info, CheckCircle2, AlertTriangle, XCircle, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const toastIcons = {
-  info: <Info className="text-accent" size={18} />,
-  success: <CheckCircle2 className="text-green-400" size={18} />,
-  warning: <AlertTriangle className="text-amber-400" size={18} />,
-  error: <XCircle className="text-red-400" size={18} />,
+  info: <Info size={14} />,
+  success: <CheckCircle2 size={14} />,
+  warning: <AlertTriangle size={14} />,
+  error: <XCircle size={14} />,
 };
 
-const toastStyles = {
-  info: "border-accent-line bg-accent-soft",
-  success: "border-green-500/20 bg-green-500/10",
-  warning: "border-amber-500/20 bg-amber-500/10",
-  error: "border-red-500/20 bg-red-500/10",
+/* Style toast Odysseus : panneau sombre, bordure gauche 3px colorée,
+   texte 12px. Les couleurs passent par les tokens de thème (--accent,
+   --green, --amber/--gold, --red) pour rester cohérents avec le thème actif. */
+const toastAccent: Record<string, { borderLeft: string; iconColor: string }> = {
+  info: { borderLeft: "var(--accent)", iconColor: "var(--accent)" },
+  success: { borderLeft: "var(--green)", iconColor: "var(--green)" },
+  warning: { borderLeft: "var(--gold)", iconColor: "var(--gold)" },
+  error: { borderLeft: "var(--red)", iconColor: "var(--red)" },
 };
 
 export function ToastProvider() {
   const { toasts, removeToast } = useUIStore();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-3 pointer-events-none w-full max-w-sm">
+    <div className="fixed right-4 top-4 z-50 flex w-full max-w-[360px] flex-col gap-2 pointer-events-none">
       <AnimatePresence mode="popLayout">
-        {toasts.map((toast) => (
-          <motion.div
-            key={toast.id}
-            layout
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-            className={cn(
-              "pointer-events-auto flex items-start gap-3 p-4 rounded-xl border backdrop-blur-md shadow-lg",
-              "bg-background/80 border-line-2",
-              toastStyles[toast.type]
-            )}
-          >
-            <div className="shrink-0 mt-0.5">{toastIcons[toast.type]}</div>
-            
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground leading-tight">
-                {toast.message}
-              </p>
-            </div>
-            
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="shrink-0 p-1 rounded-md text-foreground-tertiary hover:text-foreground transition-colors"
+        {toasts.map((toast) => {
+          const accent = toastAccent[toast.type] ?? toastAccent.info;
+          return (
+            <motion.div
+              key={toast.id}
+              layout
+              initial={{ opacity: 0, x: "120%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "-120%", transition: { duration: 0.35 } }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              role="status"
+              aria-live="polite"
+              className="pointer-events-auto flex min-h-[34px] max-w-[360px] items-center gap-2 rounded-md py-2 pl-3 pr-2 text-xs backdrop-blur-md"
+              style={{
+                background: "color-mix(in srgb, var(--panel) 88%, transparent)",
+                color: "var(--fg)",
+                border: `1px solid color-mix(in srgb, ${accent.borderLeft} 30%, transparent)`,
+                borderLeft: `3px solid ${accent.borderLeft}`,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+              }}
             >
-              <X size={14} />
-            </button>
-          </motion.div>
-        ))}
+              <span className="shrink-0" style={{ color: accent.iconColor }}>
+                {toastIcons[toast.type]}
+              </span>
+
+              <p className="min-w-0 flex-1 leading-snug">{toast.message}</p>
+
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="shrink-0 rounded p-0.5 opacity-50 transition-opacity hover:opacity-100"
+                aria-label="Fermer"
+              >
+                <X size={12} />
+              </button>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
     </div>
   );

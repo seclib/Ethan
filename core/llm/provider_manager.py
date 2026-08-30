@@ -549,6 +549,29 @@ class ProviderManager:
 
     # ── Chat / utilisation (via LLMClient) ──────────────────────────────
 
+    async def embed(
+        self,
+        texts: list[str],
+        model: str | None = None,
+        provider_name: str | None = None,
+    ) -> list[list[float]]:
+        """Génère des embeddings via un provider capable.
+
+        Ordre de préférence : provider demandé → providers connus pour
+        supporter les embeddings (ollama…) → délégation au LLMClient.
+        """
+        if provider_name:
+            return await self._client.embed(texts, model=model, provider_name=provider_name)
+
+        for name in ("ollama", "openai", "azure", "vllm", "custom"):
+            provider = self._registry.get_provider(name)
+            if provider is not None and hasattr(provider, "embed"):
+                try:
+                    return await provider.embed(texts, model=model)
+                except Exception:
+                    logger.warning("Embed via %s failed, essai du provider suivant", name)
+        return await self._client.embed(texts, model=model)
+
     async def chat(
         self,
         messages: list[ChatMessage],

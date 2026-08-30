@@ -109,7 +109,7 @@ const setCookie = response.headers.get("set-cookie");
 
 The resulting behavior: the `Set-Cookie` header **may arrive** in the Next.js API route response, but:
 - The cookie domain may not match the browser's current origin
-- The `HttpOnly` + `SameSite=lax` attributes set by FastAPI are for `localhost:8000`, not for `localhost:3000` (the Next.js dev server)
+- The `HttpOnly` + `SameSite=lax` attributes set by FastAPI are for `localhost:8000`, not for `localhost:3001` (the Next.js dev server)
 
 **Net result:** The browser receives the JSON body with `access_token` but the `ethan_token` cookie is **never set** in the browser's cookie jar.
 

@@ -17,6 +17,7 @@ import {
 	type ChatCompletionResponse,
 	type ChatMessage,
 } from '@/lib/api/chat';
+import type { ToolCall } from '@/types/assistant';
 
 /** Chat entry as expected by the sidebar component (Open-WebUI style). */
 export interface EthChat {
@@ -39,6 +40,8 @@ export interface EthMessage {
 	status?: string;
 	done?: boolean;
 	metadata?: Record<string, unknown>;
+	/** Outils (builtin/MCP) invoqués dans ce message — source de vérité ETHAN Core. */
+	tools?: ToolCall[];
 }
 
 export interface UseChatsState {
@@ -77,6 +80,10 @@ export function useChats(): UseChatsState & UseChatsActions {
 	const [error, setError] = useState<string | null>(null);
 
 	const streamingBufferRef = useRef<string>('');
+	/** Accumulateur live des appels d'outils (builtin/MCP) du message en cours. */
+	const toolLogRef = useRef<ToolCall[]>([]);
+	/** Horodatage de démarrage par appel (clé = `${name}::${JSON.stringify(params)}`). */
+	const toolStartRef = useRef<Record<string, number>>({});
 	/** Contrôleur du flux en cours — permet l'arrêt réel de la génération. */
 	const abortRef = useRef<AbortController | null>(null);
 
@@ -264,10 +271,35 @@ export function useChats(): UseChatsState & UseChatsActions {
 		setMessages((prev) => [...prev, assistantMessage]);
 
 		streamingBufferRef.current = '';
+		toolLogRef.current = [];
+		toolStartRef.current = {};
 
 		/** Met à jour le message assistant en cours de streaming. */
 		const patchAssistant = (patch: Partial<EthMessage>) =>
 			setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, ...patch } : m)));
+
+		/** Inscrit/met à jour un appel d'outil dans le message assistant (affichage live). */
+		const patchToolCall = (
+			name: string,
+			params: unknown,
+			status: ToolCall['status'],
+			result?: string,
+			durationMs?: number,
+		) => {
+			const log = toolLogRef.current;
+			const idx = log.findIndex((t) => t.name === name && t.status === 'running');
+			if (idx === -1 && status !== 'running') return; // résultat orphelin
+			if (idx === -1) {
+				log.push({ name, status: 'running', durationMs: 0 });
+				toolStartRef.current[name] = Date.now();
+			} else {
+				const start = toolStartRef.current[name];
+				log[idx].status = status;
+				log[idx].durationMs = durationMs ?? (start ? Date.now() - start : 0);
+				if (result !== undefined) log[idx].result = result;
+			}
+			patchAssistant({ tools: [...log] });
+		};
 
 		try {
 			for await (const event of streamChatMessage(request, controller.signal)) {
@@ -277,6 +309,26 @@ export function useChats(): UseChatsState & UseChatsActions {
 					const chunk = event.content as string;
 					streamingBufferRef.current += chunk;
 					patchAssistant({ content: streamingBufferRef.current });
+					yield event;
+				} else if (eventType === 'content_replace') {
+					// Boucle d'outils : les blocs <tool> bruts sont remplacés
+					// côté backend par une note lisible — on resynchronise.
+					const replaced = (event.content as string) ?? '';
+					streamingBufferRef.current = replaced;
+					patchAssistant({ content: replaced });
+					yield event;
+				} else if (eventType === 'tool_call') {
+					// Appel d'outil détecté : on l'inscrit dans le message assistant.
+					const name = (event.tool as string) ?? 'outil';
+					const params = event.params ?? {};
+					patchToolCall(name, params, 'running');
+					yield event;
+				} else if (eventType === 'tool_result') {
+					// Résultat d'outil/MCP : on le lie à l'appel correspondant.
+					const name = (event.tool as string) ?? 'outil';
+					const status = (event.status as ToolCall['status']) === 'success' ? 'success' : 'error';
+					const result = (event.output as string) ?? '';
+					patchToolCall(name, undefined, status, result);
 					yield event;
 				} else if (eventType === 'done') {
 					const messageId = (event.message_id as string) || assistantId;

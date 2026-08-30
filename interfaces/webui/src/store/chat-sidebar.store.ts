@@ -22,8 +22,12 @@ export interface ChatSidebarState {
   onDeleteChat: ((chatId: string) => void) | null;
   onTogglePin: ((chatId: string, currentPinned: boolean) => void) | null;
   onRenameChat: ((chatId: string, title: string) => void) | null;
+  /** Conversation à ouvrir au prochain montage de la page chat
+   *  (sélection déclenchée depuis la sidebar hors page chat). */
+  pendingChatId: string | null;
+  setPendingChat: (id: string | null) => void;
   /** Enregistrement par la page chat */
-  setChatSidebar: (state: Partial<Omit<ChatSidebarState, "setChatSidebar" | "clearChatSidebar">>) => void;
+  setChatSidebar: (state: Partial<Omit<ChatSidebarState, "setChatSidebar" | "clearChatSidebar" | "pendingChatId" | "setPendingChat">>) => void;
   clearChatSidebar: () => void;
 }
 
@@ -41,13 +45,14 @@ export const useChatSidebarStore = create<ChatSidebarState>((set) => ({
   regularChats: [],
   currentChatId: null,
   ...emptyHandlers,
+  pendingChatId: null,
+  setPendingChat: (id) => set({ pendingChatId: id }),
   setChatSidebar: (partial) => set(partial),
   clearChatSidebar: () =>
     set({
-      chats: [],
-      pinnedChats: [],
-      regularChats: [],
-      currentChatId: null,
+      // Sidebar conversation-centric (Open-WebUI) : les DONNÉES de
+      // conversations restent visibles sur toutes les pages — seuls les
+      // handlers branchés sur la page chat sont démontés.
       ...emptyHandlers,
     }),
 }));

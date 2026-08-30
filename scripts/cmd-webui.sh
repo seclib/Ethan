@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ethan webui — Lancer l'interface web en mode développement
-# Usage: ./ethan webui [--build] [--port=3000]
+# Usage: ./ethan webui [--build] [--port=3001]
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/ethan-lib.sh"
 timer_start
 require_node
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-3001}"
 BUILD=false
 
 for arg in "$@"; do

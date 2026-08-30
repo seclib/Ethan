@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-3001}"
 HOST="${HOST:-127.0.0.1}"
 
 if ! command -v npm >/dev/null 2>&1; then

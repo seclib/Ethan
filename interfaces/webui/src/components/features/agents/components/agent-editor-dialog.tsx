@@ -10,6 +10,8 @@ import { useCreateAgent, useUpdateAgent, useAgent } from "@/components/features/
 import { useQuery } from "@tanstack/react-query";
 import { listProviders, type Provider } from "@/lib/api/providers";
 import { listSkills, type Skill } from "@/lib/api/skills";
+import { listCollections, type KnowledgeCollection } from "@/lib/api/knowledge";
+import { listTools, type CoreTool } from "@/lib/api/tools";
 import { X, Plus, Cpu } from "lucide-react";
 import type { Agent } from "@/types";
 
@@ -31,6 +33,8 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
   const [model, setModel] = React.useState("");
   const [provider, setProvider] = React.useState("");
   const [skillIds, setSkillIds] = React.useState<string[]>([]);
+  const [knowledgeIds, setKnowledgeIds] = React.useState<string[]>([]);
+  const [toolIds, setToolIds] = React.useState<string[]>([]);
 
   const { data: providers = [] } = useQuery<Provider[]>({
     queryKey: ["providers"],
@@ -39,6 +43,14 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
   const { data: skills = [] } = useQuery<Skill[]>({
     queryKey: ["skills"],
     queryFn: () => listSkills(),
+  });
+  const { data: collections = [] } = useQuery<KnowledgeCollection[]>({
+    queryKey: ["knowledge-collections"],
+    queryFn: () => listCollections(),
+  });
+  const { data: tools = [] } = useQuery<CoreTool[]>({
+    queryKey: ["tools"],
+    queryFn: () => listTools(),
   });
 
   const isEditing = !!agentId;
@@ -53,6 +65,8 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
       setModel(agent.model || "");
       setProvider(agent.provider || "");
       setSkillIds(agent.skill_ids || []);
+      setKnowledgeIds((agent.metadata?.knowledge_ids as string[]) || []);
+      setToolIds((agent.metadata?.tool_ids as string[]) || []);
     } else if (!isEditing) {
       // Reset form on new
       setName("");
@@ -61,6 +75,8 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
       setModel("");
       setProvider("");
       setSkillIds([]);
+      setKnowledgeIds([]);
+      setToolIds([]);
     }
   }, [agent, isEditing]);
 
@@ -89,6 +105,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
           model: model || undefined,
           provider: provider || undefined,
           skill_ids: skillIds,
+          metadata: { knowledge_ids: knowledgeIds, tool_ids: toolIds },
         });
       } else {
         await createAgent({
@@ -98,6 +115,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
           model: model || undefined,
           provider: provider || undefined,
           skill_ids: skillIds,
+          metadata: { knowledge_ids: knowledgeIds, tool_ids: toolIds },
         });
       }
       onOpenChange(false);
@@ -199,6 +217,76 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                     ))
                   )}
                 </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Les instructions de chaque skill sont injectées dans chaque conversation utilisant cet agent.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Knowledge
+                </label>
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {collections.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">No knowledge available.</span>
+                  ) : (
+                    collections.map((collection) => (
+                      <label key={collection.id} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={knowledgeIds.includes(collection.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setKnowledgeIds((prev) => [...prev, collection.id]);
+                            } else {
+                              setKnowledgeIds((prev) => prev.filter((id) => id !== collection.id));
+                            }
+                          }}
+                          className="accent-accent"
+                        />
+                        <span className="text-xs text-foreground-secondary">{collection.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Documents RAG automatiquement consultés dans chaque conversation utilisant cet agent.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Tools
+                </label>
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {tools.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">No tools available.</span>
+                  ) : (
+                    tools.map((tool) => (
+                      <label key={tool.id} className="flex items-center gap-1.5 cursor-pointer" title={tool.description}>
+                        <input
+                          type="checkbox"
+                          checked={toolIds.includes(tool.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setToolIds((prev) => [...prev, tool.id]);
+                            } else {
+                              setToolIds((prev) => prev.filter((id) => id !== tool.id));
+                            }
+                          }}
+                          className="accent-accent"
+                        />
+                        <span className="text-xs text-foreground-secondary">{tool.name}</span>
+                        <Badge variant={tool.provider === "builtin" ? "dim" : "info"} className="text-[9px] px-1 py-0">
+                          {tool.provider}
+                        </Badge>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Outils que le LLM peut invoquer (builtin, custom ou MCP découverts). Exécutés par ETHAN Core.
+                </p>
               </div>
 
               <div>

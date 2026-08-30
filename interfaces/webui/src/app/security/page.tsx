@@ -122,7 +122,7 @@ export default function SecurityPage() {
             <Input placeholder="Nom d'utilisateur" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="w-48" required />
             <Input type="password" placeholder="Mot de passe (≥6)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-48" required minLength={6} />
             <select value={newRole} onChange={(e) => setNewRole(e.target.value as "user" | "admin")}
-              className="input h-10 rounded-lg px-3 text-sm" style={{ background: "var(--bg)", color: "var(--fg)", border: "1px solid var(--border)" }}>
+              className="h-10 rounded-[var(--radius-sm)] border border-line-2 bg-background px-3 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/50">
               <option value="user">user</option>
               <option value="admin">admin</option>
             </select>

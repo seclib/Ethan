@@ -35,7 +35,7 @@ else
 fi
 
 # 4. Ports libres
-PORTS="8000 8080 3000 4222 6379 5432"
+PORTS="8000 8080 3001 4222 6379 5432"
 for port in $PORTS; do
     if ss -tuln 2>/dev/null | grep -q ":${port} " || netstat -tuln 2>/dev/null | grep -q ":${port} "; then
         echo "  FAIL port ${port} occupé"

@@ -15,6 +15,7 @@ import {
 	addDocumentToCollection as apiAddDocumentToCollection,
 	removeDocumentFromCollection as apiRemoveDocumentFromCollection,
 	retrieveFromCollection as apiRetrieveFromCollection,
+	ingestFileIntoRag as apiIngestFileIntoRag,
 	type KnowledgeNode,
 	type KnowledgeCollection,
 	type RagDocument,
@@ -112,10 +113,42 @@ export function useKnowledge() {
 			ingestRagDocument(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["ragDocuments"] });
-			addToast({ type: "success", message: "Document ingested into RAG" });
+			queryClient.invalidateQueries({ queryKey: ["knowledgeCollections"] });
+			addToast({ type: "success", message: "Document ingéré dans le RAG" });
 		},
 		onError: (err) => {
-			addToast({ type: "error", message: err instanceof Error ? err.message : "Failed to ingest document" });
+			addToast({ type: "error", message: err instanceof Error ? err.message : "Échec de l'ingestion du document" });
+		},
+	});
+
+	/** Ingestion d'un fichier uploadé (FileStore Core) vers le RAG (+ collection). */
+	const ingestFileMutation = useMutation({
+		mutationFn: ({
+			fileId,
+			opts,
+		}: {
+			fileId: string;
+			opts?: { title?: string; collection_id?: string; force?: boolean };
+		}) => apiIngestFileIntoRag(fileId, opts),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["ragDocuments"] });
+			queryClient.invalidateQueries({ queryKey: ["knowledgeCollections"] });
+			addToast({ type: "success", message: "Fichier ingesté dans la Knowledge" });
+		},
+		onError: (err) => {
+			addToast({ type: "error", message: err instanceof Error ? err.message : "Échec d'ingestion du fichier" });
+		},
+	});
+
+	const deleteDocumentMutation = useMutation({
+		mutationFn: (id: string) => deleteRagDocument(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["ragDocuments"] });
+			queryClient.invalidateQueries({ queryKey: ["knowledgeCollections"] });
+			addToast({ type: "success", message: "Document supprimé" });
+		},
+		onError: (err) => {
+			addToast({ type: "error", message: err instanceof Error ? err.message : "Échec de suppression du document" });
 		},
 	});
 
@@ -135,6 +168,16 @@ export function useKnowledge() {
 
 	const ingestDocument = (data: { content: string; title?: string; source?: string }) =>
 		ingestDocumentMutation.mutate(data);
+
+	/** Upload déjà fait côté FileStore : ingestion RAG + attachement collection. */
+	const ingestFile = (
+		fileId: string,
+		opts?: { title?: string; collection_id?: string; force?: boolean },
+	) => ingestFileMutation.mutate({ fileId, opts });
+
+	const isUploadingFile = ingestFileMutation.isPending;
+
+	const deleteDocument = (id: string) => deleteDocumentMutation.mutate(id);
 
 	const listCollectionDocuments = async (collectionId: string) => {
 		return apiListCollectionDocuments(collectionId);
@@ -165,5 +208,8 @@ export function useKnowledge() {
 		listCollectionDocuments,
 		retrieveFromCollection,
 		ingestDocument,
+		ingestFile,
+		isUploadingFile,
+		deleteDocument,
 	};
 }

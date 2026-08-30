@@ -49,7 +49,7 @@ export default function ResearchPage() {
         <select
           value={depth}
           onChange={(e) => setDepth(Number(e.target.value))}
-          className="input"
+          className="h-10 rounded-[var(--radius-sm)] border border-line-2 bg-background px-3 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
           style={{ width: 130 }}
           aria-label="Profondeur"
         >

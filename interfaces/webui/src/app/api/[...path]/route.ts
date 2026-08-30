@@ -136,7 +136,7 @@ async function proxyRequest(request: NextRequest) {
     // The backend sets HttpOnly cookies via response.set_cookie(), but
     // this route handler proxies via server-side fetch(). The Set-Cookie
     // from the backend is bound to the backend origin (e.g. :8000), NOT
-    // the browser origin (:3000). We read the token from the JSON body
+    // the browser origin (:3001). We read the token from the JSON body
     // and set the cookie directly on the NextResponse.
     const cookieOpts = {
       httpOnly: true,
