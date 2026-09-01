@@ -14,39 +14,24 @@
  * simplement `agent_id`.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAgents } from "@/components/features/agents/hooks/use-agents";
 import { useUIStore } from "@/store/ui.store";
+import { useAgentStore } from "@/store/agent.store";
 import type { Agent } from "@/types";
 
-const STORAGE_AGENT = "ethan.active-agent";
-const STORAGE_RECENT = "ethan.recent-agents";
 const MAX_RECENT = 3;
-
-/** Historique local des derniers agents utilisés (max 3 ids). */
-function readRecentAgents(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_RECENT);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string").slice(0, MAX_RECENT)
-      : [];
-  } catch {
-    return [];
-  }
-}
 
 export function useActiveAgent() {
   const { agents, isLoading, error } = useAgents();
   const addToast = useUIStore((s) => s.addToast);
 
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem(STORAGE_AGENT);
-  });
-
-  const [recentIds, setRecentIds] = useState<string[]>(readRecentAgents);
+  // État partagé (store zustand) : AgentSelector, AssistantTopBar et la page
+  // chat lisent/écrivent la MÊME instance — la sélection du sélecteur est
+  // immédiatement reflétée dans le payload chat (`agent_id`).
+  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const recentIds = useAgentStore((s) => s.recentAgentIds);
+  const setSelection = useAgentStore((s) => s.setSelection);
 
   /**
    * Agent disparu (supprimé côté Core pendant que la préférence locale
@@ -59,8 +44,7 @@ export function useActiveAgent() {
     if (!selectedAgentId || validatedRef.current === selectedAgentId) return;
     if (!agents.some((a) => a.id === selectedAgentId)) {
       validatedRef.current = null;
-      setSelectedAgentId(null);
-      window.localStorage.removeItem(STORAGE_AGENT);
+      setSelection(null, recentIds);
       addToast({
         type: "warning",
         message: "L'agent précédemment sélectionné n'est plus disponible.",
@@ -68,28 +52,18 @@ export function useActiveAgent() {
     } else {
       validatedRef.current = selectedAgentId;
     }
-  }, [agents, selectedAgentId, isLoading, addToast]);
+  }, [agents, selectedAgentId, isLoading, addToast, setSelection, recentIds]);
 
-  const pushRecent = useCallback((id: string) => {
-    setRecentIds((prev) => {
-      const next = [id, ...prev.filter((x) => x !== id)].slice(0, MAX_RECENT);
-      window.localStorage.setItem(STORAGE_RECENT, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  /** Sélection (id ou null = Sans agent), persistée localement. */
+  /** Sélection (id ou null = Sans agent), persistée via le store partagé. */
   const selectAgent = useCallback(
     (id: string | null) => {
-      setSelectedAgentId(id);
-      if (id == null) {
-        window.localStorage.removeItem(STORAGE_AGENT);
-      } else {
-        window.localStorage.setItem(STORAGE_AGENT, id);
-        pushRecent(id);
-      }
+      const nextRecent =
+        id == null
+          ? recentIds
+          : [id, ...recentIds.filter((x) => x !== id)].slice(0, MAX_RECENT);
+      setSelection(id, nextRecent);
     },
-    [pushRecent],
+    [setSelection, recentIds],
   );
 
   const activeAgent: Agent | null =

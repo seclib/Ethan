@@ -33,6 +33,19 @@ async def list_recipes():
     return recipes
 
 
+@router.get("/recipes/{recipe_id}")
+async def get_recipe(recipe_id: str):
+    manager = _require()
+    try:
+        detail = manager.get_recipe(recipe_id)
+    except ValueError as exc:
+        status = 404 if "not found" in str(exc) else 422
+        raise HTTPException(status, str(exc)) from exc
+    installed = {r.get("recipe_id") for r in await manager.list_installed()}
+    detail["installed"] = recipe_id in installed
+    return detail
+
+
 @router.get("/installed")
 async def list_installed():
     return await _require().list_installed()

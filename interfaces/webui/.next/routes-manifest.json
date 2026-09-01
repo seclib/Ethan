@@ -79,6 +79,12 @@
       "namedRegex": "^/agents(?:/)?$"
     },
     {
+      "page": "/analytics",
+      "regex": "^/analytics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/analytics(?:/)?$"
+    },
+    {
       "page": "/calendar",
       "regex": "^/calendar(?:/)?$",
       "routeKeys": {},
@@ -95,6 +101,18 @@
       "regex": "^/diagnostics(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/diagnostics(?:/)?$"
+    },
+    {
+      "page": "/gallery",
+      "regex": "^/gallery(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/gallery(?:/)?$"
+    },
+    {
+      "page": "/groups",
+      "regex": "^/groups(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/groups(?:/)?$"
     },
     {
       "page": "/icon.png",
@@ -137,6 +155,12 @@
       "regex": "^/notes(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/notes(?:/)?$"
+    },
+    {
+      "page": "/plugins",
+      "regex": "^/plugins(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/plugins(?:/)?$"
     },
     {
       "page": "/providers",

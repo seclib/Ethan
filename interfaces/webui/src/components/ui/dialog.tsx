@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
+import { useOverlayStore } from "@/store/overlay.store";
 
 interface DialogContextType {
   open: boolean;
@@ -37,8 +38,24 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
     // Save & restore focus on open/close for keyboard accessibility
   const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
+  const overlayIdRef = React.useRef(`dialog-${Math.random().toString(36).slice(2)}`);
+  const handleCloseRef = React.useRef(handleClose);
+  handleCloseRef.current = handleClose;
 
-  // Focus trap + Escape + tab cycling (a11y)
+  // Pile ESC centralisée : la couche s'enregistre à l'ouverture et se retire
+  // à la fermeture. L'Escape est géré par `OverlayEscHandler` (top de pile
+  // uniquement) — plus de fermeture locale qui pourrait fermer une couche
+  // masquée par un drawer/une modale au-dessus.
+  React.useEffect(() => {
+    if (!open) return;
+    const unregister = useOverlayStore.getState().push({
+      id: overlayIdRef.current,
+      onClose: () => handleCloseRef.current(),
+    });
+    return unregister;
+  }, [open]);
+
+  // Focus trap + tab cycling (a11y). L'Escape est délégué à la pile globale.
   React.useEffect(() => {
     if (!open) {
       previouslyFocusedRef.current?.focus?.();
@@ -59,12 +76,6 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
     ].join(",");
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleClose();
-        return;
-      }
-
       // Tab key focus trap
       if (e.key === "Tab" && dialogRef.current) {
         const focusableEls: HTMLElement[] = Array.from(
@@ -123,7 +134,7 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
           aria-hidden="true"
         />
 
-                {/* Panel — style Odysseus (.modal-content) */}
+                                {/* Panel — style modal (.modal-content) */}
         <div
           ref={dialogRef}
           tabIndex={-1}

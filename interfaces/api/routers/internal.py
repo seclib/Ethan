@@ -89,7 +89,9 @@ async def get_audit_summary(since: str | None = None):
 async def search_audit(q: str = Query("", min_length=1)):
     """Recherche dans l'audit."""
     if _audit is None:
-        return {"error": "Audit module not initialized"}, 503
+        # Fix : un tuple (dict, 503) est sérialisé comme corps JSON par
+        # FastAPI (statut 200) — il faut une vraie HTTPException.
+        raise HTTPException(status_code=503, detail="Audit module not initialized")
     entries = _audit.search(q)
     return [e.to_dict() for e in entries]
 
@@ -98,7 +100,7 @@ async def search_audit(q: str = Query("", min_length=1)):
 async def log_audit_entry(entry: dict[str, Any]):
     """Crée une entrée d'audit manuellement."""
     if _audit is None:
-        return {"error": "Audit module not initialized"}, 503
+        raise HTTPException(status_code=503, detail="Audit module not initialized")
     result = _audit.log(
         category=entry.get("category", "system"),
         decision=entry.get("decision", "auto"),

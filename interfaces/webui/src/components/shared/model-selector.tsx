@@ -191,7 +191,7 @@ export function ModelSelector({
       {/* Dropdown partagé full / compact */}
       {isOpen && (
         <div
-          className={`absolute z-50 mt-2 w-80 rounded-md border border-line-1 bg-bg-2 shadow-lg ${
+          className={`absolute z-popover mt-2 w-80 rounded-md border border-line-1 bg-bg-2 shadow-lg ${
             isCompact ? "right-0" : "left-0"
           }`}
           role="listbox"

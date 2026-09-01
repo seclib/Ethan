@@ -321,7 +321,7 @@ function AppearanceSection() {
   const { theme, setTheme } = useTheme();
   const sidebarExpanded = useUIStore((s) => s.sidebarExpanded);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const [accentId, setAccentId] = React.useState<string>("odysseus");
+    const [accentId, setAccentId] = React.useState<string>("ethan");
 
   React.useEffect(() => {
     setAccentId(getActiveAccentId());

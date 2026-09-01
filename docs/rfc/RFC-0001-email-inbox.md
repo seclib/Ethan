@@ -11,7 +11,7 @@ Boîte de réception e-mail unifiée exposée comme capacité Core (lecture,
 recherche, brouillons), rendue par une interface WebUI dédiée.
 
 ## Origine
-Fonctionnalité phare d'Odysseus (emailInbox.js, emailLibrary). Aucun
+Fonctionnalité inspirée d'un assistant IA conversationnel référent. Aucun
 équivalent HTTP n'existe aujourd'hui dans ETHAN : seul un lecteur
 skill (`core/skills/builtin/email_reader.py`) et des connecteurs
 (Gmail) existent côté skills.

@@ -41,6 +41,8 @@ class CapabilityManagers:
         tool_servers: Any | None = None,
         prompts: Any | None = None,
         scim: Any | None = None,
+        ldap: Any | None = None,
+        oauth: Any | None = None,
         skills: Any | None = None,
     ) -> None:
         self.automations = automations
@@ -55,6 +57,8 @@ class CapabilityManagers:
         self.tool_servers = tool_servers
         self.prompts = prompts
         self.scim = scim
+        self.ldap = ldap
+        self.oauth = oauth
         self.skills = skills
 
 
@@ -716,30 +720,123 @@ async def delete_prompt(prompt_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SCIM
+# SCIM / LDAP / OAuth — fournisseurs d'identité (Core-owned)
 # ═══════════════════════════════════════════════════════════════════════════
+#
+# Politique secrets : AUCUN secret (bearer_token, bind_password, client_secret)
+# ne transite dans une réponse GET. La lecture expose uniquement un booléen
+# `<champ>_set`. À l'écriture, un champ sensible laissé vide préserve la
+# valeur existante (l'admin peut modifier la configuration sans ressaisir le
+# secret). Les secrets restent dans le CoreRecordStore du Core.
+
+
+def _redact(config: dict[str, Any] | None, secret_field: str) -> dict[str, Any]:
+    """Return a copy of a provider config with the secret field redacted."""
+    if not config:
+        return {}
+    redacted = dict(config)
+    redacted.pop(secret_field, None)
+    redacted[f"{secret_field}_set"] = bool(config.get(secret_field))
+    return redacted
+
 
 @router.get("/scim/config")
 async def get_scim_config():
     manager = _require(_managers.scim, "SCIM")
-    return await manager.get_config() or {}
+    return _redact(await manager.get_config(), "bearer_token")
 
 
 @router.post("/scim/config", dependencies=[Depends(require_permission(Permission.WRITE))])
 async def configure_scim(data: dict[str, Any]):
     manager = _require(_managers.scim, "SCIM")
+    existing = await manager.get_config() or {}
+    # Secret write-only : vide => on conserve la valeur actuelle du Core.
+    bearer_token = data.get("bearer_token") or existing.get("bearer_token", "")
     try:
-        return await manager.configure(
+        config = await manager.configure(
             enabled=bool(data.get("enabled", False)),
             base_url=data.get("base_url", ""),
-            bearer_token=data.get("bearer_token", ""),
+            bearer_token=bearer_token,
             metadata=data.get("metadata"),
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    return _redact(config, "bearer_token")
 
 
 @router.get("/scim/status")
 async def get_scim_status():
     manager = _require(_managers.scim, "SCIM")
     return {"enabled": await manager.is_enabled()}
+
+
+# ── LDAP ─────────────────────────────────────────────────────────────────────
+
+@router.get("/ldap/config")
+async def get_ldap_config():
+    manager = _require(_managers.ldap, "LDAP")
+    return _redact(await manager.get_config(), "bind_password")
+
+
+@router.post("/ldap/config", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def configure_ldap(data: dict[str, Any]):
+    manager = _require(_managers.ldap, "LDAP")
+    existing = await manager.get_config() or {}
+    bind_password = data.get("bind_password") or existing.get("bind_password", "")
+    try:
+        config = await manager.configure(
+            server_url=data.get("server_url", ""),
+            bind_dn=data.get("bind_dn", ""),
+            bind_password=bind_password,
+            user_search_base=data.get("user_search_base", ""),
+            user_search_filter=data.get("user_search_filter", "(uid={username})"),
+            tls_enabled=bool(data.get("tls_enabled", False)),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return _redact(config, "bind_password")
+
+
+@router.get("/ldap/status")
+async def get_ldap_status():
+    manager = _require(_managers.ldap, "LDAP")
+    return {"enabled": await manager.is_enabled()}
+
+
+# ── OAuth ────────────────────────────────────────────────────────────────────
+
+@router.get("/oauth/providers")
+async def list_oauth_providers():
+    manager = _require(_managers.oauth, "OAuth")
+    providers = await manager.list_providers()
+    return [_redact(p, "client_secret") for p in providers or []]
+
+
+@router.post("/oauth/providers", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def register_oauth_provider(data: dict[str, Any]):
+    manager = _require(_managers.oauth, "OAuth")
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise HTTPException(422, "OAuth provider name is required")
+    try:
+        provider = await manager.register_provider(
+            name=name,
+            client_id=data.get("client_id", ""),
+            client_secret=data.get("client_secret", ""),
+            authorize_url=data.get("authorize_url", ""),
+            token_url=data.get("token_url", ""),
+            userinfo_url=data.get("userinfo_url", ""),
+            scopes=data.get("scopes"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return _redact(provider, "client_secret")
+
+
+@router.post("/oauth/providers/{name}/disable", dependencies=[Depends(require_permission(Permission.WRITE))])
+async def disable_oauth_provider(name: str):
+    manager = _require(_managers.oauth, "OAuth")
+    provider = await manager.disable_provider(name)
+    if provider is None:
+        raise HTTPException(404, f"OAuth provider {name} not found")
+    return _redact(provider, "client_secret")

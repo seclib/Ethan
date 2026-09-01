@@ -5,7 +5,7 @@ import { ToolsWorkspace } from "@/components/features/tools/components/tools-wor
 
 export default function ToolsPage() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ToolsWorkspace />
     </div>
   );

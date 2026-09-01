@@ -69,9 +69,12 @@ module.exports = {
           DEFAULT: "rgb(var(--border-rgb) / <alpha-value>)",
         },
         line: {
-          1: "rgb(var(--line-1-rgb) / <alpha-value>)",
-          2: "rgb(var(--line-2-rgb) / <alpha-value>)",
-          3: "rgb(var(--line-3-rgb) / <alpha-value>)",
+          // Tokens composés (incluent l'alpha du thème) — JAMAIS rgb(var(--line-N-rgb) / <alpha-value>)
+          // car sans modificateur l'alpha vaut 1 → lignes blanches/noires pures (bug "barre blanche").
+          // Les modificateurs (/20, /60…) retombent sur l'alpha du token : c'est l'intention design.
+          1: "var(--line-1)",
+          2: "var(--line-2)",
+          3: "var(--line-3)",
         },
 
         gold: { DEFAULT: "rgb(var(--gold-rgb) / <alpha-value>)", soft: "var(--gold-soft)" },
@@ -104,7 +107,16 @@ module.exports = {
         "spin-slow": "spin 3s linear infinite",
       },
       zIndex: {
-        modal: "100",
+        // Échelle centralisée des couches d'overlay (audit fenêtres/modales).
+        // Une couche supérieure ne passe jamais sous une inférieure.
+        floating: "10",   // éléments flottants locaux (bouton scroll-bas, etc.)
+        dropdown: "30",   // barres contextuelles (chat-context-bar, top-bars)
+        popover: "50",    // dropdowns, menus contextuels, sélecteurs
+        drawer: "60",     // panneaux latéraux (GlobalInspector + backdrop)
+        modal: "70",      // modales bloquantes (Dialog, command palette)
+        tooltip: "80",    // tooltips (au-dessus des modales)
+        toast: "90",      // notifications (toujours au-dessus de tout overlay)
+        loading: "100",   // overlay plein écran de chargement
       },
     },
   },

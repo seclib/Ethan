@@ -5,7 +5,7 @@ import { KnowledgeWorkspace } from "@/components/features/knowledge/components/k
 
 export default function KnowledgePage() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <KnowledgeWorkspace />
     </div>
   );

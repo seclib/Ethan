@@ -5,6 +5,7 @@ import { useKnowledge } from "@/components/features/knowledge/hooks/use-knowledg
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Plus,
@@ -198,9 +199,14 @@ export function KnowledgeWorkspace() {
     }
   };
 
-  const handleDeleteDocument = async (documentId: string) => {
-    if (!window.confirm("Supprimer définitivement ce document du RAG ?")) return;
-    deleteDocument(documentId);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = React.useState<{ id: string; title: string } | null>(null);
+
+  const handleDeleteDocument = (documentId: string, title?: string) =>
+    setPendingDeleteDoc({ id: documentId, title: title ?? documentId });
+
+  const confirmDeleteDocument = () => {
+    if (!pendingDeleteDoc) return;
+    deleteDocument(pendingDeleteDoc.id);
     if (selectedCollectionId) {
       // Rafraîchit la liste après la mutation (le document peut y être attaché).
       window.setTimeout(async () => {
@@ -212,6 +218,7 @@ export function KnowledgeWorkspace() {
         }
       }, 500);
     }
+    setPendingDeleteDoc(null);
   };
 
   /**
@@ -680,6 +687,16 @@ export function KnowledgeWorkspace() {
           </div>
         </div>
       </Dialog>
+
+      <ConfirmDialog
+        open={pendingDeleteDoc !== null}
+        onOpenChange={(o) => { if (!o) setPendingDeleteDoc(null); }}
+        title="Supprimer le document"
+        message={pendingDeleteDoc ? `Supprimer définitivement « ${pendingDeleteDoc.title} » du RAG ? Cette action est irréversible.` : ""}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={confirmDeleteDocument}
+      />
       </div>
     </div>
   );
@@ -696,6 +713,7 @@ interface CollectionRowProps {
 
 function CollectionRow({ name, description, isActive, onClick, onRename, onDelete }: CollectionRowProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuPos, setMenuPos] = React.useState<{ x: number; y: number } | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -725,6 +743,12 @@ function CollectionRow({ name, description, isActive, onClick, onRename, onDelet
         <button
           onClick={(e) => {
             e.stopPropagation();
+            if (!menuOpen) {
+              // Position fixe calculée : le menu échappe au clipping du
+              // conteneur scrollable de la liste (overflow-y-auto).
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setMenuPos({ x: r.right - 160, y: Math.min(r.bottom + 4, window.innerHeight - 100) });
+            }
             setMenuOpen(!menuOpen);
           }}
           className="rounded p-1 text-foreground-tertiary opacity-0 transition-opacity hover:bg-bg-1 group-hover:opacity-100"
@@ -732,8 +756,11 @@ function CollectionRow({ name, description, isActive, onClick, onRename, onDelet
         >
           <MoreVertical className="h-3.5 w-3.5" />
         </button>
-        {menuOpen && (
-          <div className="absolute right-0 top-6 z-50 w-40 rounded-lg border border-line-2 bg-surface p-1 shadow-xl">
+        {menuOpen && menuPos && (
+          <div
+            className="fixed z-popover w-40 rounded-lg border border-line-2 bg-surface p-1 shadow-xl"
+            style={{ left: menuPos.x, top: menuPos.y }}
+          >
             <button
               onClick={(e) => {
                 e.stopPropagation();

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,9 +30,14 @@ export default function WorkspacePage() {
 	const { goals = [], isLoading: goalsLoading } = useGoals();
 	const { events = [], isLoading: eventsLoading, refetch: refetchEvents } = useFluxEvents();
 
-	const handleDeleteFact = async (fact: Fact) => {
-		if (!confirm(`Delete fact "${fact.subject} ${fact.predicate} ${fact.object}"?`)) return;
-		const result = await deleteFact(fact.id);
+	const [pendingFact, setPendingFact] = React.useState<Fact | null>(null);
+
+	const handleDeleteFact = (fact: Fact) => setPendingFact(fact);
+
+	const confirmDeleteFact = async () => {
+		if (!pendingFact) return;
+		const result = await deleteFact(pendingFact.id);
+		setPendingFact(null);
 		if (result.error) {
 			addToast({ type: "error", message: result.error });
 		} else {
@@ -135,7 +141,7 @@ export default function WorkspacePage() {
 						<Card variant="outlined" className="overflow-hidden">
 							<div className="overflow-y-auto max-h-[500px]">
 								<table className="w-full text-sm">
-									<thead className="bg-muted/50 sticky top-0 z-10 border-b">
+									<thead className="bg-muted/50 sticky top-0 z-floating border-b">
 										<tr>
 											<th className="h-10 px-4 text-left font-medium text-muted-foreground w-[120px]">Time</th>
 											<th className="h-10 px-4 text-left font-medium text-muted-foreground w-[150px]">Category</th>
@@ -280,6 +286,15 @@ export default function WorkspacePage() {
 					</Card>
 				</div>
 			)}
+	<ConfirmDialog
+		open={pendingFact !== null}
+		onOpenChange={(o) => { if (!o) setPendingFact(null); }}
+		title="Supprimer la mémoire"
+		message={pendingFact ? `Supprimer définitivement « ${pendingFact.subject} ${pendingFact.predicate} ${pendingFact.object} » de la mémoire ? Cette action est irréversible.` : ""}
+		confirmLabel="Supprimer"
+		destructive
+		onConfirm={() => { void confirmDeleteFact(); }}
+	/>
 		</div>
 	);
 }

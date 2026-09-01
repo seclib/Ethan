@@ -252,8 +252,16 @@ async def lifespan(app: FastAPI):
     from core.tools.servers import ToolServerManager
     from core.config.prompts import PromptManager
     from core.auth.scim import SCIMManager
+    from core.auth.ldap import LDAPManager
+    from core.auth.oauth import OAuthManager
+    from core.security.integration import build_secure_enforcer
 
-    tool_manager = ToolManager(store=domain_store)
+    # Policy Engine (Phase 04) : toute exécution de tool (routeur /tools ET
+    # skills) passe par SecureToolEnforcer — PolicyEngine (hiérarchie
+    # CORE→LLM) + CapabilityManager + ExfilGuard + AuditStore. Fail-closed :
+    # toute panne de sécurité rejette l'action.
+    secure_enforcer = build_secure_enforcer()
+    tool_manager = ToolManager(store=domain_store, policy_enforcer=secure_enforcer)
     await tool_manager.initialize()
 
     # Tools + Agents dans le ChatPipeline : la logique de tool-calling et de
@@ -302,6 +310,8 @@ async def lifespan(app: FastAPI):
         tool_servers=ToolServerManager(store=domain_store, registry=tool_manager.registry),
         prompts=prompt_manager,
         scim=SCIMManager(store=domain_store),
+        ldap=LDAPManager(store=domain_store),
+        oauth=OAuthManager(store=domain_store),
         skills=skill_manager,
     )
     set_capability_managers(capability_managers)

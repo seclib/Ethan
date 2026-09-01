@@ -17,6 +17,7 @@ import {
 } from "@/components/features/assistant/components/chat-context-bar";
 import { useRouter } from "next/navigation";
 import { useFacts } from "@/components/features/memory/hooks/use-memory";
+import { useCreateGoal } from "@/components/features/goals/hooks/use-goals";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
   const isUser = msg.role === "user";
@@ -219,8 +220,8 @@ export default function ChatHomePage() {
     await createChat("Nouvelle conversation");
   }, [createChat]);
 
-  // Publie l'état des conversations vers l'AppSidebar du shell (modèle Odysseus :
-  // la sidebar du layout affiche les chats sur cette page).
+    // Publie l'état des conversations vers l'AppSidebar du shell (la sidebar du
+  // layout affiche les chats sur cette page).
   const setChatSidebar = useChatSidebarStore((s) => s.setChatSidebar);
   const clearChatSidebar = useChatSidebarStore((s) => s.clearChatSidebar);
   React.useEffect(() => {
@@ -303,6 +304,16 @@ export default function ChatHomePage() {
     runStream(trimmed);
   };
 
+  /** Mode Plan : soumet l'intention comme un goal réel (API /v1/goals).
+   *  Les objectifs sont gérés par ETHAN Core — le bouton n'est pas un mock.
+   */
+  const createGoal = useCreateGoal();
+  const handlePlan = (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    createGoal.mutate({ title: trimmed.slice(0, 80), description: trimmed });
+  };
+
   /** Arrêt réel : avorte le flux SSE, conserve le contenu partiel reçu. */
   const handleStop = () => {
     stopGeneration();
@@ -373,19 +384,7 @@ export default function ChatHomePage() {
           onStop={handleStop}
           disabled={isStreaming}
           onFileAttached={handleFileAttached}
-          skills={skills}
-          collections={collections}
-          tools={tools}
-          agents={agents?.map((a) => ({ id: a.id, name: a.name })) || []}
-          selectedSkillIds={selectedSkillIds}
-          selectedCollectionIds={selectedCollectionIds}
-          selectedToolIds={selectedToolIds}
-          selectedAgentId={selectedAgentId}
-          selectedAgentName={activeAgent?.name ?? undefined}
-          onToggleSkill={(id) => toggleSelection(setSelectedSkillIds, id)}
-          onToggleCollection={(id) => toggleSelection(setSelectedCollectionIds, id)}
-          onToggleTool={(id) => toggleSelection(setSelectedToolIds, id)}
-          onSelectAgent={selectAgent}
+          onPlan={handlePlan}
           error={error}
           onDismissError={clearError}
           onRegenerate={handleRegenerate}

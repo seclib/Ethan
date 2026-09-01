@@ -14,9 +14,13 @@ import { AppSidebar } from "@/components/layout/sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { GlobalCommandPalette } from "@/components/layout/global-command-palette";
+import { OverlayEscHandler } from "@/components/ui/overlay-esc-handler";
 import { GlobalInspector } from "@/components/layout/global-inspector";
 import { MissionControlOverlay } from "@/components/layout/mission-control-overlay";
 import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
+import { FloatingWindow } from "@/components/ui/floating-window";
+import { MailPanel } from "@/components/features/flux/components/mail-panel";
+import { Inbox } from "lucide-react";
 import "./globals.css";
 
 export default function RootLayout({
@@ -25,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { sidebarExpanded, toggleSidebar } = useUIStore();
+  const { sidebarExpanded, toggleSidebar, mailPanelOpen, toggleMailPanel } = useUIStore();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -42,6 +46,7 @@ export default function RootLayout({
                   <div style={{ display: "flex", width: "100%", height: "100dvh", overflow: "hidden" }}>
                   <GlobalShortcuts />
                   <GlobalCommandPalette />
+                  <OverlayEscHandler />
                   <GlobalInspector />
                   <MissionControlOverlay />
                   <AtmosphereLayer />
@@ -71,6 +76,30 @@ export default function RootLayout({
                   </main>
                 </div>
                 <ToastProvider />
+
+                {/* Fenêtre superposée Mail (pattern fenêtre flottante) */}
+                <FloatingWindow
+                  id="mail-panel"
+                  title="Boîte de réception"
+                  open={mailPanelOpen}
+                  onOpenChange={(open) => { if (open) toggleMailPanel(); }}
+                  defaultWidth={480}
+                  defaultHeight={560}
+                  defaultX={typeof window !== "undefined" ? window.innerWidth - 520 : 40}
+                  defaultY={80}
+                >
+                  <MailPanel />
+                </FloatingWindow>
+
+                {/* Trigger flottant Mail — toujours accessible depuis n'importe quelle page */}
+                <button
+                  onClick={toggleMailPanel}
+                  className="fixed bottom-20 right-4 z-[60] flex items-center justify-center w-11 h-11 rounded-full border border-line-2 bg-panel shadow-lg hover:bg-accent/10 transition-colors"
+                  title="Boîte de réception (Mail)"
+                  aria-label="Ouvrir la boîte de réception"
+                >
+                  <Inbox size={18} className="text-foreground-secondary" />
+                </button>
                                 </WebSocketProvider>
               </I18nProvider>
             </AuthProvider>

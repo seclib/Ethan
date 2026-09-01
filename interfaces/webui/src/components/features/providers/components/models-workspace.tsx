@@ -69,8 +69,18 @@ export function ModelsWorkspace() {
   React.useEffect(() => {
     if (!menuModel) return;
     const onDoc = () => setMenuModel(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuModel(null); };
+    const onReflow = () => setMenuModel(null); // menu fixed : invalide au scroll/resize
     document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onReflow, true);
+    window.addEventListener("resize", onReflow);
+    return () => {
+      document.removeEventListener("click", onDoc);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onReflow, true);
+      window.removeEventListener("resize", onReflow);
+    };
   }, [menuModel]);
 
   return (
@@ -154,7 +164,7 @@ export function ModelsWorkspace() {
 
       {menuModel && menuPos && (
         <div
-          className="fixed z-50 min-w-[170px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
+          className="fixed z-popover min-w-[170px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button

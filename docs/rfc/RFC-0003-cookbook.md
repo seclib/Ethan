@@ -9,10 +9,10 @@
 ## Résumé
 Bibliothèque de « recettes » : workflows préconfigurés (prompts,
 skills, tools, paramètres) installables en un clic et partageables —
-l'équivalent des presets Odysseus, adossé aux capacités natives ETHAN.
+l'équivalent des presets référents, adossé aux capacités natives ETHAN.
 
 ## Origine
-Odysseus (cookbook*.js, presets.js). ETHAN possède déjà les briques :
+Inspiré d'un système de presets conversationnels. ETHAN possède déjà les briques :
 skills (`/v1/skills`), prompts (`/v1/prompts`), automations
 (`/v1/automations`), pipelines tools. Il manque le format de paquet
 et l'UI d'installation.

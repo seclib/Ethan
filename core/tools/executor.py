@@ -22,9 +22,12 @@ logger = logging.getLogger(__name__)
 class ToolExecutor:
     """Exécute les outils avec isolation."""
 
-    def __init__(self):
+    def __init__(self, policy_enforcer=None):
         self._max_retries = 3
         self._retry_delay = 1.0  # secondes
+        # Intégration sécurité (Phase 07) : SecureToolEnforcer | None.
+        # None = comportement historique (aucune évaluation).
+        self._policy_enforcer = policy_enforcer
 
     async def execute(
         self, tool: Tool, params: dict[str, Any], context: ToolContext
@@ -40,6 +43,36 @@ class ToolExecutor:
             Résultat de l'exécution
         """
         start_time = time.time()
+
+        # 0. Évaluation sécurité (PolicyEngine + Capability + ExfilGuard).
+        #    Non contournable : toute exécution sensible passe par l'enforcer.
+        if self._policy_enforcer is not None:
+            try:
+                await self._policy_enforcer.check(tool, params, context)
+            except Exception as e:
+                from core.security.integration import ToolRejectedError
+
+                if isinstance(e, ToolRejectedError):
+                    logger.warning(
+                        "Tool %s rejected by security policy: %s", tool.id, e.reason
+                    )
+                    return ToolResult(
+                        status="rejected",
+                        error=e.reason,
+                        duration_ms=(time.time() - start_time) * 1000,
+                        metadata={"rejected": True, "reason": e.reason},
+                    )
+                # Erreur d'infrastructure de sécurité : fail-closed (on ne
+                # contourne jamais la sécurité même en cas de panne).
+                logger.error(
+                    "Tool %s security check failed (%s) -> rejected", tool.id, e
+                )
+                return ToolResult(
+                    status="rejected",
+                    error="Security check unavailable (fail-closed).",
+                    duration_ms=(time.time() - start_time) * 1000,
+                    metadata={"rejected": True, "fail_closed": True},
+                )
 
         # 1. Vérifier les dépendances (MVP: skip)
         # await self._check_dependencies(tool)

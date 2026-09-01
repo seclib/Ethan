@@ -117,5 +117,23 @@ export function GlobalShortcuts() {
     };
   }, [router, toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette, keySequence, toggleInspector, toggleMissionControl]);
 
+  // Indicateur visuel de séquence « g » (correctif audit UX P2-5) : sans lui,
+  // l'attente de la seconde touche était invisible et la fonctionnalité
+  // indécouvrable. Pure affichage — la logique reste dans le handler clavier.
+  if (keySequence[0] === "g") {
+    return (
+      <div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-toast flex items-center gap-2 rounded-full border border-line-2 bg-bg-2 px-4 py-1.5 shadow-lg pointer-events-none"
+        role="status"
+        aria-live="polite"
+      >
+        <kbd className="text-[10px] font-semibold text-accent-400 bg-elevated rounded px-1.5 py-0.5">G</kbd>
+        <span className="text-[11px] text-foreground-tertiary">
+          Assistant&nbsp;<kbd className="font-mono">A</kbd> · Workspace&nbsp;<kbd className="font-mono">D</kbd> · Missions&nbsp;<kbd className="font-mono">M</kbd> · Knowledge&nbsp;<kbd className="font-mono">K</kbd> · Agents&nbsp;<kbd className="font-mono">E</kbd> · Tools&nbsp;<kbd className="font-mono">T</kbd> · Settings&nbsp;<kbd className="font-mono">S</kbd>
+        </span>
+      </div>
+    );
+  }
+
   return null;
 }

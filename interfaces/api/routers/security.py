@@ -170,3 +170,148 @@ async def set_user_active(request: Request, username: str, data: dict[str, Any])
     if result.endswith("0"):
         raise HTTPException(404, f"Utilisateur '{username}' introuvable.")
     return {"username": username, "is_active": active}
+
+
+# ── Protections cycle de vie ─────────────────────────────────────────────
+#
+# Un compte administrateur ne doit jamais pouvoir se verrouiller lui-même
+# ni verrouiller le système :
+#   - pas d'auto-démotion, d'auto-désactivation ni d'auto-suppression ;
+#   - le dernier compte admin ne peut être ni démota, désactivé ni supprimé.
+# Ces règles vivent ICI (couche API) car elles protègent la table users,
+# source de vérité de l'authentification — aucun doublon ailleurs.
+
+
+async def _count_active_admins(conn: Any) -> int:
+    """Nombre de comptes admin actifs (protection « dernier admin »)."""
+    return int(
+        await conn.fetchval(
+            "SELECT count(*) FROM users WHERE 'admin' = ANY(roles) AND is_active"
+        )
+    )
+
+
+def _ensure_not_self(request: Request, username: str) -> str:
+    """Interdit à un admin d'agir sur son propre compte (destructif)."""
+    admin = _require_admin(request)
+    if admin == username:
+        raise HTTPException(
+            403, "Action interdite sur votre propre compte (utilisez un autre admin)."
+        )
+    return admin
+
+
+@router.put("/users/{username}")
+async def update_user(request: Request, username: str, data: dict[str, Any]):
+    """Mise à jour admin d'un utilisateur : rôle, statut et/ou mot de passe.
+
+    Toutes les clés sont optionnelles (PATCH sémantique via PUT). Mot de passe
+    haché bcrypt (même logique que POST /users). Protections : auto-modification
+    de rôle interdite, dernier admin intouchable.
+    """
+    admin = _require_admin(request)
+    role = data.get("role")
+    is_active = data.get("is_active")
+    password = data.get("password")
+
+    if role is not None and role not in ("user", "admin"):
+        raise HTTPException(422, "role doit être 'user' ou 'admin'.")
+    if password is not None and (not isinstance(password, str) or len(password) < 6):
+        raise HTTPException(422, "Le mot de passe doit contenir au moins 6 caractères.")
+    if is_active is not None and not isinstance(is_active, bool):
+        raise HTTPException(422, "is_active doit être un booléen.")
+    if role is None and is_active is None and password is None:
+        raise HTTPException(422, "Aucune modification fournie (role, is_active, password).")
+
+    # Auto-protection : un admin ne change pas son propre rôle ni ne se
+    # désactive (le changement de mot de passe personnel passe par le flux
+    # utilisateur authentifié, pas par l'administration).
+    if admin == username and (role is not None or is_active is False):
+        raise HTTPException(
+            403, "Un administrateur ne peut pas modifier son propre rôle ou se désactiver."
+        )
+
+    sets: list[str] = []
+    args: list[Any] = []
+    if role is not None:
+        sets.append(f"roles = ${len(args) + 1}::text[]")
+        args.append([role])
+    if is_active is not None:
+        sets.append(f"is_active = ${len(args) + 1}")
+        args.append(is_active)
+    if password is not None:
+        sets.append(f"password_hash = ${len(args) + 1}")
+        args.append(bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode())
+
+    async with _pg_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"SELECT id, username, roles, is_active FROM users WHERE username = $1",
+            username,
+        )
+        if row is None:
+            raise HTTPException(404, f"Utilisateur '{username}' introuvable.")
+
+        # Protection « dernier admin » : démotion ou désactivation d'un
+        # compte admin alors qu'il est le seul garant du système.
+        demotes = role == "user" and "admin" in row["roles"]
+        deactivates = is_active is False and row["is_active"]
+        if (demotes or deactivates) and "admin" in row["roles"]:
+            if await _count_active_admins(conn) <= 1:
+                raise HTTPException(
+                    409, "Impossible : ce compte est le dernier administrateur actif."
+                )
+
+        updated = await conn.fetchrow(
+            f"UPDATE users SET {', '.join(sets)}, updated_at = now()"
+            f" WHERE username = ${len(args) + 1}"
+            " RETURNING id, username, roles, is_active, totp_enabled, updated_at",
+            *args,
+            username,
+        )
+    logger.info("User '%s' updated by admin '%s' (keys=%s)", username, admin, sorted(data.keys()))
+    return dict(updated)
+
+
+@router.delete("/users/{username}")
+async def delete_user(request: Request, username: str):
+    """Suppression définitive d'un compte utilisateur.
+
+    Protections : auto-suppression interdite ; le dernier admin actif ne
+    peut être supprimé.
+    """
+    admin = _ensure_not_self(request, username)
+    async with _pg_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, roles, is_active FROM users WHERE username = $1", username
+        )
+        if row is None:
+            raise HTTPException(404, f"Utilisateur '{username}' introuvable.")
+        if "admin" in row["roles"] and row["is_active"]:
+            if await _count_active_admins(conn) <= 1:
+                raise HTTPException(
+                    409, "Impossible : ce compte est le dernier administrateur actif."
+                )
+        await conn.execute("DELETE FROM users WHERE username = $1", username)
+    logger.info("User '%s' deleted by admin '%s'", username, admin)
+    return {"status": "deleted", "username": username}
+
+
+# ══ ETHAN Security — policies / capabilities / audit (lecture seule) ════
+
+
+@router.get("/security/status")
+async def security_status_endpoint(request: Request):
+    """Résumé lecture seule du système de sécurité ETHAN.
+
+    Représentation pour la WebUI (pas un panneau d'administration) :
+    - politiques chargées (par niveau et effet)
+    - capabilities actives (par sujet)
+    - statistiques d'audit
+
+    Logique dans ``core/security/status.py`` ; aucune donnée sensible ni
+    secret n'est exposée ; aucun accès en mutation.
+    """
+    _require_admin(request)
+    from core.security.status import security_status
+
+    return security_status()

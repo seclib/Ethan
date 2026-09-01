@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { LogoSquare } from "@/components/shared/logo";
+import { AsciiSkull } from "@/components/shared/ascii-skull";
 
 interface LoginCardProps {
   children: ReactNode;
@@ -16,10 +16,10 @@ export function LoginCard({ children }: LoginCardProps) {
       transition={{ duration: 0.5, ease: "easeOut" }}
       className="w-full max-w-[360px]"
     >
-      {/* Logo */}
+      {/* Logo — crâne glitch ASCII (thème terminal) */}
       <div className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full border border-line-2 bg-surface mb-4 overflow-hidden">
-          <LogoSquare size={56} className="rounded-full" priority />
+        <div className="mb-4 flex justify-center">
+          <AsciiSkull className="text-white/85" />
         </div>
         <h1 className="text-xl font-semibold tracking-[0.15em] text-white/90 uppercase select-none">
           ETHAN

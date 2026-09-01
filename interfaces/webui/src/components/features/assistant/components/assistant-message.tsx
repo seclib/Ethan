@@ -154,7 +154,7 @@ export function AssistantMessageView({
           {/* Header */}
           <div className="mb-1 flex items-center gap-2 px-1">
             <span className="text-sm font-medium text-foreground">
-              {isUser ? "Vous" : "Odysseus"}
+                            {isUser ? "Vous" : "ETHAN"}
             </span>
             <span className="text-xs text-muted-foreground">{time}</span>
             {!isUser && message.content && <SpeakButton text={message.content} />}

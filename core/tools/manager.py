@@ -31,11 +31,12 @@ class ToolManager:
     _CUSTOM_TOOLS_DOMAIN = "tools"
     _PIPELINES_DOMAIN = "tool-pipelines"
 
-    def __init__(self, store: CoreRecordStore | None = None):
+    def __init__(self, store: CoreRecordStore | None = None, policy_enforcer=None):
         self._store = store or CoreRecordStore()
         self.registry = ToolRegistry()
         self.selector = ToolSelector()
-        self.executor = ToolExecutor()
+        # Intégration sécurité (Phase 07) : SecureToolEnforcer | None.
+        self.executor = ToolExecutor(policy_enforcer=policy_enforcer)
         self.monitor = ToolMonitor()
 
     async def initialize(self) -> None:

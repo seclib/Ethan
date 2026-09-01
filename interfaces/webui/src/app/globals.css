@@ -1,5 +1,5 @@
 /* ═══ ETHAN WebUI — feuille de styles unique ═══
-   Système : Tailwind (utilities) + tokens CSS Odysseus + classes composants.
+      Système : Tailwind (utilities) + tokens CSS ETHAN + classes composants.
    Un seul système de thème : chaque thème définit TOUTES les variables,
    y compris les alias legacy consommés par les anciens composants. */
 
@@ -7,7 +7,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Theme Tokens — Odysseus visual language ───
+/* ─── Theme Tokens — ETHAN visual language ───
    Core palette: --bg, --fg, --panel, --border, --red, --accent */
 
 :root,
@@ -205,7 +205,7 @@
 
 [data-theme="oled"],
 .oled {
-  /* Odysseus OLED: deep black with subtle blue tint */
+    /* ETHAN OLED: deep black with subtle blue tint */
   --bg-rgb: 0 0 0;
   --fg-rgb: 201 209 217;
   --panel-rgb: 10 10 10;
@@ -268,8 +268,8 @@
 
 /* ─── Base ─── */
 
-/* Self-hosted Odysseus fonts (Fira Code = identité principale, Inter =
-   police des modales / formulaires denses sur desktop, comme Odysseus). */
+/* Self-hosted ETHAN fonts (Fira Code = identité principale, Inter =
+   police des modales / formulaires denses sur desktop, cohérent avec ETHAN). */
 @font-face { font-family: 'Fira Code'; font-weight: 300; font-style: normal; font-display: swap; src: url('/fonts/FiraCode-Light.woff2') format('woff2'); }
 @font-face { font-family: 'Fira Code'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/FiraCode-Regular.woff2') format('woff2'); }
 @font-face { font-family: 'Fira Code'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/FiraCode-SemiBold.woff2') format('woff2'); }
@@ -385,7 +385,7 @@ body {
 .ws-disconnected, .ws-error { background: var(--red); }
 @keyframes ws-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-/* ─── Sidebar (Odysseus .sidebar) ─── */
+/* ─── Sidebar (.sidebar) ─── */
 .sidebar {
   width: var(--sidebar-width, 260px);
   flex-shrink: 0;
@@ -433,6 +433,15 @@ body {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px 4px;
+}
+
+/* ─── Header de la sidebar repliée (rail collapsé 60px) — bouton logo centré
+    agit comme ancre de ré-ouverture (Open-WebUI) */
+.sidebar-header-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px 4px;
 }
 
 .sidebar-brand {
@@ -722,7 +731,7 @@ body {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-/* ─── Chat Input Bar (Odysseus .chat-input-bar) ─── */
+/* ─── Chat Input Bar (.chat-input-bar) ─── */
 .chat-input-bar {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -762,13 +771,13 @@ body {
   color: color-mix(in srgb, var(--fg) 35%, transparent);
 }
 
-/* ─── Dialogs / Modals (Odysseus .modal-content, consommé par ui/dialog.tsx) ─── */
+/* ─── Dialogs / Modals (.modal-content, consumed by ui/dialog.tsx) ─── */
 .modal-content {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-  /* Comme Odysseus : les modales passent en Inter sur desktop pour la
+    /* ETHAN design : les modales passent en Inter sur desktop pour la
      lisibilité des formulaires denses ; le reste de l'app reste Fira Code. */
   font-family: var(--font-family-modal, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   letter-spacing: -0.015em;
@@ -777,7 +786,7 @@ body {
   overflow: auto;
 }
 
-/* ─── Inputs (Odysseus input style) ─── */
+/* ─── Inputs (ETHAN .input style) ─── */
 .input {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -803,7 +812,7 @@ body {
   color: color-mix(in srgb, var(--fg) 35%, transparent);
 }
 
-/* ─── Selects natifs (ADN Odysseus .settings-select / select) ─── */
+/* ─── Native selects (.settings-select / select) — ETHAN design ─── */
 select {
   height: 32px;
   padding: 2px 8px;
@@ -838,7 +847,7 @@ select option:checked {
   color: var(--fg);
 }
 
-/* ─── Scrollbar (Odysseus style) ─── */
+/* ─── Scrollbar (ETHAN style) ─── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -875,7 +884,7 @@ html {
 html::-webkit-scrollbar {
   display: none;
 }
-/* ─── Sidebar sections & user bar (Odysseus) ─── */
+/* ─── Sidebar sections & user bar (ETHAN) ─── */
 .section-title {
   display: flex;
   align-items: center;
@@ -983,4 +992,22 @@ html::-webkit-scrollbar {
   opacity: 1;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
+}
+
+/* ── ASCII skull logo (login terminal) ── */
+.ascii-skull {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  margin: 0;
+  color: inherit;
+  text-shadow:
+    0 0 6px color-mix(in srgb, currentColor 55%, transparent),
+    0 0 18px color-mix(in srgb, currentColor 22%, transparent);
+  image-rendering: pixelated;
+}
+
+@media (max-width: 400px) {
+  .ascii-skull { font-size: 8px; }
 }

@@ -29,7 +29,7 @@ export default function ResearchPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
         <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, color: "var(--fg)" }}>
           <Telescope size={18} /> Deep Research

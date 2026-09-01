@@ -95,7 +95,7 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#07090d]/95 backdrop-blur-sm"
+          className="fixed inset-0 z-loading flex flex-col items-center justify-center bg-[#07090d]/95 backdrop-blur-sm"
         >
                               <div className="w-full max-w-[420px] px-6">
             {/* ANFSI Logo */}

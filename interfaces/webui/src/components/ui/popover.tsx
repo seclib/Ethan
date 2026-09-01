@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useOverlayStore } from "@/store/overlay.store";
 
 export interface PopoverProps {
 	open: boolean;
@@ -16,6 +17,21 @@ interface PopoverContextType {
 const PopoverContext = React.createContext<PopoverContextType | undefined>(undefined);
 
 export function Popover({ open, onOpenChange, children }: PopoverProps & { children: React.ReactNode }) {
+	const popoverIdRef = React.useRef(`popover-${Math.random().toString(36).slice(2)}`);
+	const onOpenChangeRef = React.useRef(onOpenChange);
+	onOpenChangeRef.current = onOpenChange;
+
+	// Pile ESC centralisée : le popover se ferme via le handler global quand il
+	// est le sommet de la pile (ouverture → push, fermeture → unregister).
+	React.useEffect(() => {
+		if (!open) return;
+		const unregister = useOverlayStore.getState().push({
+			id: popoverIdRef.current,
+			onClose: () => onOpenChangeRef.current(false),
+		});
+		return unregister;
+	}, [open]);
+
 	return (
 		<PopoverContext.Provider value={{ open, setOpen: onOpenChange }}>
 			<div className="relative inline-block">{children}</div>
@@ -48,12 +64,10 @@ export function PopoverContent({ children, align = "end", className, ...props }:
 	React.useEffect(() => {
 		if (!ctx?.open) return;
 		const handleOutside = () => ctx.setOpen(false);
-		const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") ctx.setOpen(false); };
+		// L'Escape est délégué à la pile ESC centralisée (OverlayEscHandler).
 		document.addEventListener("mousedown", handleOutside);
-		document.addEventListener("keydown", handleEsc);
 		return () => {
 			document.removeEventListener("mousedown", handleOutside);
-			document.removeEventListener("keydown", handleEsc);
 		};
 	}, [ctx]);
 
@@ -62,7 +76,7 @@ export function PopoverContent({ children, align = "end", className, ...props }:
 	const alignClass = { start: "left-0", center: "left-1/2 -translate-x-1/2", end: "right-0" }[align];
 
 	return (
-		<div className={cn("absolute z-50 mt-2 w-64 rounded-md border border-line-2 bg-background shadow-lg", alignClass, className)} {...props}>
+		<div className={cn("absolute z-popover mt-2 w-64 rounded-md border border-line-2 bg-background shadow-lg", alignClass, className)} {...props}>
 			{children}
 		</div>
 	);

@@ -5,7 +5,7 @@ import type { EthChat } from "@/components/features/assistant/hooks/use-chats";
 
 /**
  * Pont entre la page chat (/) et l'AppSidebar du shell.
- * Odysseus n'a qu'UNE sidebar : sur la page chat elle affiche les
+  * ETHAN n'a qu'UNE sidebar : sur la page chat elle affiche les
  * conversations, sinon la navigation. Ce store permet au shell de
  * rendre la vue Chats sans dupliquer l'état de useChats().
  */

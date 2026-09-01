@@ -4,7 +4,7 @@ import { ProvidersWorkspace } from "@/components/features/providers/components/p
 
 export default function ProvidersPage() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ProvidersWorkspace />
     </div>
   );

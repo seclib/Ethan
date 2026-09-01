@@ -48,7 +48,7 @@ export default function LoginPage() {
       <AnimatedBackground />
       <TopBar />
 
-      <main className="relative z-10 min-h-screen flex flex-col">
+      <main className="relative z-floating min-h-screen flex flex-col">
         <div className="flex-1 flex items-center justify-center pt-10">
           <div className="flex w-full max-w-[840px] mx-auto">
             {/* Left: Login card */}

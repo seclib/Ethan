@@ -4,6 +4,7 @@ import * as React from "react";
 import type { SessionMetrics } from "@/types/assistant";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { AgentSelector } from "./agent-selector";
+import { ProviderSelector } from "./provider-selector";
 import type { Agent } from "@/types";
 
 interface AssistantTopBarProps {
@@ -74,6 +75,7 @@ export function AssistantTopBar({
           open={modelSelectorOpen}
           onOpenChange={onModelSelectorOpenChange}
         />
+        <ProviderSelector />
       </div>
     </div>
   );

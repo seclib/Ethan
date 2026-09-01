@@ -20,7 +20,7 @@ export function TopBar() {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-10">
+    <header className="fixed top-0 left-0 right-0 z-dropdown h-10">
       <div className="h-full flex items-center justify-between px-6 border-b border-white/5 bg-[#07090d]/70 backdrop-blur-sm">
         {/* Left: Brand */}
         <div className="flex items-center gap-3">

@@ -25,7 +25,8 @@ import {
   Bot, Cpu, Database, Wrench, Sparkles, Network, Palette, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
   Layers, BrainCircuit, Settings,
-  Activity, ShieldCheck, Gauge,
+    Activity, ShieldCheck, Gauge,
+  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -92,6 +93,9 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/diagnostics", label: "Diagnostics", icon: Activity },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/groups", label: "Groups", icon: UsersRound },
+      { href: "/plugins", label: "Plugins", icon: Puzzle },
       { href: `${GRAFANA_URL}/explore`, label: "Logs", icon: ScrollText, external: true },
       { href: GRAFANA_URL, label: "Monitoring", icon: Gauge, external: true },
       { href: "/security", label: "Security", icon: ShieldCheck },
@@ -111,8 +115,8 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/providers", label: "Providers", icon: Layers },
-      // Memory = le dashboard ETHAN (/workspace), conservé et repositionné.
       { href: "/workspace", label: "Memory", icon: BrainCircuit },
+            { href: "/gallery", label: "Gallery", icon: GalleryVerticalEnd },
     ],
   },
   {

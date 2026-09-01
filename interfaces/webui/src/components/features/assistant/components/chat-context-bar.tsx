@@ -111,7 +111,7 @@ function CapabilityPanel({
 }) {
   const meta = PANEL_META[kind];
   return (
-    <div className="absolute left-0 top-8 z-30 w-72 rounded-lg border border-line-1 bg-panel p-1.5 shadow-lg">
+    <div className="absolute left-0 top-8 z-dropdown w-72 rounded-lg border border-line-1 bg-panel p-1.5 shadow-lg">
       <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-foreground-tertiary">
         {meta.title}
       </p>

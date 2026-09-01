@@ -6,6 +6,7 @@ import { ProviderFormDialog } from "@/components/features/providers/components/p
 import { ModelsPopover } from "@/components/features/providers/components/models-popover";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, RefreshCw, TestTube, Globe, Wifi, AlertCircle, LoaderCircle, ChevronDown, Search, Server } from "lucide-react";
@@ -127,10 +128,13 @@ export function ProvidersWorkspace() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Supprimer ce provider ? Cette action est irréversible.")) {
-      await deleteProviderAsync(id);
-    }
+  const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null);
+  const pendingDeleteName = providers.find((p) => p.id === pendingDeleteId)?.name;
+
+  const handleDelete = (id: string) => setPendingDeleteId(id);
+  const confirmDeleteProvider = async () => {
+    if (pendingDeleteId) await deleteProviderAsync(pendingDeleteId);
+    setPendingDeleteId(null);
   };
 
   const q = search.trim().toLowerCase();
@@ -233,6 +237,16 @@ export function ProvidersWorkspace() {
           }
           refetch();
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(o) => { if (!o) setPendingDeleteId(null); }}
+        title="Supprimer le provider"
+        message={pendingDeleteName ? `Supprimer le provider « ${pendingDeleteName} » ? Cette action est irréversible.` : "Cette action est irréversible."}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={confirmDeleteProvider}
       />
     </div>
   );

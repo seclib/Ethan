@@ -17,6 +17,7 @@ from core.state.record_store import CoreRecordStore
 logger = logging.getLogger(__name__)
 
 _ALLOWED_INSTALL_KEYS = {"prompt", "skill", "automation"}
+_KNOWN_REQUIRE_KEYS = {"skill", "tool", "mcp", "model", "knowledge"}
 
 
 class CookbookError(ValueError):
@@ -81,6 +82,26 @@ class CookbookManager:
         unknown = set(installs) - _ALLOWED_INSTALL_KEYS
         if unknown:
             raise CookbookError(f"Unsupported install kinds: {sorted(unknown)}")
+        requires = manifest.get("requires", {})
+        if not isinstance(requires, dict):
+            raise CookbookError("'requires' must be an object")
+        unknown_req = set(requires) - _KNOWN_REQUIRE_KEYS
+        if unknown_req:
+            raise CookbookError(f"Unsupported requirement kinds: {sorted(unknown_req)}")
+
+    def get_recipe(self, recipe_id: str) -> dict[str, Any]:
+        """Full recipe detail: metadata, requires and the complete install plan."""
+        manifest = self._load_manifest(recipe_id)
+        detail = self._summarize(manifest)
+        # Tags agrégés depuis les prompts installés (métadonnées de galerie).
+        tags = {
+            tag
+            for item in manifest["installs"].get("prompt", [])
+            for tag in item.get("tags", [])
+        }
+        detail["tags"] = sorted(tags)
+        detail["installs"] = manifest["installs"]
+        return detail
 
     @staticmethod
     def _summarize(manifest: dict[str, Any]) -> dict[str, Any]:

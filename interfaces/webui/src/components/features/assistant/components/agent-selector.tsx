@@ -164,7 +164,7 @@ export function AgentSelector({
         <div
           role="listbox"
           aria-label="Sélectionner un agent"
-          className="absolute right-0 z-50 mt-1 max-h-96 w-72 overflow-y-auto rounded-lg border border-line-2 bg-bg-2 shadow-lg"
+          className="absolute right-0 z-popover mt-1 max-h-96 w-72 overflow-y-auto rounded-lg border border-line-2 bg-bg-2 shadow-lg"
         >
           {/* Recherche */}
           <div className="sticky top-0 border-b border-line-1 bg-bg-2 p-1.5">

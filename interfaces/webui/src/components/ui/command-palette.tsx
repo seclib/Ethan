@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Search } from "lucide-react";
+import { useOverlayStore } from "@/store/overlay.store";
 
 interface CommandItem {
   id: string;
@@ -65,6 +66,21 @@ function CommandPalette({
     }
   }, [open]);
 
+  // Pile ESC centralisée : l'ESC est géré par `OverlayEscHandler` (sommet de
+  // pile uniquement), même quand le focus quitte l'input. Correctif audit P2-1.
+  const overlayIdRef = React.useRef(`command-palette-${Math.random().toString(36).slice(2)}`);
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+
+  React.useEffect(() => {
+    if (!open) return;
+    const unregister = useOverlayStore.getState().push({
+      id: overlayIdRef.current,
+      onClose: () => onCloseRef.current(),
+    });
+    return unregister;
+  }, [open]);
+
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -83,10 +99,7 @@ function CommandPalette({
           onClose();
         }
         break;
-      case "Escape":
-        e.preventDefault();
-        onClose();
-        break;
+      // Escape : délégué à la pile ESC globale (OverlayEscHandler).
     }
   };
 

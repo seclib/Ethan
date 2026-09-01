@@ -17,11 +17,11 @@ import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useUIStore } from "@/store/ui.store";
 import { NAV_SECTIONS_PRIMARY, NAV_SECTIONS_ADMIN } from "./nav-config";
 import type { NavItem, NavSection } from "./nav-config";
+import { useExternalServiceHealth } from "./use-external-service";
 import { useAuth } from "@/providers/auth-provider";
-import { Button } from "@/components/ui/button";
 import {
-  Pin, Plus, Trash2, MessageSquare, Search, Settings, ExternalLink,
-  ChevronDown, LogOut, SquarePen, PanelLeftClose,
+  Pin, Trash2, MessageSquare, Search, Settings, ExternalLink,
+  ChevronDown, LogOut, SquarePen, PanelLeftClose, FolderKanban, Target,
 } from "lucide-react";
 import { LogoSquare } from "@/components/shared/logo";
 import type { EthChat } from "@/components/features/assistant/hooks/use-chats";
@@ -69,6 +69,8 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
     else { window.location.href = "/"; }
   };
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
+  /** Section Projets — collapsible indépendante (Open-WebUI : « Projects »). */
+  const [projectsOpen, setProjectsOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!expanded) {
@@ -106,11 +108,19 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
     }
   }, [isMobile, expanded, setSidebarExpanded]);
 
-  if (!expanded) {
+    if (!expanded) {
     return (
       <nav className="sidebar sidebar-collapsed" id="sidebar">
-        <div className="sidebar-header" style={{ justifyContent: "center", padding: "10px 4px 4px" }}>
-          <button onClick={onToggle} className="sidebar-collapsed-btn" aria-label="Ouvrir la sidebar" title="Ouvrir la sidebar">
+        <div className="sidebar-header-collapsed">
+          {/* Logo cliquable pour (ré-)ouvrir la sidebar — Open-WebUI : le rail
+              collapsé a toujours un point d'ancrage pour revenir au state
+              développé. */}
+          <button
+            onClick={onToggle}
+            className="sidebar-collapsed-btn"
+            aria-label="Ouvrir la sidebar"
+            title="Ouvrir la sidebar"
+          >
             <LogoSquare size={18} />
           </button>
         </div>
@@ -146,31 +156,36 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
       <nav
         className={cn("sidebar", isMobile && "sidebar-mobile-open")}
         id="sidebar"
-        style={{
+                        style={{
           display: "flex", flexDirection: "column", zIndex: 49, flexShrink: 0,
         }}
       >
-      <div className="sidebar-header">
-        <div className="sidebar-brand flex items-center gap-2">
-          <LogoSquare size={18} />
-          <span>ETHAN</span>
+        <div className="sidebar-header">
+          <div className="sidebar-brand flex items-center gap-2">
+            <LogoSquare size={18} />
+            <span>ETHAN</span>
+          </div>
+          <button
+            onClick={onToggle}
+            className="sidebar-hamburger"
+            title="Replier la sidebar"
+            aria-label="Replier la sidebar"
+          >
+            <PanelLeftClose size={16} />
+          </button>
         </div>
-        <button onClick={onToggle} className="sidebar-hamburger" title="Replier" aria-label="Replier la sidebar">
-          <PanelLeftClose size={16} />
-        </button>
-      </div>
-      <div className="sidebar-actions">
-        <button onClick={handleNewChat} className="sidebar-new-chat" aria-label="Nouveau chat">
-          <span>Nouveau chat</span>
-          <SquarePen size={15} />
-        </button>
-        <button onClick={openCommandPalette} className="sidebar-search" aria-label="Rechercher" title="Rechercher (Ctrl+K)">
-          <Search size={15} />
-          <span>Rechercher…</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-      </div>
-      <div className="sidebar-inner custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+        <div className="sidebar-actions">
+          <button onClick={handleNewChat} className="sidebar-new-chat" aria-label="Nouveau chat">
+            <span>Nouveau chat</span>
+            <SquarePen size={15} />
+          </button>
+          <button onClick={openCommandPalette} className="sidebar-search" aria-label="Rechercher" title="Rechercher (Ctrl+K)">
+            <Search size={15} />
+            <span>Rechercher…</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        </div>
+        <div className="sidebar-inner custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
         {/* Sidebar conversation-centric (Open-WebUI) : les conversations
             restent visibles sur toutes les pages tant que le store en a. */}
         {chatState.chats.length > 0 && (
@@ -182,6 +197,31 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
             onRenameChat={chatState.onRenameChat}
           />
         )}
+        {/* Projets — structure Open-WebUI (« Projects »). ETHAN Core ne
+            possède pas encore de module projets : état vide honnête, aucune
+            donnée simulée, aucun lien fantôme (règle anti-fantôme). */}
+        <div className="sidebar-nav-group">
+          <button
+            className="sidebar-nav-section-header"
+            onClick={() => setProjectsOpen((o) => !o)}
+            aria-expanded={projectsOpen}
+            title="Projets — regroupement de conversations (bientôt disponible)"
+          >
+            <span className="sidebar-nav-item-outer">
+              <FolderKanban size={15} className="sidebar-nav-icon" />
+              <span>Projets</span>
+            </span>
+            <ChevronDown size={14} className={cn("sidebar-nav-chevron", !projectsOpen && "rotate-[-90deg]")} />
+          </button>
+          {projectsOpen && (
+            <div className="sidebar-nav-sub">
+              <div className="px-3 py-2 text-xs leading-relaxed text-foreground-tertiary">
+                Aucun projet — la gestion des projets sera activée lorsque le
+                backend ETHAN exposera cette capacité.
+              </div>
+            </div>
+          )}
+        </div>
         <NavigationSection
           sections={SIDEBAR_SECTIONS}
           pathname={pathname}
@@ -253,19 +293,9 @@ function ChatSection(props: {
   }, [regularChats, search]);
   const grouped = React.useMemo(() => groupChatsByPeriod(filtered), [filtered]);
 
-  return (
+    return (
     <div className="sidebar-nav-group" style={{ padding: "8px 0" }}>
       <div className="section-title">Conversations</div>
-      <div className="px-2 pb-2">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => props.onNewChat?.()}
-          className="w-full"
-        >
-          <Plus size={15} /> <span>Nouveau chat</span>
-        </Button>
-      </div>
       <div className="px-2 pb-2">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary" />
@@ -404,15 +434,7 @@ function NavigationSection({
               <div className="sidebar-nav-sub">
                 {section.items.map((item) =>
                   item.external ? (
-                    <a
-                      key={item.href} href={item.href} target="_blank" rel="noreferrer"
-                      className="sidebar-nav-item"
-                      title={item.label}
-                    >
-                      <ItemIcon icon={item.icon} />
-                      <span>{item.label}</span>
-                      <ExternalLink size={11} className="ml-auto opacity-40" />
-                    </a>
+                    <ExternalNavItem key={item.href} item={item} />
                   ) : (
                     <Link
                       key={item.href} href={item.href}
@@ -437,11 +459,50 @@ function ItemIcon({ icon }: { icon: NavItem["icon"] }) {
   return Icon ? <Icon size={15} className="sidebar-nav-icon" /> : <span className="w-4" />;
 }
 
+/**
+ * Lien externe (Grafana) avec health-check léger : si le service est
+ * injoignable, l'item est estompé, un ⚠ remplace l'icône externe et le
+ * tooltip l'indique — au lieu de mener l'utilisateur à une page d'erreur
+ * navigateur. Correctif audit UX (P2-2).
+ */
+function ExternalNavItem({ item }: { item: NavItem }) {
+  const origin = React.useMemo(() => {
+    try {
+      return new URL(item.href).origin;
+    } catch {
+      return item.href;
+    }
+  }, [item.href]);
+  const reachable = useExternalServiceHealth(origin);
+  const down = reachable === false;
+
+  return (
+    <a
+      href={item.href}
+      target="_blank"
+      rel="noreferrer"
+      className={cn("sidebar-nav-item", down && "opacity-60")}
+      title={down ? `${item.label} — service injoignable (${origin})` : item.label}
+    >
+      <ItemIcon icon={item.icon} />
+      <span>{item.label}</span>
+      {down ? (
+        <span className="ml-auto text-warning text-[11px]" aria-label="Service injoignable">
+          ⚠
+        </span>
+      ) : (
+        <ExternalLink size={11} className="ml-auto opacity-40" />
+      )}
+    </a>
+  );
+}
+
 /* ── User bar ── */
 
 export function UserBar({ expanded = true }: { expanded?: boolean }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { toggleMissionControl } = useUIStore();
   const displayName = user?.name || user?.email || "Utilisateur";
   const initial = (displayName[0] || "E").toUpperCase();
   return (
@@ -453,6 +514,14 @@ export function UserBar({ expanded = true }: { expanded?: boolean }) {
         </div>
       )}
       <div className="user-bar-actions">
+        <button
+          onClick={toggleMissionControl}
+          className="user-bar-btn"
+          title="Mission Control (⌘M)"
+          aria-label="Mission Control"
+        >
+          <Target size={15} />
+        </button>
         <Link
           href="/settings"
           className={cn("user-bar-btn", pathname === "/settings" && "active")}

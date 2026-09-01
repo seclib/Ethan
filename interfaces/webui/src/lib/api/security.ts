@@ -58,6 +58,32 @@ export async function listManagedUsers(): Promise<ManagedUser[]> {
   return apiFetch<ManagedUser[]>("/users");
 }
 
+// ── ETHAN Security overview (Phase 07, lecture seule) ──────────────────────
+
+export interface SecurityStatusOverview {
+  policies: {
+    total: number;
+    by_level: Record<string, number>;
+    by_effect: Record<string, number>;
+    categories: string[];
+  };
+  capabilities: {
+    active: number;
+    subjects: string[];
+    summary?: { total_evaluations: number; allowed: number; denied: number };
+  };
+  audit: { total: number };
+}
+
+/**
+ * Résumé lecture seule du système de sécurité ETHAN (policies / capabilities /
+ * audit). Sert uniquement à la représentation — aucune action de mutation.
+ */
+export async function getSecurityStatus(): Promise<SecurityStatusOverview> {
+  return apiFetch<SecurityStatusOverview>("/security/status");
+}
+
+
 export async function createManagedUser(data: {
   username: string;
   password: string;
@@ -74,4 +100,61 @@ export async function setUserActive(username: string, isActive: boolean): Promis
     method: "PUT",
     body: JSON.stringify({ is_active: isActive }),
   });
+}
+
+/**
+ * Mise à jour admin d'un utilisateur (rôle, statut, mot de passe).
+ * PUT /users/{username} — protections serveur : auto-démotion interdite,
+ * dernier admin actif intouchable. Toutes les clés sont optionnelles.
+ */
+export async function updateManagedUser(
+  username: string,
+  data: { role?: "user" | "admin"; is_active?: boolean; password?: string },
+): Promise<ManagedUser> {
+  return apiFetch<ManagedUser>(`/users/${encodeURIComponent(username)}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Suppression définitive d'un compte. DELETE /users/{username} — protections
+ * serveur : auto-suppression interdite, dernier admin actif protégé.
+ */
+export async function deleteManagedUser(username: string): Promise<{ status: string; username: string }> {
+  return apiFetch<{ status: string; username: string }>(
+    `/users/${encodeURIComponent(username)}`,
+    { method: "DELETE" },
+  );
+}
+
+// ── Audit explorer (GET /internal/audit/search) ─────────────────────────
+
+/**
+ * Événement d'audit — sérialisation exacte de core/audit/types.py:AuditEntry.to_dict().
+ * Aucune logique d'audit ici : lecture seule, la journalisation reste dans le Core.
+ */
+export interface AuditEvent {
+  id: string;
+  timestamp: string;
+  category: string;
+  decision: string;
+  action: string;
+  actor: string;
+  source: string;
+  details?: Record<string, unknown>;
+  correlation_id?: string;
+  tags?: string[];
+}
+
+/**
+ * Recherche dans le journal d'audit. L'API impose `q` ≥ 1 caractère
+ * (sous-chaîne sur action/actor/source/correlation_id/details) et plafonne
+ * à 20 entrées, tri récent → ancien. Pas de pagination serveur : le tri,
+ * les filtres et la pagination restent client-side dans l'explorateur.
+ */
+export async function searchAuditEvents(q: string): Promise<AuditEvent[]> {
+  return apiFetch<AuditEvent[]>(
+    `/internal/audit/search?q=${encodeURIComponent(q)}`,
+  );
 }

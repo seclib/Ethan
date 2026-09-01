@@ -12,9 +12,9 @@ const toastIcons = {
   error: <XCircle size={14} />,
 };
 
-/* Style toast Odysseus : panneau sombre, bordure gauche 3px colorée,
-   texte 12px. Les couleurs passent par les tokens de thème (--accent,
-   --green, --amber/--gold, --red) pour rester cohérents avec le thème actif. */
+/* Toast style : dark panel, 3px colored left border,
+   12px text. Colors via theme tokens (--accent,
+   --green, --amber/--gold, --red) to follow the active theme. */
 const toastAccent: Record<string, { borderLeft: string; iconColor: string }> = {
   info: { borderLeft: "var(--accent)", iconColor: "var(--accent)" },
   success: { borderLeft: "var(--green)", iconColor: "var(--green)" },
@@ -26,7 +26,7 @@ export function ToastProvider() {
   const { toasts, removeToast } = useUIStore();
 
   return (
-    <div className="fixed right-4 top-4 z-50 flex w-full max-w-[360px] flex-col gap-2 pointer-events-none">
+    <div className="fixed right-4 top-4 z-toast flex w-full max-w-[360px] flex-col gap-2 pointer-events-none">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => {
           const accent = toastAccent[toast.type] ?? toastAccent.info;

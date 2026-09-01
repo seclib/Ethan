@@ -26,7 +26,30 @@ export interface InstallRecord {
   created: { kind: string; id: string }[];
 }
 
+export interface RecipeInstallItem {
+  name: string;
+  description?: string;
+  text?: string;
+  content?: string;
+  [key: string]: unknown;
+}
+
+export interface RecipeDetail {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  requires: Record<string, string[]>;
+  tags: string[];
+  installs_summary: Record<string, number>;
+  installs: Record<string, RecipeInstallItem[]>;
+  installed: boolean;
+}
+
 export const listRecipes = () => apiFetch<RecipeSummary[]>("/v1/cookbook/recipes");
+
+export const getRecipeDetail = (id: string) =>
+  apiFetch<RecipeDetail>(`/v1/cookbook/recipes/${id}`);
 
 export const listInstalledRecipes = () =>
   apiFetch<InstallRecord[]>("/v1/cookbook/installed");

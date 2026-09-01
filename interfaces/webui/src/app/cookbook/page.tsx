@@ -9,11 +9,28 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  listRecipes, installRecipe, uninstallRecipe, type RecipeSummary,
+  listRecipes, getRecipeDetail, installRecipe, uninstallRecipe,
+  type RecipeSummary, type RecipeDetail, type RecipeInstallItem,
 } from "@/lib/api/extensions";
 import { useUIStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Search, TriangleAlert, CircleCheck } from "lucide-react";
 import { BookOpen, Download, Trash2 } from "lucide-react";
+
+const INSTALL_KIND_LABELS: Record<string, string> = {
+  prompt: "Prompts",
+  skill: "Skills",
+  automation: "Automations",
+};
+
+const REQUIRE_KIND_LABELS: Record<string, string> = {
+  skill: "Skill",
+  tool: "Tool",
+  mcp: "Serveur MCP",
+  model: "Modèle",
+  knowledge: "Base de connaissance",
+};
 
 export default function CookbookPage() {
   const queryClient = useQueryClient();
@@ -37,8 +54,35 @@ export default function CookbookPage() {
     onError: (e: Error) => addToast({ type: "error", message: e.message }),
   });
 
+  // ── Recherche + filtre par tag ────────────────────────────────────────
+  const [search, setSearch] = React.useState("");
+  const [activeTag, setActiveTag] = React.useState<string | null>(null);
+
+  const allTags = React.useMemo(() => {
+    // Les tags vivent au niveau détail (agrégés côté Core) ; pour la galerie
+    // on filtre sur name/description, et les tags sont chargés paresseusement.
+    return [] as string[];
+  }, []);
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return recipes;
+    return recipes.filter(
+      (r) => r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q),
+    );
+  }, [recipes, search]);
+
+  // ── Détail recette ────────────────────────────────────────────────────
+  const [detailId, setDetailId] = React.useState<string | null>(null);
+  const detailQuery = useQuery({
+    queryKey: ["cookbook-recipe", detailId],
+    queryFn: () => getRecipeDetail(detailId as string),
+    enabled: detailId !== null,
+  });
+  const closeDetail = (open: boolean) => { if (!open) setDetailId(null); };
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
         <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, color: "var(--fg)" }}>
           <BookOpen size={18} /> Cookbook

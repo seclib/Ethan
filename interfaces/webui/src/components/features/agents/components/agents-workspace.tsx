@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useUIStore } from "@/store/ui.store";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ export function AgentsWorkspace() {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [menuAgent, setMenuAgent] = React.useState<Agent | null>(null);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<Agent | null>(null);
   const [execOpen, setExecOpen] = React.useState(false);
   const [execAgent, setExecAgent] = React.useState<Agent | null>(null);
   const [execTask, setExecTask] = React.useState("");
@@ -117,8 +119,18 @@ export function AgentsWorkspace() {
   React.useEffect(() => {
     if (!menuAgent) return;
     const onDoc = () => setMenuAgent(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuAgent(null); };
+    const onReflow = () => setMenuAgent(null); // menu fixed : invalide au scroll/resize
     document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onReflow, true);
+    window.addEventListener("resize", onReflow);
+    return () => {
+      document.removeEventListener("click", onDoc);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onReflow, true);
+      window.removeEventListener("resize", onReflow);
+    };
   }, [menuAgent]);
 
   const filtered = agents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
@@ -266,7 +278,7 @@ export function AgentsWorkspace() {
 
       {menuAgent && menuPos && (
         <div
-          className="fixed z-50 min-w-[180px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
+          className="fixed z-popover min-w-[180px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-bg-2"
@@ -279,15 +291,24 @@ export function AgentsWorkspace() {
             onClick={() => { handleDuplicate(menuAgent); setMenuAgent(null); }}>Dupliquer</button>
           <hr className="my-1 border-line-1" />
           <button className="w-full px-3 py-1.5 text-left text-sm text-red hover:bg-red/10"
-            onClick={() => {
-              const ok = window.confirm(`Supprimer l'agent « ${menuAgent.name} » ? Cette action est irréversible.`);
-              if (ok) handleDelete(menuAgent.id);
-              setMenuAgent(null);
-            }}>Supprimer</button>
+            onClick={() => { setDeleteTarget(menuAgent); setMenuAgent(null); }}>Supprimer</button>
         </div>
       )}
 
       <AgentEditorDialog open={editorOpen} onOpenChange={setEditorOpen} agentId={editingId} />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Supprimer l'agent"
+        message={deleteTarget ? `Supprimer l'agent « ${deleteTarget.name} » ? Cette action est irréversible.` : ""}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
 
       <Dialog
         open={execOpen} onClose={() => setExecOpen(false)}

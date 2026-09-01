@@ -26,26 +26,15 @@ interface AssistantChatProps {
   onStop?: () => void;
   disabled?: boolean;
   onFileAttached?: (fileId: string, filename: string) => void;
-  /** Catalogues de capacités (source : Core) sélectionnables dans le composer. */
-  skills?: ComposerCapabilityItem[];
-  collections?: ComposerCapabilityItem[];
-  tools?: ComposerCapabilityItem[];
-  agents?: ComposerCapabilityItem[];
-  /** Sélections actives (Open-WebUI style : cocher des items). */
-  selectedSkillIds?: string[];
-  selectedCollectionIds?: string[];
-  selectedToolIds?: string[];
-    selectedAgentId?: string | null;
-  selectedAgentName?: string;
-  /** Provider/model actifs pour l'affichage résumé dans le composer. */
-  activeProvider?: string;
-  activeModel?: string;
-  /** Ouvre le sélecteur de modèle (provenance : header ou composer). */
-  onOpenModelSelector?: () => void;
-  onToggleSkill?: (id: string) => void;
-  onToggleCollection?: (id: string) => void;
-  onToggleTool?: (id: string) => void;
-  onSelectAgent?: (id: string | null) => void;
+  /** Mode Plan : transmet au composer pour soumettre une intention comme goal. */
+  onPlan?: (message: string) => void;
+  /**
+   * NOTE (dé-duplication) : les props capacités du composer (skills/collections/
+   * tools/sélections/provider/model) ont été RETIRÉES — le composer simplifié
+   * ne les rend plus. Les sélections actives vivent dans la page (payload chat)
+   * et leur représentation visuelle est la ChatContextBar ; les sélecteurs
+   * Agent/Model ont UNE position : le header (AssistantTopBar).
+   */
   /** Erreur globale du flux (use-chats) — affichée en bannière non bloquante. */
   error?: string | null;
   onDismissError?: () => void;
@@ -67,22 +56,7 @@ export function AssistantChat({
   onStop,
   disabled,
   onFileAttached,
-  skills,
-  collections,
-  tools,
-  agents,
-  selectedSkillIds,
-  selectedCollectionIds,
-  selectedToolIds,
-  selectedAgentId,
-  selectedAgentName,
-  activeProvider,
-  activeModel,
-  onOpenModelSelector,
-  onToggleSkill,
-  onToggleCollection,
-  onToggleTool,
-  onSelectAgent,
+  onPlan,
   error,
   onDismissError,
   onRegenerate,
@@ -156,8 +130,12 @@ export function AssistantChat({
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
-      {/* Messages */}
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+      {/* Messages — wrapper relatif : le bouton « retour en bas » s'ancre à la
+          SEULE zone des messages (et non au conteneur chat complet). Sinon son
+          offset `bottom` fixe entre en collision avec le composer quand la
+          textarea grandit (auto-resize jusqu'à 200px). */}
+      <div className="relative flex-1 min-h-0">
+        <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-4 py-6 space-y-6">
           {isLoading && (
             <div className="flex justify-center py-6" role="status" aria-label="Chargement de la conversation">
@@ -188,23 +166,24 @@ export function AssistantChat({
           {waitingForFirstToken && <TypingIndicator />}
           <div className="h-1" />
         </div>
-      </div>
+        </div>
 
-      {/* Bouton retour en bas — visible dès que l'utilisateur a remonté le fil */}
-      {showScrollDown && (
-        <button
-          onClick={() => {
-            autoScrollRef.current = true;
-            setShowScrollDown(false);
-            scrollToBottom("smooth");
-          }}
-          className="absolute bottom-[120px] left-1/2 -translate-x-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-line-2 bg-surface text-foreground-secondary shadow-lg hover:bg-bg-3 hover:text-foreground transition-colors"
-          title="Retour en bas"
-          aria-label="Retour en bas"
-        >
-          <ArrowDown size={16} />
-        </button>
-      )}
+        {/* Bouton retour en bas — visible dès que l'utilisateur a remonté le fil */}
+        {showScrollDown && (
+          <button
+            onClick={() => {
+              autoScrollRef.current = true;
+              setShowScrollDown(false);
+              scrollToBottom("smooth");
+            }}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-floating flex h-9 w-9 items-center justify-center rounded-full border border-line-2 bg-surface text-foreground-secondary shadow-lg hover:bg-bg-3 hover:text-foreground transition-colors"
+            title="Retour en bas"
+            aria-label="Retour en bas"
+          >
+            <ArrowDown size={16} />
+          </button>
+        )}
+      </div>
 
       {/* Bannière d'erreur — non bloquante, dismissable */}
       {error && (
@@ -230,22 +209,7 @@ export function AssistantChat({
         onStop={onStop}
         disabled={disabled}
         onFileAttached={onFileAttached}
-        skills={skills}
-        collections={collections}
-        tools={tools}
-        agents={agents}
-        selectedSkillIds={selectedSkillIds}
-        selectedCollectionIds={selectedCollectionIds}
-        selectedToolIds={selectedToolIds}
-                selectedAgentId={selectedAgentId}
-          selectedAgentName={selectedAgentName}
-        activeProvider={activeProvider}
-        activeModel={activeModel}
-        onOpenModelSelector={onOpenModelSelector}
-        onToggleSkill={onToggleSkill}
-        onToggleCollection={onToggleCollection}
-        onToggleTool={onToggleTool}
-        onSelectAgent={onSelectAgent}
+        onPlan={onPlan}
       />
     </div>
   );

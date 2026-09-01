@@ -12,7 +12,7 @@ exploration web itérative, synthèse sourcée et rapport final —
 orchestrée par le Runtime comme une mission, rendue par la WebUI.
 
 ## Origine
-Odysseus (research/, researchSynapse.js). ETHAN possède déjà les
+Inspiré d'un assistant IA de recherche conversationnel. ETHAN possède déjà les
 briques : tool `builtin_web_search`, missions avec étapes vérifiées
 (`/v1/missions`), RAG pour le cache. Il manque l'orchestrateur.
 

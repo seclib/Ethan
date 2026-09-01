@@ -13,6 +13,7 @@ import { SkillDialog, ExecuteSkillDialog } from "@/components/features/skills/co
 import { PageHeader } from "@/components/shared/page-header";
 import { useUIStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Loader2, Plus, Trash2, Pencil, Power, Play, Code2 } from "lucide-react";
@@ -99,10 +100,14 @@ export function SkillsWorkspace() {
     if (r.error) addToast({ type: "error", message: r.error });
   };
 
-  const handleDelete = async (skill: Skill) => {
-    if (!window.confirm(`Supprimer le skill « ${skill.name} » ?`)) return;
-    const r = await deleteSkill(skill.id);
+  const [pendingDeleteSkill, setPendingDeleteSkill] = React.useState<Skill | null>(null);
+
+  const handleDelete = (skill: Skill) => setPendingDeleteSkill(skill);
+  const confirmDeleteSkill = async () => {
+    if (!pendingDeleteSkill) return;
+    const r = await deleteSkill(pendingDeleteSkill.id);
     if (r.error) addToast({ type: "error", message: r.error });
+    setPendingDeleteSkill(null);
   };
 
   const handleExecute = async () => {
@@ -238,6 +243,16 @@ export function SkillsWorkspace() {
         result={execResult}
         onClose={() => setExecOpen(false)}
         onExecute={handleExecute}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteSkill !== null}
+        onOpenChange={(o) => { if (!o) setPendingDeleteSkill(null); }}
+        title="Supprimer le skill"
+        message={pendingDeleteSkill ? `Supprimer le skill « ${pendingDeleteSkill.name} » ? Cette action est irréversible.` : ""}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={confirmDeleteSkill}
       />
     </div>
   );
