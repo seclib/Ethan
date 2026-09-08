@@ -157,6 +157,18 @@ export function IntegrationFormDialog({ open, mode, integration, onClose, onCrea
           enabled,
         };
         // Rotation : uniquement si l'utilisateur a saisi de nouvelles valeurs.
+        if (Object.keys(credentials).length) {
+          data.credentials = credentials;
+        }
+        await onUpdate(integration.id, data);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const title = mode === "create" ? "Nouvelle intégration" : `Configurer — ${integration?.name ?? ""}`;
 
   return (
     <Dialog open={open} onClose={onClose} title={title} size="lg">
@@ -347,13 +359,4 @@ export function IntegrationFormDialog({ open, mode, integration, onClose, onCrea
       </div>
     </Dialog>
   );
-}
-      }
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const title = mode === "create" ? "Nouvelle intégration" : `Configurer — ${integration?.name ?? ""}`;
 }

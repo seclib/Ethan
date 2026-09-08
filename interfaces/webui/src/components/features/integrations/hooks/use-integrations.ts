@@ -86,7 +86,7 @@ export function useIntegrations(kind?: IntegrationKind) {
       } else {
         addToast({
           type: "error",
-          message: `Connection failed: ${String(data.health ?? "healthcheck error")}`,
+          message: `Connection failed: ${String(data.status ?? "healthcheck error")}`,
         });
       }
     },

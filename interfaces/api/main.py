@@ -28,6 +28,7 @@ from interfaces.api.routers.internal import router as internal_router, init_modu
 from interfaces.api.routers.folders import router as folders_router
 from interfaces.api.routers.projects import router as projects_router
 from interfaces.api.routers.web_ingest import router as web_ingest_router
+from interfaces.api.routers.knowledge_imports import router as knowledge_imports_router
 from interfaces.api.routers.core_domains import router as core_domains_router
 from interfaces.api.routers.v1 import (
     CoreDomainServices,
@@ -234,6 +235,26 @@ async def lifespan(app: FastAPI):
     set_knowledge_collections(knowledge_collections)
     app.state.knowledge_collections = knowledge_collections
     logger.info("KnowledgeCollectionManager ready (Core-owned collections)")
+
+    # --- Knowledge imports (local-first file/folder → collection) ---
+    # Import de fichiers OU dossiers vers une collection RAG.  Le WebUI envoie
+    # uniquement des octets (jamais de chemin) ; le Core valide (MIME, taille,
+    # nom), stocke le binaire via FileStore (racine ETHAN), extrait/ingère via
+    # le pipeline RAG unique et rattache le document à la collection.  La
+    # progression est réelle (job asynchrone in-memory, étapes précises).
+    from core.knowledge.imports import KnowledgeImportManager
+    from interfaces.api.routers.knowledge_imports import (
+        set_import_manager as set_knowledge_import_manager,
+    )
+
+    knowledge_import_manager = KnowledgeImportManager(
+        file_store=file_store,
+        collections=knowledge_collections,
+        ingestion=core_domains.rag,
+    )
+    set_knowledge_import_manager(knowledge_import_manager)
+    app.state.knowledge_import_manager = knowledge_import_manager
+    logger.info("KnowledgeImportManager ready (Core-owned local imports)")
 
     # --- Folders (Core-owned generic organisation of resources) ---
     # Dossiers créés par l'utilisateur (aucun imposé) et relations de
@@ -645,6 +666,7 @@ app.include_router(api_keys_router)
 app.include_router(folders_router)
 app.include_router(projects_router)
 app.include_router(web_ingest_router)
+app.include_router(knowledge_imports_router)
 app.include_router(core_domains_router)
 
 app.include_router(message_router)

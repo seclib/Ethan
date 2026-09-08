@@ -98,6 +98,7 @@ class FolderManager:
         description: str = "",
         user_id: str = "anonymous",
         parent_id: str | None = None,
+        collection_id: str | None = None,
         icon: str | None = None,
         order: int = 0,
         metadata: dict[str, Any] | None = None,
@@ -107,18 +108,27 @@ class FolderManager:
         ``parent_id`` permet d'imbriquer librement des sous-dossiers ; aucune
         hiérarchie n'est seedée ni imposée (avant la première création il
         n'existe aucun dossier).
+
+        ``collection_id`` associe **optionnellement** le dossier à une
+        collection Knowledge (contexte de navigation).  Un dossier n'est PAS
+        un répertoire de la collection : la relation est une référence
+        validée (fail-closed) — la collection reste possédée par le
+        KnowledgeCollectionManager.
         """
         normalized = (name or "").strip()
         if not normalized:
             raise ValueError("Folder name must not be empty")
         if parent_id is not None:
             await self._require_folder(parent_id)
+        if collection_id is not None:
+            await self._validate_collection(collection_id)
         folder = {
             "id": str(uuid4()),
             "name": normalized,
             "description": description,
             "user_id": user_id,
             "parent_id": parent_id,
+            "collection_id": collection_id,
             "icon": icon,
             "order": order,
             "metadata": dict(metadata or {}),
@@ -156,12 +166,14 @@ class FolderManager:
         icon: Any = _UNSET,
         order: int | None = None,
         parent_id: Any = _UNSET,
+        collection_id: Any = _UNSET,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Mise à jour partielle : seuls les champs fournis sont modifiés.
 
-        ``parent_id``/``icon`` utilisent la sentinelle ``_UNSET`` pour
-        distinguer « non fourni » de « remettre à None » (racine/sans icône).
+        ``parent_id``/``icon``/``collection_id`` utilisent la sentinelle
+        ``_UNSET`` pour distinguer « non fourni » de « remettre à None »
+        (racine/sans icône/sans collection).
         """
         folder = await self.get_folder(folder_id)
         if folder is None:
@@ -180,6 +192,10 @@ class FolderManager:
         if parent_id is not _UNSET:
             await self._validate_parent(folder_id, parent_id)
             folder["parent_id"] = parent_id
+        if collection_id is not _UNSET:
+            if collection_id is not None:
+                await self._validate_collection(collection_id)
+            folder["collection_id"] = collection_id
         if metadata is not None:
             folder["metadata"] = dict(metadata)
         folder["updated_at"] = _utc_now()
@@ -227,13 +243,37 @@ class FolderManager:
 
     # ── Arborescence ─────────────────────────────────────────────────────
 
-    async def list_tree(self, user_id: str | None = None) -> list[dict[str, Any]]:
+    async def list_tree(
+        self,
+        user_id: str | None = None,
+        collection_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Arborescence ordonnée (``order`` puis ``name``).
 
         Les dossiers dont le parent a disparu (donnée corrompue) remontent à
         la racine : aucun record ne disparaît de la vue utilisateur.
+
+        ``collection_id`` restreint la vue aux dossiers associés à cette
+        collection — les ancêtres sont conservés pour que la hiérarchie
+        reste navigable (breadcrumb).
         """
         folders = await self.list_folders(user_id)
+        if collection_id is not None:
+            by_id = {f["id"]: f for f in folders}
+            keep: set[str] = {
+                f["id"] for f in folders if f.get("collection_id") == collection_id
+            }
+            for fid in list(keep):
+                cursor = by_id[fid]
+                while (
+                    cursor.get("parent_id")
+                    and cursor["parent_id"] in by_id
+                    and cursor["parent_id"] not in keep
+                ):
+                    keep.add(cursor["parent_id"])
+                    cursor = by_id[cursor["parent_id"]]
+            folders = [f for f in folders if f["id"] in keep]
+
         by_id = {f["id"] for f in folders}
         by_parent: dict[str | None, list[dict[str, Any]]] = {}
         for folder in folders:
@@ -459,6 +499,19 @@ class FolderManager:
         if folder is None:
             raise ValueError(f"Folder {folder_id} not found")
         return folder
+
+    async def _validate_collection(self, collection_id: str) -> None:
+        """Fail-closed : un dossier ne référence qu'une collection existante.
+
+        La validation passe par le provider ``collection`` du registre ouvert
+        (zéro couplage au KnowledgeCollectionManager).  Sans provider, la
+        référence est rejetée — jamais de relation fantôme.
+        """
+        provider = self._providers.get("collection")
+        if provider is None:
+            raise ValueError("Collections provider not registered for folder scoping")
+        if await provider.get(collection_id) is None:
+            raise ValueError(f"Collection {collection_id} not found")
 
     async def _require_resource(self, resource_type: str, resource_id: str) -> None:
         if resource_type not in self._resource_types:

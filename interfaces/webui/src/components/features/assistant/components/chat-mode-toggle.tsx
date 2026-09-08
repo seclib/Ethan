@@ -9,7 +9,7 @@ interface ChatModeToggleProps {
   /** Mode courant du chat. */
   mode: ChatMode;
   /** Changement de mode. */
-  onModeChange: (mode: ChatMode) => void;
+  onModeChange?: (mode: ChatMode) => void;
   /** État de désactivation (génération en cours). */
   disabled?: boolean;
 }
@@ -24,7 +24,7 @@ export function ChatModeToggle({ mode, onModeChange, disabled }: ChatModeToggleP
     <div className="inline-flex items-center gap-0.5 rounded-lg border border-line-1 bg-bg-1 p-0.5 text-xs font-medium">
       <button
         type="button"
-        onClick={() => onModeChange("act")}
+        onClick={() => onModeChange?.("act")}
         disabled={disabled}
         title="Act — Conversation directe"
         className={cn(
@@ -41,7 +41,7 @@ export function ChatModeToggle({ mode, onModeChange, disabled }: ChatModeToggleP
 
       <button
         type="button"
-        onClick={() => onModeChange("plan")}
+        onClick={() => onModeChange?.("plan")}
         disabled={disabled}
         title="Plan — Planification de goal"
         className={cn(
@@ -58,7 +58,7 @@ export function ChatModeToggle({ mode, onModeChange, disabled }: ChatModeToggleP
 
       <button
         type="button"
-        onClick={() => onModeChange("agent")}
+        onClick={() => onModeChange?.("agent")}
         disabled={disabled}
         title="Agent — Exécution autonome"
         className={cn(

@@ -41,9 +41,15 @@ def _not_found(exc: ValueError) -> HTTPException:
 
 
 @router.get("/tree")
-async def list_folders_tree(user_id: str | None = None):
-    """Arborescence complète des dossiers de l'utilisateur."""
-    return await get_folder_manager().list_tree(user_id=user_id)
+async def list_folders_tree(
+    user_id: str | None = None, collection_id: str | None = None
+):
+    """Arborescence des dossiers ; ``collection_id`` restreint la vue aux
+    dossiers associés à cette collection (ancêtres conservés pour le fil
+    d'Ariane)."""
+    return await get_folder_manager().list_tree(
+        user_id=user_id, collection_id=collection_id
+    )
 
 
 @router.get("/untagged")
@@ -109,6 +115,7 @@ async def create_folder(data: dict[str, Any]):
             description=data.get("description", ""),
             user_id=data.get("user_id", "anonymous"),
             parent_id=data.get("parent_id"),
+            collection_id=data.get("collection_id"),
             icon=data.get("icon"),
             order=int(data["order"]) if data.get("order") is not None else 0,
             metadata=data.get("metadata"),
@@ -132,7 +139,10 @@ async def get_folder(folder_id: str):
 async def update_folder(folder_id: str, data: dict[str, Any]):
     """Mise à jour partielle : rename, description, icône, ordre, parent."""
     kwargs: dict[str, Any] = {}
-    for key in ("name", "description", "icon", "order", "parent_id", "metadata"):
+    for key in (
+        "name", "description", "icon", "order", "parent_id", "collection_id",
+        "metadata",
+    ):
         if key in data:
             kwargs[key] = data[key]
     try:

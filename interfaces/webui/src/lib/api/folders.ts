@@ -18,6 +18,11 @@ export interface Folder {
 	user_id: string;
 	/** Dossier parent (arborescence libre créée par l'utilisateur). */
 	parent_id: string | null;
+	/**
+	 * Collection Knowledge associée (contexte de navigation) — référence
+	 * validée par le Core ; un dossier n'est PAS un répertoire de la collection.
+	 */
+	collection_id: string | null;
 	icon: string | null;
 	order: number;
 	metadata: Record<string, unknown>;
@@ -38,8 +43,14 @@ export interface FolderResource {
 	record: Record<string, unknown> | null;
 }
 
-export async function listFolderTree(userId?: string): Promise<FolderTree[]> {
-	const query = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+export async function listFolderTree(
+	userId?: string,
+	collectionId?: string | null,
+): Promise<FolderTree[]> {
+	const params = new URLSearchParams();
+	if (userId) params.set("user_id", userId);
+	if (collectionId) params.set("collection_id", collectionId);
+	const query = params.toString() ? `?${params.toString()}` : "";
 	return apiFetch<FolderTree[]>(`/v1/folders/tree${query}`);
 }
 
@@ -52,6 +63,7 @@ export async function createFolder(data: {
 	description?: string;
 	user_id?: string;
 	parent_id?: string | null;
+	collection_id?: string | null;
 	icon?: string | null;
 	order?: number;
 }): Promise<Folder> {
@@ -69,6 +81,7 @@ export async function updateFolder(
 		icon?: string | null;
 		order?: number;
 		parent_id?: string | null;
+		collection_id?: string | null;
 	},
 ): Promise<Folder> {
 	return apiFetch<Folder>(`/v1/folders/${folderId}`, {

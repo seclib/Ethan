@@ -16,15 +16,17 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FoldersWorkspace } from "@/components/features/folders/components/folders-workspace";
+import { KnowledgeBrowser } from "@/components/features/knowledge/components/knowledge-browser";
 import { KnowledgeWorkspace } from "@/components/features/knowledge/components/knowledge-workspace";
 import { RagCollectionsView } from "@/components/features/knowledge/components/rag-collections-view";
 import { WebImportPanel } from "@/components/features/knowledge/components/web-import-panel";
 import { SkillsWorkspace } from "@/components/features/skills/components/skills-workspace";
 import { DomainsWorkspace } from "@/components/features/domains/components/domains-workspace";
 
-type HubTab = "domains" | "folders" | "knowledge" | "rag" | "skills" | "web";
+type HubTab = "browser" | "domains" | "folders" | "knowledge" | "rag" | "skills" | "web";
 
 const TABS: Array<{ id: HubTab; label: string; icon: React.ComponentType<{ size?: number | string; className?: string }> }> = [
+  { id: "browser", label: "Navigateur", icon: FolderTree },
   { id: "domains", label: "Domains", icon: Shapes },
   { id: "folders", label: "Tous les dossiers", icon: FolderTree },
   { id: "knowledge", label: "Toutes les Knowledge", icon: Database },
@@ -69,6 +71,7 @@ export function KnowledgeHub() {
       </div>
 
                                                 <div className="min-h-0 flex-1 overflow-y-auto">
+        {tab === "browser" && <KnowledgeBrowser />}
         {tab === "domains" && <DomainsWorkspace />}
         {tab === "folders" && <FoldersWorkspace />}
         {tab === "knowledge" && <KnowledgeWorkspace />}
