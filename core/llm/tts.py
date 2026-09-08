@@ -22,6 +22,8 @@ class TTSEngine:
 
     def __init__(self, store: CoreRecordStore | None = None) -> None:
         self._store = store or CoreRecordStore()
+        # Clé API en mémoire d'instance UNIQUEMENT — jamais persistée.
+        self._api_key: str | None = None
 
     async def configure(
         self,
@@ -31,21 +33,47 @@ class TTSEngine:
         api_key: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Configure the TTS engine."""
+        """Configure the TTS engine.
+
+        Note sécurité : la clé API est stockée dans une mémoire d'instance
+        uniquement (elle n'est jamais persistée en clair dans le record
+        store ni dans la réponse ``get_config``).
+        """
+        if api_key:
+            # Mémoire uniquement — jamais dans le store persistant.
+            self._api_key = api_key
         config = {
             "provider": provider,
             "voice": voice,
             "speed": speed,
-            "api_key": api_key,
             "enabled": True,
             "metadata": dict(metadata or {}),
         }
         await self._store.save(self._DOMAIN, "default", config)
-        return config
+        return {**config, "has_api_key": bool(self._api_key)}
 
     async def get_config(self) -> dict[str, Any] | None:
-        """Retrieve the current TTS configuration."""
-        return await self._store.get(self._DOMAIN, "default")
+        """Retrieve the current TTS configuration (never exposes secrets).
+
+        La clé API n'est jamais renvoyée : à la place ``has_api_key``
+        indique si une clé est configurée en mémoire.
+        """
+        cfg = await self._store.get(self._DOMAIN, "default")
+        if cfg is None:
+            return None
+        # Ne JAMAIS renvoyer une clé voie résiduelle du store (anciennes
+        # configs persistées avant la correction sécurité).
+        public = {k: v for k, v in cfg.items() if k not in ("api_key", "apiKey")}
+        return {**public, "has_api_key": bool(self._api_key or cfg.get("api_key"))}
+
+    async def _raw_config(self) -> dict[str, Any] | None:
+        """Config interne brute (avec traitements) — usage interne uniquement."""
+        cfg = await self._store.get(self._DOMAIN, "default")
+        if cfg is None:
+            return None
+        if self._api_key:
+            cfg = {**cfg, "api_key": self._api_key}
+        return cfg
 
     async def synthesize(self, text: str, config: dict[str, Any] | None = None) -> bytes:
         """Synthesize text to speech audio bytes (WAV).
@@ -57,7 +85,7 @@ class TTSEngine:
         - "openai" / "elevenlabs" / others : NOT implemented yet — raises
           NotImplementedError until a dedicated integration lands (RFC).
         """
-        cfg = config or await self.get_config()
+        cfg = config or await self._raw_config()
         if cfg is None:
             raise RuntimeError("TTS not configured")
         provider = str(cfg.get("provider", ""))

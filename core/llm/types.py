@@ -18,6 +18,66 @@ class TaskType(str, Enum):
     TRANSLATION = "translation"
 
 
+class ProviderCapability(str, Enum):
+    """Capacités normalisées d'un provider unifié.
+
+    ETHAN distingue cinq capacités sur le modèle unifié ``LLMProvider`` :
+
+    - ``LLM``              : chat + streaming (tous les providers)
+    - ``VISION``           : analyse d'images (``vision_analyze``)
+    - ``EMBEDDING``        : vecteurs sémantiques (``embed``)
+    - ``SPEECH_TO_TEXT``   : audio → texte (``transcribe``)
+    - ``TRANSCRIPTION``    : transcription de parole (alias STT, même méthode)
+
+    Les flags ``supports_*`` du provider racontent la même histoire en
+    booléens ; la liste canonique ci-dessous est la forme sérialisable
+    exposée à l'API et à la WebUI.
+    """
+
+    LLM = "llm"
+    VISION = "vision"
+    EMBEDDING = "embedding"
+    SPEECH_TO_TEXT = "speech_to_text"
+    TRANSCRIPTION = "transcription"
+
+    @classmethod
+    def from_flags(
+        cls,
+        *,
+        supports_vision: bool = False,
+        supports_embedding: bool = True,
+        supports_transcription: bool = False,
+        supports_speech_to_text: bool | None = None,
+    ) -> list[str]:
+        """Construit la liste canonique des capacités depuis les flags.
+
+        Args:
+            supports_vision: Provider capable de vision.
+            supports_embedding: Provider capable d'embedding (majorité).
+            supports_transcription: Provider capable de STT/transcription.
+            supports_speech_to_text: Alias explicite STT — si fourni, prime
+                sur ``supports_transcription`` pour ``speech_to_text``.
+
+        Returns:
+            Liste ordonnée et canonique : llm, vision, embedding,
+            speech_to_text | transcription selon les flags.
+        """
+        caps: list[str] = [cls.LLM.value]  # le chat est toujours supporté
+        if supports_vision:
+            caps.append(cls.VISION.value)
+        if supports_embedding:
+            caps.append(cls.EMBEDDING.value)
+        stt = (
+            supports_speech_to_text
+            if supports_speech_to_text is not None
+            else supports_transcription
+        )
+        if stt:
+            caps.append(cls.SPEECH_TO_TEXT.value)
+            caps.append(cls.TRANSCRIPTION.value)
+        return caps
+
+
 @dataclass
 class LLMRequirements:
     """Besoins pour la sélection d'un modèle."""

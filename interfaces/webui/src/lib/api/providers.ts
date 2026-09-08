@@ -25,6 +25,10 @@ export interface Provider {
 	models: string[];
 	/** true si le Core a une clé/token configurée pour ce provider. */
 	key_exists?: boolean;
+	/** Capacités normalisées du modèle unifié (llm, vision, embedding, speech_to_text, transcription). */
+	capabilities?: string[];
+	/** true si une clé API est configurée (la clé elle-même n'est jamais renvoyée). */
+	has_api_key?: boolean;
 }
 
 export interface ProviderUpdate {
@@ -112,12 +116,15 @@ export async function listProviderModels(id: string): Promise<unknown[]> {
 	return apiFetch<unknown[]>(`/providers/${id}/models`);
 }
 
-/** Provider capabilities (vision, transcription, embedding) */
+/** Provider capabilities (vision, transcription, embedding, speech_to_text) */
 export interface ProviderCapabilities {
 	provider_id: string;
 	name: string;
+	/** Capacités normalisées du modèle unifié. */
+	capabilities: string[];
 	supports_vision: boolean;
 	supports_transcription: boolean;
+	supports_speech_to_text: boolean;
 	supports_embedding: boolean;
 }
 

@@ -1,8 +1,8 @@
 # ETHAN WebUI — Architecture Review
 
-**Date** : 2026-09-09  
-**Scope** : Projects, Knowledge, AI, Integrations, Library, Settings, Chat  
-**Reviewer** : CTO / Principal Architect  
+**Date** : 2026-09-09
+**Scope** : Projects, Knowledge, AI, Integrations, Library, Settings, Chat
+**Reviewer** : CTO / Principal Architect
 **Verdict** : **GO**
 
 ---
@@ -65,10 +65,10 @@ Revue exhaustive de l'architecture WebUI et de son intégration avec le Core ETH
 **Statut** : ✅ **OK**
 
 - **ProviderManager** (`core/llm/provider_manager.py`) est le seul gestionnaire de providers
-- **ProviderRegistry** dans `interfaces/api/routers/providers.py` est un commentaire obsolète (P2)
+- Le router `interfaces/api/routers/providers.py` est une passerelle HTTP sans logique métier
 - **WebUI** utilise `useActiveModel` hook qui délègue au Core via l'API
 
-**Finding P2** : Commentaire obsolète dans `providers.py:141` mentionnant un "DOUBLON avec registry.py" — le fichier `registry.py` n'existe pas.
+**Aucune classe provider dupliquée** dans la WebUI.
 
 ### 3.3. Duplication RAG
 
@@ -98,6 +98,18 @@ Revue exhaustive de l'architecture WebUI et de son intégration avec le Core ETH
 - **PostgreSQL** n'est accessible que depuis `core/state/` et `interfaces/api/`
 
 ### 3.6. Accès Direct à Qdrant
+
+**Statut** : ✅ **OK**
+
+- **Aucun import** de `QdrantClient` dans `interfaces/webui/`
+- **Qdrant** n'est accessible que depuis `core/rag/vector_store.py`
+
+### 3.7. Runtime Bypasses
+
+**Statut** : ✅ **OK**
+
+- **Toutes les requêtes** passent par l'API FastAPI (`interfaces/api/`)
+- **Aucun appel direct** au Core depuis le frontend
 ### 3.8. Sécurité
 
 **Statut** : ✅ **OK**
@@ -137,40 +149,6 @@ Revue exhaustive de l'architecture WebUI et de son intégration avec le Core ETH
 **Statut** : ✅ **OK**
 
 - **Tests Python** : 94 passed
----
-
-## 5. Recommandations
-
-### 5.1. P2 — Dettes Techniques Mineures
-
-1. **Nettoyer le commentaire obsolète** dans `interfaces/api/routers/providers.py:141`
-2. **Documenter les TODO** dans `assistant-input.tsx` (voice, file picker, tools, search)
-
-### 5.2. P3 — Améliorations Futures
-
-1. **Tests d'intégration** : ajouter des tests E2E pour le flux chat complet
-2. **Monitoring** : ajouter des métriques de performance frontend
-3. **Accessibilité** : auditer les composants pour WCAG 2.1
-
----
-
-## 6. Verdict
-
-### **GO**
-
-L'architecture respecte les principes ETHAN :
-- ✅ **Core est la source de vérité**
-- ✅ **WebUI est une interface pure**
-- ✅ **Aucune duplication de logique métier**
-- ✅ **Sécurité validée**
-- ✅ **Aucune régression**
-
-Les fonctionnalités implémentées (Projects, Knowledge, AI, Integrations, Library, Settings, Chat) sont architecturalement saines et prêtes pour la production contrôlée.
-
----
-
-**Signé** : CTO / Principal Architect  
-**Date** : 2026-09-09
 - **Tests TypeScript** : 29 passed
 - **Build** : ✓ Compiled successfully
 - **Type checking** : ✓ No errors
@@ -237,3 +215,34 @@ Les fonctionnalités implémentées (Projects, Knowledge, AI, Integrations, Libr
 ---
 
 ## 5. Recommandations
+
+### 5.1. P2 — Dettes Techniques Mineures
+
+1. **Nettoyer le commentaire obsolète** dans `interfaces/api/routers/providers.py:141`
+2. **Documenter les TODO** dans `assistant-input.tsx` (voice, file picker, tools, search)
+
+### 5.2. P3 — Améliorations Futures
+
+1. **Tests d'intégration** : ajouter des tests E2E pour le flux chat complet
+2. **Monitoring** : ajouter des métriques de performance frontend
+3. **Accessibilité** : auditer les composants pour WCAG 2.1
+
+---
+
+## 6. Verdict
+
+### **GO**
+
+L'architecture respecte les principes ETHAN :
+- ✅ **Core est la source de vérité**
+- ✅ **WebUI est une interface pure**
+- ✅ **Aucune duplication de logique métier**
+- ✅ **Sécurité validée**
+- ✅ **Aucune régression**
+
+Les fonctionnalités implémentées (Projects, Knowledge, AI, Integrations, Library, Settings, Chat) sont architecturalement saines et prêtes pour la production contrôlée.
+
+---
+
+**Signé** : CTO / Principal Architect
+**Date** : 2026-09-09

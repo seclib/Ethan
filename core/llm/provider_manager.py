@@ -21,6 +21,7 @@ from core.llm.types import (
     ChatResponse,
     LLMRequirements,
     ModelInfo,
+    ProviderCapability,
     TranscriptionRequest,
     TranscriptionResponse,
     VisionRequest,
@@ -35,6 +36,33 @@ from core.llm.provider_factory import create_provider_from_config
 from core.llm.store import ProviderStore
 
 logger = logging.getLogger(__name__)
+
+
+# Capacités canoniques par type de provider — utilisé lorsque le provider est
+# désactivé (pas d'instance enregistrée) pour ne pas inventer de capacités.
+_CAPABILITY_BY_TYPE: dict[str, list[str]] = {
+    "ollama": ["llm", "vision", "embedding"],
+    "vllm": ["llm", "embedding"],
+    "llamacpp": ["llm", "embedding"],
+    "lmstudio": ["llm", "embedding"],
+    "openai": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "azure": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "anthropic": ["llm", "vision"],
+    "gemini": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "openrouter": ["llm", "vision", "embedding"],
+    "openai-compatible": ["llm", "embedding", "speech_to_text", "transcription"],
+    "custom": ["llm", "embedding", "speech_to_text", "transcription"],
+}
+
+
+def _caps_for_type(provider_type: str) -> list[str]:
+    """Retourne les capacités canoniques par défaut d'un type de provider.
+
+    Fallback pour ``describe_provider`` quand l'instance n'est pas enregistrée
+    (provider désactivé). Ne doit jamais lever — on retourne ``[llm]`` seul
+    pour un type inconnu plutôt que d'exposer une liste vide trompeuse.
+    """
+    return list(_CAPABILITY_BY_TYPE.get(provider_type, ["llm"]))
 
 
 class ProviderManager:
@@ -529,6 +557,22 @@ class ProviderManager:
         except Exception:
             models = []
 
+        # Capacités canoniques — via l'instance si enregistrée, sinon via les
+        # flags par défaut du type (provider désactivé / non instancié).
+        provider = self._registry.get_provider(provider_id)
+        if provider is not None:
+            capabilities = (
+                provider.capabilities()
+                if hasattr(provider, "capabilities")
+                else ProviderCapability.from_flags(
+                    supports_vision=getattr(provider, "supports_vision", False),
+                    supports_embedding=getattr(provider, "supports_embedding", True),
+                    supports_transcription=getattr(provider, "supports_transcription", False),
+                )
+            )
+        else:
+            capabilities = _caps_for_type(config.get("type", provider_id))
+
         return {
             "id": provider_id,
             "name": config.get("display_name", config.get("name", provider_id)),
@@ -539,6 +583,11 @@ class ProviderManager:
             "is_default": provider_id == self._default_provider,
             "base_url": config.get("base_url", ""),
             "models": models,
+            # Capacités normalisées (llm, vision, embedding, speech_to_text,
+            # transcription) — interface WebUI.
+            "capabilities": capabilities,
+            # Booléen uniquement — la clé API n'est JAMAIS sérialisée.
+            "has_api_key": bool(config.get("api_key")),
         }
 
     async def list_providers(self) -> list[dict[str, Any]]:
@@ -668,6 +717,50 @@ class ProviderManager:
             f"No provider with {capability} capability found. "
             f"Available providers: {self._registry.list_providers()}"
         )
+
+    def get_provider_capabilities(self, provider_id: str) -> dict[str, Any]:
+        """Retourne les capacités canoniques + flags d'un provider enregistré.
+
+        Source unique pour l'endpoint API ``/providers/{id}/capabilities``.
+        Ne sérialise jamais la config brute ni les secrets.
+
+        Args:
+            provider_id: ID du provider.
+
+        Returns:
+            Dict avec ``name``, ``capabilities`` (liste canonique) et les
+            flags ``supports_*``.
+
+        Raises:
+            ValueError: Si le provider n'est pas enregistré.
+        """
+        provider = self._registry.get_provider(provider_id)
+        if provider is None:
+            raise ValueError(f"Provider '{provider_id}' not found")
+
+        capabilities = (
+            provider.capabilities()
+            if hasattr(provider, "capabilities")
+            else ProviderCapability.from_flags(
+                supports_vision=getattr(provider, "supports_vision", False),
+                supports_embedding=getattr(provider, "supports_embedding", True),
+                supports_transcription=getattr(provider, "supports_transcription", False),
+            )
+        )
+        supports_transcription = bool(getattr(provider, "supports_transcription", False))
+        # supports_speech_to_text peut être None (hérité de la base) → fallback
+        # explicite sur le flag transcription (alias sémantique).
+        stt_flag = getattr(provider, "supports_speech_to_text", None)
+        supports_stt = supports_transcription if stt_flag is None else bool(stt_flag)
+        return {
+            "provider_id": provider_id,
+            "name": getattr(provider, "name", provider_id),
+            "capabilities": capabilities,
+            "supports_vision": bool(getattr(provider, "supports_vision", False)),
+            "supports_transcription": supports_transcription,
+            "supports_speech_to_text": supports_stt,
+            "supports_embedding": bool(getattr(provider, "supports_embedding", True)),
+        }
 
     async def chat(
         self,

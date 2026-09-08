@@ -9,12 +9,8 @@ import {
   Search,
   Wrench,
   Mic,
-  Bot,
-  Zap,
-  CircleDot,
 } from "lucide-react";
-
-export type ChatMode = "act" | "plan" | "agent";
+import type { ChatMode } from "./chat-mode-toggle";
 
 interface AssistantInputProps {
   onSend: (message: string) => void;

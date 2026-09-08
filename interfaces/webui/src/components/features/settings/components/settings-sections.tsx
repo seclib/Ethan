@@ -105,32 +105,44 @@ export function SearchSection() {
   );
 }
 
-// ── Shortcuts Section (user preferences) ──────────────────────────────
+// ── Shortcuts Section (UI-only keyboard shortcuts) ─────────────────────
+//
+// These are display/navigation shortcuts handled entirely by the WebUI
+// (use-keyboard.ts hook). They dispatch to routes and never invoke
+// Runtime business logic directly. The authoritative shortcut registry
+// lives in @/config/shortcuts.ts.
+
+import { SHORTCUTS } from "@/config/shortcuts";
+import { Keyboard } from "lucide-react";
 
 export function ShortcutsSection() {
-  const shortcuts = [
-    { key: "n", action: "New Chat" },
-    { key: "p", action: "New Project" },
-    { key: "/", action: "Search" },
-    { key: "l", action: "Library" },
-    { key: ",", action: "Settings" },
-    { key: "?", action: "Show Shortcuts" },
-  ];
-
   return (
     <div className="p-6">
-      <SectionHeader title="Shortcuts" description="Keyboard shortcuts for quick navigation." />
+      <SectionHeader
+        title="Shortcuts"
+        description="Keyboard shortcuts for quick navigation (UI-only — managed by WebUI)."
+      />
       <div className="space-y-2">
-        {shortcuts.map((s) => (
-          <div key={s.key} className="flex items-center justify-between rounded-md border border-line-1 px-4 py-3">
-            <span className="text-sm text-foreground">{s.action}</span>
-            <kbd className="rounded-md bg-[var(--panel)] px-2 py-1 text-xs font-mono text-muted-foreground">{s.key}</kbd>
+        {SHORTCUTS.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center justify-between rounded-md border border-line-1 px-4 py-3"
+          >
+            <div className="flex items-center gap-2">
+              <Keyboard className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">{s.label}</span>
+            </div>
+            <kbd className="rounded-md bg-[var(--panel)] px-2 py-1 text-xs font-mono text-muted-foreground">
+              {s.display}
+            </kbd>
           </div>
         ))}
       </div>
     </div>
   );
 }
+
+// ── Library Section (project configuration — library preferences) ──────
 
 // ── Library Section (project configuration) ───────────────────────────
 

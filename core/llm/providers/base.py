@@ -17,6 +17,7 @@ from core.llm.types import (
     ChatMessage,
     ChatResponse,
     ModelInfo,
+    ProviderCapability,
     TranscriptionRequest,
     TranscriptionResponse,
     VisionRequest,
@@ -42,6 +43,24 @@ class LLMProvider(ABC):
     supports_vision: bool = False
     supports_transcription: bool = False
     supports_embedding: bool = True
+    # Speech-to-Text est l'alias normalisé de transcription (même méthode
+    # ``transcribe``) — rares sont les providers qui distinguent les deux.
+    supports_speech_to_text: bool | None = None
+
+    def capabilities(self) -> list[str]:
+        """Liste canonique et sérialisable des capacités de ce provider.
+
+        Retourne une liste normalisée (``ProviderCapability``) :
+        ``[llm, vision?, embedding?, speech_to_text?, transcription?]``.
+        C'est la forme exposée à l'API ``/providers`` et à la WebUI —
+        jamais les secrets ni la config brute.
+        """
+        return ProviderCapability.from_flags(
+            supports_vision=self.supports_vision,
+            supports_embedding=self.supports_embedding,
+            supports_transcription=self.supports_transcription,
+            supports_speech_to_text=self.supports_speech_to_text,
+        )
 
     @abstractmethod
     async def chat(

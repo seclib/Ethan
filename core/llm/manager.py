@@ -1,6 +1,11 @@
 """LLM Manager — Module principal du moteur LLM multi-provider.
 
-Orchestre :
+⚠️ DÉPRÉCIÉ — ``LLMManager`` est conservé pour compatibilité ascendante
+mais n'est plus utilisé par le code de production. L'architecture
+**autoritative** est ``ProviderManager`` (``core.llm.provider_manager``),
+qui apporte en plus la persistance, l'activation et le healthcheck.
+
+Orchestre (legacy) :
 - LLMProviderRegistry (catalogue)
 - LLMSelector (sélection)
 - LLMClient (interface unifiée)

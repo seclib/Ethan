@@ -219,6 +219,10 @@ class CoreWebUIStore:
     ]
 
     async def list_providers(self) -> list[dict[str, Any]]:
+        """⚠️ DÉPRÉCIÉ — faux catalogue de providers en dur, NON branché à
+        l'API. La persistance autoritative des providers est ``ProviderStore``
+        (table ``llm_providers``) pilotée par ``ProviderManager``. Conservé
+        uniquement pour compatibilité avec d'anciennes routes internes."""
         records = await self._store.list(_DOMAIN_PROVIDERS)
         if not records:
             # Seed defaults once on first access (idempotent).
@@ -228,6 +232,7 @@ class CoreWebUIStore:
         return records
 
     async def get_provider(self, provider_id: str) -> dict[str, Any] | None:
+        """⚠️ DÉPRÉCIÉ — voir ``list_providers``. Remplacez par ``ProviderManager``."""
         record = await self._store.get(_DOMAIN_PROVIDERS, provider_id)
         if record is not None:
             return record
@@ -238,6 +243,7 @@ class CoreWebUIStore:
         return None
 
     async def update_provider(self, provider_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
+        """⚠️ DÉPRÉCIÉ — voir ``list_providers``. Remplacez par ``ProviderManager``."""
         record = await self._store.get(_DOMAIN_PROVIDERS, provider_id)
         if record is None:
             # Create from defaults if it is a known default.

@@ -4,13 +4,15 @@
  * ProviderFormDialog — Formulaire d'ajout/édition d'un provider LLM.
  *
  * Ne valide AUCUNE logique métier : envoi JSON direct vers Core API /providers.
+ * La clé API n'est jamais pré-remplie (le backend ne la renvoie jamais) :
+ * ``hasApiKey`` n'est qu'un indicateur d'état.
  */
 
 import * as React from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, X } from "lucide-react"
+import { Save, X, Lock } from "lucide-react"
 import type { Provider } from "@/lib/api/providers";
 
 const PROVIDER_TYPES = [
@@ -58,9 +60,14 @@ export function ProviderFormDialog({ open, mode, provider, onClose, onSubmit }: 
 			type,
 			display_name: display_name || name,
 			base_url,
-			api_key,
 			default_model,
 		};
+		// Clé API : envoyée UNIQUEMENT si l'utilisateur en saisit une nouvelle.
+		// Un champ vide = « conserver la clé actuelle » (le Core ne renvoie
+		// jamais la clé — elle ne peut pas être pré-remplie).
+		if (api_key.trim()) {
+			data.api_key = api_key.trim();
+		}
 		await onSubmit(data);
 		setName("");
 		setBaseUrl("");
@@ -122,10 +129,16 @@ export function ProviderFormDialog({ open, mode, provider, onClose, onSubmit }: 
 					<label className="block text-sm font-medium mb-1">Clé API</label>
 					<Input
 						type="password"
-						placeholder="••••••••"
+						placeholder={provider?.has_api_key ? "•••••••• (clé déjà configurée — laisser vide pour conserver)" : "••••••••"}
 						value={api_key}
 						onChange={(e) => setApiKey(e.target.value)}
 					/>
+					{provider?.has_api_key && (
+						<p className="mt-1 flex items-center gap-1 text-xs text-foreground-tertiary">
+							<Lock className="h-3 w-3" />
+							Clé configurée côté Core — jamais affichée ni renvoyée.
+						</p>
+					)}
 				</div>
 
 				<div>

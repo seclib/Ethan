@@ -45,6 +45,27 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   openai_compatible: Globe,
 };
 
+/**
+ * Labels des capacités normalisées du modèle unifié (ProviderCapability).
+ * Ces chaînes proviennent du Core — le frontend ne fait que traduire pour
+ * l'affichage.
+ */
+const CAPABILITY_LABELS: Record<string, string> = {
+  llm: "LLM",
+  vision: "Vision",
+  embedding: "Embeddings",
+  speech_to_text: "Speech-to-Text",
+  transcription: "Transcription",
+};
+
+const CAPABILITY_COLORS: Record<string, string> = {
+  llm: "border-accent/40 text-accent",
+  vision: "border-blue-500/40 text-blue-500",
+  embedding: "border-purple-500/40 text-purple-500",
+  speech_to_text: "border-green-500/40 text-green",
+  transcription: "border-amber-500/40 text-amber-600",
+};
+
 function cn(...inputs: (string | false | undefined)[]) {
   return inputs.filter(Boolean).join(" ");
 }
@@ -134,6 +155,37 @@ function ProviderCard({ provider, selected, onSelect, onEdit, onDelete, onTest, 
               </div>
             </div>
             <ModelsPopover providerId={provider.id} />
+          </div>
+        )}
+
+        {/* Capacités du modèle unifié — exprimées par le Core
+            (ProviderManager.capabilities()), jamais par le frontend. */}
+        {provider.capabilities && provider.capabilities.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            {provider.capabilities.map((cap) => {
+              const label = CAPABILITY_LABELS[cap] ?? cap;
+              return (
+                <span
+                  key={cap}
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] leading-none",
+                    CAPABILITY_COLORS[cap] ?? "border-line-2 text-foreground-tertiary",
+                  )}
+                  title={`Capacité : ${label}`}
+                >
+                  {label}
+                </span>
+              );
+            })}
+            {provider.has_api_key && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-green-500/40 px-2 py-0.5 text-[11px] leading-none text-green"
+                title="Clé API configurée (jamais affichée)"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                Clé configurée
+              </span>
+            )}
           </div>
         )}
 

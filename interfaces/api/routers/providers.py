@@ -15,6 +15,7 @@ Routes :
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 
@@ -136,6 +137,11 @@ async def update_provider(provider_id: str, data: ProviderUpdate):
 
     # Appliquer les mises à jour
     update_data = data.model_dump(exclude_unset=True)
+    # Une clé vide ne doit JAMAIS écraser une clé existante : le formulaire
+    # WebUI laisse le champ vide pour « conserver la clé actuelle ». Seule
+    # une clé non vide est une intention de rotation.
+    if update_data.get("api_key") == "":
+        update_data.pop("api_key")
     for key, value in update_data.items():
         if value is not None:
             config[key] = value
@@ -256,20 +262,18 @@ async def set_default_provider(provider_id: str):
 
 @router.get("/{provider_id}/capabilities")
 async def get_provider_capabilities(provider_id: str):
-    """Retourne les capacités d'un provider (vision, transcription, embedding)."""
+    """Retourne les capacités normalisées d'un provider (vision, embedding,
+    speech_to_text, transcription).
+
+    Délègue au ProviderManager — source unique (modèle unifié). Ne renvoie
+    jamais la config brute ni les secrets.
+    """
     manager = get_manager()
 
-    provider = manager._registry.get_provider(provider_id)
-    if provider is None:
-        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
-
-    return {
-        "provider_id": provider_id,
-        "name": provider.name,
-        "supports_vision": getattr(provider, "supports_vision", False),
-        "supports_transcription": getattr(provider, "supports_transcription", False),
-        "supports_embedding": getattr(provider, "supports_embedding", True),
-    }
+    try:
+        return await asyncio.to_thread(manager.get_provider_capabilities, provider_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # ── POST /providers/vision ────────────────────────────────────────────────
