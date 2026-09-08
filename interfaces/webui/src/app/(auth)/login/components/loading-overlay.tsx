@@ -98,20 +98,6 @@ export function LoadingOverlay({ isVisible, onComplete, onError }: LoadingOverla
           className="fixed inset-0 z-loading flex flex-col items-center justify-center bg-[#07090d]/95 backdrop-blur-sm"
         >
                               <div className="w-full max-w-[420px] px-6">
-            {/* ANFSI Logo */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="flex justify-center mb-8"
-            >
-              <img
-                src="/anfsi-logo.png"
-                alt="ANFSI"
-                className="h-12 w-auto opacity-90"
-                draggable={false}
-              />
-            </motion.div>
 
             {/* Status title */}
             <motion.div

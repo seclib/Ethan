@@ -1,130 +1,49 @@
-# Jarvis OS — LLM Provider Interface
-# Abstraction unifiée pour tous les fournisseurs LLM
+# Jarvis OS — LLM Provider Interface (unified)
+#
+# This module is a backward-compatibility re-export layer.
+# The authoritative definitions live in:
+#   - core/llm/providers/base.py  → LLMProvider (ABC)
+#   - core/llm/registry.py        → LLMProviderRegistry
+#   - core/llm/provider_manager.py → ProviderManager
+#
+# Do NOT add new definitions here — extend the authoritative modules.
 
-from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from __future__ import annotations
 
-from core.llm.types import ChatMessage, ChatResponse, ModelInfo
+# ── Re-exports from authoritative modules ─────────────────────────────────
 
+from core.llm.providers.base import LLMProvider
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    ModelInfo,
+    TranscriptionRequest,
+    TranscriptionResponse,
+    VisionRequest,
+    VisionResponse,
+)
 
-class LLMProvider(ABC):
-    """Interface abstraite pour les fournisseurs LLM.
-
-    Tous les providers doivent implémenter cette interface.
-    Le changement de fournisseur se fait uniquement via la configuration.
-    """
-
-    @abstractmethod
-    async def chat(
-        self,
-        messages: list[ChatMessage],
-        model: str | None = None,
-        temperature: float = 0.7,
-        max_tokens: int | None = None,
-        stream: bool = False,
-    ) -> ChatResponse:
-        """Chat completion."""
-        ...
-
-    @abstractmethod
-    async def chat_stream(
-        self,
-        messages: list[ChatMessage],
-        model: str | None = None,
-        temperature: float = 0.7,
-        max_tokens: int | None = None,
-    ) -> AsyncIterator[str]:
-        """Chat completion with streaming."""
-        if False:
-            yield ""  # Make this an async generator
-        ...
-
-    @abstractmethod
-    async def embed(
-        self,
-        texts: list[str],
-        model: str | None = None,
-    ) -> list[list[float]]:
-        """Generate embeddings."""
-        ...
-
-    @abstractmethod
-    async def list_models(self) -> list[ModelInfo]:
-        """List available models."""
-        ...
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Provider name (e.g., 'ollama', 'openai')."""
-        ...
-
-    @property
-    @abstractmethod
-    def default_model(self) -> str:
-        """Default model for this provider."""
-        ...
-
-
-class ProviderRegistry:
-    """Registry des fournisseurs LLM."""
-
-    def __init__(self):
-        self._providers: dict[str, LLMProvider] = {}
-
-    def register(self, provider: LLMProvider) -> None:
-        """Register a provider."""
-        self._providers[provider.name] = provider
-
-    def get(self, name: str) -> LLMProvider:
-        """Get a provider by name."""
-        if name not in self._providers:
-            raise ValueError(f"Provider '{name}' not found. Available: {list(self._providers.keys())}")
-        return self._providers[name]
-
-    def list(self) -> list[str]:
-        """List all registered providers."""
-        return list(self._providers.keys())
-
-    def get_default(self) -> LLMProvider:
-        """Get the default provider."""
-        if not self._providers:
-            raise ValueError("No providers registered")
-        # Return the first registered provider as default
-        return next(iter(self._providers.values()))
-
-
-# Global registry instance
-registry = ProviderRegistry()
-
-
-def get_provider(name: str | None = None) -> LLMProvider:
-    """Get a provider by name, or the default if not specified.
-
-    Usage:
-        provider = get_provider("ollama")
-        response = await provider.chat(messages=[...])
-    """
-    if name is None:
-        return registry.get_default()
-    return registry.get(name)
-
-
-# ── Provider Manager (système centralisé) ────────────────────────────────
+# ── Provider Manager (système centralisé — authoritative) ────────────────
 
 try:
     from core.llm.provider_manager import ProviderManager
     from core.llm.provider_factory import create_provider_from_config, create_default_providers
     from core.llm.store import ProviderStore
+    from core.llm.registry import LLMProviderRegistry
 
     __all__ = [
+        # Types
         "ChatMessage",
         "ChatResponse",
         "ModelInfo",
+        "VisionRequest",
+        "VisionResponse",
+        "TranscriptionRequest",
+        "TranscriptionResponse",
+        # Core interfaces
         "LLMProvider",
-        "ProviderRegistry",
-        "registry",
-        "get_provider",
+        "LLMProviderRegistry",
+        # Manager & factory
         "ProviderManager",
         "create_provider_from_config",
         "create_default_providers",
@@ -135,8 +54,17 @@ except ImportError:  # pragma: no cover - partial environment
         "ChatMessage",
         "ChatResponse",
         "ModelInfo",
+        "VisionRequest",
+        "VisionResponse",
+        "TranscriptionRequest",
+        "TranscriptionResponse",
         "LLMProvider",
-        "ProviderRegistry",
-        "registry",
-        "get_provider",
     ]
+
+
+# ── Legacy compatibility aliases (deprecated) ─────────────────────────────
+# These will be removed in a future release. Use ProviderManager directly.
+
+from core.llm.registry import LLMProviderRegistry as _LLMProviderRegistry
+
+ProviderRegistry = _LLMProviderRegistry  # type: ignore[assignment]

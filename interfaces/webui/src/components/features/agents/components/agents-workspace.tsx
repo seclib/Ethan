@@ -190,8 +190,14 @@ export function AgentsWorkspace() {
             {filtered.map((agent) => {
               const st = STATUS_MAP[agent.status] || STATUS_MAP.stopped;
               const caps = agent.capabilities || [];
-              const toolsCount = (agent.metadata?.tool_ids as string[] | undefined)?.length || 0;
-              const knowledgeCount = (agent.metadata?.knowledge_ids as string[] | undefined)?.length || 0;
+              const toolsCount =
+                (agent.tool_ids as string[] | undefined)?.length ||
+                (agent.metadata?.tool_ids as string[] | undefined)?.length ||
+                0;
+              const knowledgeCount =
+                (agent.knowledge_collection_ids as string[] | undefined)?.length ||
+                (agent.metadata?.knowledge_ids as string[] | undefined)?.length ||
+                0;
               const skillsCount = agent.skill_ids?.length || 0;
 
               return (

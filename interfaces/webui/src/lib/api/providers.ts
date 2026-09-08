@@ -23,6 +23,8 @@ export interface Provider {
 	is_default: boolean;
 	base_url: string;
 	models: string[];
+	/** true si le Core a une clé/token configurée pour ce provider. */
+	key_exists?: boolean;
 }
 
 export interface ProviderUpdate {
@@ -109,3 +111,44 @@ export async function setDefaultProvider(id: string): Promise<Provider> {
 export async function listProviderModels(id: string): Promise<unknown[]> {
 	return apiFetch<unknown[]>(`/providers/${id}/models`);
 }
+
+/** Provider capabilities (vision, transcription, embedding) */
+export interface ProviderCapabilities {
+	provider_id: string;
+	name: string;
+	supports_vision: boolean;
+	supports_transcription: boolean;
+	supports_embedding: boolean;
+}
+
+/** Get provider capabilities */
+export async function getProviderCapabilities(id: string): Promise<ProviderCapabilities> {
+	return apiFetch<ProviderCapabilities>(`/providers/${id}/capabilities`);
+}
+
+/** Supported provider types for the create dialog */
+export const SUPPORTED_PROVIDER_TYPES = [
+	'ollama',
+	'openai',
+	'azure',
+	'anthropic',
+	'vllm',
+	'llamacpp',
+	'lmstudio',
+	'gemini',
+	'openai-compatible',
+	'openrouter',
+	'custom',
+] as const;
+
+export type ProviderType = (typeof SUPPORTED_PROVIDER_TYPES)[number];
+
+/** Default base URLs per provider type */
+export const PROVIDER_DEFAULT_URLS: Record<string, string> = {
+	ollama: 'http://localhost:11434',
+	vllm: 'http://localhost:8000',
+	llamacpp: 'http://localhost:8080',
+	lmstudio: 'http://localhost:1234',
+	'openai-compatible': 'http://localhost:8000/v1',
+};
+

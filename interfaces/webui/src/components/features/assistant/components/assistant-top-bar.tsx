@@ -5,6 +5,7 @@ import type { SessionMetrics } from "@/types/assistant";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { AgentSelector } from "./agent-selector";
 import { ProviderSelector } from "./provider-selector";
+import { ProjectSelector } from "@/components/features/projects/project-selector";
 import type { Agent } from "@/types";
 
 interface AssistantTopBarProps {
@@ -59,16 +60,19 @@ export function AssistantTopBar({
           title={`Agent status: ${metrics.agentStatus}`}
         />
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
         {onSelectAgent && (
-          <AgentSelector
-            agents={agents ?? []}
-            loading={agentsLoading}
-            error={agentsError}
-            selectedAgentId={selectedAgentId ?? null}
-            recentAgentIds={recentAgentIds}
-            onSelect={onSelectAgent}
-          />
+          <>
+            <ProjectSelector />
+            <AgentSelector
+              agents={agents ?? []}
+              loading={agentsLoading}
+              error={agentsError}
+              selectedAgentId={selectedAgentId ?? null}
+              recentAgentIds={recentAgentIds}
+              onSelect={onSelectAgent}
+            />
+          </>
         )}
         <ModelSelector
           variant="compact"

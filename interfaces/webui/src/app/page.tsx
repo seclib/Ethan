@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AssistantChat } from "@/components/features/assistant/components/assistant-chat";
+import { AssistantChat, type ChatMode } from "@/components/features/assistant/components/assistant-chat";
 import { AssistantTopBar } from "@/components/features/assistant/components/assistant-top-bar";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
@@ -18,6 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useFacts } from "@/components/features/memory/hooks/use-memory";
 import { useCreateGoal } from "@/components/features/goals/hooks/use-goals";
+import { ProjectSelector } from "@/components/features/projects/project-selector";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
   const isUser = msg.role === "user";
@@ -71,6 +72,8 @@ export default function ChatHomePage() {
   } = useChats();
   const [attachedFileIds, setAttachedFileIds] = React.useState<string[]>([]);
   const [attachedFileNames, setAttachedFileNames] = React.useState<string[]>([]);
+  // Mode courant du composer (act | plan | agent)
+  const [chatMode, setChatMode] = React.useState<ChatMode>("act");
 
   // ── Catalogues (source : ETHAN Core via l'API) ─────────────────────────
   const [skills, setSkills] = React.useState<{ id: string; name: string }[]>([]);
@@ -349,6 +352,21 @@ export default function ChatHomePage() {
     setAttachedFileNames((prev) => [...prev, filename]);
   };
 
+  /** Mode Agent : envoie la tâche à un agent autonome via l'API. */
+  const handleAgent = (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    // Pour l'instant, on utilise le même flux que le mode Act
+    // TODO: intégrer l'API agent dédiée quand disponible
+    runStream(trimmed);
+  };
+
+  /** Ouvrir le sélecteur de fichiers. */
+  const handleAttach = () => {
+    // TODO: ouvrir un file picker et uploader le fichier
+    // Pour l'instant, on ne fait rien
+  };
+
   return (
     <div className="flex h-full min-h-0 w-full">
       <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -383,8 +401,11 @@ export default function ChatHomePage() {
           onSend={handleSend}
           onStop={handleStop}
           disabled={isStreaming}
-          onFileAttached={handleFileAttached}
+          onAgent={handleAgent}
           onPlan={handlePlan}
+          mode={chatMode}
+          onModeChange={setChatMode}
+          onAttach={handleAttach}
           error={error}
           onDismissError={clearError}
           onRegenerate={handleRegenerate}

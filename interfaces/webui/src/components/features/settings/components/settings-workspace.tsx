@@ -29,6 +29,7 @@ import {
 import { listModels, toggleModel, type ModelInfo } from "@/lib/api/models";
 import {
   getRagConfig,
+  getRagStrategies,
   updateRagConfig,
   getRagStatus,
   type RagConfigResponse,
@@ -46,6 +47,22 @@ import {
   type CoreTool,
 } from "@/lib/api/tools";
 import { listRagDocuments } from "@/lib/api/knowledge";
+import {
+  listIntegrations,
+  type Integration,
+  type IntegrationKind,
+} from "@/lib/api/integrations";
+import {
+  ChatSection,
+  AISection,
+  SearchSection,
+  RemindersSection,
+  ShortcutsSection,
+  LibrarySection,
+  SystemSection,
+  SecuritySection,
+  AdvancedSection,
+} from "./settings-sections";
 import { useSettings } from "@/components/features/settings/hooks/use-settings";
 import { useUIStore } from "@/store/ui.store";
 import { useTheme } from "@/providers/theme-provider";
@@ -78,31 +95,48 @@ import {
   ToggleLeft,
   ToggleRight,
   Save,
+  MessageSquare,
+  Search,
+  Bell,
+  Keyboard,
+  FolderOpen,
+  Shield,
+  SlidersHorizontal,
+  AlertCircle,
+  Lock,
+  Globe,
+  Clock,
 } from "lucide-react";
 
 type Section =
   | "general"
+  | "chat"
+  | "ai"
   | "appearance"
-  | "models"
-  | "providers"
   | "knowledge"
-  | "rag"
-  | "skills"
-  | "agents"
-  | "tools"
-  | "mcp";
+  | "search"
+  | "integrations"
+  | "reminders"
+  | "shortcuts"
+  | "library"
+  | "system"
+  | "security"
+  | "advanced";
 
-const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
-  { id: "general", label: "General", icon: <Settings className="h-4 w-4" /> },
-  { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
-  { id: "models", label: "Models", icon: <Cpu className="h-4 w-4" /> },
-  { id: "providers", label: "Providers", icon: <Database className="h-4 w-4" /> },
-  { id: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" /> },
-  { id: "rag", label: "RAG", icon: <Zap className="h-4 w-4" /> },
-  { id: "skills", label: "Skills", icon: <Sparkles className="h-4 w-4" /> },
-  { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" /> },
-  { id: "tools", label: "Tools", icon: <Wrench className="h-4 w-4" /> },
-  { id: "mcp", label: "MCP", icon: <Network className="h-4 w-4" /> },
+const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "system" | "user" | "project" | "conversation" }[] = [
+  { id: "general", label: "General", icon: <Settings className="h-4 w-4" />, category: "user" },
+  { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
+  { id: "ai", label: "AI", icon: <Cpu className="h-4 w-4" />, category: "system" },
+  { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" />, category: "user" },
+  { id: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" />, category: "system" },
+  { id: "search", label: "Search", icon: <Search className="h-4 w-4" />, category: "system" },
+  { id: "integrations", label: "Integrations", icon: <Network className="h-4 w-4" />, category: "system" },
+  { id: "reminders", label: "Reminders", icon: <Bell className="h-4 w-4" />, category: "user" },
+  { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" />, category: "user" },
+  { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
+  { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
+  { id: "security", label: "Security", icon: <Shield className="h-4 w-4" />, category: "system" },
+  { id: "advanced", label: "Advanced", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
 ];
 
 export function SettingsWorkspace() {
@@ -147,20 +181,18 @@ export function SettingsWorkspace() {
       {/* Right panel: section content */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         {activeSection === "general" && <GeneralSection />}
+        {activeSection === "chat" && <ChatSection />}
+        {activeSection === "ai" && <AISection />}
         {activeSection === "appearance" && <AppearanceSection />}
-        {activeSection === "models" && <ModelsSection />}
-        {activeSection === "providers" && (
-          <ProvidersSection
-            selectedProviderId={selectedProviderId}
-            onSelect={setSelectedProviderId}
-          />
-        )}
         {activeSection === "knowledge" && <KnowledgeSection />}
-        {activeSection === "rag" && <RagSection />}
-        {activeSection === "skills" && <SkillsSection />}
-        {activeSection === "agents" && <AgentsSection />}
-        {activeSection === "tools" && <ToolsCatalogueSection />}
-        {activeSection === "mcp" && <McpServersSection />}
+        {activeSection === "search" && <SearchSection />}
+        {activeSection === "integrations" && <IntegrationsSection />}
+        {activeSection === "reminders" && <RemindersSection />}
+        {activeSection === "shortcuts" && <ShortcutsSection />}
+        {activeSection === "library" && <LibrarySection />}
+        {activeSection === "system" && <SystemSection />}
+        {activeSection === "security" && <SecuritySection />}
+        {activeSection === "advanced" && <AdvancedSection />}
       </div>
     </div>
   );
@@ -564,6 +596,14 @@ function RagSection() {
     if (data?.config) setDraft({ ...data.config });
   }, [data]);
 
+  // Stratégies réellement implémentées dans le Core (aucune inventée côté UI).
+  const { data: strategiesData } = useQuery({
+    queryKey: ["rag-strategies"],
+    queryFn: () => getRagStrategies(),
+    staleTime: 300_000,
+  });
+  const strategies = strategiesData?.strategies ?? [];
+
   const saveMutation = useMutation({
     mutationFn: (cfg: RagConfigResponse["config"]) =>
       updateRagConfig({
@@ -572,6 +612,7 @@ function RagSection() {
         top_k: cfg.top_k,
         max_context_chars: cfg.max_context_chars,
         embedding_model: cfg.embedding_model ?? "",
+        strategy: cfg.strategy,
       }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["settings-rag-config"] });
@@ -622,6 +663,35 @@ function RagSection() {
             />
           </div>
         ))}
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+          <span className="text-sm text-foreground-secondary">
+            Stratégie de recherche
+            <span className="block text-xs text-foreground-tertiary">
+              {strategies.find((s) => s.id === draft.strategy)?.description ??
+                "Comportement par défaut du moteur RAG (surchargeable par collection)."}
+            </span>
+          </span>
+          <select
+            className="w-56 shrink-0 rounded-lg border border-line-1 bg-bg-1 px-2 py-1.5 text-sm text-foreground"
+            value={draft.strategy}
+            onChange={(e) => setDraft({ ...draft, strategy: e.target.value })}
+          >
+            {strategies.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {data.stats.recommendation && (
+          <p className="rounded-lg border border-line-1 bg-bg-1/60 px-4 py-2.5 text-xs text-foreground-secondary">
+            <span className="font-medium text-foreground">Recommandation ETHAN : </span>
+            {strategies.find((s) => s.id === data.stats.recommendation?.strategy_id)?.label ??
+              data.stats.recommendation.strategy_id}
+            {" — "}
+            {data.stats.recommendation.reason}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
           <span className="text-sm text-foreground-secondary">
             Modèle d&apos;embedding
@@ -768,6 +838,309 @@ function AgentsSection() {
         <WorkspaceLink href="/agents" label="Ouvrir le workspace Agents" />
       </div>
     </div>
+  );
+}
+
+/* ── Integrations — external service connections (/v1/integrations)  */
+
+function IntegrationsSection() {
+  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+
+  const { data: integrations = [], isLoading } = useQuery({
+    queryKey: ["settings-integrations"],
+    queryFn: () => listIntegrations(),
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["settings-integrations"] });
+  };
+
+  const connectMutation = useMutation({
+    mutationFn: (id: string) =>
+      import("@/lib/api/integrations").then((m) => m.connectIntegration(id)),
+    onSuccess: invalidate,
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: (id: string) =>
+      import("@/lib/api/integrations").then((m) => m.disconnectIntegration(id)),
+    onSuccess: invalidate,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      import("@/lib/api/integrations").then((m) => m.deleteIntegration(id)),
+    onSuccess: () => {
+      invalidate();
+      setSelectedId(null);
+    },
+  });
+
+  if (isLoading) return <SectionLoading />;
+
+  const selected = integrations.find((i) => i.id === selectedId) ?? null;
+
+  return (
+    <div className="flex h-full min-h-0">
+      <div className="flex w-80 shrink-0 flex-col border-r border-line-1">
+        <div className="flex items-center justify-between border-b border-line-1 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Integrations</h2>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1 h-3 w-3" /> Add
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {integrations.length === 0 ? (
+            <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+              No integrations configured.
+            </p>
+          ) : (
+            integrations.map((integration) => (
+              <button
+                key={integration.id}
+                onClick={() => setSelectedId(integration.id)}
+                className={cn(
+                  "mb-1 w-full rounded-md px-3 py-2 text-left transition-colors",
+                  selectedId === integration.id
+                    ? "bg-[var(--accent)]/10 text-foreground"
+                    : "hover:bg-[var(--panel-hover)] text-foreground-secondary",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium truncate">{integration.name}</span>
+                  <StatusDot ok={integration.status === "connected"} />
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground capitalize">
+                  {integration.kind.replace(/-/g, " ")}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 overflow-y-auto p-6">
+        {showCreate ? (
+          <IntegrationCreateForm
+            onCancel={() => setShowCreate(false)}
+            onSuccess={() => {
+              setShowCreate(false);
+              invalidate();
+            }}
+          />
+        ) : selected ? (
+          <IntegrationDetail
+            integration={selected}
+            onConnect={() => connectMutation.mutate(selected.id)}
+            onDisconnect={() => disconnectMutation.mutate(selected.id)}
+            onDelete={() => deleteMutation.mutate(selected.id)}
+            isConnecting={connectMutation.isPending || disconnectMutation.isPending}
+            isDeleting={deleteMutation.isPending}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            Select an integration or create a new one.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IntegrationDetail({
+  integration,
+  onConnect,
+  onDisconnect,
+  onDelete,
+  isConnecting,
+  isDeleting,
+}: {
+  integration: Integration;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onDelete: () => void;
+  isConnecting: boolean;
+  isDeleting: boolean;
+}) {
+  const statusColor =
+    integration.status === "connected"
+      ? "text-[var(--green)]"
+      : integration.status === "error"
+        ? "text-[var(--red)]"
+        : "text-muted-foreground";
+
+  return (
+    <div>
+      <SectionHeader
+        title={integration.name}
+        description={integration.description || `${integration.kind} integration`}
+      />
+      <div className="mb-6 grid gap-4">
+        <div className="rounded-lg border border-line-1 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Status</h3>
+          <div className="flex items-center gap-2">
+            <StatusDot ok={integration.status === "connected"} />
+            <span className={cn("text-sm font-medium capitalize", statusColor)}>
+              {integration.status}
+            </span>
+            {integration.last_connected_at && (
+              <span className="ml-auto text-xs text-muted-foreground">
+                Last: {new Date(integration.last_connected_at).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 flex gap-2">
+            {integration.status === "connected" ? (
+              <Button size="sm" variant="outline" onClick={onDisconnect} disabled={isConnecting}>
+                {isConnecting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+                Disconnect
+              </Button>
+            ) : (
+              <Button size="sm" onClick={onConnect} disabled={isConnecting}>
+                {isConnecting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Play className="mr-1 h-3 w-3" />}
+                Connect
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={onDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+              Remove
+            </Button>
+          </div>
+        </div>
+        <div className="rounded-lg border border-line-1 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Configuration</h3>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-muted-foreground">Kind</dt>
+              <dd className="capitalize">{integration.kind.replace(/-/g, " ")}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Enabled</dt>
+              <dd>{integration.enabled ? "Yes" : "No"}</dd>
+            </div>
+            {Object.entries(integration.config).map(([key, value]) => (
+              <div key={key}>
+                <dt className="text-muted-foreground">{key}</dt>
+                <dd className="truncate font-mono text-xs">
+                  {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        {integration.credential_keys.length > 0 && (
+          <div className="rounded-lg border border-line-1 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Credentials</h3>
+            <p className="text-xs text-muted-foreground mb-2">
+              Stored securely in Core. Only key names are shown.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {integration.credential_keys.map((key) => (
+                <span key={key} className="rounded-full bg-[var(--panel)] px-2 py-0.5 text-xs font-mono text-foreground-secondary">
+                  {key}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {integration.capabilities.length > 0 && (
+          <div className="rounded-lg border border-line-1 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Capabilities</h3>
+            <div className="flex flex-wrap gap-2">
+              {integration.capabilities.map((cap) => (
+                <span key={cap} className="rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs text-[var(--accent)]">
+                  {cap}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IntegrationCreateForm({
+  onCancel,
+  onSuccess,
+}: {
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = React.useState("");
+  const [kind, setKind] = React.useState<IntegrationKind>("mcp");
+  const [description, setDescription] = React.useState("");
+  const [configText, setConfigText] = React.useState("{}");
+
+  const createMutation = useMutation({
+    mutationFn: (data: {
+      name: string;
+      kind: IntegrationKind;
+      description: string;
+      config: Record<string, unknown>;
+    }) => import("@/lib/api/integrations").then((m) => m.createIntegration(data)),
+    onSuccess,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    let config: Record<string, unknown> = {};
+    try {
+      config = JSON.parse(configText || "{}");
+    } catch {
+      return;
+    }
+    createMutation.mutate({ name, kind, description, config });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <SectionHeader title="New Integration" description="Register a new external service connection." />
+      <div className="space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-foreground">Name</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-foreground">Kind</label>
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as IntegrationKind)}
+            className="w-full rounded-md border border-line-1 bg-[var(--panel)] px-3 py-2 text-sm text-foreground"
+          >
+            <option value="mcp">MCP</option>
+            <option value="web-search">Web Search</option>
+            <option value="storage">Storage</option>
+            <option value="automation">Automation</option>
+            <option value="developer">Developer</option>
+            <option value="external-app">External App</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-foreground">Description</label>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-foreground">Config (JSON)</label>
+          <textarea
+            value={configText}
+            onChange={(e) => setConfigText(e.target.value)}
+            rows={4}
+            className="w-full rounded-md border border-line-1 bg-[var(--panel)] px-3 py-2 font-mono text-xs text-foreground"
+          />
+        </div>
+      </div>
+      <div className="mt-6 flex gap-2">
+        <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
+          {createMutation.isPending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
+          Create
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -1265,6 +1638,9 @@ function ProviderDetail({
   defaulting: boolean;
   deleting: boolean;
 }) {
+  // Derive capabilities from provider type (Core-declared flags)
+  const caps = deriveCapabilities(provider.type);
+
   return (
     <div>
       <SectionHeader
@@ -1275,6 +1651,15 @@ function ProviderDetail({
         <InfoRow label="URL de base" value={provider.base_url || "—"} />
         <InfoRow label="Modèle par défaut" value={provider.default_model || "—"} />
         <InfoRow label="Défaut système" value={provider.is_default ? "Oui" : "Non"} />
+        <div className="rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+          <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Capacités</p>
+          <div className="flex flex-wrap gap-1.5">
+            <CapabilityBadge label="LLM" active />
+            <CapabilityBadge label="Vision" active={caps.vision} />
+            <CapabilityBadge label="Transcription" active={caps.transcription} />
+            <CapabilityBadge label="Embedding" active={caps.embedding} />
+          </div>
+        </div>
         {provider.models.length > 0 && (
           <div className="rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
             <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Modèles</p>
@@ -1332,3 +1717,50 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 
 
+
+/* ── Provider capability badges ───────────────────────────────────────── */
+
+interface CapabilitySet {
+  vision: boolean;
+  transcription: boolean;
+  embedding: boolean;
+}
+
+/**
+ * Derive provider capabilities from the provider type.
+ * These match the flags declared in core/llm/providers/* (OpenAIProvider, etc.)
+ */
+function deriveCapabilities(type: string): CapabilitySet {
+  switch (type) {
+    case 'openai':
+    case 'azure':
+      return { vision: true, transcription: true, embedding: true };
+    case 'anthropic':
+    case 'gemini':
+      return { vision: true, transcription: false, embedding: false };
+    case 'ollama':
+    case 'vllm':
+    case 'llamacpp':
+    case 'lmstudio':
+      return { vision: true, transcription: false, embedding: true };
+    case 'openrouter':
+      return { vision: true, transcription: false, embedding: false };
+    default:
+      return { vision: false, transcription: false, embedding: true };
+  }
+}
+
+function CapabilityBadge({ label, active }: { label: string; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2.5 py-0.5 text-xs font-medium',
+        active
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : 'bg-bg-2 text-foreground-tertiary opacity-50',
+      )}
+    >
+      {active ? '✓' : '✗'} {label}
+    </span>
+  );
+}

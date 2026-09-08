@@ -10,6 +10,10 @@ timer_start
 require_node
 
 PORT="${PORT:-3001}"
+
+# WARNING : le conteneur Docker ethan-ui utilise le port 3001 (mapping 3001:3001).
+# Ne pas lancer ./ethan webui localement en même temps que Docker (conflit de port).
+# Pour le dev local : arrêter Docker d'abord (./ethan down) ou utiliser --port=<autre_port>.
 BUILD=false
 
 for arg in "$@"; do

@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../../src/app/template.tsx"],"sourcesContent":["export default function Template({ children }: { children: React.ReactNode }) {\n  return <>{children}</>;\n}\n"],"names":["Template","children"],"mappings":"wEAAe,SAASA,AAAS,UAAEC,CAAQ,CAAiC,EAC1E,MAAO,CAAA,EAAA,EAAA,GAAA,EAAA,EAAA,QAAA,CAAA,UAAGA,GACZ"}

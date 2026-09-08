@@ -181,3 +181,152 @@ exécution différée (jamais à chaud). Les amendements sont tracés dans l'his
 document.
 
 *Adoptée comme fondation de gouvernance d'ETHAN.*
+
+
+---
+
+## CORE RULES TECHNIQUES — principes d'application
+
+Les règles suivantes traduisent les CORE RULES et PROTECTED RULES en contraintes
+techniques structurelles. Elles sont non négociables et doivent être imposées
+par l'architecture, jamais par instruction de prompt.
+
+### CT-1 · Non-exfiltration structurelle
+
+- Les quatre flux de données sont independants et ne se sous-entendent jamais.
+- LOCAL_READ ne confère jamais EXTERNAL_TRANSMISSION.
+- Toute transmission passe obligatoirement par ExfilGuard.
+- Toute sortie d'outil/MCP/plugin est scannée pour secrets avant retour au LLM.
+- Le contenu récupéré est traité comme des donnees non fiables — les blocs
+  system:, instruction:, developer: sont retirés par sanitize_external_content().
+
+### CT-2 · Moindre privilège (least privilege)
+
+- Deny-by-default : aucune action n'est autorisée sans policy ou capability explicite.
+- Capabilities sont spatiales (resource/path) ET temporelles (TTL).
+- Chaque tool/plugin/MCP a un risk_level (low/medium/high/critical).
+- Le sandbox est choisi selon le risk_level.
+
+### CT-3 · Capability-based security
+
+- Une capability est (subject x category x operation x resource x scope x TTL).
+- Une capability ne peut jamais dépasser la portée de sa règle parente (A1-A2).
+- resolve_safe_path() bloque : path traversal, symlink escape, mount escape.
+- Capabilities sont : TTL-bornées, usage-limited, révocables, audited.
+- build_secure_enforcer() instancie un CapabilityManager fail-closed sans aucune
+  capability par défaut.
+
+### CT-4 · Séparation données / instructions
+
+- Tout contenu récupéré (fichiers, MCP, web, mémoire) est donnee.
+- sanitize_external_content() retire les blocs d'instruction.
+- Aucun contenu externe ne peut créer, modifier ou révoquer une policy.
+- Les skills ne sont jamais injectés comme texte dans un prompt système.
+
+### CT-5 · Séparation agent / autorité
+
+- Un LLM/agent est un demandeur, jamais un autorisateur.
+- La Loi Fondamentale : "Une décision produite par un LLM n'est jamais une autorisation."
+- Le Security Kernel est le seul point d'autorité.
+- PolicyGuard est le point d'entrée obligatoire — contourner le garde est interdit.
+
+### CT-6 · Isolation des dépôts
+
+- Tout dépôt Git externe est monté dans un sandbox Docker (Tier 3).
+- Aucun accès filesystem hôte hors /workspace/repos/*/.
+- Les hooks Git sont désactivés (core.hooksPath=/dev/null).
+- Scan AST du code du dépôt avant exécution.
+- Variables d'environnement du dépôt restreintes (aucun secret hôte).
+
+### CT-7 · Protection du host
+
+- Aucun code externe ne s'exécute sur l'hôte.
+- MCP stdio → sandbox Docker (Tier 3).
+- TerminalPlugin → subprocess sandbox (Tier 2) ou Docker (Tier 3).
+- Capabilities CAP_NET_RAW, CAP_SYS_ADMIN sont interdites dans les conteneurs.
+
+### CT-8 · Protection des secrets
+
+- Aucun secret dans : code, git, logs, events, memory.
+- Résolus via : variables d'environnement (ETHAN_*), Vault, Docker secrets.
+- SecretManager : cache env Vault (jamais persisté en base).
+- Scan de fuites : SECRET_PATTERNS (OpenAI, AWS, GitHub, SSH, JWT, etc.).
+- Tokens OAuth MCP : InMemoryTokenStorage (jamais persisté).
+
+### CT-9 · Contrôle réseau
+
+- NATS requiert authentification (token ou certificat).
+- Les connexions réseau sortantes sont auditables par ExfilGuard.
+- NETWORK_ACCESS != EXTERNAL_TRANSMISSION — deux flux distincts.
+- MCP HTTP utilisent verify=True (SSL vérifié).
+- Le pare-feu container bloque tout sauf les ports déclarés.
+
+### CT-10 · Contrôle Docker
+
+- Aucun conteneur ne s'exécute en mode --privileged.
+- --cap-drop=ALL appliqué à tous les conteneurs.
+- Aucun volume hôte n'est monté en écriture sauf /workspace.
+- Resource limits (CPU, memory) via docker-compose.yml.
+- SkillLab : conteneurs éphémères avec --read-only + --tmpfs.
+
+### CT-11 · Contrôle Git
+
+- Toutes les interactions Git passent par un sandbox.
+- Hooks désactivés : core.hooksPath=/dev/null.
+- safe.directory restreint au dépôt cloné.
+- Aucun accès au ~/.ssh ou aux credentials système Git.
+- Operations destructrices (rm -rf, git push --force) bloquées par PolicyEngine.
+
+### CT-12 · Contrôle MCP
+
+- MCP stdio → exécuté dans Docker sandbox (Tier 3).
+- MCP HTTP → connexion sortante auditée par ExfilGuard.
+- command + args des MCP stdio sont validés par le Security Kernel.
+- Aucun MCP ne peut écrire dans le filesystem hôte.
+- Les results MCP sont scannés pour secrets avant retour au LLM.
+- MCP non approuvé = MCP non exécuté.
+
+### CT-13 · Contrôle plugins
+
+- Plugins validés par PluginValidator (AST analysis).
+- FORBIDDEN_IMPORTS : os, sys, subprocess, shutil, socket, ctypes, pickle, marshal.
+- FORBIDDEN_BUILTINS : exec, eval, compile, __import__, open.
+- Exécution en sandbox (subprocess Tier 2 ou Docker Tier 3).
+- Permissions déclarées dans le manifeste → CapabilityManager.
+- Circuit breaker : max 3 crash / 300s → désactivation.
+
+### CT-14 · Contrôle skills
+
+- Skills ne sont jamais injectés comme texte dans un prompt.
+- Skills exécutés via SkillExecutor → ToolManager → SecureToolEnforcer.
+- SkillLab teste chaque skill en sandbox Docker avant activation.
+- AST scan du code skill → FORBIDDEN_IMPORTS/FORBIDDEN_BUILTINS.
+- Skills externes nécessitent confirmation utilisateur.
+
+### CT-15 · Auditabilité
+
+- AuditStore : append-only (PostgreSQL + JSONL fallback).
+- Toute action → correlation_id traversant tout le chainon.
+- Public sur EventBus pour abonnés temps réel.
+- Les décisions DENY sont forcément journalisées.
+
+### CT-16 · Révocation des capacités
+
+- Capabilities révocables à tout moment via API.
+- Revocation = nouvelle capability immutable avec revoked=True.
+- Plugins/MCPs révocables via API.
+- TTL automatique : capability expirée → DENY (fail-closed).
+
+### CT-17 · Absence de privilège implicite
+
+- policy_enforcer non optionnel dans ToolExecutor.
+- ToolExecutor() sans enforcer = interdit (fail-closed).
+- Aucun tool ne s'exécute sans Security Kernel validation.
+- AgentExecutor doit intégrer SecureToolEnforcer.
+
+### CT-18 · Interdiction de contournement des politiques
+
+- Contourner PolicyGuard ou SecureToolEnforcer = violation grave.
+- Aucun composant ne peut désactiver une barrière de sécurité.
+- Les règles CORE sont immuables à l'exécution (constitution:* DENY).
+- Modification policy > niveau USER requiert gouvernance hors-ligne.

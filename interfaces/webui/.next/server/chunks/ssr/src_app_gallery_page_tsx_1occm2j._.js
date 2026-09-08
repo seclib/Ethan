@@ -1,0 +1,3 @@
+module.exports=[44332,a=>{"use strict";var b=a.i(87924),c=a.i(34710);a.s(["default",0,function(){return(0,b.jsxs)("div",{className:"flex min-h-full flex-col items-center justify-center gap-3 p-8 text-center",children:[(0,b.jsx)(c.GalleryVerticalEnd,{size:32,className:"text-foreground-tertiary"}),(0,b.jsx)("h2",{className:"text-lg font-medium",children:"Galerie — bientôt disponible"}),(0,b.jsxs)("p",{className:"max-w-md text-sm text-foreground-tertiary",children:["La galerie d'agents et assistants partagés sera activée lorsque le backend ETHAN exposera la route ",(0,b.jsx)("code",{children:"/v1/gallery"}),"."]})]})}])}];
+
+//# sourceMappingURL=src_app_gallery_page_tsx_1occm2j._.js.map

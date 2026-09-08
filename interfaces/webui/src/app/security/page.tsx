@@ -20,6 +20,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { ShieldCheck, ShieldOff, Users, Plus, UserCheck, UserX, Pencil, Trash2 } from "lucide-react";
 import { AuditExplorer } from "./audit-explorer";
 import { IdentityProviders } from "./identity-providers";
+import { ApiKeysManager } from "./api-keys-manager";
 
 export default function SecurityPage() {
   const queryClient = useQueryClient();
@@ -396,6 +397,9 @@ export default function SecurityPage() {
             </div>
           )}
         </section>
+
+        {/* ── API Keys — gestion réelle (/v1/api-keys, secret-once) ── */}
+        <ApiKeysManager />
 
         {/* ── Fournisseurs d'identité — SCIM / LDAP / OAuth (statut + config réelle) ── */}
         <IdentityProviders />

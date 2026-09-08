@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowDown, AlertCircle, X, Loader2 } from "lucide-react";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import { AssistantMessageView } from "./assistant-message";
-import { AssistantInput } from "./assistant-input";
+import { AssistantInput, type ChatMode } from "./assistant-input";
+export { AssistantInput, type ChatMode } from "./assistant-input";
 import { TypingIndicator } from "./typing-indicator";
 
 /** Item de sélection d'une capacité dans le composer. */
@@ -25,9 +26,22 @@ interface AssistantChatProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   disabled?: boolean;
-  onFileAttached?: (fileId: string, filename: string) => void;
+  /** Mode Agent : transmet au composer pour envoyer une tâche à un agent autonome. */
+  onAgent?: (message: string) => void;
   /** Mode Plan : transmet au composer pour soumettre une intention comme goal. */
   onPlan?: (message: string) => void;
+  /** Mode courant du composer. */
+  mode?: ChatMode;
+  /** Changement de mode. */
+  onModeChange?: (mode: ChatMode) => void;
+  /** File attachment handler. */
+  onAttach?: () => void;
+  /** Search toggle handler. */
+  onSearch?: () => void;
+  /** Tools toggle handler. */
+  onTools?: () => void;
+  /** Voice input handler. */
+  onVoice?: () => void;
   /**
    * NOTE (dé-duplication) : les props capacités du composer (skills/collections/
    * tools/sélections/provider/model) ont été RETIRÉES — le composer simplifié
@@ -55,8 +69,14 @@ export function AssistantChat({
   onSend,
   onStop,
   disabled,
-  onFileAttached,
+  onAgent,
   onPlan,
+  mode,
+  onModeChange,
+  onAttach,
+  onSearch,
+  onTools,
+  onVoice,
   error,
   onDismissError,
   onRegenerate,
@@ -208,8 +228,14 @@ export function AssistantChat({
         onSend={onSend}
         onStop={onStop}
         disabled={disabled}
-        onFileAttached={onFileAttached}
+        onAgent={onAgent}
         onPlan={onPlan}
+        mode={mode}
+        onModeChange={onModeChange}
+        onAttach={onAttach}
+        onSearch={onSearch}
+        onTools={onTools}
+        onVoice={onVoice}
       />
     </div>
   );

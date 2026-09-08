@@ -135,11 +135,30 @@ class EventType(str, Enum):
     KNOWLEDGE_UPDATED = "ethan.knowledge.updated"
     KNOWLEDGE_DELETED = "ethan.knowledge.deleted"
 
+    # Folders (organisation transverse des ressources, Core-owned)
+    FOLDER_CREATED = "ethan.folder.created"
+    FOLDER_UPDATED = "ethan.folder.updated"
+    FOLDER_DELETED = "ethan.folder.deleted"
+    FOLDER_RESOURCE_ATTACHED = "ethan.folder.resource.attached"
+    FOLDER_RESOURCE_DETACHED = "ethan.folder.resource.detached"
+
+    # Domains (spécialités fonctionnelles des ressources, Core-owned)
+    DOMAIN_CREATED = "ethan.domain.created"
+    DOMAIN_UPDATED = "ethan.domain.updated"
+    DOMAIN_DELETED = "ethan.domain.deleted"
+    DOMAIN_RESOURCE_ATTACHED = "ethan.domain.resource.attached"
+    DOMAIN_RESOURCE_DETACHED = "ethan.domain.resource.detached"
+
     # Chats
     CHAT_CREATED = "ethan.chat.created"
     CHAT_UPDATED = "ethan.chat.updated"
     CHAT_DELETED = "ethan.chat.deleted"
     CHAT_MESSAGE = "ethan.chat.message"
+
+    # Projects (conteneur de conversations + scope + contexte, Core-owned)
+    PROJECT_CREATED = "ethan.project.created"
+    PROJECT_UPDATED = "ethan.project.updated"
+    PROJECT_DELETED = "ethan.project.deleted"
 
     # Files
     FILE_UPLOADED = "ethan.file.uploaded"
@@ -176,6 +195,14 @@ class EventType(str, Enum):
     TOOL_SERVER_REGISTERED = "ethan.tool.server.registered"
     TOOL_SERVER_UPDATED = "ethan.tool.server.updated"
     TOOL_SERVER_DELETED = "ethan.tool.server.deleted"
+
+    # App Integrations
+    INTEGRATION_REGISTERED = "ethan.integration.registered"
+    INTEGRATION_UPDATED = "ethan.integration.updated"
+    INTEGRATION_DELETED = "ethan.integration.deleted"
+    INTEGRATION_CONNECTED = "ethan.integration.connected"
+    INTEGRATION_DISCONNECTED = "ethan.integration.disconnected"
+    INTEGRATION_STATUS_CHANGED = "ethan.integration.status_changed"
 
     # Scheduler and Security
     SCHEDULE_TRIGGER = "ethan.schedule.trigger"

@@ -10,7 +10,8 @@ import { useCreateAgent, useUpdateAgent, useAgent } from "@/components/features/
 import { useQuery } from "@tanstack/react-query";
 import { listProviders, type Provider } from "@/lib/api/providers";
 import { listSkills, type Skill } from "@/lib/api/skills";
-import { listCollections, type KnowledgeCollection } from "@/lib/api/knowledge";
+import { listCollectionTree, listKnowledge, type KnowledgeCollectionTree, type KnowledgeNode } from "@/lib/api/knowledge";
+import { listFolderTree, type FolderTree } from "@/lib/api/folders";
 import { listTools, type CoreTool } from "@/lib/api/tools";
 import { X, Plus, Cpu } from "lucide-react";
 import type { Agent } from "@/types";
@@ -33,8 +34,10 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
   const [model, setModel] = React.useState("");
   const [provider, setProvider] = React.useState("");
   const [skillIds, setSkillIds] = React.useState<string[]>([]);
-  const [knowledgeIds, setKnowledgeIds] = React.useState<string[]>([]);
+  const [collectionIds, setCollectionIds] = React.useState<string[]>([]);
+  const [knowledgeNodeIds, setKnowledgeNodeIds] = React.useState<string[]>([]);
   const [toolIds, setToolIds] = React.useState<string[]>([]);
+  const [folderIds, setFolderIds] = React.useState<string[]>([]);
 
   const { data: providers = [] } = useQuery<Provider[]>({
     queryKey: ["providers"],
@@ -44,14 +47,45 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
     queryKey: ["skills"],
     queryFn: () => listSkills(),
   });
-  const { data: collections = [] } = useQuery<KnowledgeCollection[]>({
-    queryKey: ["knowledge-collections"],
-    queryFn: () => listCollections(),
+  const { data: collectionTree = [] } = useQuery<KnowledgeCollectionTree[]>({
+    queryKey: ["knowledge-collections-tree"],
+    queryFn: () => listCollectionTree(),
   });
   const { data: tools = [] } = useQuery<CoreTool[]>({
     queryKey: ["tools"],
     queryFn: () => listTools(),
   });
+  const { data: knowledgeNodes = [] } = useQuery<KnowledgeNode[]>({
+    queryKey: ["knowledgeNodes"],
+    queryFn: () => listKnowledge(),
+  });
+  const { data: folderTree = [] } = useQuery<FolderTree[]>({
+    queryKey: ["folder-tree"],
+    queryFn: () => listFolderTree(),
+  });
+
+  // Outils builtin/custom vs tools exposés par des serveurs MCP (affichage
+  // groupé uniquement — la sélection reste au niveau tool, aucune duplication).
+  const coreToolList = tools.filter(
+    (t) => !t.provider || t.provider === "builtin" || t.provider === "custom",
+  );
+  const mcpToolList = tools.filter((t) => !coreToolList.includes(t));
+  const mcpGroups = Array.from(
+    mcpToolList.reduce((acc, t) => {
+      const key = t.provider || "mcp";
+      if (!acc.has(key)) acc.set(key, [] as CoreTool[]);
+      acc.get(key)!.push(t);
+      return acc;
+    }, new Map<string, CoreTool[]>()),
+  );
+
+  /** Aplatissement de l'arborescence de dossiers (toutes profondeurs). */
+  const flatFolders = React.useMemo(() => {
+    const walk = (nodes: FolderTree[]): FolderTree[] =>
+      nodes.flatMap((n) => [n, ...walk(n.children)]);
+    return walk(folderTree);
+  }, [folderTree]);
+  const selectedFolders = flatFolders.filter((f) => folderIds.includes(f.id));
 
   const isEditing = !!agentId;
   const isLoading = isCreating || isUpdating;
@@ -65,8 +99,14 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
       setModel(agent.model || "");
       setProvider(agent.provider || "");
       setSkillIds(agent.skill_ids || []);
-      setKnowledgeIds((agent.metadata?.knowledge_ids as string[]) || []);
-      setToolIds((agent.metadata?.tool_ids as string[]) || []);
+      setCollectionIds(
+        (agent.knowledge_collection_ids as string[]) ||
+          (agent.metadata?.knowledge_ids as string[]) ||
+          [],
+      );
+      setKnowledgeNodeIds(agent.knowledge_ids || []);
+      setToolIds(agent.tool_ids || (agent.metadata?.tool_ids as string[]) || []);
+      setFolderIds(agent.folder_ids || []);
     } else if (!isEditing) {
       // Reset form on new
       setName("");
@@ -75,8 +115,10 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
       setModel("");
       setProvider("");
       setSkillIds([]);
-      setKnowledgeIds([]);
+      setCollectionIds([]);
+      setKnowledgeNodeIds([]);
       setToolIds([]);
+      setFolderIds([]);
     }
   }, [agent, isEditing]);
 
@@ -105,7 +147,10 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
           model: model || undefined,
           provider: provider || undefined,
           skill_ids: skillIds,
-          metadata: { knowledge_ids: knowledgeIds, tool_ids: toolIds },
+          knowledge_collection_ids: collectionIds,
+          knowledge_ids: knowledgeNodeIds,
+          tool_ids: toolIds,
+          folder_ids: folderIds,
         });
       } else {
         await createAgent({
@@ -115,7 +160,10 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
           model: model || undefined,
           provider: provider || undefined,
           skill_ids: skillIds,
-          metadata: { knowledge_ids: knowledgeIds, tool_ids: toolIds },
+          knowledge_collection_ids: collectionIds,
+          knowledge_ids: knowledgeNodeIds,
+          tool_ids: toolIds,
+          folder_ids: folderIds,
         });
       }
       onOpenChange(false);
@@ -192,6 +240,30 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
 
               <div>
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  Dossiers autorisés
+                </label>
+                <div className="min-h-[40px] max-h-[180px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {folderTree.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">Aucun dossier créé.</span>
+                  ) : (
+                    folderTree.map((node) => (
+                      <FolderTreeNode
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        selected={folderIds}
+                        onSelect={setFolderIds}
+                      />
+                    ))
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Sélectionner un dossier inclut les ressources qu&apos;il contient (résolues par le Core au runtime — jamais dupliquées). Aucun dossier n&apos;est imposé.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   Skills
                 </label>
                 <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
@@ -199,7 +271,17 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                     <span className="text-xs text-muted-foreground p-1 italic">No skills available.</span>
                   ) : (
                     skills.map((skill) => (
-                      <label key={skill.id} className="flex items-center gap-1.5 cursor-pointer">
+                      <label
+                        key={skill.id}
+                        className={`flex items-center gap-1.5 cursor-pointer ${
+                          skill.is_active ? "" : "opacity-45 hover:opacity-70"
+                        }`}
+                        title={
+                          skill.is_active
+                            ? `${skill.description || skill.kind}`
+                            : "Skill désactivée — elle ne sera pas injectée tant qu'elle est inactive."
+                        }
+                      >
                         <input
                           type="checkbox"
                           checked={skillIds.includes(skill.id)}
@@ -213,6 +295,11 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                           className="accent-accent"
                         />
                         <span className="text-xs text-foreground-secondary">{skill.name}</span>
+                        {skill.kind === "pipeline" ? (
+                          <Badge variant="accent" size="sm">Pipeline</Badge>
+                        ) : (
+                          <Badge variant="info" size="sm">Prompt</Badge>
+                        )}
                       </label>
                     ))
                   )}
@@ -224,33 +311,57 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
 
               <div>
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
-                  Knowledge
+                  Knowledge spécifique
                 </label>
-                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
-                  {collections.length === 0 ? (
-                    <span className="text-xs text-muted-foreground p-1 italic">No knowledge available.</span>
+                <div className="flex flex-wrap gap-2 min-h-[40px] max-h-[140px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {knowledgeNodes.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">No knowledge nodes available.</span>
                   ) : (
-                    collections.map((collection) => (
-                      <label key={collection.id} className="flex items-center gap-1.5 cursor-pointer">
+                    knowledgeNodes.map((node) => (
+                      <label key={node.id} className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={knowledgeIds.includes(collection.id)}
+                          checked={knowledgeNodeIds.includes(node.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setKnowledgeIds((prev) => [...prev, collection.id]);
+                              setKnowledgeNodeIds((prev) => [...prev, node.id]);
                             } else {
-                              setKnowledgeIds((prev) => prev.filter((id) => id !== collection.id));
+                              setKnowledgeNodeIds((prev) => prev.filter((id) => id !== node.id));
                             }
                           }}
                           className="accent-accent"
                         />
-                        <span className="text-xs text-foreground-secondary">{collection.name}</span>
+                        <span className="text-xs text-foreground-secondary">{node.label}</span>
                       </label>
                     ))
                   )}
                 </div>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Documents RAG automatiquement consultés dans chaque conversation utilisant cet agent.
+                  Contenu injecté comme données (sanitisées) dans chaque exécution de cet agent.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
+                  RAG Collections
+                </label>
+                <div className="min-h-[40px] max-h-[220px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                  {collectionTree.length === 0 ? (
+                    <span className="text-xs text-muted-foreground p-1 italic">No knowledge available.</span>
+                  ) : (
+                    collectionTree.map((node) => (
+                      <KnowledgeTreeNode
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        selected={collectionIds}
+                        onSelect={setCollectionIds}
+                      />
+                    ))
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Collections RAG consultées lors des exécutions de cet agent (arborescence définie dans la page Knowledge).
                 </p>
               </div>
 
@@ -259,10 +370,10 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                   Tools
                 </label>
                 <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
-                  {tools.length === 0 ? (
+                  {coreToolList.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No tools available.</span>
                   ) : (
-                    tools.map((tool) => (
+                    coreToolList.map((tool) => (
                       <label key={tool.id} className="flex items-center gap-1.5 cursor-pointer" title={tool.description}>
                         <input
                           type="checkbox"
@@ -277,15 +388,48 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                           className="accent-accent"
                         />
                         <span className="text-xs text-foreground-secondary">{tool.name}</span>
-                        <Badge variant={tool.provider === "builtin" ? "dim" : "info"} className="text-[9px] px-1 py-0">
-                          {tool.provider}
+                        <Badge variant="dim" className="text-[9px] px-1 py-0">
+                          {tool.provider || "builtin"}
                         </Badge>
                       </label>
                     ))
                   )}
                 </div>
+                {mcpGroups.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider">
+                      MCP
+                    </label>
+                    {mcpGroups.map(([server, serverTools]) => (
+                      <div key={server} className="p-2 bg-elevated/30 border border-line-2 rounded-md">
+                        <p className="text-[11px] font-medium text-foreground-secondary mb-1">
+                          Serveur : {server}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {serverTools.map((tool) => (
+                            <label key={tool.id} className="flex items-center gap-1.5 cursor-pointer" title={tool.description}>
+                              <input
+                                type="checkbox"
+                                checked={toolIds.includes(tool.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setToolIds((prev) => [...prev, tool.id]);
+                                  } else {
+                                    setToolIds((prev) => prev.filter((id) => id !== tool.id));
+                                  }
+                                }}
+                                className="accent-accent"
+                              />
+                              <span className="text-xs text-foreground-secondary">{tool.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Outils que le LLM peut invoquer (builtin, custom ou MCP découverts). Exécutés par ETHAN Core.
+                  Outils que le runtime peut invoquer — seuls les outils cochés sont exposés à cet agent (builtin, custom ou MCP). Exécutés par ETHAN Core.
                 </p>
               </div>
 
@@ -337,6 +481,51 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
               </div>
             </div>
 
+            {/* Aperçu des ressources effectivement autorisées — même arbre
+                que GET /v1/agents/{id}/resources (résolu par le Core). */}
+            <div className="rounded-lg border border-line-2 bg-elevated/30 p-3">
+              <p className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider mb-2">
+                Ressources autorisées (aperçu)
+              </p>
+              <ul className="text-xs text-foreground-secondary space-y-1">
+                <li>
+                  📁 Dossiers sélectionnés :{" "}
+                  {selectedFolders.length === 0
+                    ? "aucun"
+                    : selectedFolders.map((f) => `${f.name} (${f.resource_count})`).join(", ")}
+                </li>
+                <li>
+                  🧠 Knowledge :{" "}
+                  {knowledgeNodes.filter((n) => knowledgeNodeIds.includes(n.id)).map((n) => n.label).join(", ") || "aucun"}
+                </li>
+                <li>
+                  📚 RAG Collections :{" "}
+                  {(() => {
+                    const names = (ids: string[]) =>
+                      flatCollections(collectionTree)
+                        .filter((c) => ids.includes(c.id))
+                        .map((c) => c.name);
+                    return names(collectionIds).join(", ") || "aucune";
+                  })()}
+                </li>
+                <li>
+                  🛠️ Skills :{" "}
+                  {skills.filter((s) => skillIds.includes(s.id)).map((s) => s.name).join(", ") || "aucun"}
+                </li>
+                <li>
+                  🔧 Tools :{" "}
+                  {coreToolList.filter((t) => toolIds.includes(t.id)).map((t) => t.name).join(", ") || "aucun"}
+                </li>
+                <li>
+                  🌐 MCP :{" "}
+                  {mcpToolList.filter((t) => toolIds.includes(t.id)).map((t) => t.name).join(", ") || "aucun"}
+                </li>
+              </ul>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Aucune ressource globale n&apos;est injectée sans sélection explicite.
+              </p>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-line-1 mt-6">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Abort
@@ -349,5 +538,133 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
         )}
       </form>
     </Dialog>
+  );
+}
+
+/** Aplatissement de l'arborescence de collections (toutes profondeurs). */
+function flatCollections(nodes: KnowledgeCollectionTree[]): KnowledgeCollectionTree[] {
+  return nodes.flatMap((n) => [n, ...flatCollections(n.children)]);
+}
+
+/** Nœud récursif de l'arborescence de dossiers — cocher un dossier inclut ses sous-dossiers. */
+function FolderTreeNode({
+  node,
+  depth,
+  selected,
+  onSelect,
+}: {
+  node: FolderTree;
+  depth: number;
+  selected: string[];
+  onSelect: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
+  const descendants = (n: FolderTree): string[] => [
+    n.id,
+    ...n.children.flatMap(descendants),
+  ];
+
+  const allSelected = descendants(node).every((id) => selected.includes(id));
+  const someSelected = selected.includes(node.id);
+
+  const handleToggle = (checked: boolean) => {
+    const ids = descendants(node);
+    onSelect((prev) =>
+      checked
+        ? [...new Set([...prev, ...ids])]
+        : prev.filter((id) => !ids.includes(id)),
+    );
+  };
+
+  return (
+    <div>
+      <label
+        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated/60 px-1"
+        style={{ paddingLeft: `${depth * 14 + 4}px` }}
+      >
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = !allSelected && someSelected;
+          }}
+          onChange={(e) => handleToggle(e.target.checked)}
+          className="accent-accent"
+        />
+        <span className="text-xs text-foreground-secondary">
+          📁 {node.name}
+        </span>
+        <span className="text-[10px] text-muted-foreground">({node.resource_count})</span>
+      </label>
+      {node.children.map((child) => (
+        <FolderTreeNode
+          key={child.id}
+          node={child}
+          depth={depth + 1}
+          selected={selected}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Nœud récursif de l'arborescence de collections — cocher un dossier inclut ses sous-dossiers. */
+function KnowledgeTreeNode({
+  node,
+  depth,
+  selected,
+  onSelect,
+}: {
+  node: KnowledgeCollectionTree;
+  depth: number;
+  selected: string[];
+  onSelect: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
+  const descendants = (n: KnowledgeCollectionTree): string[] => [
+    n.id,
+    ...n.children.flatMap(descendants),
+  ];
+
+  const allSelected = descendants(node).every((id) => selected.includes(id));
+  const someSelected = selected.includes(node.id);
+
+  const handleToggle = (checked: boolean) => {
+    const ids = descendants(node);
+    onSelect((prev) =>
+      checked
+        ? [...new Set([...prev, ...ids])]
+        : prev.filter((id) => !ids.includes(id)),
+    );
+  };
+
+  return (
+    <div>
+      <label
+        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated/60 px-1"
+        style={{ paddingLeft: `${depth * 14 + 4}px` }}
+      >
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = !allSelected && someSelected;
+          }}
+          onChange={(e) => handleToggle(e.target.checked)}
+          className="accent-accent"
+        />
+        <span className="text-xs text-foreground-secondary">
+          {node.children.length > 0 ? "📁" : "📄"} {node.name}
+        </span>
+      </label>
+      {node.children.map((child) => (
+        <KnowledgeTreeNode
+          key={child.id}
+          node={child}
+          depth={depth + 1}
+          selected={selected}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
   );
 }

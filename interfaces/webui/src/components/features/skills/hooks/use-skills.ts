@@ -17,6 +17,8 @@ import {
 	executeSkill as apiExecuteSkill,
 	runSkill as apiRunSkill,
 	searchSkills,
+	exportSkills as apiExportSkills,
+	importSkills as apiImportSkills,
 	type Skill,
 } from "@/lib/api/skills";
 import { useUIStore } from "@/store/ui.store";
@@ -42,6 +44,10 @@ export function useSkills() {
 			version?: string;
 			tags?: string[];
 			meta?: Record<string, unknown>;
+			kind?: 'prompt' | 'pipeline';
+			steps?: Array<Record<string, unknown>>;
+			required_tools?: string[];
+			valves?: Record<string, unknown>;
 		}) => apiCreateSkill(data),
 		onSuccess: (data) => {
 			invalidate();
@@ -105,13 +111,39 @@ export function useSkills() {
 		},
 	});
 
+	/** Import de skills exportées (nouvelles ids, jamais d'écrasement). */
+	const importMutation = useMutation({
+		mutationFn: (records: Array<Record<string, unknown>>) => apiImportSkills(records),
+		onSuccess: (summary) => {
+			invalidate();
+			addToast({
+				type: "success",
+				message: `${summary.imported} skill(s) importée(s), ${summary.skipped} ignorée(s)`,
+			});
+		},
+		onError: (err: Error) => {
+			addToast({ type: "error", message: err.message || "Échec d'import" });
+		},
+	});
+
 	return {
 		skills,
 		isLoading,
 		error: error instanceof Error ? error.message : null,
 		refetch,
 		search: async (q: string) => searchSkills(q),
-		createSkill: async (data: { name: string; description?: string; content?: string; version?: string; tags?: string[]; meta?: Record<string, unknown> }) => {
+		createSkill: async (data: {
+			name: string;
+			description?: string;
+			content?: string;
+			version?: string;
+			tags?: string[];
+			meta?: Record<string, unknown>;
+			kind?: 'prompt' | 'pipeline';
+			steps?: Array<Record<string, unknown>>;
+			required_tools?: string[];
+			valves?: Record<string, unknown>;
+		}) => {
 			try {
 				const result = await createMutation.mutateAsync(data);
 				return { data: result, error: null };
@@ -159,8 +191,25 @@ export function useSkills() {
 				return { data: null, error: err instanceof Error ? err.message : "Failed" };
 			}
 		},
+		importSkills: async (records: Array<Record<string, unknown>>) => {
+			try {
+				const result = await importMutation.mutateAsync(records);
+				return { data: result, error: null };
+			} catch (err) {
+				return { data: null, error: err instanceof Error ? err.message : "Failed" };
+			}
+		},
+		exportSkills: async () => {
+			try {
+				const result = await apiExportSkills();
+				return { data: result, error: null };
+			} catch (err) {
+				return { data: null, error: err instanceof Error ? err.message : "Failed" };
+			}
+		},
 		isCreating: createMutation.isPending,
 		isExecuting: executeMutation.isPending,
 		isRunning: runMutation.isPending,
+		isImporting: importMutation.isPending,
 	};
 }

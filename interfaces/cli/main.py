@@ -53,6 +53,7 @@ from interfaces.cli.commands import (
     update,
     config_cmd,
     domains,
+    auth,
 )
 # pylint: enable=unused-import
 

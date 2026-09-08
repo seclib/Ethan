@@ -1,12 +1,61 @@
 "use client";
 
 /**
- * ETHAN WebUI — Security & user management client.
- * Business logic lives in ETHAN Core (core/auth/totp.py) and the
- * PostgreSQL users table; this client only serialises requests.
+ * ETHAN WebUI — API Keys client.
+ *
+ * Client de sérialisation pour /v1/api-keys (backend déjà implémenté) :
+ *   POST   /v1/api-keys          → création (le plaintext n'apparaît QUE ici)
+ *   GET    /v1/api-keys          → liste sans key_hash ni secret
+ *   DELETE /v1/api-keys/{id}     → révocation (soft-revoke)
+ *
+ * La logique métier (génération, hash SHA-256, révocation, audit) vit dans
+ * le Core (core/auth/api_keys.py) — ce client ne fait que transporter.
+ *
+ * RÈGLE « secret once » : le champ `key` n'existe que dans la réponse de
+ * création. Après fermeture de la fenêtre, il ne doit JAMAIS être réaffiché
+ * (le backend ne l'a pas stocké — la WebUI ne doit pas non plus le retenir).
  */
 
 import { apiFetch } from "@/lib/api/client";
+
+// ── Types (miroir du router /v1/api-keys) ────────────────────────────────
+
+export interface ApiKeyRecord {
+  id: string;
+  user_id?: string;
+  name: string;
+  scopes: string[];
+  active: boolean;
+  created_at: string;
+  revoked_at?: string | null;
+}
+
+/** Réponse de création : vue publique + `key` (plaintext, une seule fois). */
+export interface ApiKeyCreateResult extends ApiKeyRecord {
+  key: string;
+}
+
+// ── Opérations ───────────────────────────────────────────────────────────
+
+export async function listApiKeys(): Promise<ApiKeyRecord[]> {
+  return apiFetch<ApiKeyRecord[]>("/v1/api-keys");
+}
+
+export async function createApiKey(input: {
+  name: string;
+  scopes?: string[];
+}): Promise<ApiKeyCreateResult> {
+  return apiFetch<ApiKeyCreateResult>("/v1/api-keys", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function revokeApiKey(keyId: string): Promise<ApiKeyRecord> {
+  return apiFetch<ApiKeyRecord>(`/v1/api-keys/${encodeURIComponent(keyId)}`, {
+    method: "DELETE",
+  });
+}
 
 // ── Types ────────────────────────────────────────────────────────────────
 

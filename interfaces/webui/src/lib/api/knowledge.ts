@@ -35,10 +35,24 @@ export interface KnowledgeCollection {
 	name: string;
 	description: string;
 	user_id: string;
+	/** Dossier parent (arborescence libre créée par l'utilisateur). */
+	parent_id: string | null;
+	icon: string | null;
+	order: number;
 	document_ids: string[];
+	/**
+	 * Stratégie de recherche RAG de la collection (auto | keyword | semantic |
+	 * hybrid). null → stratégie globale du moteur (GET /v1/rag/strategies).
+	 */
+	retrieval_strategy: string | null;
 	metadata: Record<string, unknown>;
 	created_at: string;
 	updated_at: string;
+}
+
+/** Nœud d'arborescence retourné par GET /v1/knowledge/collections/tree. */
+export interface KnowledgeCollectionTree extends KnowledgeCollection {
+	children: KnowledgeCollectionTree[];
 }
 
 export interface RagDocument {
@@ -102,17 +116,57 @@ export async function listCollections(userId?: string): Promise<KnowledgeCollect
 	return apiFetch<KnowledgeCollection[]>(`/v1/knowledge/collections${params}`);
 }
 
-/** Create a knowledge collection */
+/** Create a knowledge collection (optionally nested under a parent folder) */
 export async function createCollection(data: {
 	name: string;
 	description?: string;
 	user_id?: string;
 	metadata?: Record<string, unknown>;
+	parent_id?: string | null;
+	icon?: string | null;
+	order?: number;
+	/** Stratégie RAG de la collection ; null/absent → stratégie globale. */
+	retrieval_strategy?: string | null;
 }): Promise<KnowledgeCollection> {
 	return apiFetch<KnowledgeCollection>('/v1/knowledge/collections', {
 		method: 'POST',
 		body: JSON.stringify(data),
 	});
+}
+
+/** List collections as a user-organizable folder tree */
+export async function listCollectionTree(userId?: string): Promise<KnowledgeCollectionTree[]> {
+	const params = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+	return apiFetch<KnowledgeCollectionTree[]>(`/v1/knowledge/collections/tree${params}`);
+}
+
+/** Move a collection under another one (null = back to root) */
+export async function moveCollection(
+	collectionId: string,
+	parentId: string | null,
+): Promise<KnowledgeCollection> {
+	return apiFetch<KnowledgeCollection>(
+		`/v1/knowledge/collections/${collectionId}/move`,
+		{
+			method: 'POST',
+			body: JSON.stringify({ parent_id: parentId }),
+		},
+	);
+}
+
+/** Retrieve chunks scoped to several collections in a single RAG pass */
+export async function retrieveFromCollections(
+	collectionIds: string[],
+	query: string,
+	topK?: number,
+): Promise<Array<{ chunk: Record<string, unknown>; score: number; document_title: string; document_source: string }>> {
+	return apiFetch<Array<{ chunk: Record<string, unknown>; score: number; document_title: string; document_source: string }>>(
+		'/v1/knowledge/collections/retrieve-multi',
+		{
+			method: 'POST',
+			body: JSON.stringify({ query, collection_ids: collectionIds, top_k: topK }),
+		},
+	);
 }
 
 /** Get a collection */
@@ -179,6 +233,16 @@ export async function retrieveFromCollection(
 			method: 'POST',
 			body: JSON.stringify({ query, top_k: topK }),
 		},
+	);
+}
+
+/** Ré-indexe une collection (rechunk + ré-embed des documents). */
+export async function reindexCollection(
+	collectionId: string,
+): Promise<{ collection_id: string; reindexed: number; documents: number; errors: Array<{ document_id: string; error: string }> }> {
+	return apiFetch<{ collection_id: string; reindexed: number; documents: number; errors: Array<{ document_id: string; error: string }> }>(
+		`/v1/knowledge/collections/${collectionId}/reindex`,
+		{ method: 'POST' },
 	);
 }
 

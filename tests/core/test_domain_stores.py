@@ -6,25 +6,24 @@ ETHAN Core is the single source of truth.
 """
 
 import pytest
-
-from core.state.chats import ChatStore
-from core.state.files import FileStore
-from core.state.channels import ChannelStore
-from core.state.notes import NoteStore
-from core.auth.users import UserManager
-from core.auth.groups import GroupManager
-from core.auth.oauth import OAuthManager
-from core.auth.ldap import LDAPManager
 from core.auth.api_keys import APIKeyManager
+from core.auth.groups import GroupManager
+from core.auth.ldap import LDAPManager
+from core.auth.oauth import OAuthManager
 from core.auth.scim import SCIMManager
+from core.auth.users import UserManager
+from core.learning.evaluations import EvaluationManager
+from core.llm.images import ImageGenerator
+from core.llm.tts import TTSEngine
+from core.metrics.analytics import AnalyticsManager
 from core.scheduler.automations import AutomationManager
 from core.scheduler.calendar import CalendarManager
+from core.state.channels import ChannelStore
+from core.state.chats import ChatStore
+from core.state.files import FileStore
+from core.state.notes import NoteStore
 from core.tools.manager import ToolManager
 from core.tools.servers import ToolServerManager
-from core.llm.tts import TTSEngine
-from core.llm.images import ImageGenerator
-from core.learning.evaluations import EvaluationManager
-from core.metrics.analytics import AnalyticsManager
 
 
 @pytest.fixture
@@ -159,7 +158,9 @@ async def test_chat_store_add_and_list_messages(chat_store):
 @pytest.mark.asyncio
 async def test_chat_store_update_and_delete(chat_store):
     chat = await chat_store.create_chat("Test Chat")
-    updated = await chat_store.update_chat(chat["id"], {"title": "Updated", "pinned": True})
+    updated = await chat_store.update_chat(
+        chat["id"], {"title": "Updated", "pinned": True}
+    )
     assert updated["title"] == "Updated"
     assert updated["pinned"] is True
 
@@ -268,7 +269,9 @@ async def test_channel_store_create_and_messages(channel_store):
 
 @pytest.mark.asyncio
 async def test_note_store_create_and_search(note_store):
-    note = await note_store.create("My Note", "This is a test note", user_id="user-1", pinned=True)
+    note = await note_store.create(
+        "My Note", "This is a test note", user_id="user-1", pinned=True
+    )
     assert note["title"] == "My Note"
     assert note["pinned"] is True
 
@@ -405,7 +408,10 @@ async def test_oauth_manager_register_and_list(oauth_manager):
 @pytest.mark.asyncio
 async def test_ldap_manager_configure_and_get(ldap_manager):
     config = await ldap_manager.configure(
-        "ldap://ldap.example.com", "cn=admin,dc=example,dc=com", "secret", "ou=users,dc=example,dc=com"
+        "ldap://ldap.example.com",
+        "cn=admin,dc=example,dc=com",
+        "secret",
+        "ou=users,dc=example,dc=com",
     )
     assert config["server_url"] == "ldap://ldap.example.com"
     assert config["enabled"] is True

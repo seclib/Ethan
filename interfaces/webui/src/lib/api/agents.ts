@@ -26,12 +26,35 @@ export async function createAgent(data: {
 	model?: string;
 	provider?: string;
 	skill_ids?: string[];
+	knowledge_collection_ids?: string[];
+	knowledge_ids?: string[];
+	tool_ids?: string[];
+	folder_ids?: string[];
 	metadata?: Record<string, unknown>;
 }): Promise<Agent> {
 	return apiFetch<Agent>('/v1/agents', {
 		method: 'POST',
 		body: JSON.stringify(data),
 	});
+}
+
+/** Arbre des ressources effectivement autorisées à un agent (résolu par le Core). */
+export interface AgentResources {
+	agent_id: string;
+	folders: Array<{
+		id: string;
+		name: string;
+		resources: Array<{ resource_type: string; resource_id: string; name: string }>;
+	}>;
+	knowledge: Array<{ id: string; name: string; source: string }>;
+	collections: Array<{ id: string; name: string; source: string }>;
+	skills: Array<{ id: string; name: string; source: string }>;
+	tools: Array<{ id: string; name: string; provider: string; source: string }>;
+	ghosts: Array<{ resource_type: string; resource_id: string }>;
+}
+
+export async function getAgentResources(id: string): Promise<AgentResources> {
+	return apiFetch<AgentResources>(`/v1/agents/${id}/resources`);
 }
 
 export async function updateAgent(id: string, data: Record<string, unknown>): Promise<Agent> {

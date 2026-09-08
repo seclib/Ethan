@@ -86,3 +86,58 @@ class UsageStats:
     total_tokens: int = 0
     cost: float = 0.0
     latency_ms: float = 0.0
+
+
+# ── Vision Types ──────────────────────────────────────────────────────────
+
+
+@dataclass
+class VisionImage:
+    """Image reference for vision analysis.
+
+    Supports either a base64 payload or a URL. Providers that only accept
+    one form should raise NotImplementedError for the other.
+    """
+    data: str  # base64-encoded bytes OR URL
+    mime_type: str = "image/png"
+    is_url: bool = False
+
+
+@dataclass
+class VisionRequest:
+    """Request to analyze an image with a vision-capable model."""
+    images: list[VisionImage]
+    prompt: str = "Describe this image in detail."
+    model: str | None = None
+    max_tokens: int | None = None
+
+
+@dataclass
+class VisionResponse:
+    """Response from a vision analysis."""
+    content: str
+    model: str
+    provider: str
+    usage: dict | None = None
+
+
+# ── Transcription Types ───────────────────────────────────────────────────
+
+
+@dataclass
+class TranscriptionRequest:
+    """Request to transcribe audio to text."""
+    audio_data: bytes
+    mime_type: str = "audio/wav"
+    model: str | None = None
+    language: str | None = None  # ISO-639-1 (e.g., "en", "fr")
+
+
+@dataclass
+class TranscriptionResponse:
+    """Response from audio transcription."""
+    text: str
+    model: str
+    provider: str
+    language: str | None = None
+    duration_seconds: float | None = None

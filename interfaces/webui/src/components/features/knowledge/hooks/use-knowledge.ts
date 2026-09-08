@@ -50,10 +50,20 @@ export function useKnowledge() {
 	});
 
 	const createCollectionMutation = useMutation({
-		mutationFn: ({ name, description }: { name: string; description?: string }) =>
-			apiCreateCollection({ name, description }),
+		mutationFn: ({
+			name,
+			description,
+			parent_id,
+			retrieval_strategy,
+		}: {
+			name: string;
+			description?: string;
+			parent_id?: string | null;
+			retrieval_strategy?: string | null;
+		}) => apiCreateCollection({ name, description, parent_id, retrieval_strategy }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["knowledgeCollections"] });
+			queryClient.invalidateQueries({ queryKey: ["knowledge-collections-tree"] });
 			addToast({ type: "success", message: "Collection created" });
 		},
 		onError: (err) => {
@@ -66,6 +76,7 @@ export function useKnowledge() {
 			apiUpdateCollection(id, data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["knowledgeCollections"] });
+			queryClient.invalidateQueries({ queryKey: ["knowledge-collections-tree"] });
 			addToast({ type: "success", message: "Collection updated" });
 		},
 		onError: (err) => {
@@ -152,8 +163,18 @@ export function useKnowledge() {
 		},
 	});
 
-	const createCollection = (name: string, description?: string) =>
-		createCollectionMutation.mutate({ name, description });
+	const createCollection = (
+		name: string,
+		description?: string,
+		parentId?: string | null,
+		retrievalStrategy?: string | null,
+	) =>
+		createCollectionMutation.mutate({
+			name,
+			description,
+			parent_id: parentId ?? null,
+			retrieval_strategy: retrievalStrategy ?? null,
+		});
 
 	const deleteCollection = (id: string) => deleteCollectionMutation.mutate(id);
 

@@ -236,4 +236,4 @@ def extract_text(
         logger.warning("No extractor for .%s -- falling back to plain text", ext)
         return _extract_plain(content, name)
 
-    return extractor(content, name)</arg_value></tool_call>
+    return extractor(content, name)

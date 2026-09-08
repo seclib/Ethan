@@ -1,6 +1,7 @@
 {
   "version": 3,
   "pages404": true,
+  "appType": "app",
   "caseSensitive": false,
   "basePath": "",
   "redirects": [
@@ -8,6 +9,7 @@
       "source": "/:path+/",
       "destination": "/:path+",
       "internal": true,
+      "priority": true,
       "statusCode": 308,
       "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
     }
@@ -44,6 +46,7 @@
       "regex": "^(?:/(.*))(?:/)?$"
     }
   ],
+  "onMatchHeaders": [],
   "rewrites": {
     "beforeFiles": [],
     "afterFiles": [],
@@ -57,6 +60,14 @@
         "nxtPpath": "nxtPpath"
       },
       "namedRegex": "^/api/(?<nxtPpath>.+?)(?:/)?$"
+    },
+    {
+      "page": "/projects/[id]/files",
+      "regex": "^/projects/([^/]+?)/files(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/projects/(?<nxtPid>[^/]+?)/files(?:/)?$"
     }
   ],
   "staticRoutes": [
@@ -65,6 +76,12 @@
       "regex": "^/(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
     },
     {
       "page": "/_not-found",
@@ -103,6 +120,18 @@
       "namedRegex": "^/diagnostics(?:/)?$"
     },
     {
+      "page": "/domains",
+      "regex": "^/domains(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/domains(?:/)?$"
+    },
+    {
+      "page": "/folders",
+      "regex": "^/folders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/folders(?:/)?$"
+    },
+    {
       "page": "/gallery",
       "regex": "^/gallery(?:/)?$",
       "routeKeys": {},
@@ -137,6 +166,18 @@
       "regex": "^/login(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/logs",
+      "regex": "^/logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/logs(?:/)?$"
+    },
+    {
+      "page": "/mcp",
+      "regex": "^/mcp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/mcp(?:/)?$"
     },
     {
       "page": "/missions",
@@ -219,10 +260,11 @@
     "didPostponeHeader": "x-nextjs-postponed",
     "contentTypeHeader": "text/x-component",
     "suffix": ".rsc",
-    "prefetchSuffix": ".prefetch.rsc",
     "prefetchSegmentHeader": "next-router-segment-prefetch",
     "prefetchSegmentSuffix": ".segment.rsc",
-    "prefetchSegmentDirSuffix": ".segments"
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
   },
   "rewriteHeaders": {
     "pathHeader": "x-nextjs-rewritten-path",

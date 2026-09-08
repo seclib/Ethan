@@ -85,6 +85,10 @@ export function useCreateAgent() {
 			model?: string;
 			provider?: string;
 			skill_ids?: string[];
+			knowledge_collection_ids?: string[];
+			knowledge_ids?: string[];
+			tool_ids?: string[];
+			folder_ids?: string[];
 			metadata?: Record<string, unknown>;
 		}) => createAgent(data),
 		onSuccess: () => {
@@ -103,6 +107,10 @@ export function useCreateAgent() {
 			model?: string;
 			provider?: string;
 			skill_ids?: string[];
+			knowledge_collection_ids?: string[];
+			knowledge_ids?: string[];
+			tool_ids?: string[];
+			folder_ids?: string[];
 			metadata?: Record<string, unknown>;
 		}) => {
 			try {

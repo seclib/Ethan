@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useKnowledge } from "@/components/features/knowledge/hooks/use-knowledge";
+import { listCollectionTree, type KnowledgeCollectionTree } from "@/lib/api/knowledge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
@@ -27,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   getRagConfig,
+  getRagStrategies,
   updateRagConfig,
   type RagStats,
 } from "@/lib/api/rag";
@@ -60,13 +63,16 @@ export function KnowledgeWorkspace() {
   // Dialogs
   const [createOpen, setCreateOpen] = React.useState(false);
   const [newName, setNewName] = React.useState("");
+  const [newParentId, setNewParentId] = React.useState("");
   const [newDescription, setNewDescription] = React.useState("");
+  const [newStrategy, setNewStrategy] = React.useState("");
   const [ingestOpen, setIngestOpen] = React.useState(false);
   const [docTitle, setDocTitle] = React.useState("");
   const [docContent, setDocContent] = React.useState("");
   const [renameOpen, setRenameOpen] = React.useState(false);
   const [renameId, setRenameId] = React.useState<string | null>(null);
   const [renameName, setRenameName] = React.useState("");
+  const [renameParentId, setRenameParentId] = React.useState("");
 
   // Add document
   const [addDocOpen, setAddDocOpen] = React.useState(false);
@@ -91,6 +97,25 @@ export function KnowledgeWorkspace() {
     embedding_model: "",
   });
   const [ragSaving, setRagSaving] = React.useState(false);
+
+  // Stratégies RAG réellement implémentées — catalogue fourni par le Core
+  // (GET /v1/rag/strategies). Aucune stratégie n'est inventée côté interface.
+  const { data: strategiesData } = useQuery({
+    queryKey: ["rag-strategies"],
+    queryFn: () => getRagStrategies(),
+    staleTime: 300_000,
+  });
+  const ragStrategies = strategiesData?.strategies ?? [];
+  const recommendation = strategiesData?.recommendation ?? null;
+  // Une stratégie dépendante des embeddings se dégrade (repli mots-clés)
+  // tant que le moteur n'a pas d'embeddings réels — signalé par le Core.
+  const hasRealEmbeddings = recommendation?.has_real_embeddings ?? true;
+  const strategyDegrades = (strategyId: string | null | undefined): boolean => {
+    if (hasRealEmbeddings) return false;
+    return (
+      ragStrategies.find((s) => s.id === strategyId)?.requires_embeddings ?? false
+    );
+  };
 
   const openRagPanel = async () => {
     setRagOpen(true);
@@ -135,6 +160,24 @@ export function KnowledgeWorkspace() {
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
 
+  // Arborescence (dossiers organisables) : flatten ordonné avec profondeur.
+  const { data: collectionTree = [] } = useQuery<KnowledgeCollectionTree[]>({
+    queryKey: ["knowledge-collections-tree"],
+    queryFn: () => listCollectionTree(),
+  });
+  const treeRows = React.useMemo(() => {
+    const rows: Array<{ collection: KnowledgeCollectionTree; depth: number; hasChildren: boolean }> = [];
+    const walk = (nodes: KnowledgeCollectionTree[], depth: number) => {
+      for (const node of nodes) {
+        rows.push({ collection: node, depth, hasChildren: node.children.length > 0 });
+        if (node.children.length > 0) walk(node.children, depth + 1);
+      }
+    };
+    walk(collectionTree, 0);
+    return rows;
+  }, [collectionTree]);
+  const isFiltering = search.trim().length > 0;
+
   const selectedCollection = collections.find((c) => c.id === selectedCollectionId) || null;
 
   // Load documents when a collection is selected
@@ -150,9 +193,16 @@ export function KnowledgeWorkspace() {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    createCollection(newName.trim(), newDescription.trim());
+    createCollection(
+      newName.trim(),
+      newDescription.trim(),
+      newParentId || null,
+      newStrategy || null,
+    );
     setNewName("");
     setNewDescription("");
+    setNewParentId("");
+    setNewStrategy("");
     setCreateOpen(false);
   };
 
@@ -166,10 +216,14 @@ export function KnowledgeWorkspace() {
 
   const handleRename = () => {
     if (!renameId || !renameName.trim()) return;
-    updateCollection(renameId, { name: renameName.trim() });
+    updateCollection(renameId, {
+      name: renameName.trim(),
+      parent_id: renameParentId || null,
+    });
     setRenameOpen(false);
     setRenameId(null);
     setRenameName("");
+    setRenameParentId("");
   };
 
   const handleAddDocument = async () => {
@@ -311,16 +365,23 @@ export function KnowledgeWorkspace() {
             </div>
           )}
           {error && <p className="px-3 py-2 text-xs text-red/80">{error}</p>}
-          {filteredCollections.map((collection) => (
+          {(isFiltering ? filteredCollections : treeRows.map((r) => r.collection)).map((collection) => {
+            const row = treeRows.find((r) => r.collection.id === collection.id);
+            const depth = !isFiltering && row ? row.depth : 0;
+            const hasChildren = !isFiltering && row ? row.hasChildren : false;
+            return (
             <CollectionRow
               key={collection.id}
               name={collection.name}
               description={collection.description}
+              depth={depth}
+              hasChildren={hasChildren}
               isActive={collection.id === selectedCollectionId}
               onClick={() => setSelectedCollectionId(collection.id)}
               onRename={() => {
                 setRenameId(collection.id);
                 setRenameName(collection.name);
+                setRenameParentId(collection.parent_id || "");
                 setRenameOpen(true);
               }}
               onDelete={() => {
@@ -328,7 +389,8 @@ export function KnowledgeWorkspace() {
                 deleteCollection(collection.id);
               }}
             />
-          ))}
+            );
+          })}
           {filteredCollections.length === 0 && !isLoading && (
             <p className="px-3 py-6 text-center text-xs text-foreground-tertiary">
               Aucune knowledge base
@@ -362,6 +424,38 @@ export function KnowledgeWorkspace() {
                 {selectedCollection.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{selectedCollection.description}</p>
                 )}
+                <div className="mt-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] uppercase tracking-wider text-foreground-tertiary">
+                      Stratégie RAG
+                    </label>
+                    <select
+                      value={selectedCollection.retrieval_strategy || ""}
+                      onChange={(e) =>
+                        updateCollection(selectedCollection.id, {
+                          retrieval_strategy: e.target.value || null,
+                        })
+                      }
+                      title={
+                        ragStrategies.find(
+                          (s) => s.id === (selectedCollection.retrieval_strategy || ""),
+                        )?.description ?? "Utilise la stratégie globale du moteur RAG."
+                      }
+                      className="h-7 rounded-lg border border-line-1 bg-bg-1 px-2 text-xs text-foreground"
+                    >
+                      <option value="">Globale (défaut du moteur)</option>
+                      {ragStrategies.map((s) => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {strategyDegrades(selectedCollection.retrieval_strategy) && (
+                    <p className="mt-1 text-[11px] text-amber-500">
+                      Sans embeddings réels, cette stratégie se repliera sur les
+                      mots-clés jusqu&apos;à la configuration d&apos;un provider d&apos;embedding.
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setIngestOpen(true)}>
@@ -477,6 +571,50 @@ export function KnowledgeWorkspace() {
               placeholder="Description optionnelle"
             />
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Dossier parent</label>
+            <select
+              value={newParentId}
+              onChange={(e) => setNewParentId(e.target.value)}
+              className="w-full h-10 px-3 text-sm bg-bg-1 border border-line-1 rounded-lg text-foreground"
+            >
+              <option value="">— Racine (aucun) —</option>
+              {treeRows.map(({ collection, depth }) => (
+                <option key={collection.id} value={collection.id}>
+                  {`${"  ".repeat(depth)}${collection.name}`}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              Organisez librement vos bases de connaissances en dossiers.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Stratégie de recherche</label>
+            <select
+              value={newStrategy}
+              onChange={(e) => setNewStrategy(e.target.value)}
+              className="w-full h-10 px-3 text-sm bg-bg-1 border border-line-1 rounded-lg text-foreground"
+            >
+              <option value="">— Globale (défaut du moteur) —</option>
+              {ragStrategies.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {ragStrategies.find((s) => s.id === newStrategy)?.description ??
+                "Utilise la stratégie configurée globalement pour le moteur RAG."}
+            </p>
+            {recommendation && (
+              <p className="rounded-lg border border-line-1 bg-bg-1/60 px-3 py-2 text-[11px] text-foreground-secondary">
+                <span className="font-medium text-foreground">Recommandation ETHAN : </span>
+                {ragStrategies.find((s) => s.id === recommendation.strategy_id)?.label ??
+                  recommendation.strategy_id}
+                {" — "}
+                {recommendation.reason}
+              </p>
+            )}
+          </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-line-1 mt-4">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Annuler</Button>
             <Button variant="primary" onClick={handleCreate}>Créer</Button>
@@ -513,6 +651,23 @@ export function KnowledgeWorkspace() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Nom</label>
             <Input value={renameName} onChange={(e) => setRenameName(e.target.value)} placeholder="Nouveau nom" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Dossier parent</label>
+            <select
+              value={renameParentId}
+              onChange={(e) => setRenameParentId(e.target.value)}
+              className="w-full h-10 px-3 text-sm bg-bg-1 border border-line-1 rounded-lg text-foreground"
+            >
+              <option value="">— Racine (aucun) —</option>
+              {treeRows
+                .filter(({ collection }) => collection.id !== renameId)
+                .map(({ collection, depth }) => (
+                  <option key={collection.id} value={collection.id}>
+                    {`${"  ".repeat(depth)}${collection.name}`}
+                  </option>
+                ))}
+            </select>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-line-1 mt-4">
             <Button variant="ghost" onClick={() => setRenameOpen(false)}>Annuler</Button>
@@ -705,13 +860,24 @@ export function KnowledgeWorkspace() {
 interface CollectionRowProps {
   name: string;
   description?: string;
+  depth?: number;
+  hasChildren?: boolean;
   isActive: boolean;
   onClick: () => void;
   onRename: () => void;
   onDelete: () => void;
 }
 
-function CollectionRow({ name, description, isActive, onClick, onRename, onDelete }: CollectionRowProps) {
+function CollectionRow({
+  name,
+  description,
+  depth = 0,
+  hasChildren = false,
+  isActive,
+  onClick,
+  onRename,
+  onDelete,
+}: CollectionRowProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number } | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -735,8 +901,10 @@ function CollectionRow({ name, description, isActive, onClick, onRename, onDelet
       )}
     >
       <Database className="h-4 w-4 shrink-0 text-foreground-tertiary" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{name}</p>
+      <div className="min-w-0 flex-1" style={{ paddingLeft: `${depth * 14}px` }}>
+        <p className="truncate text-sm font-medium">
+          {hasChildren ? "📁 " : ""}{name}
+        </p>
         {description && <p className="truncate text-xs text-foreground-tertiary">{description}</p>}
       </div>
       <div className="relative shrink-0" ref={menuRef}>

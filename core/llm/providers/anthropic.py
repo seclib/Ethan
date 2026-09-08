@@ -1,4 +1,7 @@
-"""Anthropic Provider — Implémentation du provider Anthropic."""
+"""Anthropic Provider — Implémentation du provider Anthropic.
+
+Capabilities: LLM, Vision (Claude 3+), no native embeddings/transcription.
+"""
 
 from __future__ import annotations
 
@@ -6,16 +9,28 @@ import logging
 from typing import Any
 
 from core.llm.providers.base import LLMProvider
-from core.llm.types import ChatMessage, ChatResponse, ModelInfo
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    ModelInfo,
+    VisionRequest,
+    VisionResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class AnthropicProvider(LLMProvider):
-    """Provider Anthropic."""
+    """Provider Anthropic.
+
+    Supports: chat, vision (claude-3). No native embeddings or transcription.
+    """
 
     name = "anthropic"
     default_model = "claude-3-sonnet"
+    supports_vision = True
+    supports_transcription = False
+    supports_embedding = False
 
     def __init__(self, api_key: str):
         self._api_key = api_key
@@ -115,6 +130,42 @@ class AnthropicProvider(LLMProvider):
         """Generate embeddings."""
         # Anthropic n'a pas d'API d'embedding native
         raise NotImplementedError("Anthropic does not provide embeddings API")
+
+    async def vision_analyze(self, request: VisionRequest) -> VisionResponse:
+        """Analyze an image via Claude 3 Vision API."""
+        if not self._client:
+            raise RuntimeError("Anthropic provider not initialized")
+
+        model = request.model or "claude-3-sonnet"
+
+        # Build multi-content message with text + images
+        content: list[dict[str, Any]] = [{"type": "text", "text": request.prompt}]
+        for img in request.images:
+            if img.is_url:
+                source = {"type": "url", "url": img.data}
+            else:
+                source = {
+                    "type": "base64",
+                    "media_type": img.mime_type,
+                    "data": img.data,
+                }
+            content.append({"type": "image", "source": source})
+
+        response = await self._client.messages.create(
+            model=model,
+            messages=[{"role": "user", "content": content}],
+            max_tokens=request.max_tokens or 1024,
+        )
+
+        return VisionResponse(
+            content=response.content[0].text,
+            model=response.model,
+            provider=self.name,
+            usage={
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+            },
+        )
 
     async def list_models(self) -> list[ModelInfo]:
         """List available models."""

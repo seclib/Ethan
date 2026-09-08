@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import inspect
 import logging
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 from uuid import uuid4
 
@@ -54,6 +54,11 @@ class AgentManager:
         provider: str | None = None,
         memory_scope: str = "default",
         skill_ids: list[str] | None = None,
+        knowledge_collection_ids: list[str] | None = None,
+        knowledge_ids: list[str] | None = None,
+        tool_ids: list[str] | None = None,
+        folder_ids: list[str] | None = None,
+        domain_ids: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Agent:
         """Create and persist an agent definition."""
@@ -70,6 +75,11 @@ class AgentManager:
             provider=provider,
             memory_scope=memory_scope,
             skill_ids=list(skill_ids or []),
+            knowledge_collection_ids=list(knowledge_collection_ids or []),
+            knowledge_ids=list(knowledge_ids or []),
+            tool_ids=list(tool_ids or []),
+            folder_ids=list(folder_ids or []),
+            domain_ids=list(domain_ids or []),
             metadata=dict(metadata or {}),
         )
         await self._persist(agent)
@@ -110,6 +120,16 @@ class AgentManager:
             agent.memory_scope = str(data["memory_scope"])
         if "skill_ids" in data or "skills" in data:
             agent.skill_ids = list(data.get("skill_ids", data.get("skills", [])))
+        if "knowledge_collection_ids" in data:
+            agent.knowledge_collection_ids = list(data["knowledge_collection_ids"])
+        if "knowledge_ids" in data:
+            agent.knowledge_ids = list(data["knowledge_ids"])
+        if "tool_ids" in data:
+            agent.tool_ids = list(data["tool_ids"])
+        if "folder_ids" in data:
+            agent.folder_ids = list(data["folder_ids"])
+        if "domain_ids" in data:
+            agent.domain_ids = list(data["domain_ids"])
         if "metadata" in data:
             agent.metadata.update(dict(data["metadata"]))
         agent.updated_at = datetime.utcnow()

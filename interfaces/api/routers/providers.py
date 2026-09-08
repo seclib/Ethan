@@ -8,17 +8,22 @@ Routes :
     GET    /api/providers/{id}/models        → modèles disponibles
     POST   /api/providers/{id}/test          → tester la connexion
     PUT    /api/providers/{id}/default       → définir comme provider par défaut
+    GET    /api/providers/{id}/capabilities  → capacités du provider
+    POST   /api/providers/vision             → analyser une image
+    POST   /api/providers/transcribe         → transcrire un audio
 """
 
 from __future__ import annotations
 
+import base64
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from core.auth import Permission
 from interfaces.api.auth import require_permission
 from core.llm.provider_manager import ProviderManager
+from core.llm.types import TranscriptionRequest, VisionImage, VisionRequest
 from interfaces.api.models.provider_schemas import (
     ProviderCreate,
     ProviderUpdate,
@@ -245,3 +250,114 @@ async def set_default_provider(provider_id: str):
     except Exception as e:
         logger.exception("Failed to set default provider %s: %s", provider_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to set default provider: {e}")
+
+
+# ── GET /providers/{id}/capabilities ──────────────────────────────────────
+
+@router.get("/{provider_id}/capabilities")
+async def get_provider_capabilities(provider_id: str):
+    """Retourne les capacités d'un provider (vision, transcription, embedding)."""
+    manager = get_manager()
+
+    provider = manager._registry.get_provider(provider_id)
+    if provider is None:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+
+    return {
+        "provider_id": provider_id,
+        "name": provider.name,
+        "supports_vision": getattr(provider, "supports_vision", False),
+        "supports_transcription": getattr(provider, "supports_transcription", False),
+        "supports_embedding": getattr(provider, "supports_embedding", True),
+    }
+
+
+# ── POST /providers/vision ────────────────────────────────────────────────
+
+@router.post("/vision")
+async def vision_analyze(
+    file: UploadFile = File(...),
+    prompt: str = Form("Describe this image in detail."),
+    model: str | None = Form(None),
+    provider_id: str | None = Form(None),
+):
+    """Analyse une image via un provider capable de vision.
+
+    Le fichier image est lu en mémoire et envoyé au provider.
+    Les secrets ne sont jamais exposés — le provider utilise sa clé API
+    injectée en mémoire au démarrage.
+    """
+    manager = get_manager()
+
+    try:
+        raw = await file.read()
+        b64 = base64.b64encode(raw).decode("ascii")
+
+        # Determine MIME type (default to png)
+        mime = file.content_type or "image/png"
+
+        request = VisionRequest(
+            images=[VisionImage(data=b64, mime_type=mime, is_url=False)],
+            prompt=prompt,
+            model=model,
+        )
+        result = await manager.vision_analyze(
+            request, provider_name=provider_id
+        )
+        return {
+            "content": result.content,
+            "model": result.model,
+            "provider": result.provider,
+            "usage": result.usage,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        logger.exception("Vision analysis failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Vision analysis failed: {e}")
+
+
+# ── POST /providers/transcribe ────────────────────────────────────────────
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    model: str | None = Form(None),
+    language: str | None = Form(None),
+    provider_id: str | None = Form(None),
+):
+    """Transcrit un fichier audio via un provider capable (ex: OpenAI Whisper).
+
+    Le fichier audio est lu en mémoire et envoyé au provider.
+    """
+    manager = get_manager()
+
+    try:
+        raw = await file.read()
+        mime = file.content_type or "audio/wav"
+
+        request = TranscriptionRequest(
+            audio_data=raw,
+            mime_type=mime,
+            model=model,
+            language=language,
+        )
+        result = await manager.transcribe(
+            request, provider_name=provider_id
+        )
+        return {
+            "text": result.text,
+            "model": result.model,
+            "provider": result.provider,
+            "language": result.language,
+            "duration_seconds": result.duration_seconds,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        logger.exception("Transcription failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")

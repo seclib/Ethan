@@ -16,6 +16,13 @@ export interface Agent {
   model?: string;
   provider?: string;
   skill_ids?: string[];
+  knowledge_collection_ids?: string[];
+  /** Nœuds de Knowledge spécifiquement autorisés (Core-typed). */
+  knowledge_ids?: string[];
+  /** Tools + MCP autorisés (Core-typed ; MCP = tools de serveurs MCP). */
+  tool_ids?: string[];
+  /** Dossiers sélectionnés (le contenu est résolu par le Core au runtime). */
+  folder_ids?: string[];
   memory_scope?: string;
 }
 

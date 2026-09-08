@@ -1,4 +1,7 @@
-"""Ollama Provider — Implémentation du provider Ollama (local)."""
+"""Ollama Provider — Implémentation du provider Ollama (local).
+
+Capabilities: LLM, Vision (LLaVA, etc.), Embeddings, no native transcription.
+"""
 
 from __future__ import annotations
 
@@ -6,16 +9,27 @@ import logging
 from typing import Any
 
 from core.llm.providers.base import LLMProvider
-from core.llm.types import ChatMessage, ChatResponse, ModelInfo
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    ModelInfo,
+    VisionRequest,
+    VisionResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(LLMProvider):
-    """Provider Ollama (local)."""
+    """Provider Ollama (local).
+
+    Supports: chat, embeddings, vision (llava). No native transcription.
+    """
 
     name = "ollama"
     default_model = "llama3.1"
+    supports_vision = True
+    supports_transcription = False
 
     def __init__(self, base_url: str = "http://localhost:11434"):
         self._base_url = base_url
@@ -161,3 +175,49 @@ class OllamaProvider(LLMProvider):
         except Exception as e:
             logger.warning(f"Failed to list Ollama models: {e}")
             return []
+
+    async def vision_analyze(self, request: VisionRequest) -> VisionResponse:
+        """Analyze an image via Ollama (LLaVA-style models)."""
+        if not self._client:
+            raise RuntimeError("Ollama provider not initialized")
+
+        model = request.model or "llava"
+        images_b64: list[str] = []
+
+        for img in request.images:
+            if img.is_url:
+                # Ollama only supports base64 images
+                raise NotImplementedError(
+                    "Ollama vision requires base64 image data (URL not supported)"
+                )
+            images_b64.append(img.data)
+
+        response = await self._client.post(
+            f"{self._base_url}/api/chat",
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": request.prompt,
+                        "images": images_b64,
+                    }
+                ],
+                "stream": False,
+                "options": {
+                    "num_predict": request.max_tokens,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        return VisionResponse(
+            content=data["message"]["content"],
+            model=data.get("model", model),
+            provider=self.name,
+            usage={
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "completion_tokens": data.get("eval_count", 0),
+            },
+        )

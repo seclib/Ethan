@@ -16,7 +16,16 @@ import logging
 import os
 from typing import Any, AsyncIterator
 
-from core.llm.types import ChatMessage, ChatResponse, LLMRequirements, ModelInfo
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    LLMRequirements,
+    ModelInfo,
+    TranscriptionRequest,
+    TranscriptionResponse,
+    VisionRequest,
+    VisionResponse,
+)
 from core.llm.registry import LLMProviderRegistry
 from core.llm.client import LLMClient
 from core.llm.selector import LLMSelector
@@ -571,6 +580,94 @@ class ProviderManager:
                 except Exception:
                     logger.warning("Embed via %s failed, essai du provider suivant", name)
         return await self._client.embed(texts, model=model)
+
+    async def vision_analyze(
+        self,
+        request: VisionRequest,
+        provider_name: str | None = None,
+    ) -> VisionResponse:
+        """Analyze an image via a vision-capable provider.
+
+        Args:
+            request: Vision request with images and prompt.
+            provider_name: Specific provider to use. None → first provider
+                with supports_vision=True.
+
+        Returns:
+            VisionResponse with the analysis text.
+
+        Raises:
+            ValueError: If no vision-capable provider is available.
+            NotImplementedError: If the provider doesn't support vision.
+        """
+        provider = self._get_capable_provider(
+            "vision", provider_name, lambda p: getattr(p, "supports_vision", False)
+        )
+        return await provider.vision_analyze(request)
+
+    async def transcribe(
+        self,
+        request: TranscriptionRequest,
+        provider_name: str | None = None,
+    ) -> TranscriptionResponse:
+        """Transcribe audio via a transcription-capable provider.
+
+        Args:
+            request: Transcription request with audio data.
+            provider_name: Specific provider to use. None → first provider
+                with supports_transcription=True.
+
+        Returns:
+            TranscriptionResponse with the transcribed text.
+
+        Raises:
+            ValueError: If no transcription-capable provider is available.
+            NotImplementedError: If the provider doesn't support transcription.
+        """
+        provider = self._get_capable_provider(
+            "transcription", provider_name, lambda p: getattr(p, "supports_transcription", False)
+        )
+        return await provider.transcribe(request)
+
+    def _get_capable_provider(
+        self,
+        capability: str,
+        provider_name: str | None,
+        check: callable,
+    ) -> LLMProvider:
+        """Find a provider that supports a given capability.
+
+        Args:
+            capability: Human-readable name for error messages.
+            provider_name: Specific provider requested, or None for auto.
+            check: Callable that returns True if provider supports capability.
+
+        Returns:
+            LLMProvider instance.
+
+        Raises:
+            ValueError: If no matching provider found.
+        """
+        if provider_name:
+            provider = self._registry.get_provider(provider_name)
+            if provider is None:
+                raise ValueError(f"Provider '{provider_name}' not found")
+            if not check(provider):
+                raise ValueError(
+                    f"Provider '{provider_name}' does not support {capability}"
+                )
+            return provider
+
+        # Auto-discover: find first provider with the capability
+        for name in self._registry.list_providers():
+            provider = self._registry.get_provider(name)
+            if provider and check(provider):
+                return provider
+
+        raise ValueError(
+            f"No provider with {capability} capability found. "
+            f"Available providers: {self._registry.list_providers()}"
+        )
 
     async def chat(
         self,

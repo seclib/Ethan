@@ -564,6 +564,19 @@ async def list_tool_servers(enabled: bool | None = None):
     return await manager.list(enabled=enabled)
 
 
+def _merge_transport_metadata(data: dict[str, Any]) -> dict[str, Any]:
+    """Fusionne transport/command/args/headers (payload top-level) dans metadata.
+
+    Stockage attendu par ``ToolServerManager.sync_tools`` pour établir la
+    connexion (le record serveur persiste ces champs dans ``metadata``).
+    """
+    metadata = dict(data.get("metadata") or {})
+    for key in ("transport", "command", "args", "headers"):
+        if data.get(key) is not None:
+            metadata[key] = data[key]
+    return metadata
+
+
 @router.post("/tools/servers", dependencies=[Depends(require_permission(Permission.WRITE))])
 async def register_tool_server(data: dict[str, Any]):
     manager = _require(_managers.tool_servers, "ToolServer")
@@ -574,7 +587,7 @@ async def register_tool_server(data: dict[str, Any]):
             description=data.get("description", ""),
             auth_type=data.get("auth_type", "none"),
             auth_config=data.get("auth_config"),
-            metadata=data.get("metadata"),
+            metadata=_merge_transport_metadata(data),
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -592,6 +605,13 @@ async def get_tool_server(server_id: str):
 @router.put("/tools/servers/{server_id}")
 async def update_tool_server(server_id: str, data: dict[str, Any]):
     manager = _require(_managers.tool_servers, "ToolServer")
+    data = dict(data)
+    if any(k in data for k in ("transport", "command", "args", "headers")):
+        metadata = dict(data.get("metadata") or {})
+        for key in ("transport", "command", "args", "headers"):
+            if data.get(key) is not None:
+                metadata[key] = data[key]
+        data["metadata"] = metadata
     server = await manager.update(server_id, data)
     if server is None:
         raise HTTPException(404, f"Tool server {server_id} not found")
@@ -645,6 +665,8 @@ async def execute_skill(skill_id: str, data: dict[str, Any]):
     skill = manager.get_skill(skill_id)
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
+    if not getattr(skill, "is_enabled", True):
+        raise HTTPException(409, "Cette skill est désactivée — activez-la avant de l'exécuter.")
 
     context = SkillContext(
         skill_id=skill_id,
@@ -657,6 +679,18 @@ async def execute_skill(skill_id: str, data: dict[str, Any]):
         max_duration_ms=data.get("max_duration_ms"),
     )
     result = await manager.execute(context)
+
+    # Stats : registre mémoire + miroir best-effort dans le SkillStore
+    completed = result.status.value == "completed"
+    skill.total_executions = getattr(skill, "total_executions", 0) + 1
+    if completed:
+        skill.success_count = getattr(skill, "success_count", 0) + 1
+    try:
+        from routers.v1 import get_skill_store
+
+        await get_skill_store().record_execution(skill_id, completed)
+    except Exception:  # pragma: no cover - miroir optionnel
+        pass
     return {
         "skill_id": result.skill_id,
         "status": result.status.value,

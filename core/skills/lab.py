@@ -92,6 +92,11 @@ class SkillLab:
         self._timeout = timeout_seconds
         self._results: dict[str, LabResult] = {}
 
+    @property
+    def docker_available(self) -> bool:
+        """True si un client Docker opérationnel est attaché (sandbox OK)."""
+        return self._docker is not None
+
     # ── Test d'un skill ────────────────────────────────────────────
 
     async def test_skill(
@@ -113,7 +118,19 @@ class SkillLab:
             LabResult avec le statut et la sortie
         """
         if self._docker is None:
-            return await self._test_local(skill_code, skill_name, test_input)
+            # Sandbox obligatoire (CT-sécurité) : aucun fallback d'exécution
+            # locale.  Le code candidat n'est JAMAIS évalué sur l'hôte.
+            result = LabResult(
+                skill_name=skill_name,
+                status=LabStatus.ERROR,
+                error=(
+                    "Docker indisponible — le Skill Lab exige un sandbox "
+                    "Docker fonctionnel. L'exécution locale du code candidat "
+                    "est interdite."
+                ),
+            )
+            self._results[result.id] = result
+            return result
 
         result = LabResult(skill_name=skill_name, status=LabStatus.RUNNING)
         self._results[result.id] = result
@@ -143,36 +160,6 @@ class SkillLab:
             skill_name, result.status.value, result.passed, result.duration_ms,
         )
 
-        return result
-
-    async def _test_local(self, skill_code: str, skill_name: str, test_input: str) -> LabResult:
-        """Test local sans Docker — fallback."""
-        import time
-
-        result = LabResult(skill_name=skill_name, status=LabStatus.RUNNING)
-        start = time.monotonic()
-
-        try:
-            # Exécution isolée via exec() dans un namespace vierge
-            namespace: dict[str, Any] = {
-                "__name__": "__test__",
-                "input": test_input,
-            }
-            exec(skill_code, namespace)  # noqa: S102
-
-            elapsed = (time.monotonic() - start) * 1000
-            result.status = LabStatus.PASSED
-            result.passed = True
-            result.output = namespace.get("result", "No result returned")
-            result.duration_ms = elapsed
-
-        except Exception as e:
-            elapsed = (time.monotonic() - start) * 1000
-            result.status = LabStatus.FAILED
-            result.error = f"{type(e).__name__}: {e}"
-            result.duration_ms = elapsed
-
-        self._results[result.id] = result
         return result
 
     async def _run_in_docker(

@@ -47,9 +47,27 @@ def init_modules(
     _budget_guard = BudgetGuard(tracker=_cost_tracker, publish_fn=audit_log_fn)
     _fact_store = FactStore(pg_conn=pg_conn, publish_fn=publish_fn)
     _approval_engine = ApprovalEngine(publish_fn=publish_fn, audit_log_fn=audit_log_fn)
-    _skill_lab = SkillLab(docker_client=None, publish_fn=publish_fn)
+    _skill_lab = None
+    try:
+        import docker as _docker_sdk
+
+        _docker_client = _docker_sdk.from_env()
+        _docker_client.ping()  # échoue si le daemon est injoignable
+        _skill_lab = SkillLab(docker_client=_docker_client, publish_fn=publish_fn)
+        logger.info("SkillLab ready (Docker sandbox available)")
+    except Exception as exc:
+        # Sandbox obligatoire : sans Docker le lab reste inutilisable
+        # (les endpoints renvoient 503) — aucun fallback local.
+        _skill_lab = SkillLab(docker_client=None, publish_fn=publish_fn)
+        logger.warning("SkillLab initialized WITHOUT Docker (%s) — endpoints will return 503", exc)
+
 
     logger.info("Internal modules initialized: audit, budget, facts, approval, skilllab")
+
+
+def get_audit_store() -> AuditStore | None:
+    """Expose l'AuditStore aux autres routers (lecture de l'instance, journal append-only)."""
+    return _audit
 
 
 # ═══════════════════════════════════════════════════════════════════════

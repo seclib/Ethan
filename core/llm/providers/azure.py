@@ -164,3 +164,80 @@ class AzureOpenAIProvider(LLMProvider):
         except Exception as e:
             logger.warning("Connection test failed for Azure OpenAI: %s", e)
             return False
+
+
+# ── Capacités supplémentaires (Vision / Transcription) ─────────────────────
+# Azure OpenAI expose GPT-4V et Whisper via les mêmes API que OpenAI —
+# les flags sont déclarés et les implémentations réutilisent le client.
+
+AzureOpenAIProvider.supports_vision = True
+AzureOpenAIProvider.supports_transcription = True
+
+
+async def _azure_vision_analyze(self, request):
+    """Analyze an image via Azure OpenAI Vision (GPT-4V deployment)."""
+    from core.llm.types import VisionResponse
+
+    if not self._client:
+        raise RuntimeError("Azure OpenAI provider not initialized")
+
+    model = request.model or self._default_model
+    content: list[dict[str, Any]] = [{"type": "text", "text": request.prompt}]
+    for img in request.images:
+        if img.is_url:
+            content.append({"type": "image_url", "image_url": {"url": img.data}})
+        else:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{img.mime_type};base64,{img.data}"},
+            })
+
+    response = await self._client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": content}],
+        max_tokens=request.max_tokens or 1024,
+    )
+    return VisionResponse(
+        content=response.choices[0].message.content,
+        model=response.model,
+        provider=self.name,
+        usage={
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens,
+        },
+    )
+
+
+async def _azure_transcribe(self, request):
+    """Transcribe audio via Azure OpenAI Whisper deployment."""
+    import io
+
+    from core.llm.types import TranscriptionResponse
+
+    if not self._client:
+        raise RuntimeError("Azure OpenAI provider not initialized")
+
+    model = request.model or "whisper-1"
+    audio_file = io.BytesIO(request.audio_data)
+    audio_file.name = f"audio.{request.mime_type.split('/')[-1]}"
+
+    kwargs: dict[str, Any] = {
+        "file": audio_file,
+        "model": model,
+        "response_format": "json",
+    }
+    if request.language:
+        kwargs["language"] = request.language
+
+    response = await self._client.audio.transcriptions.create(**kwargs)
+    return TranscriptionResponse(
+        text=response.text,
+        model=model,
+        provider=self.name,
+        language=request.language,
+    )
+
+
+AzureOpenAIProvider.vision_analyze = _azure_vision_analyze  # type: ignore[assignment]
+AzureOpenAIProvider.transcribe = _azure_transcribe  # type: ignore[assignment]

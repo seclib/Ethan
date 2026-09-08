@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listProviders, type Provider } from "@/lib/api/providers";
 import { listModels, type ModelInfo } from "@/lib/api/models";
@@ -15,6 +16,7 @@ export interface PinnedModel {
 
 /**
  * Hook avancé pour la gestion des modèles.
+ * - Sélection d'un provider (clic souris) → lazy-load des modèles
  * - Recherche par nom/capabilities
  * - Épinglage des modèles favoris (localStorage)
  * - Filtrage par provider
@@ -23,14 +25,28 @@ export function useModels() {
 	const queryClient = useQueryClient();
 	const addToast = useUIStore((s) => s.addToast);
 
-	const { data: providers = [], isLoading: providersLoading } = useQuery<Provider[]>({
+	// Provider sélectionné — null = aucun provider choisi (Vue principale)
+	const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+
+	const {
+		data: providers = [],
+		isLoading: providersLoading,
+		error: providersErrorObj,
+	} = useQuery<Provider[]>({
 		queryKey: ["providers"],
 		queryFn: () => listProviders(),
+		staleTime: 30_000,
 	});
 
-	const { data: models = [], isLoading: modelsLoading } = useQuery<ModelInfo[]>({
-		queryKey: ["models"],
-		queryFn: () => listModels(),
+	// Lazy-load des modèles UNIQUEMENT quand un provider est sélectionné
+	const {
+		data: models = [],
+		isLoading: modelsLoading,
+		error: modelsErrorObj,
+		refetch: refetchModels,
+	} = useQuery<ModelInfo[]>({
+		queryKey: ["models", selectedProvider],
+		queryFn: () => listModels(selectedProvider ? { provider_id: selectedProvider } : undefined),
 		staleTime: 30_000,
 	});
 
@@ -91,11 +107,31 @@ export function useModels() {
 		);
 	};
 
+	// Modèle sélectionné (pour configuration)
+	const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(null);
+
 	return {
+		// Providers
 		providers,
 		enabledProviders,
+		providersLoading,
+		providersError: providersErrorObj?.message ?? null,
+		selectedProvider,
+		setSelectedProvider,
+
+		// Models (liés au provider sélectionné ; tous si aucun provider choisi)
 		models,
+		/** @deprecated compat : consommé par model-selector.tsx */
 		isLoading: providersLoading || modelsLoading,
+		modelsLoading,
+		modelsError: modelsErrorObj?.message ?? null,
+		refetchModels,
+
+		// Sélection de modèle
+		selectedModel,
+		setSelectedModel,
+
+		// Actions
 		pinned,
 		pinModel,
 		unpinModel,

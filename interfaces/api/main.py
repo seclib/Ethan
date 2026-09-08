@@ -25,6 +25,10 @@ from core.telemetry.logger import setup_logging
 from interfaces.api.routers.message import router as message_router, set_nats_client
 from interfaces.api.routers.state import router as state_router
 from interfaces.api.routers.internal import router as internal_router, init_modules
+from interfaces.api.routers.folders import router as folders_router
+from interfaces.api.routers.projects import router as projects_router
+from interfaces.api.routers.web_ingest import router as web_ingest_router
+from interfaces.api.routers.core_domains import router as core_domains_router
 from interfaces.api.routers.v1 import (
     CoreDomainServices,
     router as v1_router,
@@ -32,6 +36,9 @@ from interfaces.api.routers.v1 import (
     set_provider_manager as set_v1_provider_manager,
 )
 from interfaces.api.routers.providers import router as providers_router, set_provider_manager
+from interfaces.api.routers.integrations import router as integrations_router
+from interfaces.api.routers.search import router as search_router
+from interfaces.api.routers.reminders import router as reminders_router
 from interfaces.api.routers.models import router as models_router, set_provider_manager as set_models_provider_manager, set_model_store
 from interfaces.api.routers.config import router as config_router, set_configuration_service
 from interfaces.api.routers.domains import router as domains_router, set_domain_managers
@@ -202,6 +209,17 @@ async def lifespan(app: FastAPI):
     skill_store = SkillStore(store=domain_store)
     set_skill_store(skill_store)
     app.state.skill_store = skill_store
+
+    # Fusion du registre mémoire → store persistant (Skills unifiées) :
+    # les builtins (kind="pipeline") deviennent des records associables aux
+    # Agents et classables dans dossiers/domains.  Sync idempotente.
+    try:
+        from core.skills.builtin import iter_builtin_skill_specs
+
+        synced = await skill_store.sync_builtin_skills(iter_builtin_skill_specs())
+        logger.info("SkillStore ready — %d builtin pipeline skills synced", synced)
+    except Exception as exc:
+        logger.exception("Builtin skills sync failed: %s", exc)
     logger.info("SkillStore ready (Core-owned skills)")
 
     # --- Knowledge collections (Core-owned grouping of RAG documents) ---
@@ -217,6 +235,136 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_collections = knowledge_collections
     logger.info("KnowledgeCollectionManager ready (Core-owned collections)")
 
+    # --- Folders (Core-owned generic organisation of resources) ---
+    # Dossiers créés par l'utilisateur (aucun imposé) et relations de
+    # classement vers knowledge / collections RAG / skills.  Le FolderManager
+    # résout les contenus via les managers Core propriétaires : aucune
+    # duplication de données, aucune logique dans les interfaces.
+    from core.folders import FolderManager
+    from interfaces.api.routers.folders import set_folder_manager
+
+    folder_manager = FolderManager(
+        store=domain_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        skills=skill_store,
+    )
+    set_folder_manager(folder_manager)
+    app.state.folder_manager = folder_manager
+    logger.info("FolderManager ready (Core-owned resource folders)")
+
+    # --- Web ingestion (Core-owned web → knowledge pipeline) ---
+    # URL → scan contrôlé (robots.txt, SSRF, bornes) → preview transient →
+    # validation utilisateur → indexation (Knowledge ou RAG Collection).
+    # Toute la logique vit dans le Core ; ce n'est qu'une injection ici.
+    from core.knowledge.web_ingest import WebIngestionManager
+    from interfaces.api.routers.web_ingest import set_web_ingest_manager
+
+    web_ingest_manager = WebIngestionManager(
+        rag=core_domains.rag,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        folders=folder_manager,
+    )
+    set_web_ingest_manager(web_ingest_manager)
+    app.state.web_ingest_manager = web_ingest_manager
+    logger.info("WebIngestionManager ready (Core-owned web import pipeline)")
+
+    # --- Domains (Core-owned functional specialities) ---
+    # Spécialités fonctionnelles (OSINT, Recon, Forensic, ...) organisant
+    # knowledge / collections RAG / skills / sources par **relation**
+    # many-to-many : aucune ressource n'est déplacée ni dupliquée, et aucun
+    # domain n'est seedé ni imposé.  Les agents sélectionnent explicitement
+    # leurs domains via ``domain_ids`` (résolu à l'exécution via le Core).
+    from core.domains import DomainManager
+    from interfaces.api.routers.core_domains import set_domain_manager
+
+    domain_manager = DomainManager(
+        store=domain_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        skills=skill_store,
+    )
+    set_domain_manager(domain_manager)
+    app.state.domain_manager = domain_manager
+    logger.info("DomainManager ready (Core-owned functional domains)")
+
+    # --- Projects (Core-owned project / workspace container) ---
+    # Un projet est un conteneur de conversations + portée de ressources +
+    # contexte d'exécution (agent / provider / model).  Toute la logique vit
+    # dans le Core ; le WebUI ne fait que le projeter.  Aucune ressource
+    # n'est dupliquée — les associations sont de simples identifiants.
+    from core.projects import ProjectManager
+    from interfaces.api.routers.projects import set_project_manager
+
+    project_manager = ProjectManager(
+        store=domain_store,
+        # Le pipeline RAG Core unique (extraction + chunking + embedding) est
+        # branché sur les documents de projet — jamais de second pipeline.
+        ingestion_service=core_domains.rag,
+    )
+    set_project_manager(project_manager)
+    app.state.project_manager = project_manager
+    logger.info("ProjectManager ready (Core-owned projects)")
+
+    # --- Event Bus (NATS-backed) ---
+    from core.bus.nats_bus import EventBus as NatsEventBus
+    event_bus = NatsEventBus(servers=nats_url)
+    await event_bus.connect()
+    app.state.event_bus = event_bus
+    logger.info("EventBus ready (NATS-backed)")
+
+    # --- Scheduler (background tasks, cron, reminders) ---
+    from core.scheduler.scheduler import Scheduler
+    scheduler = Scheduler(bus=event_bus)
+    await scheduler.start()
+    app.state.scheduler = scheduler
+    logger.info("Scheduler ready (cron + reminders)")
+
+    # --- App Integrations (Core-owned integration model) ---
+    # Identité, configuration, credentials (domaine dédié), capacités,
+    # permissions, health et lifecycle connect/disconnect. Le healthcheck
+    # MCP délègue au ToolServerManager existant (pas de duplication).
+    from core.integrations import IntegrationManager
+    from interfaces.api.routers.integrations import set_integration_manager
+
+    integration_manager = IntegrationManager(
+        store=domain_store,
+        event_bus=event_bus,
+        tool_servers=core_domains.tool_servers,
+    )
+    set_integration_manager(integration_manager)
+    app.state.integration_manager = integration_manager
+    logger.info("IntegrationManager ready (Core-owned app integrations)")
+
+    # --- Search (unified search across ETHAN domains) ---
+    # Delegates to KnowledgeManager, ChatStore, RAGPipeline — no duplication.
+    from core.search import SearchManager
+    from interfaces.api.routers.search import set_search_manager
+
+    search_manager = SearchManager(
+        knowledge_manager=core_domains.knowledge,
+        chat_store=core_domains.chats,
+        rag_pipeline=core_domains.rag,
+    )
+    set_search_manager(search_manager)
+    app.state.search_manager = search_manager
+    logger.info("SearchManager ready (unified search)")
+
+    # --- Reminders (Core-owned reminder system) ---
+    # Uses the ETHAN Scheduler for timing — never a browser-only scheduler.
+    from core.reminders import ReminderManager
+    from interfaces.api.routers.reminders import set_reminder_manager
+
+    reminder_manager = ReminderManager(
+        store=domain_store,
+        event_bus=event_bus,
+        scheduler=scheduler,
+    )
+    set_reminder_manager(reminder_manager)
+    app.state.reminder_manager = reminder_manager
+    logger.info("ReminderManager ready (Core-owned reminders)")
+
     # --- Chat pipeline (Core-owned orchestration) ---
     # The pipeline composes the ChatStore, ProviderManager, RAG, SkillStore
     # and memory facts.  It is injected into the v1 router so /chat/completions
@@ -231,6 +379,7 @@ async def lifespan(app: FastAPI):
         memory_store=webui_store,
         file_store=file_store,
         knowledge_collections=knowledge_collections,
+        project_manager=project_manager,
     )
     set_chat_pipeline(chat_pipeline)
     app.state.chat_pipeline = chat_pipeline
@@ -268,6 +417,7 @@ async def lifespan(app: FastAPI):
     # routage agent vit dans le Core ; l'API reste une passerelle HTTP.
     chat_pipeline.set_tool_manager(tool_manager)
     chat_pipeline.set_agent_manager(core_domains.agents)
+    chat_pipeline.set_project_manager(project_manager)
     set_tool_manager(tool_manager)
 
     # --- Skill manager (Core-owned skill execution) ---
@@ -315,6 +465,16 @@ async def lifespan(app: FastAPI):
         skills=skill_manager,
     )
     set_capability_managers(capability_managers)
+
+    # --- API Keys (Core-owned, politique secret-once) ---
+    from core.auth.api_keys import APIKeyManager
+    from routers import internal as _internal
+    from routers.api_keys import configure_api_keys
+
+    api_keys_manager = APIKeyManager(store=domain_store)
+    configure_api_keys(api_keys_manager, audit_store=_internal.get_audit_store())
+    app.state.api_keys_manager = api_keys_manager
+    logger.info("API keys manager ready (secret-once policy)")
     app.state.capability_managers = capability_managers
     app.state.tool_manager = tool_manager
     logger.info("Capability managers ready (13 Core capabilities exposed, incl. skills)")
@@ -363,6 +523,11 @@ async def lifespan(app: FastAPI):
             create_agent_executor(
                 provider_manager=provider_manager,
                 skill_store=get_skill_store(),
+                knowledge_collections=knowledge_collections,
+                domain_manager=domain_manager,
+                folders=folder_manager,
+                knowledge_manager=core_domains.knowledge,
+                tools=tool_manager,
             )
         )
         logger.info("Agent executor injected (Core real LLM adapter)")
@@ -472,6 +637,16 @@ app.add_exception_handler(429, rate_limit_exceeded_handler)
 # Middleware d'authentification JWT (protège les routes sauf /health, /metrics, /docs)
 app.middleware("http")(auth_middleware)
 
+
+# ── API Keys — Core APIKeyManager (wiring) ──────────────────
+from routers.api_keys import router as api_keys_router
+
+app.include_router(api_keys_router)
+app.include_router(folders_router)
+app.include_router(projects_router)
+app.include_router(web_ingest_router)
+app.include_router(core_domains_router)
+
 app.include_router(message_router)
 app.include_router(state_router)
 app.include_router(internal_router)
@@ -479,6 +654,9 @@ app.include_router(v1_router)
 app.include_router(security_router)
 app.include_router(providers_router)
 app.include_router(models_router)
+app.include_router(integrations_router)
+app.include_router(search_router)
+app.include_router(reminders_router)
 app.include_router(config_router)
 app.include_router(domains_router)
 app.include_router(capabilities_router)

@@ -23,20 +23,25 @@ import logging
 import re
 import uuid
 from typing import Any
-from fastapi import APIRouter, HTTPException, Depends
+
 from core.agents import AgentExecutionUnavailable, AgentManager
 from core.auth import Permission
-from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
-from interfaces.api.auth import require_permission
 from core.chat import ChatPipeline
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from core.llm.provider_manager import ProviderManager
-from core.llm.types import ChatMessage, LLMRequirements
 from core.llm.types import ChatMessage as LLMChatMessage
+from core.llm.types import LLMRequirements
 from core.missions import MissionManager
 from core.rag import RAGPipeline
+from core.rag.strategies import DEFAULT_STRATEGY, available_strategies, validate_strategy
 from core.skills.store import SkillStore
+from core.skills.lab import SkillLab
+from core.skills.validation import collect_unknown_tools
 from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
+from fastapi import APIRouter, Depends, HTTPException
+from interfaces.api.auth import require_permission
+from interfaces.api.routers.folders import get_folder_manager
 
 logger = logging.getLogger(__name__)
 
@@ -258,9 +263,134 @@ async def list_agents():
     return [agent.to_dict() for agent in await _domains.agents.list()]
 
 
+async def _validated_knowledge_collection_ids(
+    data: dict[str, Any],
+) -> list[str]:
+    """Valide et retourne knowledge_collection_ids (compat metadata.knowledge_ids).
+
+    L'ancienne convention WebUI stockait les collections dans
+    ``metadata.knowledge_ids`` ; le champ typé prime désormais.  Toute
+    collection inconnue est rejetée (422) pour garantir l'intégrité du lien
+    agent → connaissances.
+    """
+    ids = data.get("knowledge_collection_ids")
+    if ids is None:
+        metadata = data.get("metadata") or {}
+        ids = metadata.get("knowledge_ids") if isinstance(metadata, dict) else None
+    ids = list(ids or [])
+    collections_manager = get_knowledge_collections()
+    for collection_id in ids:
+        if await collections_manager.get_collection(collection_id) is None:
+            raise ValueError(f"Knowledge collection {collection_id} not found")
+    return ids
+
+
+async def _validated_folder_ids(data: dict[str, Any]) -> list[str]:
+    """Valide folder_ids pour les agents (sélection de dossiers génériques).
+
+    Prépare la création d'agents pilotés par dossiers/ressources : tout
+    dossier inconnu est rejeté (422) pour garantir l'intégrité du lien
+    agent → dossiers.  Les contenus sont résolus à l'exécution via le Core.
+    """
+    ids = list(data.get("folder_ids") or [])
+    if not ids:
+        return ids
+    folders = get_folder_manager()
+    for folder_id in ids:
+        if await folders.get_folder(folder_id) is None:
+            raise ValueError(f"Folder {folder_id} not found")
+    return ids
+
+
+def _get_core_domain_manager() -> Any:
+    from interfaces.api.routers.core_domains import get_domain_manager
+
+    return get_domain_manager()
+
+
+def _get_tool_manager() -> Any:
+    """ToolManager Core (peut être absent en test — validation dégradée)."""
+    return _tool_manager
+
+
+async def _validated_knowledge_node_ids(data: dict[str, Any]) -> list[str]:
+    """Valide knowledge_ids pour les agents (nœuds de Knowledge spécifiques).
+
+    Tout nœud inconnu est rejeté (422) : un agent ne peut recevoir que des
+    nœuds réellement existants.  Le contenu est résolu à l'exécution via le
+    KnowledgeManager Core (relation, jamais duplication).
+    """
+    ids = list(data.get("knowledge_ids") or [])
+    if not ids:
+        return ids
+    seen: list[str] = []
+    for node_id in ids:
+        if node_id in seen:
+            continue
+        if await _domains.knowledge.get(node_id) is None:
+            raise ValueError(f"Knowledge {node_id} not found")
+        seen.append(node_id)
+    return seen
+
+
+def _validated_tool_ids(data: dict[str, Any]) -> list[str]:
+    """Valide tool_ids pour les agents (tools builtin/custom/MCP).
+
+    Tout tool inconnu est rejeté (422).  Un serveur MCP est représenté par
+    les tools qu'il expose : la sélection reste au niveau tool (pas de
+    duplication).  Si le ToolManager n'est pas branché (tests), la validation
+    est dégradée : les ids sont acceptés tels quels.
+    """
+    ids = list(data.get("tool_ids") or [])
+    if not ids:
+        return ids
+    manager = _get_tool_manager()
+    if manager is None:
+        return ids
+    seen: list[str] = []
+    for tool_id in ids:
+        if tool_id in seen:
+            continue
+        if manager.get_tool(tool_id) is None:
+            raise ValueError(f"Tool {tool_id} not found")
+        seen.append(tool_id)
+    return seen
+
+
+async def _validated_domain_ids(data: dict[str, Any]) -> list[str]:
+    """Valide domain_ids pour les agents (sélection explicite de domains).
+
+    Tout domain inconnu est rejeté (422) : un agent ne peut se déclarer
+    spécialiste que de domains réellement existants.  Les contenus restent
+    résolus à l'exécution via le DomainManager Core (relation, jamais
+    duplication).
+    """
+    ids = list(data.get("domain_ids") or [])
+    if not ids:
+        return ids
+    domains = _get_core_domain_manager()
+    seen: list[str] = []
+    for domain_id in ids:
+        if domain_id in seen:
+            continue
+        if await domains.get_domain(domain_id) is None:
+            raise ValueError(f"Domain {domain_id} not found")
+        seen.append(domain_id)
+    return seen
+
+
 @router.post("/agents", dependencies=[Depends(require_permission(Permission.AGENTS))])
 async def create_agent(data: dict[str, Any]):
     try:
+        knowledge_collection_ids = await _validated_knowledge_collection_ids(data)
+        folder_ids = (
+            await _validated_folder_ids(data) if data.get("folder_ids") else []
+        )
+        domain_ids = (
+            await _validated_domain_ids(data) if data.get("domain_ids") else []
+        )
+        knowledge_ids = await _validated_knowledge_node_ids(data)
+        tool_ids = _validated_tool_ids(data)
         agent = await _domains.agents.create(
             name=data.get("name", ""),
             description=data.get("description", ""),
@@ -269,6 +399,11 @@ async def create_agent(data: dict[str, Any]):
             provider=data.get("provider"),
             memory_scope=data.get("memory_scope", "default"),
             skill_ids=data.get("skill_ids", data.get("skills")),
+            knowledge_collection_ids=knowledge_collection_ids,
+            knowledge_ids=knowledge_ids,
+            tool_ids=tool_ids,
+            folder_ids=folder_ids,
+            domain_ids=domain_ids,
             metadata=data.get("metadata"),
         )
         return agent.to_dict()
@@ -282,6 +417,33 @@ async def get_agent(agent_id: str):
     if agent is None:
         raise HTTPException(404, f"Agent {agent_id} not found")
     return agent.to_dict()
+
+
+@router.get("/agents/{agent_id}/resources")
+async def get_agent_resources(agent_id: str):
+    """Arbre des ressources effectivement autorisées à cet agent.
+
+    Vue canonique résolue par le Core (dédupliquée, sources tracées,
+    fantômes signalés) : Dossiers sélectionnés (avec leur contenu), Knowledge,
+    RAG Collections, Skills, Tools/MCP.  L'interface ne fait qu'afficher.
+    """
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    from core.agents.resources import resolve_agent_resources
+
+    try:
+        skill_store = get_skill_store()
+    except HTTPException:
+        skill_store = None
+    return await resolve_agent_resources(
+        agent,
+        folders=get_folder_manager(),
+        knowledge=_domains.knowledge,
+        collections=get_knowledge_collections(),
+        skills=skill_store,
+        tools=_tool_manager,
+    )
 
 
 @router.get("/tools")
@@ -310,6 +472,23 @@ async def list_tools():
 @router.put("/agents/{agent_id}")
 async def update_agent(agent_id: str, data: dict[str, Any]):
     try:
+        if "knowledge_collection_ids" in data or (
+            isinstance(data.get("metadata"), dict) and "knowledge_ids" in data["metadata"]
+        ):
+            data = dict(data)
+            data["knowledge_collection_ids"] = await _validated_knowledge_collection_ids(data)
+        if "folder_ids" in data:
+            data = dict(data)
+            data["folder_ids"] = await _validated_folder_ids(data)
+        if "domain_ids" in data:
+            data = dict(data)
+            data["domain_ids"] = await _validated_domain_ids(data)
+        if "knowledge_ids" in data:
+            data = dict(data)
+            data["knowledge_ids"] = await _validated_knowledge_node_ids(data)
+        if "tool_ids" in data:
+            data = dict(data)
+            data["tool_ids"] = _validated_tool_ids(data)
         agent = await _domains.agents.update(agent_id, data)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -519,12 +698,32 @@ async def get_memory_entry(memory_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 
 @router.get("/skills")
-async def list_skills():
-    return await get_skill_store().list_skills()
+async def list_skills(
+    active: bool | None = None,
+    kind: str | None = None,
+    tag: str | None = None,
+):
+    """Liste les skills (modèle unifié) avec filtres optionnels."""
+    return await get_skill_store().list_skills(active=active, kind=kind, tag=tag)
+
+
+def _validate_skill_tools(data: dict[str, Any]) -> None:
+    """Refuse (422) toute skill référençant un outil inconnu du ToolManager."""
+    unknown = collect_unknown_tools(
+        data.get("required_tools") or [],
+        data.get("steps") or [],
+        _tool_manager,
+    )
+    if unknown:
+        raise HTTPException(
+            422,
+            "Outils inconnus (absents du ToolManager) : " + ", ".join(unknown),
+        )
 
 
 @router.post("/skills", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def create_skill(data: dict[str, Any]):
+    _validate_skill_tools(data)
     try:
         return await get_skill_store().create_skill(data)
     except ValueError as exc:
@@ -534,6 +733,67 @@ async def create_skill(data: dict[str, Any]):
 @router.get("/skills/search")
 async def search_skills(q: str = ""):
     return await get_skill_store().search_skills(q)
+
+
+@router.get("/skills/export")
+async def export_skills():
+    """Exporte toutes les skills (portabilité, pattern Open-WebUI)."""
+    return await get_skill_store().export_skills()
+
+
+@router.post("/skills/import", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def import_skills(data: dict[str, Any]):
+    records = data.get("skills") or []
+    if not isinstance(records, list):
+        raise HTTPException(422, "Le corps doit contenir une liste 'skills'.")
+    return await get_skill_store().import_skills(records)
+
+
+# ── Skill Lab (sandbox Docker obligatoire — aucun fallback local) ──────
+
+_skill_lab: SkillLab | None = None
+
+
+def get_skill_lab() -> SkillLab:
+    """SkillLab paresseux : client Docker réel si le daemon répond, sinon None."""
+    global _skill_lab
+    if _skill_lab is None:
+        try:
+            import docker as _docker_sdk
+
+            _docker_client = _docker_sdk.from_env()
+            _docker_client.ping()
+            _skill_lab = SkillLab(docker_client=_docker_client)
+        except Exception:
+            _skill_lab = SkillLab(docker_client=None)
+    return _skill_lab
+
+
+@router.post("/skills/lab/test", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+async def skill_lab_test(data: dict[str, Any]):
+    """Teste un code Python de skill candidat dans le sandbox Docker."""
+    lab = get_skill_lab()
+    if not lab.docker_available:
+        raise HTTPException(
+            503,
+            "Skill Lab indisponible : Docker est requis (sandbox obligatoire, "
+            "aucune exécution locale du code candidat).",
+        )
+    code = str(data.get("code") or "").strip()
+    if not code:
+        raise HTTPException(422, "Le champ 'code' (Python) est requis.")
+    result = await lab.test_skill(
+        skill_code=code,
+        skill_name=str(data.get("name") or "test_skill"),
+        test_input=str(data.get("input") or ""),
+        requirements=list(data.get("requirements") or []),
+    )
+    return result.to_dict()
+
+
+@router.get("/skills/lab/results")
+async def skill_lab_results(skill_name: str | None = None):
+    return get_skill_lab().list_results(skill_name=skill_name)
 
 
 @router.get("/skills/{skill_id}")
@@ -546,7 +806,11 @@ async def get_skill(skill_id: str):
 
 @router.put("/skills/{skill_id}")
 async def update_skill(skill_id: str, data: dict[str, Any]):
-    skill = await get_skill_store().update_skill(skill_id, data)
+    _validate_skill_tools(data)
+    try:
+        skill = await get_skill_store().update_skill(skill_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
     return skill
@@ -565,6 +829,29 @@ async def toggle_skill(skill_id: str):
     if skill is None:
         raise HTTPException(404, f"Skill {skill_id} not found")
     return skill
+
+
+@router.get("/skills/{skill_id}/valves")
+async def get_skill_valves(skill_id: str):
+    """Valves (configuration réelle) d'une skill."""
+    valves = await get_skill_store().get_valves(skill_id)
+    if valves is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return valves
+
+
+@router.put(
+    "/skills/{skill_id}/valves",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def update_skill_valves(skill_id: str, data: dict[str, Any]):
+    try:
+        valves = await get_skill_store().update_valves(skill_id, data.get("valves", {}))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if valves is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return valves
 
 
 @router.post("/skills/{skill_id}/run", dependencies=[Depends(require_permission(Permission.EXECUTE))])
@@ -601,7 +888,12 @@ async def run_skill(skill_id: str, data: dict[str, Any]):
             metadata={"skill_id": skill_id, "skill_name": skill.get("name", "")},
         )
     except ValueError as exc:
+        await get_skill_store().record_execution(skill_id, False)
         raise HTTPException(422, str(exc)) from exc
+    except Exception:
+        await get_skill_store().record_execution(skill_id, False)
+        raise
+    await get_skill_store().record_execution(skill_id, True)
 
     assistant = result["assistant_message"]
     return {
@@ -640,6 +932,30 @@ async def create_collection(data: dict[str, Any]):
             description=data.get("description", ""),
             user_id=data.get("user_id", "anonymous"),
             metadata=data.get("metadata"),
+            parent_id=data.get("parent_id"),
+            icon=data.get("icon"),
+            order=data.get("order", 0),
+            retrieval_strategy=data.get("retrieval_strategy"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/knowledge/collections/tree")
+async def list_collections_tree(user_id: str | None = None):
+    """Liste les collections en arborescence (dossiers organisables)."""
+    return await get_knowledge_collections().list_tree(user_id=user_id)
+
+
+@router.post("/knowledge/collections/retrieve-multi")
+async def retrieve_collections_multi(data: dict[str, Any]):
+    """Retrieve RAG scopé sur plusieurs collections en un seul passage."""
+    query = data.get("query", "")
+    collection_ids = data.get("collection_ids", [])
+    top_k = data.get("top_k")
+    try:
+        return await get_knowledge_collections().retrieve_multi(
+            query, collection_ids, top_k=top_k
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -655,9 +971,27 @@ async def get_collection(collection_id: str):
 
 @router.put("/knowledge/collections/{collection_id}")
 async def update_collection(collection_id: str, data: dict[str, Any]):
-    collection = await get_knowledge_collections().update_collection(collection_id, data)
+    try:
+        collection = await get_knowledge_collections().update_collection(collection_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     if collection is None:
         raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.post("/knowledge/collections/{collection_id}/move")
+async def move_collection(collection_id: str, data: dict[str, Any]):
+    """Déplace une collection sous un autre parent (dossiers organisables).
+
+    ``parent_id: null`` remet la collection à la racine.
+    """
+    try:
+        collection = await get_knowledge_collections().move_collection(
+            collection_id, data.get("parent_id")
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     return collection
 
 
@@ -707,6 +1041,21 @@ async def retrieve_collection(data: dict[str, Any], collection_id: str):
         return await get_knowledge_collections().retrieve(query, collection_id, top_k=top_k)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+@router.post(
+    "/knowledge/collections/{collection_id}/reindex",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def reindex_collection(collection_id: str):
+    """Ré-indexe une collection (rechunk + ré-embed de ses documents).
+
+    Utile après un changement de modèle d'embedding ou de stratégie.  La
+    logique de réindexation appartient au Core (KnowledgeCollectionManager).
+    """
+    if await get_knowledge_collections().get_collection(collection_id) is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return await get_knowledge_collections().reindex_collection(collection_id)
 
 
 @router.get("/knowledge/{knowledge_id}")
@@ -786,6 +1135,22 @@ async def list_rag_documents():
     return [document.to_dict() for document in await _domains.rag.list_documents()]
 
 
+@router.get("/rag/strategies")
+async def list_rag_strategies():
+    """Stratégies de recherche RAG réellement implémentées dans le Core.
+
+    Source de vérité pour la WebUI : aucune stratégie non supportée par le
+    moteur n'est exposée (le reranking n'existe pas dans ETHAN à ce jour).
+    Inclut la recommandation du Core, calculée sur les capacités réellement
+    disponibles (embeddings réels ou non) — l'interface ne fait que l'afficher.
+    """
+    return {
+        "default": DEFAULT_STRATEGY,
+        "strategies": available_strategies(),
+        "recommendation": _domains.rag.recommend_strategy(),
+    }
+
+
 @router.get("/rag/config")
 async def get_rag_config():
     """Configuration et statut du moteur RAG (paramètres réellement supportés)."""
@@ -801,20 +1166,47 @@ async def update_rag_config(data: dict[str, Any]):
     """Applique et persiste la configuration du moteur RAG.
 
     Champs supportés par le moteur Core : chunk_size, chunk_overlap, top_k,
-    max_context_chars, embedding_model. Tout autre champ est ignoré.
+    max_context_chars, embedding_model, vector_backend, vector_backend_config,
+    strategy (stratégie de recherche globale par défaut), splitting_strategy
+    (character | sentence | paragraph). Tout autre champ est ignoré.
     """
     allowed = (
         "chunk_size",
         "chunk_overlap",
+        "splitting_strategy",
         "top_k",
         "max_context_chars",
         "embedding_model",
+        "vector_backend",
+        "vector_backend_config",
+        "strategy",
     )
     payload: dict[str, Any] = {}
     for key in allowed:
         if key not in data or data[key] is None:
             continue
-        if key == "embedding_model":
+        if key == "vector_backend":
+            payload[key] = str(data[key]).strip()
+        elif key == "vector_backend_config":
+            if not isinstance(data[key], dict):
+                raise HTTPException(422, "vector_backend_config doit être un objet")
+            payload[key] = data[key]
+        elif key in ("strategy",):
+            # Validation stricte : l'admin ne doit pas pouvoir enregistrer une
+            # stratégie non implémentée (le moteur, lui, est fail-safe).
+            try:
+                payload[key] = validate_strategy(str(data[key]))
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+        elif key == "splitting_strategy":
+            candidate = str(data[key]).strip().lower()
+            if candidate not in {"character", "sentence", "paragraph"}:
+                raise HTTPException(
+                    422,
+                    "splitting_strategy doit être character, sentence ou paragraph",
+                )
+            payload[key] = candidate
+        elif key == "embedding_model":
             payload[key] = str(data[key]).strip()
         else:
             try:
@@ -823,7 +1215,7 @@ async def update_rag_config(data: dict[str, Any]):
                 raise HTTPException(422, f"{key} doit être un entier") from exc
 
     try:
-        config = _domains.rag.configure(**payload)
+        config = await _domains.rag.configure(**payload)
         await _domains.rag.persist_config()
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -872,15 +1264,28 @@ async def ingest_rag_document_from_file(file_id: str, data: dict[str, Any] | Non
         raise HTTPException(404, f"File {file_id} not found")
     raw, record = result
 
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        if not body.get("force"):
-            raise HTTPException(
-                422,
-                "Le fichier n'est pas du texte UTF-8 (force=true pour forcer l'ingestion)",
-            ) from exc
-        text = raw.decode("latin-1", errors="replace")
+    # Formats binaires supportés (PDF, DOCX) : extraction Core sans
+    # dépendance dure — voir core/rag/extractors.py.  Les fichiers texte
+    # suivent le chemin historique (décodage UTF-8).
+    from core.rag.extractors import extract_text
+
+    extracted = extract_text(
+        raw,
+        filename=record.get("filename", ""),
+        content_type=record.get("content_type", ""),
+    )
+    if extracted:
+        text = extracted
+    else:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            if not body.get("force"):
+                raise HTTPException(
+                    422,
+                    "Le fichier n'est pas du texte UTF-8 (force=true pour forcer l'ingestion)",
+                ) from exc
+            text = raw.decode("latin-1", errors="replace")
 
     try:
         document = await _domains.rag.ingest(
@@ -1019,6 +1424,7 @@ async def chat_completions_stream(data: dict[str, Any]):
     file_ids = data.get("file_ids") or None
     request_metadata = data.get("metadata") or {}
     agent_id = data.get("agent_id") or request_metadata.get("agent_id")
+    project_id = data.get("project_id") or request_metadata.get("project_id")
 
     async def event_stream():
         nonlocal provider_id, model, skill_ids, knowledge_ids, tool_ids
@@ -1038,7 +1444,25 @@ async def chat_completions_stream(data: dict[str, Any]):
                 cid = chat_record["id"]
             assert cid is not None
 
-            # 1bis. Routage Chat → Agent : le provider/model/skills de
+            # 1bis. Routage Chat → Projet : le projet apporte un contexte
+            # d'exécution (instructions, agent/modèle par défaut) et une
+            # portée de ressources (fusion, jamais écrasement).
+            project_info = await pipeline._resolve_project(project_id)
+            if project_info is not None:
+                agent_id = agent_id or project_info["agent_id"]
+                provider_id = provider_id or project_info["provider_id"]
+                model = model or project_info["model"]
+                for sid in project_info["skill_ids"]:
+                    if sid not in (skill_ids or []):
+                        skill_ids = list(skill_ids or []) + [sid]
+                for tid in project_info["tool_ids"]:
+                    if tid not in (tool_ids or []):
+                        tool_ids = list(tool_ids or []) + [tid]
+                for kid in project_info["knowledge_ids"]:
+                    if kid not in (knowledge_ids or []):
+                        knowledge_ids = list(knowledge_ids or []) + [kid]
+
+            # 1ter. Routage Chat → Agent : le provider/model/skills de
             # l'agent complètent la requête (logique Core, pas API).
             agent_info = await pipeline._resolve_agent(agent_id)
             if agent_info is not None:
@@ -1077,6 +1501,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                     "knowledge_ids": knowledge_ids or [],
                     "file_ids": file_ids or [],
                     "agent_id": agent_id,
+                    "project_id": project_id,
                 },
             )
 
@@ -1091,6 +1516,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                 file_ids=file_ids,
                 tool_ids=tool_ids,
                 agent_info=agent_info,
+                project_info=project_info,
             )
 
             # 4. Générer en streaming.
@@ -1116,7 +1542,9 @@ async def chat_completions_stream(data: dict[str, Any]):
                     if provider is None:
                         config = pipeline._manager._providers_config.get(provider_id)
                         if config and config.get("enabled", False):
-                            from core.llm.provider_factory import create_provider_from_config
+                            from core.llm.provider_factory import (
+                                create_provider_from_config,
+                            )
                             provider = create_provider_from_config({**config, "name": provider_id})
                             await provider.initialize()
                     if provider is not None:

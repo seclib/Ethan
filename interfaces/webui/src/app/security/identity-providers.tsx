@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { Settings2, KeyRound, Globe } from "lucide-react";
+import { Settings2, KeyRound, Globe, ShieldCheck, ShieldOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 /* ── Primitives partagées ────────────────────────────────────────────────── */
 
@@ -187,6 +187,21 @@ function ScimSection() {
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
             />
+            Activer le provisionnement SCIM
+          </label>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+            {save.isError && (
+              <span className="text-[11px] text-destructive">Échec de l&apos;enregistrement</span>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 /* ── LDAP ────────────────────────────────────────────────────────────────── */
 
@@ -201,7 +216,6 @@ function LdapSection() {
     user_search_base: "", user_search_filter: "", tls_enabled: true,
   };
   const [form, setForm] = React.useState(empty);
-  const [enabled, setEnabled] = React.useState(false);
   const loadedKey = React.useRef("");
 
   React.useEffect(() => {
@@ -216,13 +230,11 @@ function LdapSection() {
       user_search_filter: data.user_search_filter || "",
       tls_enabled: data.tls_enabled ?? true,
     });
-    setEnabled(data.enabled);
   }, [cfg.data, cfg.dataUpdatedAt]);
 
   const save = useMutation({
     mutationFn: () =>
       configureLdap({
-        enabled,
         server_url: form.server_url.trim(),
         bind_dn: form.bind_dn.trim(),
         bind_password: form.bind_password || undefined,
@@ -305,20 +317,27 @@ function LdapSection() {
               />
               TLS
             </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-              />
-              Activer l&apos;authentification LDAP
-            </label>
           </div>
+          {/* Le Core active LDAP à l'enregistrement (enabled forcé côté Core)
+              et n'expose aucune désactivation : pas de checkbox simulée. */}
+          <p className="text-[11px] text-foreground-tertiary">
+            L&apos;enregistrement d&apos;une configuration active l&apos;authentification
+            LDAP. Le statut ci-dessus reflète la présence d&apos;une configuration
+            active dans le Core.
+          </p>
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
               {save.isPending ? "Enregistrement…" : "Enregistrer"}
             </Button>
             {save.isError && (
+              <span className="text-[11px] text-destructive">Échec de l&apos;enregistrement</span>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 /* ── OAuth ───────────────────────────────────────────────────────────────── */
 
@@ -404,6 +423,24 @@ function OAuthSection() {
                 <span className="block truncate font-mono text-[11px] text-foreground-tertiary">
                   {p.client_id} · secret {p.client_secret_set ? "défini" : "non défini"}
 
+                </span>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setDetail(p)}>
+                Détail
+              </Button>
+              {p.enabled && (
+                <Button
+                  size="sm" variant="ghost" className="text-destructive"
+                  onClick={() => setConfirmDisable(p)}
+                >
+                  Désactiver
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Dialog — enregistrement d'un provider */}
       <Dialog open={registerOpen} onClose={() => setRegisterOpen(false)} title="Enregistrer un provider OAuth" size="lg">
         <div className="space-y-3">
@@ -487,47 +524,3 @@ export function IdentityProviders() {
     </div>
   );
 }
-
-                </span>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setDetail(p)}>
-                Détail
-              </Button>
-              {p.enabled && (
-                <Button
-                  size="sm" variant="ghost" className="text-destructive"
-                  onClick={() => setConfirmDisable(p)}
-                >
-                  Désactiver
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-              <span className="text-[11px] text-destructive">Échec de l&apos;enregistrement</span>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-            Activer le provisionnement SCIM
-          </label>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
-              {save.isPending ? "Enregistrement…" : "Enregistrer"}
-            </Button>
-            {save.isError && (
-              <span className="text-[11px] text-destructive">Échec de l&apos;enregistrement</span>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-

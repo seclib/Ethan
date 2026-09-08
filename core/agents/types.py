@@ -37,6 +37,23 @@ class Agent:
     provider: str | None = None
     memory_scope: str = "default"
     skill_ids: list[str] = field(default_factory=list)
+    knowledge_collection_ids: list[str] = field(default_factory=list)
+    # Nœuds de Knowledge spécifiques (core/knowledge) sélectionnés
+    # explicitement pour cet agent — indépendants des collections RAG.
+    knowledge_ids: list[str] = field(default_factory=list)
+    # Tools + MCP (core/tools) autorisés pour cet agent. Un serveur MCP est
+    # représenté par les tools qu'il expose : aucune duplication, la
+    # sélection reste au niveau tool (le groupement Tools/MCP est de l'affichage).
+    tool_ids: list[str] = field(default_factory=list)
+    # Dossiers génériques (core/folders) associés à l'agent : prépare la
+    # sélection de dossiers/ressources à la création des agents.  Résolu en
+    # ressources réelles au moment de l'exécution — jamais dupliqué ici.
+    folder_ids: list[str] = field(default_factory=list)
+    # Domains fonctionnels (core/domains) sélectionnés explicitement par
+    # l'agent (OSINT, Recon, ...).  Sélection déclarative : les contenus
+    # sont résolus à l'exécution via le DomainManager Core — un id de
+    # domain supprimé est simplement ignoré (jamais de ressource fantôme).
+    domain_ids: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -53,6 +70,11 @@ class Agent:
             "provider": self.provider,
             "memory_scope": self.memory_scope,
             "skill_ids": self.skill_ids,
+            "knowledge_collection_ids": self.knowledge_collection_ids,
+            "knowledge_ids": self.knowledge_ids,
+            "tool_ids": self.tool_ids,
+            "folder_ids": self.folder_ids,
+            "domain_ids": self.domain_ids,
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -61,6 +83,7 @@ class Agent:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Agent":
         """Désérialise un agent depuis un dict."""
+        metadata = data.get("metadata") or {}
         return cls(
             id=data["id"],
             name=data.get("name", ""),
@@ -71,7 +94,20 @@ class Agent:
             provider=data.get("provider"),
             memory_scope=data.get("memory_scope", "default"),
             skill_ids=data.get("skill_ids", data.get("skills", [])),
-            metadata=data.get("metadata", {}),
+            # Rétro-compatibilité : la WebUI stockait les collections dans
+            # metadata.knowledge_ids (convention UI).  Le champ typé prime.
+            knowledge_collection_ids=list(
+                data.get("knowledge_collection_ids") or metadata.get("knowledge_ids", [])
+            ),
+            # Rétro-compatibilité : la WebUI stockait les tools dans
+            # metadata.tool_ids (convention UI).  Le champ typé prime.
+            knowledge_ids=list(data.get("knowledge_ids", []) or []),
+            tool_ids=list(
+                data.get("tool_ids") or metadata.get("tool_ids", [])
+            ),
+            folder_ids=list(data.get("folder_ids", []) or []),
+            domain_ids=list(data.get("domain_ids", []) or []),
+            metadata=metadata,
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.utcnow(),
             updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.utcnow(),
         )

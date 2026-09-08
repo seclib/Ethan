@@ -139,6 +139,89 @@ The normative text lives in [`docs/security/ETHAN_CONSTITUTION.md`](docs/securit
 
 ---
 
+## Authentication & First Setup
+
+ETHAN uses **JWT-based authentication** with HttpOnly cookies. Users are stored in PostgreSQL with bcrypt-hashed passwords.
+
+### First login
+
+After installation, a default admin account is created by the migration `deploy/postgres/migrations/003_create_users_table.sql`:
+
+| Field | Value |
+|---|---|
+| Username | `admin` |
+| Password | `admin` |
+| Role | `admin` |
+
+> ⚠️ **Security**: Change the default password immediately after first login.
+
+### Login flow
+
+1. Navigate to `http://localhost:3001`
+2. Enter username and password
+3. The WebUI calls `POST /auth/login` (proxied to the API)
+4. On success: a JWT is returned and stored as an HttpOnly cookie (`ethan_token`, 24h)
+5. The cookie is sent automatically on subsequent requests
+6. Protected routes require a valid JWT
+
+### Creating additional administrators
+
+Use the CLI to create admin accounts securely (password is hidden during input):
+
+```bash
+./ethan auth create-admin
+```
+
+The command:
+- Prompts for username and password (hidden)
+- Validates password complexity (8+ chars, uppercase, lowercase, digit)
+- Confirms password entry
+- Hashes with bcrypt
+- Rejects duplicate usernames
+
+### Managing users
+
+```bash
+./ethan auth list                              # List all users
+./ethan auth reset-password <username>         # Reset a user's password
+```
+
+### Authentication architecture
+
+| Layer | Responsibility |
+|---|---|
+| **WebUI** (`interfaces/webui`) | Login form, session state, cookie handling (via Next.js proxy) |
+| **API** (`interfaces/api`) | `/auth/login`, `/auth/register`, `/auth/me`, `/auth/refresh`, `/auth/logout` |
+| **Core** (`core/auth`) | JWT creation/verification, RBAC permissions |
+| **PostgreSQL** | User storage (`users` table), bcrypt password hashes |
+
+### JWT configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `JWT_SECRET` | `change-me-in-prod-generate-a-random-secret-here` | **Change in production!** |
+| `JWT_ALGORITHM` | `HS256` | Signing algorithm |
+| `JWT_EXPIRY_HOURS` | `24` | Token validity duration |
+
+### Security notes
+
+- Passwords are **never** stored in plain text (bcrypt hash)
+- JWT is stored in an **HttpOnly** cookie (not accessible via JavaScript)
+- The proxy converts the cookie to an `Authorization: Bearer` header for the backend
+- Timing-attack protection: invalid usernames still trigger a bcrypt comparison
+- The `/auth/register` endpoint is public but creates `user`-role accounts only
+
+### Troubleshooting
+
+| Symptom | Cause | Solution |
+|---|---|---|
+| "Invalid username or password" | Wrong credentials or user doesn't exist | Verify username/password |
+| "Authentication service unavailable" | Database unreachable | Check PostgreSQL is running |
+| Session lost after restart | Cookie expired (24h) | Log in again |
+| Can't create admin (already exists) | Username taken | Choose a different username |
+
+---
+
 ## System capabilities — future direction
 
 Future capabilities include filesystem access, system administration, Docker & service management, and voice (STT/TTS). The goal is **not** to give ETHAN unlimited access:

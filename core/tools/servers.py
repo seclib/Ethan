@@ -60,29 +60,55 @@ class ToolServerManager:
             "updated_at": datetime.utcnow().isoformat(),
         }
         await self._store.save(self._DOMAIN, server["id"], server)
+        public = self._public_server(server)
         await self._publish(
             EventType.TOOL_SERVER_REGISTERED,
             "tool.server.registered",
-            {"server": server},
+            {"server": public},
         )
-        return server
+        return public
 
-    async def get(self, server_id: str) -> dict[str, Any] | None:
-        """Retrieve a tool server by id."""
+    @staticmethod
+    def _public_server(server: dict[str, Any]) -> dict[str, Any]:
+        """Version sans secrets — jamais de token ni de valeurs d'en-têtes.
+
+        Règle repo (secret) : les secrets vivent uniquement dans le store de
+        configuration dédié — ni réponses HTTP, ni events, ni logs.
+        """
+        public = dict(server)
+        auth_config = dict(public.get("auth_config") or {})
+        public["auth_config"] = (
+            {"token_set": True} if auth_config.get("token") else {}
+        )
+        metadata = dict(public.get("metadata") or {})
+        if "headers" in metadata:
+            public_metadata = dict(metadata)
+            public_metadata["header_keys"] = sorted(metadata["headers"].keys())
+            del public_metadata["headers"]
+            public["metadata"] = public_metadata
+        return public
+
+    async def _get_private(self, server_id: str) -> dict[str, Any] | None:
+        """Version complète (secrets inclus) — usage interne Core uniquement."""
         return await self._store.get(self._DOMAIN, server_id)
 
+    async def get(self, server_id: str) -> dict[str, Any] | None:
+        """Retrieve a tool server by id (sans secrets)."""
+        server = await self._get_private(server_id)
+        return self._public_server(server) if server else None
+
     async def list(self, enabled: bool | None = None) -> list[dict[str, Any]]:
-        """List tool servers, optionally filtered by enabled state."""
+        """List tool servers (sans secrets), optionally filtered by enabled."""
         servers = await self._store.list(self._DOMAIN)
         if enabled is not None:
             servers = [s for s in servers if s.get("enabled") == enabled]
-        return servers
+        return [self._public_server(s) for s in servers]
 
     async def update(
         self, server_id: str, data: dict[str, Any]
     ) -> dict[str, Any] | None:
         """Update a tool server."""
-        server = await self.get(server_id)
+        server = await self._get_private(server_id)
         if server is None:
             return None
         for key in (
@@ -92,10 +118,15 @@ class ToolServerManager:
             "auth_type",
             "auth_config",
             "enabled",
-            "metadata",
         ):
             if key in data:
                 server[key] = data[key]
+        # Fusion des métadonnées : un update partiel ne doit jamais écraser les
+        # métadonnées existantes (transport, command, args, headers configurés).
+        if "metadata" in data and data["metadata"] is not None:
+            merged = dict(server.get("metadata") or {})
+            merged.update(data["metadata"])
+            server["metadata"] = merged
         server["updated_at"] = datetime.utcnow().isoformat()
         await self._store.save(self._DOMAIN, server_id, server)
         await self._publish(
@@ -103,7 +134,7 @@ class ToolServerManager:
             "tool.server.updated",
             {"server_id": server_id},
         )
-        return server
+        return self._public_server(server)
 
     async def delete(self, server_id: str) -> bool:
         """Delete a tool server."""
@@ -119,17 +150,19 @@ class ToolServerManager:
 
     async def set_status(self, server_id: str, status: str) -> dict[str, Any] | None:
         """Update a tool server's connection status."""
-        server = await self.get(server_id)
+        server = await self._get_private(server_id)
         if server is None:
             return None
         server["status"] = status
+        if status == "connected":
+            server["last_connected_at"] = datetime.utcnow().isoformat()
         server["updated_at"] = datetime.utcnow().isoformat()
         await self._store.save(self._DOMAIN, server_id, server)
-        return server
+        return self._public_server(server)
 
     async def sync_tools(self, server_id: str) -> list[dict[str, Any]]:
         """Connect to the tool server via MCP, fetch tools, and register them."""
-        server = await self.get(server_id)
+        server = await self._get_private(server_id)
         if server is None:
             raise ValueError(f"Server {server_id} not found")
 
@@ -139,11 +172,14 @@ class ToolServerManager:
 
         client = MCPClient()
         try:
-            # Build headers from auth_config if bearer token provided
-            headers = None
+            # Build headers: en-têtes custom du serveur + Authorization bearer.
+            # Les valeurs restent côté Core — jamais renvoyées vers l'UI.
             auth_config = server.get("auth_config") or {}
+            headers: dict[str, str] = dict(
+                server.get("metadata", {}).get("headers") or {}
+            )
             if server.get("auth_type") == "bearer" and auth_config.get("token"):
-                headers = {"Authorization": f"Bearer {auth_config['token']}"}
+                headers["Authorization"] = f"Bearer {auth_config['token']}"
 
             # Determine transport
             transport = server.get("metadata", {}).get("transport", "http")

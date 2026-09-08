@@ -3,11 +3,26 @@
  *
  * Configuration et statut du moteur RAG ETHAN Core (core/rag/pipeline.py).
  * Seuls les paramètres réellement supportés par le moteur sont exposés :
- * chunking, top_k, borne de contexte, modèle d'embedding.
- * Pas de vector store externe : le moteur n'en utilise pas.
+ * chunking, top_k, borne de contexte, modèle d'embedding et stratégie de
+ * recherche (catalogue fourni par le Core — aucune stratégie inventée ici).
  */
 
 import { apiFetch } from '@/lib/api/client';
+
+/** Stratégie de recherche exposée par le Core (core/rag/strategies.py). */
+export interface RagStrategyOption {
+	id: string;
+	label: string;
+	description: string;
+	requires_embeddings: boolean;
+}
+
+/** Recommandation calculée par le Core sur les capacités réelles du moteur. */
+export interface RagStrategyRecommendation {
+	strategy_id: string;
+	reason: string;
+	has_real_embeddings: boolean;
+}
 
 export interface RagConfig {
 	chunk_size: number;
@@ -15,6 +30,8 @@ export interface RagConfig {
 	top_k: number;
 	max_context_chars: number;
 	embedding_model: string | null;
+	/** Stratégie globale par défaut (auto | keyword | semantic | hybrid). */
+	strategy: string;
 }
 
 export interface RagStats {
@@ -24,6 +41,9 @@ export interface RagStats {
 	embedding_mode: 'llm' | 'textual-fallback';
 	indexed_embeddings: boolean;
 	embedding_model: string | null;
+	strategy: string;
+	strategies: RagStrategyOption[];
+	recommendation?: RagStrategyRecommendation;
 }
 
 export interface RagConfigResponse {
@@ -31,9 +51,20 @@ export interface RagConfigResponse {
 	stats: RagStats;
 }
 
+export interface RagStrategiesResponse {
+	default: string;
+	strategies: RagStrategyOption[];
+	recommendation: RagStrategyRecommendation;
+}
+
 /** Configuration + statut du moteur RAG */
 export async function getRagConfig(): Promise<RagConfigResponse> {
 	return apiFetch<RagConfigResponse>('/v1/rag/config');
+}
+
+/** Catalogue des stratégies réellement implémentées dans le Core */
+export async function getRagStrategies(): Promise<RagStrategiesResponse> {
+	return apiFetch<RagStrategiesResponse>('/v1/rag/strategies');
 }
 
 /** Statut d'indexation */

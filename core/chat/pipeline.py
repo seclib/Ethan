@@ -53,6 +53,7 @@ class ChatPipeline:
         knowledge_collections: Any | None = None,
         tool_manager: Any | None = None,
         agent_manager: Any | None = None,
+        project_manager: Any | None = None,
     ) -> None:
         self._chats = chat_store
         self._manager = provider_manager
@@ -63,6 +64,7 @@ class ChatPipeline:
         self._knowledge_collections = knowledge_collections
         self._tools = tool_manager
         self._agents = agent_manager
+        self._projects = project_manager
 
     def set_provider_manager(self, manager: "ProviderManager") -> None:
         """Injecte/remplace le ProviderManager après construction.
@@ -85,6 +87,14 @@ class ChatPipeline:
         """Injecte l'AgentManager Core (résolution Chat → Agent)."""
         self._agents = manager
 
+    def set_project_manager(self, manager: Any) -> None:
+        """Injecte le ProjectManager Core (résolution Chat → Projet).
+
+        Un projet apporte son attente (agent/provider/model par défaut) et
+        son scope de ressources optionnel au chat qui le désigne.
+        """
+        self._projects = manager
+
     async def run(
         self,
         *,
@@ -99,6 +109,7 @@ class ChatPipeline:
         knowledge_ids: list[str] | None = None,
         file_ids: list[str] | None = None,
         agent_id: str | None = None,
+        project_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Run the chat pipeline for a single user message.
@@ -122,6 +133,19 @@ class ChatPipeline:
 
         assert chat_id is not None  # garanti par le bloc ci-dessus
 
+        # Résolution Chat → Projet : si un projet est désigné, il apporte un
+        # contexte d'exécution (instructions, agent par défaut, provider/model
+        # par défaut) et une portée de ressources optionnelle.  L'appel
+        # explicite du chat reste prioritaire (fusion, jamais écrasement).
+        project_info = await self._resolve_project(project_id)
+        if project_info is not None:
+            agent_id = agent_id or project_info["agent_id"]
+            provider_id = provider_id or project_info["provider_id"]
+            model = model or project_info["model"]
+            skill_ids = _merge_unique(skill_ids, project_info["skill_ids"])
+            tool_ids = _merge_unique(tool_ids, project_info["tool_ids"])
+            knowledge_ids = _merge_unique(knowledge_ids, project_info["knowledge_ids"])
+
         # Résolution Chat → Agent : si un agent est désigné, son provider,
         # son modèle et ses skills complètent la requête (l'appel explicite
         # reste prioritaire). La logique vit dans le Core, pas dans l'API.
@@ -129,11 +153,7 @@ class ChatPipeline:
         if agent_info is not None:
             provider_id = provider_id or agent_info["provider"]
             model = model or agent_info["model"]
-            merged: list[str] = list(skill_ids or [])
-            for sid in agent_info["skill_ids"]:
-                if sid not in merged:
-                    merged.append(sid)
-            skill_ids = merged
+            skill_ids = _merge_unique(skill_ids, agent_info["skill_ids"])
 
         # 2. Persister le message utilisateur (nœud de l'arbre).
         # Si aucun parent_id n'est fourni et que la conversation existe déjà,
@@ -157,6 +177,7 @@ class ChatPipeline:
                 "knowledge_ids": knowledge_ids or [],
                 "file_ids": file_ids or [],
                 "agent_id": agent_id,
+                "project_id": project_id,
             },
         )
 
@@ -170,6 +191,7 @@ class ChatPipeline:
             file_ids=file_ids,
             tool_ids=tool_ids,
             agent_info=agent_info,
+            project_info=project_info,
         )
 
         # 4. Générer la réponse.
@@ -233,6 +255,26 @@ class ChatPipeline:
             "knowledge_ids": list(agent.metadata.get("knowledge_ids") or []),
             "tool_ids": list(agent.metadata.get("tool_ids") or []),
         }
+
+    async def _resolve_project(self, project_id: str | None) -> dict[str, Any] | None:
+        """Résout un projet désigné pour le chat (Chat → Projet).
+
+        Retourne le contexte résolu du projet ``{id, name, instructions,
+        agent_id, provider_id, model, skill_ids, tool_ids, knowledge_ids,
+        collection_ids, folder_ids}`` ou ``None`` si aucun projet n'est
+        désigné, introuvable, ou si le manager n'est pas injecté (fail-safe).
+        """
+        if not project_id or self._projects is None:
+            return None
+        try:
+            context = await self._projects.resolve_context(project_id)
+        except Exception as exc:
+            logger.warning("Project %s resolution failed: %s", project_id, exc)
+            return None
+        if context is None:
+            logger.warning("Project %s not found — ignoring project routing", project_id)
+            return None
+        return context
 
     async def execute_tool_call(
         self,
@@ -341,12 +383,22 @@ class ChatPipeline:
         file_ids: list[str] | None,
         tool_ids: list[str] | None = None,
         agent_info: dict[str, Any] | None = None,
+        project_info: dict[str, Any] | None = None,
     ) -> list[LLMChatMessage]:
         """Build the LLM message list with resolved context."""
         messages: list[LLMChatMessage] = []
 
         # Contexte système : skills activées.
         system_parts: list[str] = []
+
+        # Instructions du projet (Chat → Projet) : injectées en tête du
+        # prompt avant le persona agent (le projet est le contexte global).
+        if project_info is not None:
+            instructions = (project_info.get("instructions") or "").strip()
+            if instructions:
+                system_parts.append(
+                    f"[Contexte du projet « {project_info.get('name', '')} »]\n{instructions}"
+                )
 
         # Persona agent (Chat → Agent) : injectée en tête du prompt.
         if agent_info is not None:
@@ -516,6 +568,15 @@ class ChatPipeline:
         except Exception as exc:
             logger.exception("Chat generation failed: %s", exc)
             raise
+
+
+def _merge_unique(base: list[str] | None, extra: list[str] | None) -> list[str]:
+    """Fusionne deux listes d'ids sans doublon (préserve l'ordre)."""
+    merged = list(base or [])
+    for item in extra or []:
+        if item not in merged:
+            merged.append(item)
+    return merged
 
 
 __all__ = ["ChatPipeline"]

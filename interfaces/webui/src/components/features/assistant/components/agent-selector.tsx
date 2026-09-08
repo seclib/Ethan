@@ -286,8 +286,14 @@ function AgentItem({
 }) {
   // Compteurs calculés depuis les VRAIS champs Core (aucune invention).
   const skillCount = agent?.skill_ids?.length ?? 0;
-  const kbCount = (agent?.metadata?.knowledge_ids as string[] | undefined)?.length ?? 0;
-  const toolCount = (agent?.metadata?.tool_ids as string[] | undefined)?.length ?? 0;
+  const kbCount =
+    (agent?.knowledge_collection_ids as string[] | undefined)?.length ??
+    (agent?.metadata?.knowledge_ids as string[] | undefined)?.length ??
+    0;
+  const toolCount =
+    (agent?.tool_ids as string[] | undefined)?.length ??
+    (agent?.metadata?.tool_ids as string[] | undefined)?.length ??
+    0;
   const counts = [
     skillCount > 0 ? `${skillCount} skill${skillCount > 1 ? "s" : ""}` : null,
     kbCount > 0 ? `${kbCount} base${kbCount > 1 ? "s" : ""}` : null,

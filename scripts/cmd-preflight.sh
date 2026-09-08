@@ -5,7 +5,7 @@
 # Vérifie TOUS les prérequis pour un démarrage sain :
 #   - Binaires système requis
 #   - Versions Docker / Docker Compose
-#   - Ports TCP libres (8000, 8080, 3000, 4222, 6379, 5432, 9090)
+#   - Ports TCP libres (8000, 8080, 3001, 4222, 6379, 5432, 9090)
 #   - RAM et espace disque disponibles
 #   - DNS (Docker Hub)
 #   - Fichier .env
@@ -184,7 +184,7 @@ else
     [6379]="Redis"
     [8000]="API Gateway"
     [8080]="Kernel"
-    [3000]="WebUI"
+    [3001]="WebUI"
 )
 
 _port_in_use() {

@@ -24,7 +24,7 @@ import type { ComponentType } from "react";
 import {
   Bot, Cpu, Database, Wrench, Sparkles, Network, Palette, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
-  Layers, BrainCircuit, Settings,
+  Layers, BrainCircuit, Settings, FolderTree, Shapes,
     Activity, ShieldCheck, Gauge,
   GalleryVerticalEnd, UsersRound, Puzzle, BarChart3,
 } from "lucide-react";
@@ -93,10 +93,10 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/diagnostics", label: "Diagnostics", icon: Activity },
+      { href: "/logs", label: "Logs", icon: ScrollText },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/groups", label: "Groups", icon: UsersRound },
       { href: "/plugins", label: "Plugins", icon: Puzzle },
-      { href: `${GRAFANA_URL}/explore`, label: "Logs", icon: ScrollText, external: true },
       { href: GRAFANA_URL, label: "Monitoring", icon: Gauge, external: true },
       { href: "/security", label: "Security", icon: ShieldCheck },
     ],
@@ -120,6 +120,16 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     ],
   },
   {
+    id: "organization",
+    label: "Organisation",
+    description: "Structures libres pour organiser les ressources ETHAN (Knowledge, Collections, Skills).",
+    collapsible: true,
+    items: [
+      { href: "/folders", label: "Folders", icon: FolderTree },
+      { href: "/domains", label: "Domains", icon: Shapes },
+    ],
+  },
+  {
     id: "models",
     label: "Modèles",
     description: "Catalogue de modèles découverts et personnalisés",
@@ -129,8 +139,8 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
       { href: "/knowledge", label: "Knowledge", icon: Database },
       { href: "/skills", label: "Skills", icon: Sparkles },
       { href: "/tools", label: "Tools", icon: Wrench },
-      // Onglet MCP réel de la page Tools (hash URL supporté).
-      { href: "/tools#mcp", label: "MCP", icon: Network },
+      // Serveurs MCP : page dédiée (séparation capacités / infrastructure).
+      { href: "/mcp", label: "MCP", icon: Network },
     ],
   },
   {
