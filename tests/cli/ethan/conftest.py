@@ -16,7 +16,81 @@ from unittest import mock
 import pytest
 
 
-# ── Fixtures ──────────────────────────────────────────
+# ── Alias de modules : interfaces.cli.* ≡ cli.* ────────────────────────────
+# Les commandes CLI importent leurs dépendances via `interfaces.cli.*` (chemin
+# absolu de prod) alors que les tests et monkeypatchs utilisent `cli.*`
+# (alias exposé par pythonpath=["interfaces"]). Sans unification, les deux
+# chemins chargent le MÊME fichier comme DEUX modules distincts et les mocks
+# sont sans effet.
+#
+# Solution : un import hook (MetaPathFinder) qui route TOUT import de
+# `interfaces.cli.*` — même lazy — vers l'objet `cli.*` déjà enregistré.
+# Ce correctif est limité au conftest de test (aucune modification du code
+# applicatif), conformément au principe « test-infra only ».
+
+import importlib.abc
+import importlib.util
+import pkgutil
+
+
+def _load_cli_tree() -> None:
+    """Charge l'arbre cli.* complet pour que l'alias soit total."""
+    import cli  # noqa: F401  (racine, via pythonpath=["interfaces"])
+
+    for _m in pkgutil.walk_packages(cli.__path__, prefix="cli."):
+        try:
+            importlib.import_module(_m.name)
+        except Exception:
+            # Certaines feuilles (ex: hooks d'intégration) échouent hors
+            # runtime ; l'import lazy par le code sous test les couvrira
+            # via le finder ci-dessous.
+            pass
+
+
+class _CliAliasLoader(importlib.abc.Loader):
+    """Loader renvoyant un module déjà existant (alias)."""
+
+    def __init__(self, module) -> None:
+        self._module = module
+
+    def create_module(self, spec):
+        return self._module
+
+    def exec_module(self, module):  # déjà exécuté
+        return None
+
+
+class _CliAliasFinder(importlib.abc.MetaPathFinder):
+    """Redirige interfaces.cli.* vers cli.* (même objet module)."""
+
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "interfaces.cli":
+            alias = "cli"
+        elif fullname.startswith("interfaces.cli."):
+            alias = "cli." + fullname[len("interfaces.cli."):]
+        else:
+            return None
+        mod = sys.modules.get(alias)
+        if mod is None:
+            try:
+                mod = importlib.import_module(alias)
+            except ModuleNotFoundError:
+                return None
+        return importlib.util.spec_from_loader(fullname, _CliAliasLoader(mod))
+
+
+# Le finder doit être installé AVANT tout import applicatif pour intercepter
+# les imports interfaces.cli.* (y compris lazy) — y compris ceux déclenchés
+# par _load_cli_tree() ci-dessous (ex: chat.py fait
+# `from interfaces.cli.core.client import send, alive` au chargement).
+sys.meta_path.insert(0, _CliAliasFinder())
+_load_cli_tree()
+
+
+@pytest.fixture(autouse=True)
+def _alias_interfaces_modules():
+    """No-op : l'alias est effectué au chargement du conftest (finder ci-dessus)."""
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -48,14 +122,19 @@ def _isolate_config_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
 
 @pytest.fixture(autouse=True)
 def _clear_registry_before_test() -> Generator[None, None, None]:
-    """Clear the global COMMANDS registry between tests to avoid cross-contamination."""
+    """Clear the global command registry between tests to avoid cross-contamination.
+
+    NOTE: l'API de cli.registry a été renommée lors du rebuild :
+    l'ancien dict global ``COMMANDS`` s'appelle désormais
+    ``COMMAND_HANDLERS`` (la source de vérité étant cli.core.discovery.registry).
+    """
     import cli.registry as reg
 
-    saved = dict(reg.COMMANDS)
-    reg.COMMANDS.clear()
+    saved = dict(reg.COMMAND_HANDLERS)
+    reg.COMMAND_HANDLERS.clear()
     yield
-    reg.COMMANDS.clear()
-    reg.COMMANDS.update(saved)
+    reg.COMMAND_HANDLERS.clear()
+    reg.COMMAND_HANDLERS.update(saved)
 
 
 @pytest.fixture
@@ -73,8 +152,6 @@ def mock_api_server():
 
     def _urlopen_side_effect(url, *args, **kwargs):
         """Simulate urllib.request.urlopen responses."""
-        import http.client
-        from io import BytesIO
         from urllib.error import URLError
 
         url_str = url if isinstance(url, str) else url.full_url if hasattr(url, "full_url") else str(url)
@@ -87,10 +164,10 @@ def mock_api_server():
             if not responses["state_200"]:
                 raise URLError("Connection refused")
             data = json.dumps(responses["state_data"]).encode()
-            raw = BytesIO(data)
-            conn = http.client.HTTPResponse.__new__(http.client.HTTPResponse)
-            conn.begin()  # not needed, we mock manually
-            # We use a simpler approach: return a mock response object
+            # NOTE: l'ancien code mort (http.client.HTTPResponse.__new__ +
+            # conn.begin()) levait une exception sans socket et faisait
+            # échouer alive()/get_state() (exception avalée → False/None).
+            # Le mock ci-dessous suffit (cf. test_client.TestAlive).
             mock_resp = mock.MagicMock()
             mock_resp.status = 200
             mock_resp.read.return_value = data
@@ -182,10 +259,10 @@ def registered_commands():
 @pytest.fixture
 def clear_registry():
     """Explicit registry clear (for tests that manipulate it directly)."""
-    from cli.registry import COMMANDS
+    from cli.registry import COMMAND_HANDLERS
 
-    saved = dict(COMMANDS)
-    COMMANDS.clear()
+    saved = dict(COMMAND_HANDLERS)
+    COMMAND_HANDLERS.clear()
     yield
-    COMMANDS.clear()
-    COMMANDS.update(saved)
+    COMMAND_HANDLERS.clear()
+    COMMAND_HANDLERS.update(saved)

@@ -8,15 +8,15 @@ import pytest
 
 def test_help_command_registered() -> None:
     """Help command exists and returns 0."""
-    from cli.registry import COMMANDS, register
+    from cli.registry import COMMAND_HANDLERS, register
 
     @register("help")
     def _help(args):
         print("ETHAN toolchain")
-        print("Commands:", " ".join(sorted(COMMANDS)))
+        print("Commands:", " ".join(sorted(COMMAND_HANDLERS)))
         return 0
 
-    cmd = COMMANDS.get("help")
+    cmd = COMMAND_HANDLERS.get("help")
     assert cmd is not None
     result = cmd([])
     assert result == 0
@@ -24,14 +24,14 @@ def test_help_command_registered() -> None:
 
 def test_version_command_output() -> None:
     """Version command prints version string."""
-    from cli.registry import COMMANDS, register
+    from cli.registry import COMMAND_HANDLERS, register
 
     @register("version")
     def _version(args):
         print("ethan 2.0")
         return 0
 
-    cmd = COMMANDS.get("version")
+    cmd = COMMAND_HANDLERS.get("version")
     assert cmd is not None
     result = cmd([])
     assert result == 0
@@ -48,10 +48,10 @@ def test_unknown_command_falls_back_to_run(monkeypatch) -> None:
     import cli.registry as reg
 
     dispatched = []
-    reg.COMMANDS["run"] = lambda args: dispatched.append(args) or 0
+    reg.COMMAND_HANDLERS["run"] = lambda args: dispatched.append(args) or 0
 
     argv = ["nonexistent", "--foo"]
-    if argv[0] not in reg.COMMANDS:
+    if argv[0] not in reg.COMMAND_HANDLERS:
         argv = ["run"] + argv
 
     assert argv == ["run", "nonexistent", "--foo"]
@@ -81,7 +81,7 @@ def test_help_flag_maps_to_help() -> None:
 
 def test_dispatch_through_ethan_main() -> None:
     """Simulate the full __main__ flow."""
-    from cli.registry import COMMANDS, register, dispatch
+    from cli.registry import COMMAND_HANDLERS, register, dispatch
 
     results = []
 

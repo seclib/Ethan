@@ -1,4 +1,10 @@
-"""Tests for Docker and deployment files."""
+"""Tests for Docker and deployment files.
+
+Vérifie l'intégrité des artefacts de déploiement actuels :
+- Dockerfiles dans deploy/ (api, kernel, ui, pg_backup, python-base)
+- docker-compose.yml à la racine (services nats, redis, postgres, api)
+- unit systemd dans infrastructure/systemd/
+"""
 
 from __future__ import annotations
 
@@ -10,54 +16,44 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-DOCKER_DIR = ROOT / "deploy" / "docker"
+DEPLOY_DIR = ROOT / "deploy"
+COMPOSE_PATH = ROOT / "docker-compose.yml"
+SYSTEMD_DIR = ROOT / "infrastructure" / "systemd"
 
 
 class TestDockerFiles:
-    def test_dockerfile_exists(self):
-        assert (DOCKER_DIR / "Dockerfile").is_file()
+    """Vérifie la présence et la structure des Dockerfiles."""
 
-    def test_dockerfile_gpu_exists(self):
-        assert (DOCKER_DIR / "Dockerfile.gpu").is_file()
-
-    def test_dockerfile_has_entrypoint(self):
-        content = (DOCKER_DIR / "Dockerfile").read_text()
-        assert "ENTRYPOINT" in content
-        assert "jarvis" in content
-
-    def test_dockerfile_copies_forced_package_includes(self):
-        # Every Dockerfile that builds the wheel from an explicit `COPY src/`
-        # context (rather than `COPY . .`) must also copy the non-src
-        # force-include paths before installing, or hatchling's wheel build
-        # fails (see #447). Guard ALL such Dockerfiles, not just the CPU one,
-        # so the GPU variants can't silently regress.
-        project = tomllib.loads((ROOT / "pyproject.toml").read_text())
-        force_include = project["tool"]["hatch"]["build"]["targets"]["wheel"][
-            "force-include"
+    def test_dockerfiles_exist(self):
+        """Les Dockerfiles de production existent dans deploy/."""
+        expected = [
+            "Dockerfile.api",
+            "Dockerfile.kernel",
+            "Dockerfile.ui",
+            "Dockerfile.pg_backup",
+            "Dockerfile.python-base",
         ]
-        non_src_includes = [s for s in force_include if not s.startswith("src/")]
+        for name in expected:
+            assert (DEPLOY_DIR / name).is_file(), f"{name} missing in deploy/"
 
-        install_marker = 'uv pip install --system ".[server]"'
-        wheel_dockerfiles = [
-            p
-            for p in sorted(DOCKER_DIR.glob("Dockerfile*"))
-            if install_marker in p.read_text() and "COPY src/ src/" in p.read_text()
-        ]
-        # Sanity: we actually found the wheel-building Dockerfiles to guard.
-        assert wheel_dockerfiles, "no wheel-building Dockerfiles found to check"
+    def test_dockerfile_has_cmd(self):
+        """Les Dockerfiles utilisent CMD pour le démarrage."""
+        content = (DEPLOY_DIR / "Dockerfile.api").read_text()
+        assert "CMD" in content
 
-        for dockerfile in wheel_dockerfiles:
-            content = dockerfile.read_text()
-            install_step = content.index(install_marker)
-            for source in non_src_includes:
-                copy_marker = f"COPY {source} "
-                assert copy_marker in content, (
-                    f"{dockerfile.name} is missing '{copy_marker.strip()}' "
-                    f"(a non-src force-include path)"
-                )
-                assert content.index(copy_marker) < install_step, (
-                    f"{dockerfile.name} copies '{source}' after the install step"
-                )
+    def test_dockerfile_copies_source_dirs(self):
+        """Les Dockerfiles copient les répertoires source (core, sdk, interfaces)."""
+        content = (DEPLOY_DIR / "Dockerfile.api").read_text()
+        # La structure actuelle copie les packages individuels (pas src/ monolithique)
+        assert "COPY core/ core/" in content
+        assert "COPY sdk/ sdk/" in content
+
+
+class TestDockerCompose:
+    """Vérifie la structure du docker-compose.yml racine."""
+
+    def test_docker_compose_exists(self):
+        assert COMPOSE_PATH.is_file()
 
     def test_docker_compose_valid_yaml(self):
         import importlib
@@ -68,22 +64,29 @@ class TestDockerFiles:
         except ImportError:
             pass
 
-        compose_path = DOCKER_DIR / "docker-compose.yml"
-        assert compose_path.is_file()
-        content = compose_path.read_text()
-
-        # Basic structural checks without requiring PyYAML
+        content = COMPOSE_PATH.read_text()
         assert "services:" in content
-        assert "jarvis:" in content
 
         if yaml_mod is not None:
             data = yaml_mod.safe_load(content)
             assert "services" in data
 
-    def test_docker_compose_has_services(self):
-        content = (DOCKER_DIR / "docker-compose.yml").read_text()
-        assert "jarvis:" in content
-        assert "ollama:" in content
+    def test_docker_compose_has_core_services(self):
+        """Les services infrastructure minimaux sont présents."""
+        content = COMPOSE_PATH.read_text()
+        for service in ("nats:", "redis:", "postgres:"):
+            assert service in content, f"service {service} missing from compose"
 
-    def test_systemd_service_exists(self):
-        assert (ROOT / "deploy" / "systemd" / "openjarvis.service").is_file()
+
+class TestSystemdUnit:
+    """Vérifie la présence du unit systemd."""
+
+    def test_systemd_unit_exists(self):
+        """Le unit ethan-core existe dans infrastructure/systemd/."""
+        assert (SYSTEMD_DIR / "ethan-core.service").is_file()
+
+    def test_systemd_unit_content(self):
+        """Le unit démarre la stack via ethan up."""
+        content = (SYSTEMD_DIR / "ethan-core.service").read_text()
+        assert "ethan" in content.lower()
+        assert "ExecStart" in content

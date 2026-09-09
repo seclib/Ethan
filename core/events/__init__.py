@@ -82,8 +82,8 @@ class EventBus:
     def get_history(self, event_type: EventType | None = None) -> List[Event]:
         """Récupère l'historique des événements."""
         if event_type is None:
-            return self._inner.get_history()
-        return self._inner.get_history(event_type.value)
+            return self._inner.history
+        return self._inner.get_events_by_type(event_type.value)
 
     async def clear_history(self) -> None:
         """Vide l'historique des événements."""

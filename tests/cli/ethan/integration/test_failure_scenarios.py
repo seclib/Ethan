@@ -118,7 +118,7 @@ class TestPluginLoadFailure:
     """Plugin load failure handling."""
 
     def test_load_broken_plugin(self, tmp_path: Path) -> None:
-        from cli.registry import _load_module, COMMANDS
+        from cli.registry import _load_module
 
         plugin_dir = tmp_path / "plugins" / "broken"
         plugin_dir.mkdir(parents=True)

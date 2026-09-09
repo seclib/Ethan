@@ -22,10 +22,10 @@ class TestUnknownCommands:
             dispatched.append(args)
             return 0
 
-        reg.COMMANDS["run"] = _run_handler
+        reg.COMMAND_HANDLERS["run"] = _run_handler
 
         argv = ["unknown_cmd", "--flag"]
-        if argv[0] not in reg.COMMANDS:
+        if argv[0] not in reg.COMMAND_HANDLERS:
             argv = ["run"] + argv
         assert argv == ["run", "unknown_cmd", "--flag"]
 
@@ -99,7 +99,7 @@ class TestHelpFlagHandling:
 
     def test_help_dispatch(self) -> None:
         import cli.registry as reg
-        reg.COMMANDS["help"] = lambda args: 0
+        reg.COMMAND_HANDLERS["help"] = lambda args: 0
         # Simulate entrypoint
         argv = ["--help"]
         if not argv or argv[0] in ("-h", "--help"):

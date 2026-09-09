@@ -489,8 +489,8 @@ async def lifespan(app: FastAPI):
 
     # --- API Keys (Core-owned, politique secret-once) ---
     from core.auth.api_keys import APIKeyManager
-    from routers import internal as _internal
-    from routers.api_keys import configure_api_keys
+    from interfaces.api.routers import internal as _internal
+    from interfaces.api.routers.api_keys import configure_api_keys
 
     api_keys_manager = APIKeyManager(store=domain_store)
     configure_api_keys(api_keys_manager, audit_store=_internal.get_audit_store())
@@ -660,7 +660,7 @@ app.middleware("http")(auth_middleware)
 
 
 # ── API Keys — Core APIKeyManager (wiring) ──────────────────
-from routers.api_keys import router as api_keys_router
+from interfaces.api.routers.api_keys import router as api_keys_router
 
 app.include_router(api_keys_router)
 app.include_router(folders_router)

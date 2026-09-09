@@ -5,7 +5,7 @@ import os
 from unittest import mock
 
 import pytest
-from helpers import patch_os_kill, patch_fork, write_pid_file, write_cache_file
+from tests.cli.ethan.helpers import patch_os_kill, patch_fork, write_pid_file, write_cache_file
 
 
 class TestPidManagement:

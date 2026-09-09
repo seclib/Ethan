@@ -16,10 +16,10 @@ try:
 
     @register("chat")
     def cmd_chat(args):
-        show_chat(args)
+        return show_chat(args)
 except ImportError:
     def cmd_chat(args):
-        show_chat(args)
+        return show_chat(args)
 
 
 def show_chat(args):

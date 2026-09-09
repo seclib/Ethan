@@ -51,7 +51,11 @@ def safety_checker(role_registry):
 
 @pytest.fixture
 def event_bus():
-    return EventBus(record_history=True)
+    bus = EventBus(record_history=True)
+    # InMemoryBus exige connect() avant tout publish()
+    import asyncio
+    asyncio.run(bus._inner.connect())
+    return bus
 
 
 @pytest.fixture

@@ -686,7 +686,7 @@ async def execute_skill(skill_id: str, data: dict[str, Any]):
     if completed:
         skill.success_count = getattr(skill, "success_count", 0) + 1
     try:
-        from routers.v1 import get_skill_store
+        from interfaces.api.routers.v1 import get_skill_store
 
         await get_skill_store().record_execution(skill_id, completed)
     except Exception:  # pragma: no cover - miroir optionnel

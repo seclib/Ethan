@@ -12,17 +12,17 @@ class TestRegister:
     """@register decorator tests."""
 
     def test_register_adds_to_commands(self) -> None:
-        from cli.registry import register, COMMANDS
+        from cli.registry import register, COMMAND_HANDLERS
 
         @register("mycmd")
         def _mycmd(args):
             return 0
 
-        assert "mycmd" in COMMANDS
-        assert COMMANDS["mycmd"] is _mycmd
+        assert "mycmd" in COMMAND_HANDLERS
+        assert COMMAND_HANDLERS["mycmd"] is _mycmd
 
     def test_register_multiple_commands(self) -> None:
-        from cli.registry import register, COMMANDS
+        from cli.registry import register, COMMAND_HANDLERS
 
         @register("cmd_a")
         def _a(args):
@@ -32,8 +32,8 @@ class TestRegister:
         def _b(args):
             return 0
 
-        assert "cmd_a" in COMMANDS
-        assert "cmd_b" in COMMANDS
+        assert "cmd_a" in COMMAND_HANDLERS
+        assert "cmd_b" in COMMAND_HANDLERS
 
     def test_register_returns_function(self) -> None:
         from cli.registry import register
@@ -43,11 +43,11 @@ class TestRegister:
             return 42
 
         assert _fn([1, 2, 3]) == 42
-        assert "ret_test" in __import__("cli.registry", fromlist=["COMMANDS"]).COMMANDS
+        assert "ret_test" in __import__("cli.registry", fromlist=["COMMAND_HANDLERS"]).COMMAND_HANDLERS
 
     def test_register_does_not_overwrite_unknown(self) -> None:
         """Redeclaring a command replaces the old handler."""
-        from cli.registry import register, COMMANDS
+        from cli.registry import register, COMMAND_HANDLERS
 
         @register("dup")
         def _first(args):
@@ -57,18 +57,18 @@ class TestRegister:
         def _second(args):
             return 2
 
-        assert COMMANDS["dup"] is _second
-        assert COMMANDS["dup"]([]) == 2
+        assert COMMAND_HANDLERS["dup"] is _second
+        assert COMMAND_HANDLERS["dup"]([]) == 2
 
     def test_register_with_empty_name(self) -> None:
         """Registering with an empty string name is allowed but unusual."""
-        from cli.registry import register, COMMANDS
+        from cli.registry import register, COMMAND_HANDLERS
 
         @register("")
         def _empty(args):
             return 0
 
-        assert "" in COMMANDS
+        assert "" in COMMAND_HANDLERS
 
 
 class TestDispatch:
@@ -94,7 +94,7 @@ class TestDispatch:
         assert "nonexistent" in str(result) or result == 1
 
     def test_dispatch_passes_args(self) -> None:
-        from cli.registry import register, COMMANDS, dispatch
+        from cli.registry import register, COMMAND_HANDLERS, dispatch
 
         captured = []
 
@@ -180,7 +180,7 @@ class TestPluginDiscovery:
 
     def test_plugin_dict_registration(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ETHAN_PLUGIN dict in a loaded module registers commands."""
-        from cli.registry import _load_module, COMMANDS
+        from cli.registry import _load_module, COMMAND_HANDLERS
 
         plugin_dir = tmp_path / "plugins" / "test_plugin"
         plugin_dir.mkdir(parents=True)
@@ -195,4 +195,4 @@ ETHAN_PLUGIN = {
 }
 """)
         _load_module(plugin_dir)
-        assert "plugin_cmd" in COMMANDS
+        assert "plugin_cmd" in COMMAND_HANDLERS
