@@ -40,9 +40,9 @@ export function ToastProvider() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               role="status"
               aria-live="polite"
-              className="pointer-events-auto flex min-h-[34px] max-w-[360px] items-center gap-2 rounded-md py-2 pl-3 pr-2 text-xs backdrop-blur-md"
+              className="pointer-events-auto flex min-h-[34px] max-w-[360px] items-center gap-2 rounded-md py-2 pl-3 pr-2 text-xs"
               style={{
-                background: "color-mix(in srgb, var(--panel) 88%, transparent)",
+                background: "var(--panel)",
                 color: "var(--fg)",
                 border: `1px solid color-mix(in srgb, ${accent.borderLeft} 30%, transparent)`,
                 borderLeft: `3px solid ${accent.borderLeft}`,

@@ -54,7 +54,7 @@ export function FolderDialogs({
   walk(tree, 0);
 
   const target =
-    dialog && dialog.kind !== "create" && dialog.kind !== null
+    dialog && dialog.kind !== "create" && dialog.kind !== "merge" && dialog.kind !== null
       ? flat.find((f) => f.id === dialog.nodeId)
       : undefined;
   const nodeName =
@@ -111,7 +111,7 @@ export function FolderDialogs({
         <div className="max-h-72 overflow-y-auto space-y-1">
           <button
             type="button"
-            className="w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-sm hover:bg-muted/60 text-left"
+            className="w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
             onClick={() => {
               if (dialog?.kind === "move") moveFolder({ folderId: dialog.nodeId, parentId: null });
               onClose();
@@ -125,7 +125,7 @@ export function FolderDialogs({
               <button
                 key={f.id}
                 type="button"
-                className="w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-sm hover:bg-muted/60 text-left"
+                className="w-full flex items-center gap-1.5 rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
                 style={{ paddingLeft: `${8 + f.depth * INDENT}px` }}
                 onClick={() => {
                   if (dialog?.kind === "move") moveFolder({ folderId: dialog.nodeId, parentId: f.id });

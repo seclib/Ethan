@@ -18,12 +18,32 @@ import {
 	moveFolder as apiMoveFolder,
 	deleteFolder as apiDeleteFolder,
 	getFolderIndex,
+	mergeFolders as apiMergeFolders,
+	copyResources as apiCopyResources,
+	moveResources as apiMoveResources,
+	type FolderOperationReport,
 	type FolderTree,
 	type FolderResourceType,
 } from "@/lib/api/folders";
 import { useUIStore } from "@/store/ui.store";
 
 const TREE_KEY = ["folders-tree"];
+
+/** Variables acceptées par les mutations de consolidation. */
+export type FolderConsolidationVars =
+	| MergeFolderVars
+	| ResourceFolderVars;
+
+export interface MergeFolderVars {
+	folderIds: string[];
+	targetId: string;
+	removeSources?: boolean;
+}
+
+export interface ResourceFolderVars {
+	items: { resource_type: FolderResourceType; resource_id: string }[];
+	targetId: string;
+}
 
 export function useFolders() {
 	const queryClient = useQueryClient();
@@ -102,6 +122,48 @@ export function useFolders() {
 		onError: (err: Error) => addToast({ type: "error", message: err.message }),
 	});
 
+	// ── Mutations de consolidation (rapports Core jamais masqués) ───────
+
+	const describeReport = (r: FolderOperationReport): string => {
+		const parts: string[] = [];
+		if (r.attached) parts.push(`${r.attached} ajouté(s)`);
+		if (r.moved) parts.push(`${r.moved} déplacé(s)`);
+		if (r.skipped) parts.push(`${r.skipped} déjà présent(s)`);
+		if (r.removed_sources?.length) parts.push(`${r.removed_sources.length} dossier(s) source(s) supprimé(s)`);
+		if (r.errors.length) parts.push(`${r.errors.length} erreur(s)`);
+		return parts.join(", ") || "aucun changement";
+	};
+
+const reportMutation = <T extends FolderConsolidationVars>(fn: (vars: T) => Promise<FolderOperationReport>, label: string) =>
+		useMutation({
+			mutationFn: fn,
+			onSuccess: (report) => {
+				invalidate();
+				const toastType = report.status === "failed" ? "error" : report.status === "partially_completed" ? "info" : "success";
+				addToast({
+					type: toastType,
+					message: `${label} — ${report.status} : ${describeReport(report)}`,
+				});
+			},
+			onError: (err: Error) => addToast({ type: "error", message: err.message }),
+		});
+
+	const mergeFoldersMutation = reportMutation(
+		({ folderIds, targetId, removeSources }: MergeFolderVars) =>
+			apiMergeFolders(folderIds, targetId, removeSources),
+		"Fusion",
+	);
+	const copyResourcesMutation = reportMutation(
+		({ items, targetId }: ResourceFolderVars) =>
+			apiCopyResources(items, targetId),
+		"Copie",
+	);
+	const moveResourcesMutation = reportMutation(
+		({ items, targetId }: ResourceFolderVars) =>
+			apiMoveResources(items, targetId),
+		"Déplacement",
+	);
+
 	return {
 		tree,
 		treeLoading,
@@ -111,11 +173,17 @@ export function useFolders() {
 		updateFolder: updateFolderMutation.mutate,
 		moveFolder: moveFolderMutation.mutate,
 		deleteFolder: deleteFolderMutation.mutate,
+		mergeFolders: mergeFoldersMutation.mutate,
+		copyResources: copyResourcesMutation.mutate,
+		moveResources: moveResourcesMutation.mutate,
 		isMutating:
 			createFolderMutation.isPending ||
 			updateFolderMutation.isPending ||
 			deleteFolderMutation.isPending ||
-			moveFolderMutation.isPending,
+			moveFolderMutation.isPending ||
+			mergeFoldersMutation.isPending ||
+			copyResourcesMutation.isPending ||
+			moveResourcesMutation.isPending,
 	};
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AssistantChat, type ChatMode } from "@/components/features/assistant/components/assistant-chat";
+import { AssistantChat } from "@/components/features/assistant/components/assistant-chat";
 import { AssistantTopBar } from "@/components/features/assistant/components/assistant-top-bar";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
@@ -17,7 +17,6 @@ import {
 } from "@/components/features/assistant/components/chat-context-bar";
 import { useRouter } from "next/navigation";
 import { useFacts } from "@/components/features/memory/hooks/use-memory";
-import { useCreateGoal } from "@/components/features/goals/hooks/use-goals";
 import { ProjectSelector } from "@/components/features/projects/project-selector";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
@@ -72,8 +71,6 @@ export default function ChatHomePage() {
   } = useChats();
   const [attachedFileIds, setAttachedFileIds] = React.useState<string[]>([]);
   const [attachedFileNames, setAttachedFileNames] = React.useState<string[]>([]);
-  // Mode courant du composer (act | plan | agent)
-  const [chatMode, setChatMode] = React.useState<ChatMode>("act");
 
   // ── Catalogues (source : ETHAN Core via l'API) ─────────────────────────
   const [skills, setSkills] = React.useState<{ id: string; name: string }[]>([]);
@@ -307,16 +304,6 @@ export default function ChatHomePage() {
     runStream(trimmed);
   };
 
-  /** Mode Plan : soumet l'intention comme un goal réel (API /v1/goals).
-   *  Les objectifs sont gérés par ETHAN Core — le bouton n'est pas un mock.
-   */
-  const createGoal = useCreateGoal();
-  const handlePlan = (content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    createGoal.mutate({ title: trimmed.slice(0, 80), description: trimmed });
-  };
-
   /** Arrêt réel : avorte le flux SSE, conserve le contenu partiel reçu. */
   const handleStop = () => {
     stopGeneration();
@@ -350,15 +337,6 @@ export default function ChatHomePage() {
   const handleFileAttached = (fileId: string, filename: string) => {
     setAttachedFileIds((prev) => [...prev, fileId]);
     setAttachedFileNames((prev) => [...prev, filename]);
-  };
-
-  /** Mode Agent : envoie la tâche à un agent autonome via l'API. */
-  const handleAgent = (content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    // Pour l'instant, on utilise le même flux que le mode Act
-    // TODO: intégrer l'API agent dédiée quand disponible
-    runStream(trimmed);
   };
 
   /** Ouvrir le sélecteur de fichiers. */
@@ -401,10 +379,6 @@ export default function ChatHomePage() {
           onSend={handleSend}
           onStop={handleStop}
           disabled={isStreaming}
-          onAgent={handleAgent}
-          onPlan={handlePlan}
-          mode={chatMode}
-          onModeChange={setChatMode}
           onAttach={handleAttach}
           error={error}
           onDismissError={clearError}

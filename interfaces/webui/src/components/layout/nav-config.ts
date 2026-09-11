@@ -25,8 +25,8 @@ import {
   Bot, Cpu, Database, Wrench, Sparkles, Network, Palette, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
   Layers, BrainCircuit, Settings, FolderTree, Shapes,
-    Activity, ShieldCheck, Gauge,
-  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3,
+  Activity, ShieldCheck, Gauge,
+  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3, ScanSearch,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -127,6 +127,7 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     items: [
       { href: "/folders", label: "Folders", icon: FolderTree },
       { href: "/domains", label: "Domains", icon: Shapes },
+      { href: "/dedup", label: "Duplicates", icon: ScanSearch },
     ],
   },
   {

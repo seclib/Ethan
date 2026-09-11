@@ -63,6 +63,14 @@ import {
   SecuritySection,
   AdvancedSection,
 } from "./settings-sections";
+import {
+  ChunkingSection,
+  EmbeddingsSection,
+  ModelRoutersSection,
+  RerankingSection,
+  SpeechToTextSection,
+  VectorDatabaseSection,
+} from "./settings-ai-sections";
 import { useSettings } from "@/components/features/settings/hooks/use-settings";
 import { useUIStore } from "@/store/ui.store";
 import { useTheme } from "@/providers/theme-provider";
@@ -76,6 +84,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
+  AudioLines,
+  Braces,
   Settings,
   Palette,
   Cpu,
@@ -114,6 +124,15 @@ type Section =
   | "ai"
   | "appearance"
   | "knowledge"
+  | "rag"
+  | "embedding"
+  | "vector-db"
+  | "chunking"
+  | "reranking"
+  | "speech"
+  | "routers"
+  | "models"
+  | "skills"
   | "search"
   | "integrations"
   | "reminders"
@@ -127,8 +146,17 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "
   { id: "general", label: "General", icon: <Settings className="h-4 w-4" />, category: "user" },
   { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
   { id: "ai", label: "AI", icon: <Cpu className="h-4 w-4" />, category: "system" },
+  { id: "models", label: "Models", icon: <Bot className="h-4 w-4" />, category: "system" },
+  { id: "routers", label: "Model Routers", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" />, category: "user" },
   { id: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" />, category: "system" },
+  { id: "rag", label: "RAG", icon: <Database className="h-4 w-4" />, category: "system" },
+  { id: "embedding", label: "Embeddings", icon: <Sparkles className="h-4 w-4" />, category: "system" },
+  { id: "vector-db", label: "Vector Database", icon: <Database className="h-4 w-4" />, category: "system" },
+  { id: "chunking", label: "Text Splitting & Chunking", icon: <Braces className="h-4 w-4" />, category: "system" },
+  { id: "reranking", label: "Retrieval & Reranking", icon: <Zap className="h-4 w-4" />, category: "system" },
+  { id: "speech", label: "Speech-to-Text", icon: <AudioLines className="h-4 w-4" />, category: "system" },
+  { id: "skills", label: "Skills", icon: <Wrench className="h-4 w-4" />, category: "system" },
   { id: "search", label: "Search", icon: <Search className="h-4 w-4" />, category: "system" },
   { id: "integrations", label: "Integrations", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "reminders", label: "Reminders", icon: <Bell className="h-4 w-4" />, category: "user" },
@@ -185,6 +213,15 @@ export function SettingsWorkspace() {
         {activeSection === "ai" && <AISection />}
         {activeSection === "appearance" && <AppearanceSection />}
         {activeSection === "knowledge" && <KnowledgeSection />}
+        {activeSection === "rag" && <RagSection />}
+        {activeSection === "embedding" && <EmbeddingsSection />}
+        {activeSection === "vector-db" && <VectorDatabaseSection />}
+        {activeSection === "chunking" && <ChunkingSection />}
+        {activeSection === "reranking" && <RerankingSection />}
+        {activeSection === "speech" && <SpeechToTextSection />}
+        {activeSection === "routers" && <ModelRoutersSection />}
+        {activeSection === "models" && <ModelsSection />}
+        {activeSection === "skills" && <SkillsSection />}
         {activeSection === "search" && <SearchSection />}
         {activeSection === "integrations" && <IntegrationsSection />}
         {activeSection === "reminders" && <RemindersSection />}
@@ -297,7 +334,7 @@ function GeneralSection() {
           </p>
           <div className="space-y-3">
             {Object.entries(draft[sectionKey] ?? {}).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+              <div key={k} className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
                 <span className="text-sm text-foreground-secondary font-mono">{k}</span>
                 {typeof v === "boolean" ? (
                   <button
@@ -413,7 +450,7 @@ function AppearanceSection() {
       </div>
 
       <h3 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wider text-foreground-tertiary">Interface</h3>
-      <div className="flex max-w-xl items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+      <div className="flex max-w-xl items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
         <span className="text-sm text-foreground-secondary">Sidebar étendue</span>
         <button type="button" onClick={toggleSidebar} className="text-accent" aria-label="Toggle sidebar">
           {sidebarExpanded ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
@@ -477,7 +514,7 @@ function ModelsSection() {
           {filtered.map((m: ModelInfo) => (
             <div
               key={m.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3"
+              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -566,14 +603,17 @@ function KnowledgeSection() {
         <StatCard label="Collections liées" value={new Set(documents.map((d) => (d as any).collection_id)).size} />
       </div>
 
-      <WorkspaceLink href="/knowledge" label="Ouvrir le workspace Knowledge" />
+      <div className="flex flex-wrap items-center gap-2">
+        <WorkspaceLink href="/knowledge" label="Ouvrir le workspace Knowledge" />
+        <WorkspaceLink href="#rag" label="Configurer le moteur RAG" />
+      </div>
     </div>
   );
 }
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+    <div className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
       <p className="text-xs uppercase tracking-wider text-foreground-tertiary">{label}</p>
       <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
     </div>
@@ -652,7 +692,7 @@ function RagSection() {
 
       <div className="max-w-xl space-y-3">
         {numericFields.map((f) => (
-          <div key={String(f.key)} className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+          <div key={String(f.key)} className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
             <span className="text-sm text-foreground-secondary">{f.label}</span>
             <Input
               type="number"
@@ -663,7 +703,7 @@ function RagSection() {
             />
           </div>
         ))}
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
           <span className="text-sm text-foreground-secondary">
             Stratégie de recherche
             <span className="block text-xs text-foreground-tertiary">
@@ -684,7 +724,7 @@ function RagSection() {
           </select>
         </div>
         {data.stats.recommendation && (
-          <p className="rounded-lg border border-line-1 bg-bg-1/60 px-4 py-2.5 text-xs text-foreground-secondary">
+          <p className="rounded-lg border border-line-1 bg-bg-1 px-4 py-2.5 text-xs text-foreground-secondary">
             <span className="font-medium text-foreground">Recommandation ETHAN : </span>
             {strategies.find((s) => s.id === data.stats.recommendation?.strategy_id)?.label ??
               data.stats.recommendation.strategy_id}
@@ -692,7 +732,7 @@ function RagSection() {
             {data.stats.recommendation.reason}
           </p>
         )}
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
           <span className="text-sm text-foreground-secondary">
             Modèle d&apos;embedding
             <span className="block text-xs text-foreground-tertiary">Vide = fallback textuel</span>
@@ -757,7 +797,7 @@ function SkillsSection() {
           {skills.map((s: Skill) => (
             <div
               key={s.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3"
+              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -818,7 +858,7 @@ function AgentsSection() {
           {agents.map((a) => (
             <div
               key={a.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3"
+              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -1168,7 +1208,7 @@ function ToolsCatalogueSection() {
           {tools.map((t: CoreTool) => (
             <div
               key={t.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3"
+              className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -1332,7 +1372,7 @@ function McpServerRow({
   busyId: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <StatusDot ok={server.enabled && server.status !== "error"} />
@@ -1651,7 +1691,7 @@ function ProviderDetail({
         <InfoRow label="URL de base" value={provider.base_url || "—"} />
         <InfoRow label="Modèle par défaut" value={provider.default_model || "—"} />
         <InfoRow label="Défaut système" value={provider.is_default ? "Oui" : "Non"} />
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+        <div className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
           <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Capacités</p>
           <div className="flex flex-wrap gap-1.5">
             <CapabilityBadge label="LLM" active />
@@ -1661,7 +1701,7 @@ function ProviderDetail({
           </div>
         </div>
         {provider.models.length > 0 && (
-          <div className="rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+          <div className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
             <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Modèles</p>
             <div className="flex flex-wrap gap-1.5">
               {provider.models.map((model) => (
@@ -1698,7 +1738,7 @@ function ProviderDetail({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1/40 px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
       <span className="text-xs uppercase tracking-wider text-foreground-tertiary">{label}</span>
       <span className="truncate font-mono text-sm text-foreground-secondary">{value}</span>
     </div>

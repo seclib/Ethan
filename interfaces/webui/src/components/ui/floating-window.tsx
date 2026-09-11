@@ -193,7 +193,7 @@ export function FloatingWindow({
     >
       {/* Header — draggable (drag vers un bord = dock, concept Odysseus) */}
       <div
-        className="flex items-center justify-between px-3 py-2 border-b border-line-1 cursor-move select-none bg-elevated/50"
+        className="flex items-center justify-between px-3 py-2 border-b border-line-1 cursor-move select-none bg-elevated"
         onPointerDown={onPointerDown}
       >
         <span className="text-xs font-medium text-foreground-secondary">

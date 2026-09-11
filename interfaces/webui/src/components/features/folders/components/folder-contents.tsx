@@ -11,6 +11,9 @@ import { Database, Sparkles, Layers, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useFolderResources, useUntaggedResources } from "../hooks/use-folder-resources";
+import { useFolders } from "../hooks/use-folders";
+import { DestinationPickDialog } from "./consolidate-dialogs";
+import type { FolderOperationReport } from "@/lib/api/folders";
 import type { ClassifyTarget } from "./classify-dialog";
 import type { FolderResource, FolderResourceType } from "@/lib/api/folders";
 
@@ -94,7 +97,7 @@ export function UntaggedContent({
       ) : (
         <ul className="divide-y">
           {untagged.map((record) => (
-            <li key={record.id as string} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/40">
+            <li key={record.id as string} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted">
               <span className="flex items-center gap-2 min-w-0">
                 {TYPE_ICONS[effectiveType]}
                 <span className="truncate">
@@ -129,35 +132,110 @@ function ResourceList({
   resources: FolderResource[];
   onClassify: (target: ClassifyTarget) => void;
 }) {
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+
+  const keyOf = (item: FolderResource) => `${item.resource_type}:${item.resource_id}`;
+
+  const toggle = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const selectedItems = resources.filter((item) => selected.has(keyOf(item)));
+
   return (
-    <ul className="divide-y">
-      {resources.map((item) => {
-        const record = item.record ?? {};
-        const name = nameOrId(record) || item.resource_id;
-        return (
-          <li key={`${item.resource_type}:${item.resource_id}`} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-muted/40">
-            <span className="flex items-center gap-2 min-w-0">
-              {TYPE_ICONS[item.resource_type]}
-              <span className="truncate">{name}</span>
-              <span className="text-xs text-muted-foreground shrink-0">{TYPE_LABELS[item.resource_type]}</span>
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                onClassify({
-                  resourceType: item.resource_type,
-                  resourceId: item.resource_id,
-                  resourceName: name,
-                })
-              }
-            >
-              Classer / déplacer
-            </Button>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="flex flex-col min-h-0">
+      {selected.size > 0 && (
+        <div className="flex items-center gap-2 border-b px-4 py-2 text-sm">
+          <span className="font-medium text-muted-foreground">{selected.size} sélectionnée(s)</span>
+          <FolderConsolidationActions items={selectedItems} onDone={() => setSelected(new Set())} />
+        </div>
+      )}
+      <ul className="divide-y overflow-y-auto">
+        {resources.map((item) => {
+          const record = item.record ?? {};
+          const name = nameOrId(record) || item.resource_id;
+          const key = keyOf(item);
+          return (
+            <li key={key} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-muted">
+              <span className="flex items-center gap-2 min-w-0">
+                <input
+                  type="checkbox"
+                  aria-label={`Sélectionner ${name}`}
+                  checked={selected.has(key)}
+                  onChange={() => toggle(key)}
+                />
+                {TYPE_ICONS[item.resource_type]}
+                <span className="truncate">{name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{TYPE_LABELS[item.resource_type]}</span>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  onClassify({
+                    resourceType: item.resource_type,
+                    resourceId: item.resource_id,
+                    resourceName: name,
+                  })
+                }
+              >
+                Classer / déplacer
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** Barre d'actions de consolidation pour une sélection de ressources. */
+function FolderConsolidationActions({
+  items,
+  onDone,
+}: {
+  items: FolderResource[];
+  onDone: () => void;
+}) {
+  const folders = useFolders();
+  const [dialog, setDialog] = React.useState<{ mode: "copy" | "move"; report: FolderOperationReport | null } | null>(null);
+
+  const refs = items.map((i) => ({
+    resource_type: i.resource_type as FolderResourceType,
+    resource_id: i.resource_id,
+  }));
+
+  return (
+    <>
+      <div className="ml-auto flex items-center gap-1.5">
+        <Button size="sm" variant="outline" onClick={() => setDialog({ mode: "move", report: null })}>
+          Déplacer
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setDialog({ mode: "copy", report: null })}>
+          Copier
+        </Button>
+      </div>
+      {dialog && (
+        <DestinationPickDialog
+          tree={folders.tree}
+          mode={dialog.mode}
+          itemCount={items.length}
+          report={dialog.report}
+          onConfirm={(targetId) => {
+            const run =
+              dialog.mode === "copy" ? folders.copyResources : folders.moveResources;
+            run({ items: refs, targetId } as never);
+            onDone();
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </>
   );
 }
 

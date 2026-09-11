@@ -135,12 +135,15 @@ class EventType(str, Enum):
     KNOWLEDGE_UPDATED = "ethan.knowledge.updated"
     KNOWLEDGE_DELETED = "ethan.knowledge.deleted"
 
-    # Folders (organisation transverse des ressources, Core-owned)
+        # Folders (organisation transverse des ressources, Core-owned)
     FOLDER_CREATED = "ethan.folder.created"
     FOLDER_UPDATED = "ethan.folder.updated"
     FOLDER_DELETED = "ethan.folder.deleted"
     FOLDER_RESOURCE_ATTACHED = "ethan.folder.resource.attached"
     FOLDER_RESOURCE_DETACHED = "ethan.folder.resource.detached"
+    FOLDER_RESTORED = "ethan.folder.restored"
+    FOLDER_TRASH_EMPTIED = "ethan.folder.trash.emptied"
+    FOLDER_ARCHIVE_CREATED = "ethan.folder.archive.created"
 
     # Domains (spécialités fonctionnelles des ressources, Core-owned)
     DOMAIN_CREATED = "ethan.domain.created"

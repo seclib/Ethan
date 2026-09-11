@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowDown, AlertCircle, X, Loader2 } from "lucide-react";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import { AssistantMessageView } from "./assistant-message";
-import { AssistantInput, type ChatMode } from "./assistant-input";
-export { AssistantInput, type ChatMode } from "./assistant-input";
+import { AssistantInput } from "./assistant-input";
+export { AssistantInput } from "./assistant-input";
 import { TypingIndicator } from "./typing-indicator";
 
 /** Item de sélection d'une capacité dans le composer. */
@@ -26,14 +26,6 @@ interface AssistantChatProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   disabled?: boolean;
-  /** Mode Agent : transmet au composer pour envoyer une tâche à un agent autonome. */
-  onAgent?: (message: string) => void;
-  /** Mode Plan : transmet au composer pour soumettre une intention comme goal. */
-  onPlan?: (message: string) => void;
-  /** Mode courant du composer. */
-  mode?: ChatMode;
-  /** Changement de mode. */
-  onModeChange?: (mode: ChatMode) => void;
   /** File attachment handler. */
   onAttach?: () => void;
   /** Search toggle handler. */
@@ -69,10 +61,6 @@ export function AssistantChat({
   onSend,
   onStop,
   disabled,
-  onAgent,
-  onPlan,
-  mode,
-  onModeChange,
   onAttach,
   onSearch,
   onTools,
@@ -228,10 +216,6 @@ export function AssistantChat({
         onSend={onSend}
         onStop={onStop}
         disabled={disabled}
-        onAgent={onAgent}
-        onPlan={onPlan}
-        mode={mode}
-        onModeChange={onModeChange}
         onAttach={onAttach}
         onSearch={onSearch}
         onTools={onTools}

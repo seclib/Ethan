@@ -18,7 +18,7 @@ export function TypingIndicator({ className = "" }: TypingIndicatorProps) {
         </div>
 
         {/* Bubble with typing animation */}
-        <div className="rounded-lg px-4 py-3 bg-background/40 border border-line-1/20">
+        <div className="rounded-lg px-4 py-3 bg-background border border-line-1/20">
           <div className="flex items-center gap-1">
             <div className="flex gap-1">
               <span className="w-2 h-2 bg-foreground-tertiary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />

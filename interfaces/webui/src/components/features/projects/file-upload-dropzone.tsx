@@ -82,7 +82,7 @@ export function FileUploadDropzone({ projectId, onUploaded }: FileUploadDropzone
 					<>
 						<Upload className="h-8 w-8 animate-pulse text-primary" />
 						<div className="w-full max-w-xs">
-							<div className="h-2 rounded-full bg-line-1/40">
+							<div className="h-2 rounded-full bg-line-1">
 								<div
 									className="h-2 rounded-full bg-primary transition-all"
 									style={{ width: `${progress}%` }}

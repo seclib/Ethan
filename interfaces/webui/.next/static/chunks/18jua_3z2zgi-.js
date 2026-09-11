@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,67973,e=>{"use strict";var l=e.i(18050),s=e.i(5870);e.s(["default",0,function(){return(0,l.jsx)("div",{className:"flex min-h-0 flex-1 flex-col",children:(0,l.jsx)(s.FoldersWorkspace,{})})}])}]);

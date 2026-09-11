@@ -171,7 +171,7 @@ export function GlobalInspector() {
       {/* Backdrop for mobile (optional) */}
       {inspectorOpen && (
         <div
-          className="fixed inset-0 z-drawer bg-background/80 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-drawer bg-background/80 md:hidden"
           onClick={handleClose}
           aria-hidden
         />

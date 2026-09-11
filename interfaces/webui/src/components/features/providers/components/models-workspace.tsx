@@ -353,7 +353,7 @@ export function ModelsWorkspace() {
 
       {menuModel && menuPos && (
         <div
-          className="fixed z-popover min-w-[170px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
+          className="fixed z-popover min-w-[170px] rounded-lg border border-line-1 bg-bg-1 py-1 shadow-lg"
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button
@@ -402,7 +402,7 @@ function ModelConfigPanel({
   const caps = model.capabilities || [];
 
   return (
-    <div className="mx-4 mt-3 rounded-xl border border-line-1 bg-bg-1/60 p-4">
+    <div className="mx-4 mt-3 rounded-xl border border-line-1 bg-bg-1 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
@@ -484,7 +484,7 @@ function ProviderCard({ provider, isPinned, onPin, onClick }: ProviderCardProps)
   return (
     <div
       className={cn(
-        "group relative flex cursor-pointer flex-col rounded-xl border border-line-1 bg-bg-1/40 p-4 transition-all hover:border-accent/50 hover:shadow-sm",
+        "group relative flex cursor-pointer flex-col rounded-xl border border-line-1 bg-bg-1 p-4 transition-all hover:border-accent/50 hover:shadow-sm",
         isPinned && "border-accent/40",
       )}
       onClick={onClick}
@@ -560,7 +560,7 @@ function ModelCard({ model, pinned, isSelected, onPin, onMenu, onClick }: ModelC
   return (
     <div
       className={cn(
-        "group relative flex cursor-pointer flex-col rounded-xl border bg-bg-1/40 p-4 transition-all",
+        "group relative flex cursor-pointer flex-col rounded-xl border bg-bg-1 p-4 transition-all",
         isSelected
           ? "border-accent/60 ring-2 ring-accent/30 shadow-md"
           : "border-line-1 hover:border-accent/50 hover:shadow-sm",

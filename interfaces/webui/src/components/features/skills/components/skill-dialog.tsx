@@ -103,7 +103,7 @@ export function SkillDialog({
           </div>
         )}
         {formKind === "pipeline" && (
-          <div className="flex flex-col gap-3 rounded-lg border border-line-1 bg-bg-1/60 p-3">
+          <div className="flex flex-col gap-3 rounded-lg border border-line-1 bg-bg-1 p-3">
             <p className="text-xs text-foreground-tertiary">
               Un skill <Badge variant="accent" size="sm">Pipeline</Badge> déclare les outils qu&apos;il orchestre
               (stockés côté Core comme <code>steps</code>). Les autres propriétés s&apos;éditent côté
@@ -135,7 +135,7 @@ export function SkillDialog({
             }}
           />
         </div>
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 px-3 py-2">
+        <div className="rounded-lg border border-line-1 bg-bg-1 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-xs font-medium text-foreground-secondary">

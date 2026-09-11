@@ -31,6 +31,7 @@ export type FolderDialogState =
   | { kind: "rename"; nodeId: string }
   | { kind: "delete"; nodeId: string }
   | { kind: "move"; nodeId: string }
+  | { kind: "merge" }
   | null;
 
 interface FolderTreeProps {
@@ -62,7 +63,7 @@ export function FolderTree({
       <div key={node.id}>
         <div
           className={`group flex items-center gap-1 rounded-md pl-2 pr-1 py-1 text-sm cursor-pointer transition-colors ${
-            isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/60"
+            isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
           }`}
           style={{ marginLeft: depth * INDENT }}
           onClick={() => onSelect(node.id)}

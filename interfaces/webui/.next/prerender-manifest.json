@@ -5,7 +5,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 38053,
+      "htmlSize": 34318,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -198,6 +198,34 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/dedup": {
+      "routeType": "page",
+      "response": "complete",
+      "compute": "static",
+      "htmlSize": 30453,
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/dedup",
+      "dataRoute": "/dedup.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/diagnostics": {
       "routeType": "page",
       "response": "complete",
@@ -258,7 +286,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 33146,
+      "htmlSize": 33382,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -402,7 +430,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 35226,
+      "htmlSize": 35444,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -430,7 +458,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 39748,
+      "htmlSize": 39728,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -738,7 +766,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 37617,
+      "htmlSize": 42618,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -794,7 +822,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 33793,
+      "htmlSize": 33790,
       "experimentalBypassFor": [
         {
           "type": "header",

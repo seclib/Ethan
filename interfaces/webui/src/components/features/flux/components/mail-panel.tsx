@@ -32,7 +32,7 @@ export function MailPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-line-1 bg-elevated/30">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-line-1 bg-elevated">
         <span className="text-xs font-medium text-foreground-secondary flex items-center gap-1">
           <Inbox size={14} /> Boîte de réception
           {/* Audit UX P2-3 : le backend n'expose que GET /v1/email/messages —
@@ -73,7 +73,7 @@ export function MailPanel() {
               <button
                 key={m.uid}
                 onClick={() => setSelected(m.uid)}
-                className={`block w-full text-left px-3 py-2 border-b border-line-1/30 ${selected === m.uid ? "bg-accent/10" : "hover:bg-elevated/30"} transition-colors`}
+                className={`block w-full text-left px-3 py-2 border-b border-line-1/30 ${selected === m.uid ? "bg-accent/10" : "hover:bg-elevated"} transition-colors`}
               >
                 <div className="flex justify-between gap-2">
                   <strong className="text-[11px] truncate">{m.from_name || m.from}</strong>

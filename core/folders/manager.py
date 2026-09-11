@@ -65,6 +65,10 @@ class FolderManager:
         self._bus = event_bus
         self._providers: dict[str, FolderResourceProvider] = {}
         self._resource_types: set[str] = set(resource_types or DEFAULT_RESOURCE_TYPES)
+        # Référence au manager propriétaire des collections (Knowledge) —
+        # utilisée uniquement par folder_to_collection ; la résolution de
+        # ressources classées passe toujours par les providers.
+        self._collections: Any | None = collections
         if knowledge is not None:
             self.add_provider(
                 "knowledge", FolderResourceProvider(knowledge.get, knowledge.list)
@@ -397,6 +401,241 @@ class FolderManager:
                 await self.attach_resource(folder_id, resource_type, resource_id)
         return target_ids
 
+    # ── Consolidation (opérations explicites et rapportées) ──────────────
+
+    def _operation_report(
+        self,
+        operation: str,
+        attached: int,
+        moved: int,
+        skipped: int,
+        errors: list[str],
+        **extra: Any,
+    ) -> dict[str, Any]:
+        """Rapport d'opération : succès total, partiel ou échec, jamais masqué."""
+        if errors:
+            status = "partially_completed" if (attached + moved) > 0 else "failed"
+        else:
+            status = "completed"
+        report: dict[str, Any] = {
+            "operation_id": uuid4().hex[:12],
+            "operation": operation,
+            "status": status,
+            "attached": attached,
+            "moved": moved,
+            "skipped": skipped,
+            "errors": errors,
+        }
+        report.update(extra)
+        return report
+
+    async def merge_folders(
+        self,
+        folder_ids: list[str],
+        target_id: str,
+        *,
+        remove_sources: bool = False,
+    ) -> dict[str, Any]:
+        """Fusionne le contenu de plusieurs dossiers vers un dossier cible.
+
+        Les ressources sont des références (jamais dupliquées) : « fusion »
+        signifie re-classer chaque association des sources vers la cible.
+        Aucun écrasement possible (ressources identifiées par id, relation
+        idempotente) ; les sources restent intactes sauf ``remove_sources``
+        (suppression explicite demandée, effectuée APRÈS le transfert).
+
+        Rapport : operation_id, status (completed / partially_completed /
+        failed), attached, skipped, removed_sources, errors — une erreur sur
+        une source ne bloque pas les autres (partiel transparent).
+        """
+        if not folder_ids:
+            raise ValueError("merge_folders requires at least one source folder")
+        await self._require_folder(target_id)
+        if target_id in folder_ids:
+            raise ValueError("Target folder cannot be one of the merged sources")
+        for folder_id in folder_ids:
+            await self._require_folder(folder_id)
+
+        attached = skipped = 0
+        errors: list[str] = []
+        seen: set[tuple[str, str]] = set()
+        removed_sources: list[str] = []
+
+        for folder_id in folder_ids:
+            members = [
+                (m["resource_type"], m["resource_id"])
+                for m in await self._store.list(_DOMAIN_MEMBERSHIPS)
+                if m.get("folder_id") == folder_id
+            ]
+            for resource_type, resource_id in members:
+                key = (resource_type, resource_id)
+                if key in seen:
+                    continue  # même ressource classée dans plusieurs sources
+                seen.add(key)
+                membership_key = _membership_id(target_id, resource_type, resource_id)
+                try:
+                    existing = await self._store.get(_DOMAIN_MEMBERSHIPS, membership_key)
+                    if existing is not None:
+                        skipped += 1  # déjà dans la cible — rien à faire
+                        continue
+                    await self.attach_resource(target_id, resource_type, resource_id)
+                    attached += 1
+                except ValueError as exc:
+                    errors.append(f"{resource_type}:{resource_id}: {exc}")
+
+        if remove_sources:
+            for folder_id in folder_ids:
+                try:
+                    result = await self.delete_folder(folder_id)
+                    if result is not None:
+                        removed_sources.append(folder_id)
+                except ValueError as exc:
+                    errors.append(f"delete {folder_id}: {exc}")
+
+        report = self._operation_report(
+            "merge",
+            attached,
+            0,
+            skipped,
+            errors,
+            target_id=target_id,
+            sources=list(folder_ids),
+            removed_sources=removed_sources,
+        )
+        logger.info("folders merge: %s", report)
+        return report
+
+    async def copy_resources_to_folder(
+        self, items: list[dict[str, str]], target_id: str
+    ) -> dict[str, Any]:
+        """Copy logique : classe les ressources dans la cible SANS retirer
+        les classifications existantes (multi-membership natif).  L'original
+        reste intact — aucune donnée dupliquée, seule la relation s'ajoute."""
+        await self._require_folder(target_id)
+        attached = skipped = 0
+        errors: list[str] = []
+        for item in items:
+            resource_type = str(item.get("resource_type", ""))
+            resource_id = str(item.get("resource_id", ""))
+            membership_key = _membership_id(target_id, resource_type, resource_id)
+            try:
+                existing = await self._store.get(_DOMAIN_MEMBERSHIPS, membership_key)
+                if existing is not None:
+                    skipped += 1
+                    continue
+                await self.attach_resource(target_id, resource_type, resource_id)
+                attached += 1
+            except ValueError as exc:
+                errors.append(f"{resource_type}:{resource_id}: {exc}")
+        return self._operation_report(
+            "copy", attached, 0, skipped, errors, target_id=target_id
+        )
+
+    async def move_resources_to_folder(
+        self, items: list[dict[str, str]], target_id: str
+    ) -> dict[str, Any]:
+        """Move logique : la cible devient l'unique dossier de chaque
+        ressource (detach des autres dossiers, attach idempotent en cible).
+        La ressource elle-même n'est jamais supprimée ni déplacée
+        physiquement — seul le classement change."""
+        await self._require_folder(target_id)
+        moved = skipped = 0
+        errors: list[str] = []
+        for item in items:
+            resource_type = str(item.get("resource_type", ""))
+            resource_id = str(item.get("resource_id", ""))
+            try:
+                if resource_type not in self._resource_types:
+                    raise ValueError(f"Unknown resource type: {resource_type!r}")
+                await self._require_resource(resource_type, resource_id)
+                current = {
+                    m["folder_id"]
+                    for m in await self._store.list(_DOMAIN_MEMBERSHIPS)
+                    if m.get("resource_type") == resource_type
+                    and m.get("resource_id") == resource_id
+                }
+                if current == {target_id}:
+                    skipped += 1  # déjà uniquement dans la cible
+                    continue
+                for folder_id in current - {target_id}:
+                    await self.detach_resource(folder_id, resource_type, resource_id)
+                if target_id not in current:
+                    await self.attach_resource(target_id, resource_type, resource_id)
+                moved += 1
+            except ValueError as exc:
+                errors.append(f"{resource_type}:{resource_id}: {exc}")
+        return self._operation_report(
+            "move", 0, moved, skipped, errors, target_id=target_id
+        )
+
+    async def folder_to_collection(
+        self,
+        folder_id: str,
+        *,
+        description: str = "",
+        user_id: str = "anonymous",
+    ) -> dict[str, Any]:
+        """Convertit un dossier de classement en collection Knowledge.
+
+        Crée une collection Knowledge portant le nom du dossier (manager
+        Core propriétaire, pipeline RAG officiel — aucun nouveau stockage),
+        rattache le dossier à cette collection (``collection_id``), puis
+        attache les ressources ``knowledge`` classées dans le dossier à la
+        collection (``add_document``).  Ne copie, ne ré-indexe et ne déplace
+        rien physiquement.
+
+        Retourne un rapport : operation ``to-collection``, status,
+        added_documents, collection_id, errors.
+        """
+        if self._collections is None:
+            raise ValueError("Collections manager is not registered")
+        folder = await self.get_folder(folder_id)
+        if folder is None:
+            raise ValueError(f"Folder {folder_id} not found")
+        name = str(folder.get("name") or "Collection").strip() or "Collection"
+        try:
+            collection = await self._collections.create_collection(
+                name=name,
+                description=description,
+                user_id=user_id,
+            )
+        except ValueError as exc:
+            raise ValueError(f"Cannot create collection: {exc}") from exc
+        collection_id = collection["id"]
+
+        added: list[str] = []
+        errors: list[str] = []
+        for membership in await self._store.list(_DOMAIN_MEMBERSHIPS):
+            if (
+                membership.get("folder_id") == folder_id
+                and membership.get("resource_type") == "knowledge"
+            ):
+                document_id = str(membership.get("resource_id", ""))
+                try:
+                    await self._collections.add_document(collection_id, document_id)
+                    added.append(document_id)
+                except ValueError as exc:
+                    errors.append(f"{document_id}: {exc}")
+
+        # Rattache le dossier à la collection nouvellement créée.
+        try:
+            await self.update_folder(folder_id, collection_id=collection_id)
+        except ValueError as exc:
+            errors.append(f"link folder: {exc}")
+
+        report = self._operation_report(
+            "to-collection",
+            0,
+            0,
+            0,
+            errors,
+            collection_id=collection_id,
+            added_documents=added,
+            folder_id=folder_id,
+        )
+        logger.info("folders to-collection: %s", report)
+        return report
+
     # ── Résolution (lecture déléguée aux managers Core propriétaires) ───
 
     async def list_resource_folders(
@@ -559,6 +798,83 @@ class FolderManager:
             subject,
             Event(type=event_type, source="folders", payload=payload),
         )
+
+    # ── Restore / Corbeille ──────────────────────────────────────────────
+
+    async def list_deleted_items(self, user_id: str | None = None) -> list[dict[str, Any]]:
+        """Retourne les éléments soft-deletés (non purgés)."""
+        domain = "folder-deleted"
+        items = await self._store.list(domain)
+        if user_id:
+            items = [i for i in items if i.get("user_id") == user_id]
+        return items
+
+    async def restore_item(self, deleted_id: str, user_id: str | None = None) -> bool:
+        """Restaure un élément supprimé (soft delete → rétabli)."""
+        item = await self._store.get("folder-deleted", deleted_id)
+        if item is None:
+            raise ValueError(f"Deleted item {deleted_id} not found")
+        if user_id and item.get("user_id") != user_id:
+            raise PermissionError("Not allowed to restore this item")
+
+        original = {k: v for k, v in item.items() if k not in ("deleted_at", "deleted_by", "deleted")}
+        if item["type"] == "folder":
+            await self._store.save("folders", original["id"], original)
+        else:
+            await self._store.save("folder-memberships", original["id"], original)
+
+        await self._store.delete("folder-deleted", deleted_id)
+        await self._publish(EventType.FOLDER_RESTORED, f"folders.{deleted_id}", {"id": deleted_id})
+        return True
+
+    async def empty_trash(self, user_id: str | None = None) -> int:
+        """Purgé définitif de la corbeille."""
+        items = await self.list_deleted_items(user_id)
+        count = 0
+        for item in items:
+            await self._store.delete("folder-deleted", item["id"])
+            count += 1
+        await self._publish(EventType.FOLDER_TRASH_EMPTIED, "folders", {"count": count})
+        return count
+
+    # ── Archive Consolidé ────────────────────────────────────────────────
+
+    async def create_archive(
+        self,
+        name: str,
+        folder_ids: list[str],
+        *,
+        fmt: str = "zip",
+        compression_level: int = 6,
+        include_metadata: bool = True,
+    ) -> dict[str, Any]:
+        """Planifie une archive consolidée (job asynchrone, status ``pending``)."""
+        if fmt not in ("zip", "tar.gz", "7z"):
+            raise ValueError(f"Unsupported archive format: {fmt}")
+        archive_id = str(uuid4())
+        timestamp = _utc_now()
+
+        file_count = 0
+        for fid in folder_ids:
+            memberships = await self._store.list(_DOMAIN_MEMBERSHIPS)
+            file_count += sum(1 for m in memberships if m.get("folder_id") == fid)
+
+        archive = {
+            "id": archive_id,
+            "name": name,
+            "path": f"/var/lib/ethan/archives/{name}_{timestamp}.{fmt}",
+            "status": "pending",
+            "file_count": file_count,
+            "size_bytes": 0,
+            "created_at": timestamp,
+            "format": fmt,
+            "compression_level": compression_level,
+            "include_metadata": include_metadata,
+            "folder_ids": list(folder_ids),
+        }
+        await self._store.save("folder-archives", archive["id"], archive)
+        await self._publish(EventType.FOLDER_ARCHIVE_CREATED, f"archives.{archive_id}", archive)
+        return archive
 
 
 def _membership_id(folder_id: str, resource_type: str, resource_id: str) -> str:

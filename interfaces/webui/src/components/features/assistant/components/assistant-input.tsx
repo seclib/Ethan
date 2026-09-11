@@ -9,27 +9,13 @@ import {
   Search,
   Wrench,
   Mic,
-  Bot,
-  Zap,
-  CircleDot,
 } from "lucide-react";
-import type { ChatMode } from "./chat-mode-toggle";
-
-export type { ChatMode };
 
 
 interface AssistantInputProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   disabled?: boolean;
-  /** Mode Plan : soumet l'intention comme un goal réel (API /v1/goals). */
-  onPlan?: (message: string) => void;
-  /** Mode Agent : envoie la tâche à un agent autonome. */
-  onAgent?: (message: string) => void;
-  /** Current mode */
-  mode?: ChatMode;
-  /** Mode change handler */
-  onModeChange?: (mode: ChatMode) => void;
   /** File attachment handler */
   onAttach?: () => void;
   /** Search toggle handler */
@@ -44,10 +30,6 @@ export function AssistantInput({
   onSend,
   onStop,
   disabled,
-  onPlan,
-  onAgent,
-  mode = "act",
-  onModeChange,
   onAttach,
   onSearch,
   onTools,
@@ -60,16 +42,7 @@ export function AssistantInput({
     const trimmed = message.trim();
     if (!trimmed || disabled) return;
 
-    switch (mode) {
-      case "agent":
-        onAgent?.(trimmed);
-        break;
-      case "plan":
-        onPlan?.(trimmed);
-        break;
-      default:
-        onSend(trimmed);
-    }
+    onSend(trimmed);
     setMessage("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -93,12 +66,7 @@ export function AssistantInput({
 
   const isGenerating = disabled && !!onStop;
 
-  const placeholder =
-    mode === "agent"
-      ? "Describe a task for the agent..."
-      : mode === "plan"
-        ? "Describe a goal to plan..."
-        : "Message ETHAN...";
+  const placeholder = "Message ETHAN...";
 
   return (
     <div
@@ -127,52 +95,9 @@ export function AssistantInput({
           />
 
           <div className="flex items-center justify-between gap-2">
-            {/* Left: modes + contextual capabilities */}
+            {/* Left: contextual capabilities (modes Act|Plan|Agent retirés —
+                ils dupliquaient le header sans valeur : voir audit interaction) */}
             <div className="flex items-center gap-1">
-              {/* Mode selector */}
-              <button
-                onClick={() => onModeChange?.("act")}
-                className={cn(
-                  "flex h-7 items-center rounded-full px-2.5 text-xs font-medium transition-colors",
-                  mode === "act"
-                    ? "bg-accent/15 text-accent"
-                    : "text-foreground-secondary hover:bg-accent/10",
-                )}
-                title="Act — ETHAN responds directly"
-              >
-                <Zap size={12} className="mr-1" />
-                <span className="hidden sm:inline">Act</span>
-              </button>
-              <button
-                onClick={() => onModeChange?.("plan")}
-                className={cn(
-                  "flex h-7 items-center rounded-full px-2.5 text-xs font-medium transition-colors",
-                  mode === "plan"
-                    ? "bg-accent/15 text-accent"
-                    : "text-foreground-secondary hover:bg-accent/10",
-                )}
-                title="Plan — Create a goal"
-              >
-                <CircleDot size={12} className="mr-1" />
-                <span className="hidden sm:inline">Plan</span>
-              </button>
-              <button
-                onClick={() => onModeChange?.("agent")}
-                className={cn(
-                  "flex h-7 items-center rounded-full px-2.5 text-xs font-medium transition-colors",
-                  mode === "agent"
-                    ? "bg-accent/15 text-accent"
-                    : "text-foreground-secondary hover:bg-accent/10",
-                )}
-                title="Agent — Autonomous task execution"
-              >
-                <Bot size={12} className="mr-1" />
-                <span className="hidden sm:inline">Agent</span>
-              </button>
-
-              <div className="mx-1 h-4 w-px bg-line-1" />
-
-              {/* Contextual capabilities */}
               {onAttach && (
                 <button
                   onClick={onAttach}

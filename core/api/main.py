@@ -10,11 +10,17 @@ import nats
 from nats.aio.client import Client as NATSClient
 from fastapi import Response
 
+# Import proxy router
+from core.api.proxy import router as proxy_router
+
 app = FastAPI(
     title="ETHAN API",
     description="Cognitive Runtime API Gateway",
     version="1.0.0"
 )
+
+# Include proxy routes for secure access to external services
+app.include_router(proxy_router)
 
 # Models
 class MessageRequest(BaseModel):

@@ -242,7 +242,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   Dossiers autorisés
                 </label>
-                <div className="min-h-[40px] max-h-[180px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="min-h-[40px] max-h-[180px] overflow-y-auto p-2 bg-elevated border border-line-2 rounded-md">
                   {folderTree.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">Aucun dossier créé.</span>
                   ) : (
@@ -266,7 +266,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   Skills
                 </label>
-                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated border border-line-2 rounded-md">
                   {skills.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No skills available.</span>
                   ) : (
@@ -313,7 +313,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   Knowledge spécifique
                 </label>
-                <div className="flex flex-wrap gap-2 min-h-[40px] max-h-[140px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="flex flex-wrap gap-2 min-h-[40px] max-h-[140px] overflow-y-auto p-2 bg-elevated border border-line-2 rounded-md">
                   {knowledgeNodes.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No knowledge nodes available.</span>
                   ) : (
@@ -345,7 +345,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   RAG Collections
                 </label>
-                <div className="min-h-[40px] max-h-[220px] overflow-y-auto p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="min-h-[40px] max-h-[220px] overflow-y-auto p-2 bg-elevated border border-line-2 rounded-md">
                   {collectionTree.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No knowledge available.</span>
                   ) : (
@@ -369,7 +369,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                 <label className="block text-xs font-semibold text-foreground-tertiary uppercase tracking-wider mb-2">
                   Tools
                 </label>
-                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated border border-line-2 rounded-md">
                   {coreToolList.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No tools available.</span>
                   ) : (
@@ -401,7 +401,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                       MCP
                     </label>
                     {mcpGroups.map(([server, serverTools]) => (
-                      <div key={server} className="p-2 bg-elevated/30 border border-line-2 rounded-md">
+                      <div key={server} className="p-2 bg-elevated border border-line-2 rounded-md">
                         <p className="text-[11px] font-medium text-foreground-secondary mb-1">
                           Serveur : {server}
                         </p>
@@ -460,7 +460,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
                   </Button>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated/50 border border-line-2 rounded-md">
+                <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-elevated border border-line-2 rounded-md">
                   {capabilities.length === 0 ? (
                     <span className="text-xs text-muted-foreground p-1 italic">No capabilities installed.</span>
                   ) : (
@@ -483,7 +483,7 @@ export function AgentEditorDialog({ open, onOpenChange, agentId }: AgentEditorDi
 
             {/* Aperçu des ressources effectivement autorisées — même arbre
                 que GET /v1/agents/{id}/resources (résolu par le Core). */}
-            <div className="rounded-lg border border-line-2 bg-elevated/30 p-3">
+            <div className="rounded-lg border border-line-2 bg-elevated p-3">
               <p className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider mb-2">
                 Ressources autorisées (aperçu)
               </p>
@@ -578,7 +578,7 @@ function FolderTreeNode({
   return (
     <div>
       <label
-        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated/60 px-1"
+        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated px-1"
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
       >
         <input
@@ -640,7 +640,7 @@ function KnowledgeTreeNode({
   return (
     <div>
       <label
-        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated/60 px-1"
+        className="flex items-center gap-1.5 cursor-pointer py-0.5 rounded hover:bg-elevated px-1"
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
       >
         <input

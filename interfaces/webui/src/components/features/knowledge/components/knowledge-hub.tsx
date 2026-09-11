@@ -50,7 +50,7 @@ export function KnowledgeHub() {
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
                 tab === id
                   ? "bg-primary/10 text-primary font-medium"
-                  : "text-foreground-secondary hover:bg-muted/60"
+                  : "text-foreground-secondary hover:bg-muted"
               }`}
               onClick={() => setTab(id)}
             >

@@ -5,7 +5,6 @@ import type { SessionMetrics } from "@/types/assistant";
 import { ModelSelector } from "@/components/shared/model-selector";
 import { AgentSelector } from "./agent-selector";
 import { ProviderSelector } from "./provider-selector";
-import { ChatModeToggle, type ChatMode } from "./chat-mode-toggle";
 import { ProjectSelector } from "@/components/features/projects/project-selector";
 import type { Agent } from "@/types";
 
@@ -26,19 +25,14 @@ interface AssistantTopBarProps {
    */
   modelSelectorOpen?: boolean;
   onModelSelectorOpenChange?: (open: boolean) => void;
-  /** Mode courant du chat (Act | Plan | Agent). */
-  mode?: ChatMode;
-  /** Changement de mode. */
-  onModeChange?: (mode: ChatMode) => void;
-  /** Désactivé pendant la génération. */
-  disabled?: boolean;
 }
 
 /**
  * Header du mode chat.
  * - Gauche : titre de la conversation courante + statut agent
- * - Droite : [Agent ▼] [Model ▼] [Mode] — changement de LLM/d'agent/mode = interactions
- *   de premier niveau, sans quitter le chat.
+ * - Droite : [Agent ▼] [Model ▼] [Provider ▼] — changement d'agent/de LLM/
+ *   de provider = interactions de premier niveau, sans quitter le chat.
+ * (Le mode Act|Plan|Agent vit dans le composer — jamais dupliqué ici.)
  */
 export function AssistantTopBar({
   title,
@@ -51,12 +45,9 @@ export function AssistantTopBar({
   onSelectAgent,
   modelSelectorOpen,
   onModelSelectorOpenChange,
-  mode,
-  onModeChange,
-  disabled,
 }: AssistantTopBarProps) {
   return (
-    <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line-1/60 bg-background/60 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/40">
+    <div className="flex shrink-0 items-center justify-between gap-4 border-b border-line-1/60 bg-background px-4 py-2">
       <div className="flex min-w-0 items-center gap-3">
         <span className="truncate text-sm font-semibold text-foreground">
           {title}
@@ -84,8 +75,6 @@ export function AssistantTopBar({
             />
           </>
         )}
-        {/* Chat mode toggle — [Act | Plan | Agent] */}
-        <ChatModeToggle mode={mode ?? "act"} onModeChange={onModeChange} disabled={disabled} />
         <ModelSelector
           variant="compact"
           open={modelSelectorOpen}

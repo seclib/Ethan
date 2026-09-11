@@ -595,7 +595,7 @@ function SkillCard({
 
   return (
     <div
-      className="group relative flex cursor-pointer flex-col rounded-xl border border-line-1 bg-bg-1/40 p-4 transition-all hover:border-accent/50 hover:shadow-sm"
+      className="group relative flex cursor-pointer flex-col rounded-xl border border-line-1 bg-bg-1 p-4 transition-all hover:border-accent/50 hover:shadow-sm"
       onClick={() => onDetail(skill)}
       role="button"
       tabIndex={0}
@@ -788,11 +788,11 @@ function SkillClassifyDialog({
           plusieurs dossiers ; aucun dossier n&apos;est imposé (laisser vide = « non classé »).
         </p>
         {tree.length === 0 ? (
-          <p className="rounded-lg border border-line-1 bg-bg-1/60 px-3 py-3 text-sm text-foreground-tertiary">
+          <p className="rounded-lg border border-line-1 bg-bg-1 px-3 py-3 text-sm text-foreground-tertiary">
             Aucun dossier pour le moment. Créez vos dossiers depuis l&apos;espace <strong>Dossiers</strong>.
           </p>
         ) : (
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-line-1 bg-bg-1/40 px-2 py-2">
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-line-1 bg-bg-1 px-2 py-2">
             {renderTree(tree, 0)}
           </div>
         )}
@@ -896,7 +896,7 @@ function SkillDetailDialog({
         {skill.kind === "pipeline" && skill.steps && skill.steps.length > 0 && (
           <div>
             <p className="mb-1 text-xs font-medium text-foreground-tertiary">Étapes du pipeline</p>
-            <div className="max-h-64 overflow-y-auto rounded-lg border border-line-1 bg-bg-1/40">
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-line-1 bg-bg-1">
               {skill.steps.map((step, i) => (
                 <div key={`${step.id ?? i}`} className="flex items-center gap-2 border-b border-line-1 px-3 py-2 text-sm last:border-0">
                   <Badge variant="dim" size="sm">{i + 1}</Badge>

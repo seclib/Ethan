@@ -142,7 +142,7 @@ export function WebImportPanel() {
   return (
     <div className="space-y-4">
       {/* ── Étape 1 : Scan ── */}
-      <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+      <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1">
             <label className="text-xs font-medium text-foreground-secondary">URL du site ou d'une page</label>
@@ -186,7 +186,7 @@ export function WebImportPanel() {
 
       {/* ── Étape 2 : Preview + Sélection ── */}
       {scan && (
-        <div className="rounded-lg border border-line-1 bg-bg-1/30 p-3">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-foreground">
               Preview — {okPages.length} page(s) récupérable(s){scan.sitemap_used ? " · via sitemap" : ""}
@@ -198,7 +198,7 @@ export function WebImportPanel() {
           </div>
           <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border divide-y divide-line-1">
             {scan.pages.map((page) => (
-              <label key={page.page_id} className="flex items-start gap-2 px-2 py-1.5 cursor-pointer hover:bg-bg-2/40">
+              <label key={page.page_id} className="flex items-start gap-2 px-2 py-1.5 cursor-pointer hover:bg-bg-2">
                 <input
                   type="checkbox"
                   disabled={page.status !== "ok"}
@@ -222,7 +222,7 @@ export function WebImportPanel() {
 
       {/* ── Étape 3 : Destination + Configuration RAG + Indexation ── */}
       {scan && selectedPages.size > 0 && (
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
           <p className="text-xs font-semibold text-foreground-secondary uppercase tracking-wider">Destination &amp; configuration</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>

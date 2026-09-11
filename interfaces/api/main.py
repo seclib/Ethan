@@ -42,6 +42,7 @@ from interfaces.api.routers.search import router as search_router
 from interfaces.api.routers.reminders import router as reminders_router
 from interfaces.api.routers.models import router as models_router, set_provider_manager as set_models_provider_manager, set_model_store
 from interfaces.api.routers.config import router as config_router, set_configuration_service
+from interfaces.api.routers.dedup import router as dedup_router, set_dedup_managers
 from interfaces.api.routers.domains import router as domains_router, set_domain_managers
 from interfaces.api.routers.capabilities import (
     CapabilityManagers,
@@ -236,6 +237,19 @@ async def lifespan(app: FastAPI):
     app.state.knowledge_collections = knowledge_collections
     logger.info("KnowledgeCollectionManager ready (Core-owned collections)")
 
+    # --- Duplicate detection (Core-owned scan + resolve) ---
+    # Read-only detector + secure resolver.  FileStore is available; ProjectManager
+    # is not yet composed in main.py so dedup skips project-document scanning until
+    # it is wired (Knowledge + RAG + files work today).
+    set_dedup_managers(
+        store=domain_store,
+        files=file_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        rag=core_domains.rag,
+    )
+    logger.info("DuplicateDetector/Resolver wired (Core-owned)")
+
     # --- Knowledge imports (local-first file/folder → collection) ---
     # Import de fichiers OU dossiers vers une collection RAG.  Le WebUI envoie
     # uniquement des octets (jamais de chemin) ; le Core valide (MIME, taille,
@@ -342,6 +356,24 @@ async def lifespan(app: FastAPI):
     app.state.scheduler = scheduler
     logger.info("Scheduler ready (cron + reminders)")
 
+    # --- ToolManager + ToolServerManager (Core-owned, partagés) ---
+    # Créés ici AVANT IntegrationManager : celui-ci délègue ses healthchecks
+    # MCP au ToolServerManager existant (pas de duplication), et le reste du
+    # startup (chat pipeline, skill manager, capability managers) réutilise
+    # ces mêmes instances — jamais de seconde création.
+    from core.security.integration import build_secure_enforcer
+    from core.tools.manager import ToolManager
+    from core.tools.servers import ToolServerManager
+
+    # Policy Engine (Phase 04) : toute exécution de tool (routeur /tools ET
+    # skills) passe par SecureToolEnforcer — PolicyEngine (hiérarchie
+    # CORE→LLM) + CapabilityManager + ExfilGuard + AuditStore. Fail-closed :
+    # toute panne de sécurité rejette l'action.
+    secure_enforcer = build_secure_enforcer()
+    tool_manager = ToolManager(store=domain_store, policy_enforcer=secure_enforcer)
+    await tool_manager.initialize()
+    tool_servers_manager = ToolServerManager(store=domain_store, registry=tool_manager.registry)
+
     # --- App Integrations (Core-owned integration model) ---
     # Identité, configuration, credentials (domaine dédié), capacités,
     # permissions, health et lifecycle connect/disconnect. Le healthcheck
@@ -352,7 +384,7 @@ async def lifespan(app: FastAPI):
     integration_manager = IntegrationManager(
         store=domain_store,
         event_bus=event_bus,
-        tool_servers=core_domains.tool_servers,
+        tool_servers=tool_servers_manager,
     )
     set_integration_manager(integration_manager)
     app.state.integration_manager = integration_manager
@@ -365,7 +397,7 @@ async def lifespan(app: FastAPI):
 
     search_manager = SearchManager(
         knowledge_manager=core_domains.knowledge,
-        chat_store=core_domains.chats,
+        chat_store=chat_store,
         rag_pipeline=core_domains.rag,
     )
     set_search_manager(search_manager)
@@ -426,13 +458,8 @@ async def lifespan(app: FastAPI):
     from core.auth.oauth import OAuthManager
     from core.security.integration import build_secure_enforcer
 
-    # Policy Engine (Phase 04) : toute exécution de tool (routeur /tools ET
-    # skills) passe par SecureToolEnforcer — PolicyEngine (hiérarchie
-    # CORE→LLM) + CapabilityManager + ExfilGuard + AuditStore. Fail-closed :
-    # toute panne de sécurité rejette l'action.
-    secure_enforcer = build_secure_enforcer()
-    tool_manager = ToolManager(store=domain_store, policy_enforcer=secure_enforcer)
-    await tool_manager.initialize()
+    # Policy Engine + ToolManager créés plus haut (partagés avec
+    # IntegrationManager et le chat pipeline) — réutilisés ici.
 
     # Tools + Agents dans le ChatPipeline : la logique de tool-calling et de
     # routage agent vit dans le Core ; l'API reste une passerelle HTTP.
@@ -478,7 +505,7 @@ async def lifespan(app: FastAPI):
         channels=ChannelStore(store=domain_store),
         notes=NoteStore(store=domain_store),
         tools=tool_manager,
-        tool_servers=ToolServerManager(store=domain_store, registry=tool_manager.registry),
+        tool_servers=tool_servers_manager,
         prompts=prompt_manager,
         scim=SCIMManager(store=domain_store),
         ldap=LDAPManager(store=domain_store),
@@ -668,6 +695,7 @@ app.include_router(projects_router)
 app.include_router(web_ingest_router)
 app.include_router(knowledge_imports_router)
 app.include_router(core_domains_router)
+app.include_router(dedup_router)
 
 app.include_router(message_router)
 app.include_router(state_router)

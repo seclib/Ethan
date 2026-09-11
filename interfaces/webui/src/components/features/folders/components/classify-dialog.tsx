@@ -87,7 +87,7 @@ export function ClassifyDialog({ target, tree, folderIndex, onClose }: ClassifyD
                 <button
                   key={f.id}
                   type="button"
-                  className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60 text-left ${
+                  className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted text-left ${
                     checked ? "bg-primary/10 text-primary" : ""
                   }`}
                   style={{ paddingLeft: `${8 + f.depth * INDENT}px` }}

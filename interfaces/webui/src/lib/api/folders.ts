@@ -176,3 +176,122 @@ export async function getFolderIndex(
 	const query = resourceType ? `?resource_type=${resourceType}` : "";
 	return apiFetch<Record<string, string[]>>(`/v1/folders/index${query}`);
 }
+// ── Consolidation (opérations explicites, rapport Core) ─────────────────────
+
+/** Rapport d'opération retourné par le Core — les partiels sont visibles. */
+export interface FolderOperationReport {
+	operation_id: string;
+	operation: "merge" | "copy" | "move";
+	status: "completed" | "partially_completed" | "failed";
+	attached: number;
+	moved: number;
+	skipped: number;
+	errors: string[];
+	target_id?: string;
+	sources?: string[];
+	removed_sources?: string[];
+}
+
+export interface FolderResourceRef {
+	resource_type: FolderResourceType;
+	resource_id: string;
+}
+
+/** Fusionne le contenu de plusieurs dossiers vers une cible (jamais d'écrasement). */
+export async function mergeFolders(
+	folderIds: string[],
+	targetId: string,
+	removeSources = false,
+): Promise<FolderOperationReport> {
+	return apiFetch<FolderOperationReport>("/v1/folders/merge", {
+		method: "POST",
+		body: JSON.stringify({
+			folder_ids: folderIds,
+			target_id: targetId,
+			remove_sources: removeSources,
+		}),
+	});
+}
+
+/** Copy logique : ajoute les ressources à la cible SANS retirer les originaux. */
+export async function copyResources(
+	items: FolderResourceRef[],
+	targetId: string,
+): Promise<FolderOperationReport> {
+	return apiFetch<FolderOperationReport>("/v1/folders/copy-resources", {
+		method: "POST",
+		body: JSON.stringify({ items, target_id: targetId }),
+	});
+}
+
+/** Move logique : la cible devient l'unique dossier de chaque ressource. */
+export async function moveResources(
+	items: FolderResourceRef[],
+	targetId: string,
+): Promise<FolderOperationReport> {
+	return apiFetch<FolderOperationReport>("/v1/folders/move-resources", {
+		method: "POST",
+		body: JSON.stringify({ items, target_id: targetId }),
+	});
+}
+
+// ── Restore / Archive (extension consolidée) ─────────────────────────────────
+
+/** Élément supprimé (soft delete) restituable. */
+export interface DeletedItem {
+	id: string;
+	type: "folder" | "resource" | "document";
+	name: string;
+	deleted_at: string;
+	deleted_by: string;
+}
+
+/** Liste les éléments supprimés (non purgés). */
+export async function listDeletedItems(): Promise<DeletedItem[]> {
+	return apiFetch<DeletedItem[]>("/v1/folders/deleted");
+}
+
+/** Restaure un élément supprimé. */
+export async function restoreDeletedItem(itemId: string): Promise<void> {
+	await apiFetch(`/v1/folders/deleted/${itemId}/restore`, { method: "POST" });
+}
+
+/** Vide définitivement la corbeille. */
+export async function emptyTrash(): Promise<void> {
+	await apiFetch("/v1/folders/deleted/empty", { method: "DELETE" });
+}
+
+/** Description d’un dossier à archiver. */
+export interface ArchiveRequest {
+	name: string;
+	folder_ids: string[];
+	format?: "zip" | "tar.gz" | "7z";
+	compression_level?: number;
+	include_metadata?: boolean;
+	target_path?: string;
+}
+
+/** Réponse création d’archive (initialisation async). */
+export interface ArchiveResponse {
+	id: string;
+	name: string;
+	path: string;
+	status: "pending" | "processing" | "ready" | "failed";
+	file_count: number;
+	size_bytes: number;
+	created_at: string;
+	format: string;
+}
+
+/** Planifie la création d'une archive consolidée. */
+export async function createArchive(request: ArchiveRequest): Promise<ArchiveResponse> {
+	return apiFetch<ArchiveResponse>("/v1/folders/archive", {
+		method: "POST",
+		body: JSON.stringify(request),
+	});
+}
+
+/** Statut d’une archive (polling async). */
+export async function getArchiveStatus(archiveId: string): Promise<ArchiveResponse> {
+	return apiFetch<ArchiveResponse>(`/v1/folders/archive/${archiveId}`);
+}

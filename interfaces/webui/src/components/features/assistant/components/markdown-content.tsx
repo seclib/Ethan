@@ -62,7 +62,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
               <table className="w-full border-collapse text-sm">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-bg-1/50">{children}</thead>,
+          thead: ({ children }) => <thead className="bg-bg-1">{children}</thead>,
           th: ({ children }) => (
             <th className="border border-line-1/20 px-3 py-1.5 text-left font-semibold">{children}</th>
           ),

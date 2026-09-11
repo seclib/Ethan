@@ -114,6 +114,12 @@
       "namedRegex": "^/cookbook(?:/)?$"
     },
     {
+      "page": "/dedup",
+      "regex": "^/dedup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dedup(?:/)?$"
+    },
+    {
       "page": "/diagnostics",
       "regex": "^/diagnostics(?:/)?$",
       "routeKeys": {},

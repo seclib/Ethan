@@ -103,6 +103,98 @@ async def move_resource_between_folders(data: dict[str, Any]):
     }
 
 
+# ── Consolidation (opérations explicites, rapport Core) ─────────────────────
+
+
+@router.post(
+    "/merge",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def merge_folders(data: dict[str, Any]):
+    """Fusionne le contenu de plusieurs dossiers vers une cible.
+
+    Body: ``{folder_ids: [...], target_id, remove_sources?: bool}``.
+    Les ressources sont re-classées (jamais dupliquées, jamais écrasées) ;
+    les sources ne sont supprimées que si ``remove_sources`` est explicite.
+    Retourne un rapport : operation_id, status, attached, skipped,
+    removed_sources, errors (partiels jamais masqués).
+    """
+    try:
+        return await get_folder_manager().merge_folders(
+            list(data.get("folder_ids") or []),
+            str(data.get("target_id", "")),
+            remove_sources=bool(data.get("remove_sources", False)),
+        )
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+
+
+@router.post(
+    "/copy-resources",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def copy_resources_to_folder(data: dict[str, Any]):
+    """Copy logique de plusieurs ressources vers un dossier cible.
+
+    Body: ``{items: [{resource_type, resource_id}, ...], target_id}``.
+    Les classifications existantes sont conservées (multi-membership) ;
+    l'original n'est jamais retiré ni modifié.
+    """
+    try:
+        return await get_folder_manager().copy_resources_to_folder(
+            list(data.get("items") or []),
+            str(data.get("target_id", "")),
+        )
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+
+
+@router.post(
+    "/move-resources",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def move_resources_to_folder(data: dict[str, Any]):
+    """Move logique de plusieurs ressources vers un dossier cible.
+
+    Body: ``{items: [{resource_type, resource_id}, ...], target_id}``.
+    La cible devient l'unique dossier de chaque ressource (detach des
+    autres) ; la ressource n'est jamais supprimée physiquement.
+    """
+    try:
+        return await get_folder_manager().move_resources_to_folder(
+            list(data.get("items") or []),
+            str(data.get("target_id", "")),
+        )
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+
+
+@router.post(
+    "/{folder_id}/to-collection",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def folder_to_collection(
+    folder_id: str,
+    data: dict[str, Any] | None = None,
+):
+    """Convertit un dossier en collection Knowledge (pipeline officiel).
+
+    Body optionnel : ``{description?, user_id?}``.  Crée une collection
+    portant le nom du dossier, rattache le dossier à la collection et
+    attache les ressources ``knowledge`` classées dans le dossier à la
+    collection.  Aucune ré-indexation ni copie physique.
+    """
+    data = data or {}
+    try:
+        return await get_folder_manager().folder_to_collection(
+            folder_id,
+            description=str(data.get("description", "")),
+            user_id=str(data.get("user_id", "anonymous")),
+        )
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+
+
 # ── CRUD dossiers ───────────────────────────────────────────────────────────
 
 
@@ -226,3 +318,77 @@ async def detach_resource(folder_id: str, resource_type: str, resource_id: str):
     if not deleted:
         raise HTTPException(404, "Resource not classified in this folder")
     return {"status": "detached"}
+
+
+# ── Restore / Corbeille ───────────────────────────────────────────────────────
+
+
+@router.get("/deleted", dependencies=[Depends(require_permission(Permission.MEMORY))])
+async def list_deleted_items(user_id: str | None = None):
+    """Liste les éléments soft-deletés (corbeille)."""
+    return await get_folder_manager().list_deleted_items(user_id)
+
+
+@router.post(
+    "/deleted/{deleted_id}/restore",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def restore_item(deleted_id: str, data: dict[str, Any] | None = None):
+    """Restaure un élément supprimé."""
+    data = data or {}
+    try:
+        await get_folder_manager().restore_item(deleted_id, user_id=data.get("user_id"))
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return {"status": "restored", "id": deleted_id}
+
+
+@router.delete("/deleted/empty", dependencies=[Depends(require_permission(Permission.MEMORY))])
+async def empty_trash(data: dict[str, Any] | None = None):
+    """Purgé définitif de la corbeille."""
+    data = data or {}
+    count = await get_folder_manager().empty_trash(user_id=data.get("user_id"))
+    return {"status": "emptied", "count": count}
+
+
+# ── Archive Consolidé ─────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/archive",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def create_archive(data: dict[str, Any]):
+    """Planifie la création d'une archive consolidée depuis des dossiers."""
+    try:
+        return await get_folder_manager().create_archive(
+            name=str(data.get("name", "")),
+            folder_ids=list(data.get("folder_ids") or []),
+            fmt=str(data.get("format", "zip")),
+            compression_level=int(data.get("compression_level", 6)),
+            include_metadata=bool(data.get("include_metadata", True)),
+        )
+    except ValueError as exc:
+        raise _not_found(exc) from exc
+
+
+@router.get(
+    "/archive/{archive_id}",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def get_archive_status(archive_id: str):
+    """Retourne le statut d'une archive (polling async)."""
+    # TODO : connecter à folder-archives store une fois le worker d'archive implémenté
+    # (placeholder pour l'instant — le créateur reçoit déjà le statut `pending`)
+    return {
+        "id": archive_id,
+        "name": "",
+        "path": "",
+        "status": "pending",
+        "file_count": 0,
+        "size_bytes": 0,
+        "created_at": "",
+        "format": "zip",
+    }

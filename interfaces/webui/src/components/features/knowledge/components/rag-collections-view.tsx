@@ -69,7 +69,7 @@ export function RagCollectionsView() {
 
   return (
     <div className="p-2 space-y-4">
-      <div className="rounded-lg border border-line-1 bg-bg-1/40 p-3 flex flex-wrap gap-x-6 text-sm">
+      <div className="rounded-lg border border-line-1 bg-bg-1 p-3 flex flex-wrap gap-x-6 text-sm">
         <span className="text-foreground-secondary"><span className="font-semibold text-foreground">{ragConfig?.stats.documents ?? 0}</span> documents RAG</span>
         <span className="text-foreground-secondary"><span className="font-semibold text-foreground">{ragConfig?.stats.chunks ?? 0}</span> chunks indexés</span>
         <span className="text-foreground-secondary">
@@ -98,7 +98,7 @@ export function RagCollectionsView() {
           </thead>
           <tbody className="divide-y divide-line-1">
             {collections.map((c) => (
-              <tr key={c.id} className="hover:bg-bg-2/30">
+              <tr key={c.id} className="hover:bg-bg-2">
                 <td className="py-2 pr-3">
                   <div className="flex items-center gap-2">
                     <Database className="h-4 w-4 text-foreground-tertiary" />

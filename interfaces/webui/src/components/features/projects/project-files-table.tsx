@@ -72,7 +72,7 @@ export function ProjectFilesTable({ projectId, refreshKey, onDeleted }: ProjectF
 	return (
 		<div className="overflow-hidden rounded-md border border-line-1/60">
 			<table className="w-full text-sm">
-				<thead className="bg-muted/50">
+				<thead className="bg-muted">
 					<tr className="text-left text-xs text-muted-foreground">
 						<th className="px-4 py-2">Fichier</th>
 						<th className="px-4 py-2">Type</th>
@@ -83,7 +83,7 @@ export function ProjectFilesTable({ projectId, refreshKey, onDeleted }: ProjectF
 				</thead>
 				<tbody>
 					{docs.map((doc) => (
-						<tr key={doc.id} className="border-t border-line-1/40 hover:bg-muted/30">
+						<tr key={doc.id} className="border-t border-line-1/40 hover:bg-muted">
 							<td className="px-4 py-2">
 								<div className="flex items-center gap-2">
 									<FileIcon mime={doc.mime_type} />

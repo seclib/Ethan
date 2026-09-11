@@ -8,6 +8,7 @@
   "/api/[...path]/route": "/api/[...path]",
   "/calendar/page": "/calendar",
   "/cookbook/page": "/cookbook",
+  "/dedup/page": "/dedup",
   "/diagnostics/page": "/diagnostics",
   "/domains/page": "/domains",
   "/folders/page": "/folders",

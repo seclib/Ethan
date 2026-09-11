@@ -129,9 +129,9 @@ function CommandPalette({
       role="dialog"
       aria-label="Command palette"
     >
-      {/* Backdrop */}
+      {/* Backdrop (fonctionnel : assombrit, sans blur décoratif) */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50"
         onClick={onClose}
         aria-hidden="true"
       />

@@ -340,7 +340,7 @@ export function KnowledgeWorkspace() {
       />
       <div className="flex min-h-0 flex-1">
       {/* Left panel: collections list */}
-      <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1/40">
+      <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1">
         <div className="border-b border-line-1 px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Bases de connaissances</h2>
         </div>
@@ -483,7 +483,7 @@ export function KnowledgeWorkspace() {
                   {(collectionDocs[selectedCollection.id] || []).map((doc) => (
                     <div
                       key={doc.id}
-                      className="group flex items-center justify-between gap-2 rounded-lg border border-line-1 bg-bg-1/50 px-3 py-2"
+                      className="group flex items-center justify-between gap-2 rounded-lg border border-line-1 bg-bg-1 px-3 py-2"
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <FileText className="h-4 w-4 shrink-0 text-foreground-tertiary" />
@@ -544,7 +544,7 @@ export function KnowledgeWorkspace() {
               {retrieveResults.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {retrieveResults.map((item, idx) => (
-                    <div key={idx} className="rounded-lg border border-line-1 bg-bg-1/50 p-3">
+                    <div key={idx} className="rounded-lg border border-line-1 bg-bg-1 p-3">
                       <p className="text-xs font-medium text-foreground-secondary">{item.document_title}</p>
                       <p className="mt-1 text-sm text-foreground">{item.chunk?.content}</p>
                     </div>
@@ -606,7 +606,7 @@ export function KnowledgeWorkspace() {
                 "Utilise la stratégie configurée globalement pour le moteur RAG."}
             </p>
             {recommendation && (
-              <p className="rounded-lg border border-line-1 bg-bg-1/60 px-3 py-2 text-[11px] text-foreground-secondary">
+              <p className="rounded-lg border border-line-1 bg-bg-1 px-3 py-2 text-[11px] text-foreground-secondary">
                 <span className="font-medium text-foreground">Recommandation ETHAN : </span>
                 {ragStrategies.find((s) => s.id === recommendation.strategy_id)?.label ??
                   recommendation.strategy_id}
@@ -681,7 +681,7 @@ export function KnowledgeWorkspace() {
         <div className="space-y-4">
           {/* Statut d'indexation */}
           {ragStats && (
-            <div className="grid grid-cols-2 gap-2 rounded-lg border border-line-1 bg-bg-1/50 p-3 text-sm">
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-line-1 bg-bg-1 p-3 text-sm">
               <div>
                 <p className="text-xs text-foreground-tertiary">Mode d&apos;embedding</p>
                 <p
@@ -759,7 +759,7 @@ export function KnowledgeWorkspace() {
             </p>
           </div>
 
-          <p className="rounded-lg border border-line-1 bg-bg-1/50 px-3 py-2 text-xs text-muted-foreground">
+          <p className="rounded-lg border border-line-1 bg-bg-1 px-3 py-2 text-xs text-muted-foreground">
             Moteur : <code>core/rag/pipeline.py</code> — indexation mémoire avec
             persistance Core. Aucun vector store externe n&apos;est utilisé par ETHAN ;
             ce paramètre n&apos;est donc pas exposé.
@@ -796,7 +796,7 @@ export function KnowledgeWorkspace() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingFile || !selectedCollectionId}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line-2 px-3 py-4 text-sm text-foreground-secondary transition-colors hover:border-accent/50 hover:bg-bg-3/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line-2 px-3 py-4 text-sm text-foreground-secondary transition-colors hover:border-accent/50 hover:bg-bg-3 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isUploadingFile ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -897,7 +897,7 @@ function CollectionRow({
       onClick={onClick}
       className={cn(
         "group flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 transition-colors",
-        isActive ? "bg-bg-3 text-foreground" : "text-foreground-secondary hover:bg-bg-3/60"
+        isActive ? "bg-bg-3 text-foreground" : "text-foreground-secondary hover:bg-bg-3"
       )}
     >
       <Database className="h-4 w-4 shrink-0 text-foreground-tertiary" />

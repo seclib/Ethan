@@ -104,7 +104,7 @@ export function ProjectSelector() {
 
 			{dropdownOpen && (
 				<div
-					className="absolute top-full left-0 z-modal mb-1 w-64 max-h-80 overflow-y-auto rounded-md border border-line-1/60 bg-background shadow-lg"
+					className="absolute top-full left-0 z-popover mb-1 w-64 max-h-80 overflow-y-auto rounded-md border border-line-1/60 bg-background shadow-lg"
 					onKeyDown={(e) => e.stopPropagation()}
 				>
 					<ul className="py-1 text-sm" role="listbox">

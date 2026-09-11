@@ -332,8 +332,7 @@ body {
   padding: 0 20px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--bg);
 }
 .app-header-left {
   display: flex;

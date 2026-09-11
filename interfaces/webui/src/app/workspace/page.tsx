@@ -141,7 +141,7 @@ export default function WorkspacePage() {
 						<Card variant="outlined" className="overflow-hidden">
 							<div className="overflow-y-auto max-h-[500px]">
 								<table className="w-full text-sm">
-									<thead className="bg-muted/50 sticky top-0 z-floating border-b">
+									<thead className="bg-muted sticky top-0 z-floating border-b">
 										<tr>
 											<th className="h-10 px-4 text-left font-medium text-muted-foreground w-[120px]">Time</th>
 											<th className="h-10 px-4 text-left font-medium text-muted-foreground w-[150px]">Category</th>
@@ -151,7 +151,7 @@ export default function WorkspacePage() {
 									</thead>
 									<tbody>
 										{facts?.map((fact: Fact) => (
-											<tr key={fact.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+											<tr key={fact.id} className="border-b last:border-0 hover:bg-muted transition-colors">
 												<td className="p-4 text-muted-foreground font-mono text-xs">
 													{new Date(fact.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 												</td>

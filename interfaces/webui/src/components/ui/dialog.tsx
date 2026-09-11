@@ -64,8 +64,12 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
     }
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-    // Focus the dialog panel itself
-    dialogRef.current?.focus();
+    // Focus the dialog panel — mais UNIQUEMENT si aucun enfant n'a déjà pris
+    // le focus (autoFocus d'un bouton/formulaire). Sans cette garde, le panel
+    // écraserait l'autoFocus au montage.
+    if (!dialogRef.current?.contains(document.activeElement)) {
+      dialogRef.current?.focus();
+    }
 
     const focusableSelectors = [
       "button",
@@ -108,7 +112,14 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [open, handleClose]);
+    // CORRECTIF (audit input/focus) : dépendre UNIQUEMENT de `open`.
+    // `handleClose` est recréé à chaque render du parent (callbacks inline du
+    // type `onClose={() => setShow(false)}`) ; l'effet se ré-exécutait donc à
+    // CHAQUE frappe dans un champ contrôlé → dialogRef.focus() VOLAIT le
+    // focus de l'input en cours de saisie (impossible d'écrire plus d'un
+    // caractère dans les dialogs de création/formulaires). Le corps de cet
+    // effet n'utilise que des refs — `open` est la seule dépendance réelle.
+  }, [open]);
 
   if (!open) return null;
 
@@ -128,8 +139,9 @@ function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: D
         aria-labelledby={title ? "dialog-title" : undefined}
       >
         {/* Backdrop */}
+        {/* Overlay fonctionnel : assombrit l'arrière-plan, sans blur (lisibilité) */}
         <div
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/50"
           onClick={handleClose}
           aria-hidden="true"
         />

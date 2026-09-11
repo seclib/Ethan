@@ -633,7 +633,7 @@ function McpServerDetail({ server, onClose, toolCount }: {
   return (
     <Dialog open onClose={onClose} title={server.name} size="lg">
       <div className="flex flex-col gap-4">
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
           <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
             <span className="text-foreground-tertiary">Statut :</span>
             <span><Badge variant={badgeVariant(server.status)}>{server.status}</Badge></span>
@@ -720,7 +720,7 @@ function McpServerDetail({ server, onClose, toolCount }: {
           </p>
         </div>
 
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 p-3">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Resources &amp; Prompts</h3>
           <p className="mt-1 text-xs text-foreground-tertiary">
             ETHAN n&apos;expose pas encore les Resources et Prompts MCP de ce

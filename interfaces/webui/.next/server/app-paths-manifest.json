@@ -8,6 +8,7 @@
   "/api/[...path]/route": "app/api/[...path]/route.js",
   "/calendar/page": "app/calendar/page.js",
   "/cookbook/page": "app/cookbook/page.js",
+  "/dedup/page": "app/dedup/page.js",
   "/diagnostics/page": "app/diagnostics/page.js",
   "/domains/page": "app/domains/page.js",
   "/folders/page": "app/folders/page.js",

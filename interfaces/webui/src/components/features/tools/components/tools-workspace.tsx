@@ -140,7 +140,7 @@ export function ToolsWorkspace() {
       />
       <div className="flex min-h-0 flex-1">
         {/* Left panel : catalogue */}
-        <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1/40">
+        <div className="flex w-72 shrink-0 flex-col border-r border-line-1 bg-bg-1">
           <div className="border-b border-line-1 px-4 py-3">
             <h2 className="text-sm font-semibold text-foreground">Catalogue</h2>
           </div>
@@ -260,7 +260,7 @@ function ToolRow({ tool, isActive, onClick }: {
       onClick={onClick}
       className={cn(
         "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 transition-colors",
-        isActive ? "bg-bg-3 text-foreground" : "text-foreground-secondary hover:bg-bg-3/60"
+        isActive ? "bg-bg-3 text-foreground" : "text-foreground-secondary hover:bg-bg-3"
       )}
     >
       <Wrench className="h-4 w-4 shrink-0 text-foreground-tertiary" />
@@ -330,11 +330,11 @@ function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Catégorie</h3>
           <p className="text-sm text-foreground-secondary">{tool.category || "—"}</p>
         </div>
-        <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+        <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Disponible</h3>
           <p className="flex items-center gap-1.5 text-sm">
             {tool.is_available ? (
@@ -345,13 +345,13 @@ function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
           </p>
         </div>
         {typeof tool.total_calls === "number" && (
-          <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+          <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Appels</h3>
             <p className="text-sm text-foreground-secondary">{tool.total_calls}</p>
           </div>
         )}
         {typeof tool.success_count === "number" && (
-          <div className="rounded-lg border border-line-1 bg-bg-1/40 p-4">
+          <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Succès</h3>
             <p className="text-sm text-foreground-secondary">{tool.success_count}</p>
           </div>
@@ -408,7 +408,7 @@ function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
       </div>
 
       {tool.provider === "mcp" && (
-        <div className="mb-6 rounded-lg border border-line-1 bg-bg-1/40 p-4">
+        <div className="mb-6 rounded-lg border border-line-1 bg-bg-1 p-4">
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Source MCP</h3>
           <p className="mb-2 text-sm text-foreground-secondary">
             Cet outil provient d&apos;un serveur MCP (synchronisation et activation

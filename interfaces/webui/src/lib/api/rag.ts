@@ -32,6 +32,12 @@ export interface RagConfig {
 	embedding_model: string | null;
 	/** Stratégie globale par défaut (auto | keyword | semantic | hybrid). */
 	strategy: string;
+	/** Découpage texte : character | sentence | paragraph. */
+	splitting_strategy?: string;
+	/** Backend vectoriel réel du moteur : memory | chromadb | qdrant. */
+	vector_backend?: string;
+	/** Configuration du backend vectoriel (url, persist_directory, …). */
+	vector_backend_config?: Record<string, unknown> | null;
 }
 
 export interface RagStats {
@@ -44,11 +50,26 @@ export interface RagStats {
 	strategy: string;
 	strategies: RagStrategyOption[];
 	recommendation?: RagStrategyRecommendation;
+	/** Backend vectoriel actif (miroir de config.vector_backend). */
+	vector_backend?: string;
 }
 
 export interface RagConfigResponse {
 	config: RagConfig;
 	stats: RagStats;
+}
+
+/** Réponse typée de PUT /v1/rag/config (champs acceptés par le moteur Core). */
+export interface RagConfigUpdate {
+	chunk_size?: number;
+	chunk_overlap?: number;
+	splitting_strategy?: string;
+	top_k?: number;
+	max_context_chars?: number;
+	embedding_model?: string;
+	vector_backend?: string;
+	vector_backend_config?: Record<string, unknown>;
+	strategy?: string;
 }
 
 export interface RagStrategiesResponse {
@@ -74,7 +95,7 @@ export async function getRagStatus(): Promise<RagStats> {
 
 /** Applique et persiste la configuration du moteur */
 export async function updateRagConfig(
-	data: Partial<Omit<RagConfig, 'embedding_model'>> & { embedding_model?: string },
+	data: RagConfigUpdate,
 ): Promise<RagConfigResponse> {
 	return apiFetch<RagConfigResponse>('/v1/rag/config', {
 		method: 'PUT',

@@ -11,12 +11,13 @@
  */
 
 import * as React from "react";
-import { Inbox } from "lucide-react";
+import { Inbox, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useFolders, useFoldersNavigation } from "../hooks/use-folders";
 import { FolderTree, type FolderDialogState } from "./folder-tree";
 import { FolderDialogs } from "./folder-dialogs";
+import { MergeFoldersDialog } from "./consolidate-dialogs";
 import { FolderContent, UntaggedContent, EmptyState, FOLDER_TYPE_LABELS, FOLDER_TYPE_ICONS } from "./folder-contents";
 import { ClassifyDialog, type ClassifyTarget } from "./classify-dialog";
 import type { FolderResourceType, FolderTree as FolderTreeNode } from "@/lib/api/folders";
@@ -61,7 +62,7 @@ export function FoldersWorkspace() {
             />
             <button
               type="button"
-              className={`mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60 ${
+              className={`mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted ${
                 nav.showUntagged ? "bg-primary/10 text-primary font-medium" : ""
               }`}
               onClick={() => {
@@ -70,6 +71,13 @@ export function FoldersWorkspace() {
               }}
             >
               <Inbox size={14} /> Sans dossier
+            </button>
+            <button
+              type="button"
+              className="mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              onClick={() => setDialog({ kind: "merge" })}
+            >
+              <Layers size={14} /> Fusionner des dossiers…
             </button>
           </>
         )}
@@ -83,6 +91,15 @@ export function FoldersWorkspace() {
           deleteFolder={(id) => folders.deleteFolder(id)}
           moveFolder={folders.moveFolder}
         />
+        {dialog?.kind === "merge" && (
+          <MergeFoldersDialog
+            tree={folders.tree}
+            onMerge={(folderIds, targetId, removeSources) =>
+              folders.mergeFolders({ folderIds, targetId, removeSources })
+            }
+            onClose={() => setDialog(null)}
+          />
+        )}
       </aside>
 
       <section className="flex-1 min-w-0 min-h-0 flex flex-col gap-3">

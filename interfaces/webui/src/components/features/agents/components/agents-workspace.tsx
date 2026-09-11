@@ -203,7 +203,7 @@ export function AgentsWorkspace() {
               return (
                 <div
                   key={agent.id}
-                  className="group relative flex flex-col rounded-xl border border-line-1 bg-bg-1/40 p-4 transition-all hover:border-accent/50 hover:shadow-sm"
+                  className="group relative flex flex-col rounded-xl border border-line-1 bg-bg-1 p-4 transition-all hover:border-accent/50 hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex cursor-pointer items-center gap-2" onClick={() => openEditor(agent.id)}>
@@ -284,7 +284,7 @@ export function AgentsWorkspace() {
 
       {menuAgent && menuPos && (
         <div
-          className="fixed z-popover min-w-[180px] rounded-lg border border-line-1 bg-bg-1/95 py-1 shadow-lg backdrop-blur-sm"
+          className="fixed z-popover min-w-[180px] rounded-lg border border-line-1 bg-bg-1 py-1 shadow-lg"
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-bg-2"
