@@ -134,7 +134,7 @@ export function useFolders() {
 		return parts.join(", ") || "aucun changement";
 	};
 
-const reportMutation = <T extends FolderConsolidationVars>(fn: (vars: T) => Promise<FolderOperationReport>, label: string) =>
+const useReportMutation = <T extends FolderConsolidationVars>(fn: (vars: T) => Promise<FolderOperationReport>, label: string) =>
 		useMutation({
 			mutationFn: fn,
 			onSuccess: (report) => {
@@ -148,17 +148,17 @@ const reportMutation = <T extends FolderConsolidationVars>(fn: (vars: T) => Prom
 			onError: (err: Error) => addToast({ type: "error", message: err.message }),
 		});
 
-	const mergeFoldersMutation = reportMutation(
+	const mergeFoldersMutation = useReportMutation(
 		({ folderIds, targetId, removeSources }: MergeFolderVars) =>
 			apiMergeFolders(folderIds, targetId, removeSources),
 		"Fusion",
 	);
-	const copyResourcesMutation = reportMutation(
+	const copyResourcesMutation = useReportMutation(
 		({ items, targetId }: ResourceFolderVars) =>
 			apiCopyResources(items, targetId),
 		"Copie",
 	);
-	const moveResourcesMutation = reportMutation(
+	const moveResourcesMutation = useReportMutation(
 		({ items, targetId }: ResourceFolderVars) =>
 			apiMoveResources(items, targetId),
 		"Déplacement",

@@ -6,7 +6,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:e2e": "playwright test",
@@ -31,7 +31,6 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.61.1",
     "@storybook/addon-links": "10.6.0",
     "@storybook/nextjs": "10.6.0",

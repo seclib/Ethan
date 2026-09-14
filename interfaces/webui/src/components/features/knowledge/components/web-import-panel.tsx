@@ -145,7 +145,7 @@ export function WebImportPanel() {
       <div className="rounded-lg border border-line-1 bg-bg-1 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1">
-            <label className="text-xs font-medium text-foreground-secondary">URL du site ou d'une page</label>
+            <label className="text-xs font-medium text-foreground-secondary">URL du site ou d’une page</label>
             <Input
               className="mt-1 w-full"
               placeholder="https://docs.example.com/"

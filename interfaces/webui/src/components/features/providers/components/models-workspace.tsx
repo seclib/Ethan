@@ -311,7 +311,7 @@ export function ModelsWorkspace() {
             {!providerConnected && (
               <div className="mx-4 my-3 rounded-lg border border-amber-soft bg-amber-soft/60 px-3 py-2 text-sm text-amber">
                 <AlertCircle className="mr-2 inline h-4 w-4" />
-                Le fournisseur <strong>{providerName}</strong> n'est pas connecté — les modèles
+                Le fournisseur <strong>{providerName}</strong> n’est pas connecté — les modèles
                 listés peuvent être indisponibles.
               </div>
             )}

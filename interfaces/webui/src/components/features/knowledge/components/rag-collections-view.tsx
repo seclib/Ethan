@@ -147,7 +147,7 @@ export function RagCollectionsView() {
         </table>
       )}
       <p className="text-[11px] text-foreground-tertiary">
-        La réindexation s'applique au modèle d'embedding courant du moteur. Les noms de collections et leur organisation restent libres.
+        La réindexation s’applique au modèle d’embedding courant du moteur. Les noms de collections et leur organisation restent libres.
       </p>
     </div>
   );

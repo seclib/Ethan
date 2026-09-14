@@ -80,8 +80,8 @@ export function KnowledgeHub() {
         {tab === "web" && <WebImportPanel />}
       </div>
       <p className="mt-1 text-[11px] text-foreground-tertiary">
-        Noms et catégories libres — ETHAN n'impose ni dossier ni classification.
-        Aucune ressource globale n'est automatiquement injectée. Opérations longues exécutées par le Runtime (progression réelle).
+        Noms et catégories libres — ETHAN n’impose ni dossier ni classification.
+        Aucune ressource globale n’est automatiquement injectée. Opérations longues exécutées par le Runtime (progression réelle).
       </p>
     </div>
   );
