@@ -69,6 +69,15 @@ class PluginRegistry:
                 if not state_view.get("configuration"):
                     state_view.pop("configuration", None)
                 view.update(state_view)
+                # Mise à jour disponible : version installée (manifest_version
+                # fixée à l'install/update) != version courante du catalogue.
+                installed_version = state.get("manifest_version")
+                view["manifest_version"] = installed_version
+                view["update_available"] = bool(
+                    state.get("installed")
+                    and installed_version
+                    and installed_version != manifest.version
+                )
             result.append(view)
 
         # Enregistrements legacy/custom hors catalogue.
@@ -125,7 +134,11 @@ class PluginRegistry:
     # ── Cycle de vie ───────────────────────────────────────────────────
 
     async def install(self, plugin_id: str) -> dict[str, Any] | None:
-        """Installe un plugin du catalogue (état initial : inactive)."""
+        """Installe un plugin du catalogue (état initial : inactive).
+
+        Ré-installer un plugin installé synchronise sa version avec le
+        manifest (c'est le mécanisme de mise à jour — voir ``update()``).
+        """
         manifest = find_manifest(plugin_id)
         if manifest is None:
             return None
@@ -141,6 +154,19 @@ class PluginRegistry:
         record["id"] = plugin_id
         await self._store.save(_DOMAIN, plugin_id, record)
         return await self.get(plugin_id)
+
+    async def update(self, plugin_id: str) -> dict[str, Any] | None:
+        """Met à jour un plugin installé : synchronise le manifest du catalogue.
+
+        La configuration, les permissions accordées et l'état connecté sont
+        conservés.  Retourne None si le plugin est inconnu du catalogue.
+        """
+        if find_manifest(plugin_id) is None:
+            return None
+        record = await self._store.get(_DOMAIN, plugin_id)
+        if record is None or not record.get("installed"):
+            return None
+        return await self.install(plugin_id)
 
     async def install_custom(self, name: str, plugin_id: str | None = None) -> dict[str, Any]:
         """Enregistre un plugin custom (compatibilité historique : {name})."""
@@ -225,6 +251,68 @@ class PluginRegistry:
         record["connected_at"] = None
         await self._store.save(_DOMAIN, plugin_id, record)
         return await self.get(plugin_id)
+
+    async def uninstall(
+        self, plugin_id: str, *, remove_data: bool = False
+    ) -> dict[str, Any] | None:
+        """Désinstalle un plugin installé.
+
+        Deux niveaux, pour ne jamais détruire implicitement des données :
+
+        - ``remove_data=False`` (défaut) : l'installation est retirée
+          (statut → available, désactivé, déconnecté) mais la configuration
+          non secrète et les permissions accordées sont CONSERVÉES dans le
+          record — une réinstallation retrouve ses réglages.
+        - ``remove_data=True`` (« Uninstall and remove plugin data ») : le
+          record est supprimé du store — la configuration et les permissions
+          accordées disparaissent aussi.
+
+        Les secrets du plugin ne vivent de toute façon PAS dans le record
+        mais dans la couche secret manager (env/Vault) : ils doivent être
+        révoqués séparément — la réponse liste les variables concernées.
+        Retourne None si le plugin est inconnu.
+        """
+        plugin = await self.get(plugin_id)
+        if plugin is None:
+            return None
+        env_vars = list(plugin.get("authentication", {}).get("env_vars", []))
+        record = await self._store.get(_DOMAIN, plugin_id)
+
+        if remove_data:
+            if record is not None:
+                await self._store.delete(_DOMAIN, plugin_id)
+            return {
+                "id": plugin_id,
+                "name": plugin.get("name", plugin_id),
+                "uninstalled": True,
+                "data_removed": True,
+                "status": STATUS_AVAILABLE,
+                "installed": False,
+                "secrets_to_revoke": env_vars,
+            }
+
+        if record is None:
+            record = {"id": plugin_id}
+        record["id"] = plugin_id
+        record["installed"] = False
+        # Statut inactif (et non available) : le record persiste, donc la vue
+        # fusionnée le lira — un plugin non installé ne doit jamais apparaître
+        # comme actif. L'UI affiche « disponible » via installed=False.
+        record["status"] = STATUS_INACTIVE
+        record["connected"] = False
+        record["connected_at"] = None
+        # configuration + granted_permissions volontairement conservés.
+        await self._store.save(_DOMAIN, plugin_id, record)
+        return {
+            "id": plugin_id,
+            "name": plugin.get("name", plugin_id),
+            "uninstalled": True,
+            "data_removed": False,
+            "status": STATUS_INACTIVE,
+            "installed": False,
+            "configuration_kept": True,
+            "secrets_to_revoke": env_vars,
+        }
 
     # ── Helpers ────────────────────────────────────────────────────────
 

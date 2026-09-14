@@ -21,6 +21,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listPlugins, installPlugin, enablePlugin, disablePlugin, connectPlugin, disconnectPlugin,
+  updatePlugin, uninstallPlugin,
   type PluginInfo, type PluginCategory,
 } from "@/lib/api/plugins";
 import { useUIStore } from "@/store/ui.store";
@@ -31,7 +32,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   Puzzle, Plus, Power, Search, Check, Github, Globe, BookOpen, Code2,
   ImagePlus, FileText, Mail, FolderKanban, Clock, MessageSquare, FolderOpen,
-  Wrench, Shield, Settings2, Link2, Unlink,
+  Wrench, Shield, Settings2, Link2, Unlink, Trash2, RefreshCw,
 } from "lucide-react";
 
 // Mapping manifest.icon (nom déclaré par le Core) → composant lucide.
@@ -79,11 +80,12 @@ function StatusPill({ plugin }: { plugin: PluginInfo }) {
 
 // ── Carte plugin (surface opaque, hiérarchie claire) ─────────────────
 function PluginCard({
-  plugin, onOpen, onAction, pending,
+  plugin, onOpen, onAction, onUpdate, pending,
 }: {
   plugin: PluginInfo;
   onOpen: (id: string) => void;
   onAction: (plugin: PluginInfo) => void;
+  onUpdate?: (plugin: PluginInfo) => void;
   pending: boolean;
 }) {
   const action = actionFor(plugin);
@@ -126,24 +128,38 @@ function PluginCard({
         )}
       </div>
 
-      <div className="flex justify-end">
-        {action.kind === "enabled" ? (
-          <Button variant="outline" size="sm" disabled className="pointer-events-none">
-            <Check size={13} /> Activé
-          </Button>
-        ) : (
-          <Button
-            variant={action.kind === "connect" ? "outline" : "default"}
-            size="sm"
-            disabled={pending}
-            onClick={(e) => { e.stopPropagation(); onAction(plugin); }}
-          >
-            {action.kind === "install" && <Plus size={13} />}
-            {action.kind === "enable" && <Power size={13} />}
-            {action.kind === "connect" && <Link2 size={13} />}
-            {action.label}
-          </Button>
-        )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Mise à jour disponible (arbitrée par le Core : manifest_version != catalogue) */}
+          {plugin.installed && plugin.update_available && onUpdate && (
+            <Button
+              variant="outline" size="sm" disabled={pending}
+              onClick={(e) => { e.stopPropagation(); onUpdate(plugin); }}
+              title={`Mettre à jour (installé : v${plugin.manifest_version ?? "?"} → v${plugin.version})`}
+            >
+              <RefreshCw size={13} /> Mettre à jour
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {action.kind === "enabled" ? (
+            <Button variant="outline" size="sm" disabled className="pointer-events-none">
+              <Check size={13} /> Activé
+            </Button>
+          ) : (
+            <Button
+              variant={action.kind === "connect" ? "outline" : "default"}
+              size="sm"
+              disabled={pending}
+              onClick={(e) => { e.stopPropagation(); onAction(plugin); }}
+            >
+              {action.kind === "install" && <Plus size={13} />}
+              {action.kind === "enable" && <Power size={13} />}
+              {action.kind === "connect" && <Link2 size={13} />}
+              {action.label}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -160,6 +176,7 @@ export default function PluginsPage() {
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [connectTarget, setConnectTarget] = React.useState<PluginInfo | null>(null);
   const [disableTarget, setDisableTarget] = React.useState<PluginInfo | null>(null);
+  const [uninstallTarget, setUninstallTarget] = React.useState<PluginInfo | null>(null);
 
   const { data: plugins = [], isLoading, error } = useQuery({
     queryKey: ["plugins"],
@@ -189,6 +206,7 @@ export default function PluginsPage() {
         case "disable": return disablePlugin(plugin.id);
         case "disconnect": return disconnectPlugin(plugin.id);
         case "connect": return connectPlugin(plugin.id);
+        case "update": return updatePlugin(plugin.id);
         default: throw new Error(`Action inconnue: ${kind}`);
       }
     },
@@ -199,12 +217,49 @@ export default function PluginsPage() {
         disable: "désactivé",
         connect: "connecté",
         disconnect: "déconnecté",
+        update: "mis à jour",
       };
       addToast({ type: "success", message: `${updated.name} ${verb[vars.kind] ?? "mis à jour"}` });
+      // Après installation : orientation automatique vers la configuration
+      // si le plugin déclare des paramètres ou une authentification.
+      if (
+        vars.kind === "install" &&
+        (updated.configuration.length > 0 || updated.authentication.type !== "none")
+      ) {
+        setTab("installed");
+        setDetailId(null);
+        setConnectTarget(updated);
+      }
       invalidate();
     },
     onError: toastErr,
   });
+
+  // Désinstallation — deux niveaux arbitrés par le Core (DELETE /plugins/{id}).
+  const uninstallMutation = useMutation({
+    mutationFn: ({ plugin, removeData }: { plugin: PluginInfo; removeData: boolean }) =>
+      uninstallPlugin(plugin.id, removeData),
+    onSuccess: (result) => {
+      addToast({
+        type: "success",
+        message: `${result.name} désinstallé${result.data_removed ? " — données supprimées" : " — configuration conservée"}`,
+      });
+      if (result.secrets_to_revoke.length > 0) {
+        addToast({
+          type: "info",
+          message: `Secrets à révoquer manuellement (secret manager) : ${result.secrets_to_revoke.join(", ")}`,
+        });
+      }
+      setUninstallTarget(null);
+      setDetailId(null);
+      invalidate();
+    },
+    onError: toastErr,
+  });
+
+  const handleUpdate = (plugin: PluginInfo) => {
+    actionMutation.mutate({ plugin, kind: "update" });
+  };
 
   // Fiche détaillée : permissions + capacités réelles du Core.
   const { data: permissions, error: permError } = useQuery({
@@ -338,7 +393,7 @@ export default function PluginsPage() {
               <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {featured.map((p) => (
                   <PluginCard key={p.id} plugin={p} onOpen={setDetailId}
-                    onAction={handleAction} pending={actionMutation.isPending} />
+                    onAction={handleAction} onUpdate={handleUpdate} pending={actionMutation.isPending} />
                 ))}
               </div>
             </>
@@ -351,7 +406,7 @@ export default function PluginsPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {rest.map((p) => (
                   <PluginCard key={p.id} plugin={p} onOpen={setDetailId}
-                    onAction={handleAction} pending={actionMutation.isPending} />
+                    onAction={handleAction} onUpdate={handleUpdate} pending={actionMutation.isPending} />
                 ))}
               </div>
             </>
@@ -505,6 +560,19 @@ export default function PluginsPage() {
                 )}
               </div>
             )}
+
+            {/* Uninstall — confirmation dédiée (voir dialog en bas de page) */}
+            {detail.installed && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-line-1 px-2.5 py-2">
+                <p className="text-[11px] text-foreground-tertiary">
+                  Retirer ce plugin d&apos;ETHAN — ses capacités ne seront plus disponibles.
+                </p>
+                <Button variant="destructive" size="sm"
+                  onClick={(e) => { e.stopPropagation(); setUninstallTarget(detail); }}>
+                  <Trash2 size={12} /> Uninstall
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex justify-center py-6"><Spinner /></div>
@@ -575,6 +643,47 @@ export default function PluginsPage() {
             }}>
             Désactiver
           </Button>
+        </div>
+      </Dialog>
+
+      {/* Confirmation désinstallation — deux niveaux définis par le Core :
+          Uninstall conserve la configuration ; Uninstall + suppression des
+          données retire aussi le record (configuration, permissions). Les
+          secrets ne sont jamais touchés ici (secret manager). */}
+      <Dialog
+        open={!!uninstallTarget}
+        onClose={() => setUninstallTarget(null)}
+        title="Uninstall Plugin"
+      >
+        <div className="space-y-3 text-sm text-foreground-secondary">
+          <p>
+            Désinstaller <span className="font-semibold">{uninstallTarget?.name}</span> ?
+            Le plugin sera désactivé et retiré de la liste des plugins installés.
+          </p>
+          {uninstallTarget && uninstallTarget.authentication.env_vars.length > 0 && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-500">
+              Les secrets ({uninstallTarget.authentication.env_vars.join(", ")}) vivent dans le
+              secret manager — révoquez-les séparément si nécessaire. Ils ne sont
+              jamais supprimés par cette action.
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setUninstallTarget(null)}>
+              Annuler
+            </Button>
+            <Button variant="outline" size="sm" disabled={uninstallMutation.isPending}
+              onClick={() => {
+                if (uninstallTarget) uninstallMutation.mutate({ plugin: uninstallTarget, removeData: false });
+              }}>
+              <Trash2 size={13} /> Uninstall
+            </Button>
+            <Button variant="destructive" size="sm" disabled={uninstallMutation.isPending}
+              onClick={() => {
+                if (uninstallTarget) uninstallMutation.mutate({ plugin: uninstallTarget, removeData: true });
+              }}>
+              <Trash2 size={13} /> Uninstall and remove plugin data
+            </Button>
+          </div>
         </div>
       </Dialog>
     </div>

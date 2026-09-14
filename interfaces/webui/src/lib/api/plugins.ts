@@ -66,6 +66,10 @@ export interface PluginInfo {
   connected_at?: string | null;
   installed_at?: string | null;
   last_used_at?: string | null;
+  /** Version du manifest au moment de l'installation (sync Core). */
+  manifest_version?: string | null;
+  /** true si le catalogue Core propose une version plus récente. */
+  update_available?: boolean;
 }
 
 export interface PluginCategory {
@@ -149,6 +153,42 @@ export function disablePlugin(pluginId: string): Promise<PluginInfo> {
   return apiFetch<PluginInfo>(`/v1/plugins/${encodeURIComponent(pluginId)}/disable`, {
     method: "POST",
   });
+}
+
+/** Met à jour un plugin installé (synchronisation manifest du catalogue Core). */
+export function updatePlugin(pluginId: string): Promise<PluginInfo> {
+  return apiFetch<PluginInfo>(`/v1/plugins/${encodeURIComponent(pluginId)}/update`, {
+    method: "POST",
+  });
+}
+
+export interface PluginUninstallResult {
+  id: string;
+  name: string;
+  uninstalled: boolean;
+  /** true : la configuration et les permissions accordées ont été supprimées. */
+  data_removed: boolean;
+  status: string;
+  installed: boolean;
+  /** Secrets à révoquer manuellement dans le secret manager (jamais touchés ici). */
+  secrets_to_revoke: string[];
+}
+
+/**
+ * Désinstalle un plugin. `removeData=false` conserve la configuration non
+ * secrète (réinstallation sans re-saisie) ; `removeData=true` supprime aussi
+ * les données du plugin dans le store Core. Les secrets restent dans la
+ * couche secret manager — voir `secrets_to_revoke`.
+ */
+export function uninstallPlugin(
+  pluginId: string,
+  removeData: boolean,
+): Promise<PluginUninstallResult> {
+  const qs = removeData ? "?remove_data=true" : "";
+  return apiFetch<PluginUninstallResult>(
+    `/v1/plugins/${encodeURIComponent(pluginId)}${qs}`,
+    { method: "DELETE" },
+  );
 }
 
 /** Bascule activation/désactivation (arbitrage Core). 404 si inconnu. */

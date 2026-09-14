@@ -106,3 +106,73 @@ def test_install_compat_body_nom(wired):
     gh = asyncio.run(v1.install_plugin({"id": "github"}))
     assert gh["id"] == "github"
     assert gh["installed"] is True
+
+
+# ── Routes update / uninstall ─────────────────────────────────────────────
+
+def test_update_route(wired):
+    asyncio.run(v1.install_plugin_by_id("slack"))
+    updated = asyncio.run(v1.update_plugin("slack"))
+    assert updated["installed"] is True
+    assert updated["manifest_version"] == updated["version"]
+    assert updated["update_available"] is False
+    # jamais installé / id inconnu → 404
+    for ghost in ("projects", "ghost"):
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(v1.update_plugin(ghost))
+        assert exc.value.status_code == 404
+
+
+def test_uninstall_route_deux_niveaux(wired):
+    asyncio.run(v1.install_plugin_by_id("email"))
+    asyncio.run(v1.enable_plugin("email"))
+    asyncio.run(v1.connect_plugin("email", {"config": {"mailbox": "ops@ethan.dev"}}))
+
+    # Niveau 1 : configuration conservée
+    result = asyncio.run(v1.uninstall_plugin("email", remove_data=False))
+    assert result["uninstalled"] is True
+    assert result["data_removed"] is False
+    detail = asyncio.run(v1.get_plugin("email"))
+    assert detail["installed"] is False
+    # Réinstallation : réglages retrouvés
+    asyncio.run(v1.install_plugin_by_id("email"))
+    detail = asyncio.run(v1.get_plugin("email"))
+    assert detail["configuration"].get("mailbox") == "ops@ethan.dev"
+
+    # Niveau 2 : données supprimées
+    result = asyncio.run(v1.uninstall_plugin("email", remove_data=True))
+    assert result["data_removed"] is True
+    detail = asyncio.run(v1.get_plugin("email"))
+    # Les VALEURS sauvegardées sont supprimées (les déclarations du manifest restent).
+    assert not (isinstance(detail.get("configuration"), dict) and detail["configuration"])
+    # id inconnu → 404
+    with pytest.raises(HTTPException):
+        asyncio.run(v1.uninstall_plugin("ghost", remove_data=False))
+
+
+def test_parcours_webui_complet(wired):
+    """Discover → Install → Configure → Enable → Use → Disable → Re-enable
+    → Uninstall — exactement le flux de la page Plugins WebUI."""
+    # Discover : le plugin est visible non installé
+    plugins = asyncio.run(v1.list_plugins())
+    target = {p["id"]: p for p in plugins}["slack"]
+    assert target["installed"] is False and target["status"] == "available"
+    # Install (statut inactif — rien d'actif implicitement)
+    installed = asyncio.run(v1.install_plugin({"id": "slack"}))
+    assert installed["status"] == "inactive"
+    # Configure : connect sans secret (SLACK_BOT_TOKEN vit dans le secret manager)
+    connected = asyncio.run(v1.connect_plugin("slack", {"config": {}}))
+    assert connected["connected"] is True
+    # Enable → Use
+    assert asyncio.run(v1.enable_plugin("slack"))["status"] == "active"
+    # Disable (sans désinstaller) puis re-enable
+    assert asyncio.run(v1.disable_plugin("slack"))["status"] == "inactive"
+    detail = asyncio.run(v1.get_plugin("slack"))
+    assert detail["installed"] is True  # disable ≠ uninstall
+    assert asyncio.run(v1.enable_plugin("slack"))["status"] == "active"
+    # Uninstall (données conservées) → redevient installable
+    result = asyncio.run(v1.uninstall_plugin("slack", remove_data=False))
+    assert result["uninstalled"] is True
+    plugins = asyncio.run(v1.list_plugins())
+    target = {p["id"]: p for p in plugins}["slack"]
+    assert target["installed"] is False

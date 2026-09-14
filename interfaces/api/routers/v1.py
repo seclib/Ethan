@@ -1908,6 +1908,34 @@ async def toggle_plugin(plugin_id: str):
     return plugin
 
 
+@router.post("/plugins/{plugin_id}/update")
+async def update_plugin(plugin_id: str):
+    """Met à jour un plugin installé (synchronisation avec le manifest du catalogue).
+
+    La configuration et les permissions accordées sont conservées.
+    """
+    plugin = await _plugins().update(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found or not installed")
+    return plugin
+
+
+@router.delete("/plugins/{plugin_id}")
+async def uninstall_plugin(plugin_id: str, remove_data: bool = False):
+    """Désinstalle un plugin.
+
+    ``remove_data=false`` (défaut) : conserve la configuration non secrète et
+    les permissions accordées (réinstallation sans re-saisie).
+    ``remove_data=true`` : supprime aussi ces données du store Core.
+    Les secrets (secret manager, env/Vault) ne sont JAMAIS supprimés ici —
+    la réponse liste les variables à révoquer.
+    """
+    result = await _plugins().uninstall(plugin_id, remove_data=remove_data)
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return result
+
+
 @router.post("/plugins/{plugin_id}/connect")
 async def connect_plugin(plugin_id: str, data: dict[str, Any] | None = None):
     """État « connecté » géré par le Core — jamais de secret dans le corps."""

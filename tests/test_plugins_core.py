@@ -209,3 +209,111 @@ def test_conversation_tools_inactive_apres_disable(registry):
     asyncio.run(registry.disable("web-search"))
     accepted2, _ = asyncio.run(resolve_conversation_tools(registry, ["web-search"], []))
     assert accepted2 == []  # désactivé → ignoré (fail-soft)
+
+
+# ── Cycle de vie complet : uninstall / update ─────────────────────────────
+
+def test_uninstall_deux_niveaux(registry):
+    """Uninstall conserve la configuration ; Uninstall+data la supprime.
+
+    Les secrets (secret manager) ne sont JAMAIS supprimés — la réponse
+    liste les variables à révoquer manuellement.
+    """
+    asyncio.run(registry.install("github"))
+    asyncio.run(registry.enable("github"))
+    connected = asyncio.run(registry.connect("github", {"default_repo": "ethan/core"}))
+    assert connected["connected"] is True
+
+    # Niveau 1 : uninstall (configuration conservée dans le record).
+    out = asyncio.run(registry.uninstall("github", remove_data=False))
+    assert out["uninstalled"] is True
+    assert out["data_removed"] is False
+    assert out["configuration_kept"] is True
+    assert out["secrets_to_revoke"] == ["GITHUB_TOKEN"]
+    after = asyncio.run(registry.get("github"))
+    assert after["installed"] is False
+    assert after["status"] != "active"
+
+    # Réinstallation : les réglages sont retrouvés (pas de re-saisie).
+    asyncio.run(registry.install("github"))
+    again = asyncio.run(registry.get("github"))
+    assert again["installed"] is True
+    assert again["configuration"].get("default_repo") == "ethan/core"
+
+    # Niveau 2 : uninstall + suppression des données du plugin.
+    out2 = asyncio.run(registry.uninstall("github", remove_data=True))
+    assert out2["uninstalled"] is True
+    assert out2["data_removed"] is True
+    pristine = asyncio.run(registry.get("github"))
+    assert pristine["installed"] is False
+    # Les VALEURS sauvegardées sont supprimées (les déclarations du manifest,
+    # elles, restent — elles décrivent le plugin, ce n'est pas de la donnée).
+    assert not (isinstance(pristine.get("configuration"), dict) and pristine["configuration"])
+    assert not pristine.get("connected")
+
+
+def test_uninstall_plugin_inconnu(registry):
+    assert asyncio.run(registry.uninstall("ghost")) is None
+
+
+def test_plugin_invalide(registry):
+    """Installation/update d'un id absent du catalogue → None (jamais d'erreur)."""
+    assert asyncio.run(registry.install("ghost")) is None
+    assert asyncio.run(registry.update("ghost")) is None
+    assert asyncio.run(registry.update("github")) is None  # jamais installé
+
+
+def test_update_available_et_update(registry):
+    """Détection de mise à jour : manifest_version installée != catalogue."""
+    asyncio.run(registry.install("github"))
+    # Aucun écart au départ
+    plugins = asyncio.run(registry.list_plugins())
+    gh = {p["id"]: p for p in plugins}["github"]
+    assert gh["update_available"] is False
+
+    # Simuler une version installée antérieure
+    record = asyncio.run(registry._store.get("webui_plugins", "github"))
+    record["manifest_version"] = "0.9.0"
+    asyncio.run(registry._store.save("webui_plugins", "github", record))
+
+    plugins = asyncio.run(registry.list_plugins())
+    gh = {p["id"]: p for p in plugins}["github"]
+    assert gh["update_available"] is True
+    assert gh["manifest_version"] == "0.9.0"
+
+    # update() synchronise et conserve l'état
+    updated = asyncio.run(registry.update("github"))
+    assert updated["manifest_version"] == find_manifest("github").version
+    assert updated["update_available"] is False
+    assert updated["installed"] is True
+
+
+def test_cycle_vie_complet_discover_a_uninstall(registry):
+    """Discover → Install → Configure → Enable → Use → Disable → Re-enable
+    → Update → Uninstall.  Le plugin désactivé n'expose plus ses tools
+    (resolve_conversation_tools) ; uninstall ne casse pas le système."""
+    # Discover : disponible au catalogue
+    before = asyncio.run(registry.get("slack"))
+    assert before["installed"] is False
+    # Install → inactive
+    assert asyncio.run(registry.install("slack"))["status"] == "inactive"
+    # Configure (connect) — plugin avec secret (SLACK_BOT_TOKEN via env)
+    # Slack n'exige aucune config non-secret (SLACK_BOT_TOKEN vit dans le
+    # secret manager) — la connexion est donc directe, sans secret ici.
+    assert asyncio.run(registry.connect("slack", {}))["connected"] is True
+    # Enable → Use : les tools/mcp déclarés sont acceptés dans la conversation
+    asyncio.run(registry.enable("slack"))
+    accepted, merged = asyncio.run(resolve_conversation_tools(registry, ["slack"], []))
+    assert "slack" in accepted
+    # Disable → plus exécuté
+    asyncio.run(registry.disable("slack"))
+    accepted, _ = asyncio.run(resolve_conversation_tools(registry, ["slack"], []))
+    assert "slack" not in accepted
+    # Re-enable
+    assert asyncio.run(registry.enable("slack"))["status"] == "active"
+    # Update (idempotent : même version)
+    assert asyncio.run(registry.update("slack"))["installed"] is True
+    # Uninstall → retiré des conversations
+    asyncio.run(registry.uninstall("slack", remove_data=True))
+    accepted, _ = asyncio.run(resolve_conversation_tools(registry, ["slack"], []))
+    assert "slack" not in accepted
