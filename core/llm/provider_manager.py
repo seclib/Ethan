@@ -65,6 +65,34 @@ def _caps_for_type(provider_type: str) -> list[str]:
     return list(_CAPABILITY_BY_TYPE.get(provider_type, ["llm"]))
 
 
+# Méthodes d'authentification supportées par type de provider LLM.
+# Valeurs : "api_key" (clé/secret) et "user_account" (OAuth compte utilisateur).
+# Aucun provider LLM n'implémente encore le flux OAuth-compte dans ETHAN Core :
+# le WebUI rend l'option en fonction de cette capacité (source de vérité Core),
+# et n'affiche un flux « Connect with account » que si elle est déclarée ici.
+_AUTH_METHODS_BY_TYPE: dict[str, list[str]] = {
+    "ollama": ["api_key"],
+    "vllm": ["api_key"],
+    "llamacpp": ["api_key"],
+    "lmstudio": ["api_key"],
+    "openai": ["api_key"],
+    "azure": ["api_key"],
+    "anthropic": ["api_key"],
+    "gemini": ["api_key"],
+    "openrouter": ["api_key"],
+    "openai-compatible": ["api_key"],
+    "custom": ["api_key"],
+}
+
+
+def _auth_methods_for_type(provider_type: str) -> list[str]:
+    """Méthodes d'authentification déclarées pour un type de provider.
+
+    Type inconnu → ``["api_key"]`` (méthode universelle). Ne lève jamais.
+    """
+    return list(_AUTH_METHODS_BY_TYPE.get(provider_type, ["api_key"]))
+
+
 class ProviderManager:
     """Manager central des providers LLM.
 
@@ -586,6 +614,9 @@ class ProviderManager:
             # Capacités normalisées (llm, vision, embedding, speech_to_text,
             # transcription) — interface WebUI.
             "capabilities": capabilities,
+            # Méthodes d'authentification supportées (api_key, user_account) —
+            # le WebUI conditionne son formulaire « Connection method » dessus.
+            "auth_methods": _auth_methods_for_type(config.get("type", provider_id)),
             # Booléen uniquement — la clé API n'est JAMAIS sérialisée.
             "has_api_key": bool(config.get("api_key")),
         }

@@ -13,27 +13,11 @@
 
 import * as React from 'react';
 import { useProjectsStore } from '@/lib/store/projects';
-import { Project } from '@/lib/api/projects';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { useUIStore } from '@/store/ui.store';
 import { Plus, CheckSquare, Square, ChevronDown } from 'lucide-react';
-
-const GENERAL_PROJECT: Project = {
-	id: 'general',
-	name: 'General (Default)',
-	description: 'Conversation scope without Knowledge or specific context.',
-	user_id: 'current',
-	folder_ids: [],
-	knowledge_ids: [],
-	collection_ids: [],
-	skill_ids: [],
-	tool_ids: [],
-	created_at: '',
-	updated_at: '',
-	metadata: {},
-};
 
 export function ProjectSelector() {
 	const {
@@ -48,9 +32,11 @@ export function ProjectSelector() {
 	const [newProjectName, setNewProjectName] = React.useState('');
 	const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-	const allProjects = React.useMemo(() => [GENERAL_PROJECT, ...projects], [projects]);
-	const currentId = activeProject?.id ?? 'general';
-	const currentName = allProjects.find((p) => p.id === currentId)?.name ?? 'Select project';
+	// Aucun pseudo-projet « General (default) » : sans projet actif, le chat
+	// s'exécute hors scope projet (comportement Core natif, setActiveProject(null)).
+	const allProjects = React.useMemo(() => projects, [projects]);
+	const currentId = activeProject?.id ?? '';
+	const currentName = allProjects.find((p) => p.id === currentId)?.name ?? 'Aucun projet';
 
 	const handleCreate = async () => {
 		if (!newProjectName.trim() || isSubmitting) return;
@@ -70,14 +56,9 @@ export function ProjectSelector() {
 
 	const handleSwitch = async (val: string) => {
 		try {
-			if (val === 'general') {
-				await setActiveProject(null);
-				addToast({ type: 'success', message: 'Switched to General' });
-			} else {
-				await setActiveProject(val);
-				const found = allProjects.find((p) => p.id === val);
-				addToast({ type: 'success', message: `Switched to "${found?.name ?? 'project'}"` });
-			}
+			await setActiveProject(val);
+			const found = allProjects.find((p) => p.id === val);
+			addToast({ type: 'success', message: `Switched to "${found?.name ?? 'project'}"` });
 		} catch (err: any) {
 			addToast({ type: 'error', message: err.message || 'Failed to switch project' });
 		}

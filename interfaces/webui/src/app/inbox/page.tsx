@@ -34,9 +34,15 @@ export default function InboxPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, color: "var(--fg)" }}>
-          <Inbox size={18} /> Boîte de réception
-        </h1>
+        <div>
+          <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 18, color: "var(--fg)" }}>
+            <Inbox size={18} /> Inbox — E-mails
+          </h1>
+          <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+            Lecture seule · connecté au compte IMAP configuré dans ETHAN Core
+            (aucun envoi, marquage lu ou archivage côté WebUI)
+          </p>
+        </div>
         <Button
           variant="ghost"
           size="icon"

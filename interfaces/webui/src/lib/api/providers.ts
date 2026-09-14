@@ -27,6 +27,8 @@ export interface Provider {
 	key_exists?: boolean;
 	/** Capacités normalisées du modèle unifié (llm, vision, embedding, speech_to_text, transcription). */
 	capabilities?: string[];
+	/** Méthodes d'authentification supportées ("api_key", "user_account") — source de vérité : Core. */
+	auth_methods?: string[];
 	/** true si une clé API est configurée (la clé elle-même n'est jamais renvoyée). */
 	has_api_key?: boolean;
 }

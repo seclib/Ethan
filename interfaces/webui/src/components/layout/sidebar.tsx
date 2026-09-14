@@ -21,7 +21,7 @@ import { useExternalServiceHealth } from "./use-external-service";
 import { useAuth } from "@/providers/auth-provider";
 import {
   Pin, Trash2, MessageSquare, Search, Settings, ExternalLink,
-  ChevronDown, LogOut, SquarePen, PanelLeftClose, FolderKanban, Target,
+  ChevronDown, LogOut, SquarePen, PanelLeftClose, FolderKanban,
 } from "lucide-react";
 import { LogoSquare } from "@/components/shared/logo";
 import type { EthChat } from "@/components/features/assistant/hooks/use-chats";
@@ -500,9 +500,7 @@ function ExternalNavItem({ item }: { item: NavItem }) {
 /* ── User bar ── */
 
 export function UserBar({ expanded = true }: { expanded?: boolean }) {
-  const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { toggleMissionControl } = useUIStore();
   const displayName = user?.name || user?.email || "Utilisateur";
   const initial = (displayName[0] || "E").toUpperCase();
   return (
@@ -513,22 +511,10 @@ export function UserBar({ expanded = true }: { expanded?: boolean }) {
           <span className="user-bar-name truncate">{displayName}</span>
         </div>
       )}
+      {/* Barre épurée : uniquement la déconnexion. Settings reste accessible
+          via la navigation secondaire (page /settings + palette Ctrl+K) et
+          Mission Control via ⌘M / palette de commandes — aucun doublon ici. */}
       <div className="user-bar-actions">
-        <button
-          onClick={toggleMissionControl}
-          className="user-bar-btn"
-          title="Mission Control (⌘M)"
-          aria-label="Mission Control"
-        >
-          <Target size={15} />
-        </button>
-        <Link
-          href="/settings"
-          className={cn("user-bar-btn", pathname === "/settings" && "active")}
-          title="Paramètres" aria-label="Paramètres"
-        >
-          <Settings size={15} />
-        </Link>
         <button onClick={() => logout?.()} className="user-bar-btn" title="Déconnexion" aria-label="Déconnexion">
           <LogOut size={15} />
         </button>

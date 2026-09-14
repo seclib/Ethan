@@ -43,6 +43,12 @@ export function ProviderFormDialog({ open, mode, provider, onClose, onSubmit }: 
 	const [api_key, setApiKey] = React.useState("");
 	const [display_name, setDisplayName] = React.useState(provider?.name ?? "");
 	const [default_model, setDefaultModel] = React.useState(provider?.default_model ?? "");
+	// Méthode de connexion — source de vérité : Core (provider.auth_methods).
+	// Aucun provider LLM ne déclare encore "user_account" : l'option reste
+	// désactivée avec une explication plutôt qu'un faux flux côté WebUI.
+	const authMethods = provider?.auth_methods ?? [];
+	const supportsAccount = authMethods.includes("user_account");
+	const [authMethod, setAuthMethod] = React.useState<"api_key" | "user_account">("api_key");
 
 	React.useEffect(() => {
 		if (provider) {
@@ -126,6 +132,43 @@ export function ProviderFormDialog({ open, mode, provider, onClose, onSubmit }: 
 				</div>
 
 				<div>
+					<label className="block text-sm font-medium mb-1">Connection method</label>
+					<div className="flex flex-col gap-1.5">
+						<label className="flex items-center gap-2 text-sm cursor-pointer">
+							<input
+								type="radio"
+								name="auth_method"
+								checked={authMethod === "api_key"}
+								onChange={() => setAuthMethod("api_key")}
+							/>
+							API Key
+						</label>
+						<label
+							className="flex items-center gap-2 text-sm cursor-pointer"
+							title={supportsAccount
+								? "Connexion via votre compte provider (OAuth, géré par ETHAN Core)"
+								: "Non supporté : ETHAN Core n'implémente pas encore de connexion par compte pour ce provider"}
+						>
+							<input
+								type="radio"
+								name="auth_method"
+								checked={authMethod === "user_account"}
+								disabled={!supportsAccount}
+								onChange={() => setAuthMethod("user_account")}
+							/>
+							<span className={!supportsAccount ? "opacity-50" : ""}>User Account / OAuth</span>
+						</label>
+					</div>
+					{!supportsAccount && (
+						<p className="mt-1 text-xs text-foreground-tertiary">
+							La connexion par compte utilisateur (OAuth) n&apos;est pas encore supportée
+							par ETHAN Core pour ce provider — la clé API reste la méthode de référence.
+						</p>
+					)}
+				</div>
+
+				{authMethod === "api_key" && (
+				<div>
 					<label className="block text-sm font-medium mb-1">Clé API</label>
 					<Input
 						type="password"
@@ -140,6 +183,7 @@ export function ProviderFormDialog({ open, mode, provider, onClose, onSubmit }: 
 						</p>
 					)}
 				</div>
+				)}
 
 				<div>
 					<label className="block text-sm font-medium mb-1">Modèle par défaut</label>

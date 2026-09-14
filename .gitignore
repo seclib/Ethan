@@ -161,6 +161,10 @@ models/
 embeddings/
 cache/
 uploads/
+# Exception : interfaces/api/models/ contient du code source Python
+# (schémas Pydantic requis par les routeurs API) — ne pas ignorer.
+!interfaces/api/models/
+!interfaces/api/models/**
 
 # Jarvis OS specific
 *.jarvis-env
