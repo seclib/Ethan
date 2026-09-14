@@ -41,9 +41,9 @@ interface AssistantChatProps {
    */
   pluginsSlot?: ReactNode;
   /**
-   * Slot Mode (ChatModeToggle) — rendu au-dessus de la zone de saisie du
-   * composer. Possédé par la page via le store chat-mode ; le Core, seul,
-   * arbitre la capacité (modes.py).
+   * Slot Mode (ChatModeToggle) — rendu dans la rangée de contrôles du bas du
+   * composer, à côté de l'import de fichiers. Possédé par la page via le
+   * store chat-mode ; le Core, seul, arbitre la capacité (modes.py).
    */
   modeSlot?: ReactNode;
   /**

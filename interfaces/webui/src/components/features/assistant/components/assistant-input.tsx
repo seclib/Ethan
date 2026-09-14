@@ -31,9 +31,10 @@ interface AssistantInputProps {
    */
   pluginsSlot?: ReactNode;
   /**
-   * Slot Mode (ChatModeToggle) — rendu au-dessus de la zone de saisie.
-   * Réglage de conversation (Plan/Act/Debug + reasoning) possédé par la page
-   * via le store chat-mode ; l'input ne fait que l'exposer à sa place.
+   * Slot Mode (ChatModeToggle) — rendu dans la rangée de contrôles du bas du
+   * composer, à côté de l'import de fichiers. Réglage de conversation
+   * (Plan/Act/Debug + reasoning) possédé par la page via le store chat-mode ;
+   * l'input ne fait que l'exposer à sa place.
    */
   modeSlot?: ReactNode;
 }
@@ -95,8 +96,6 @@ export function AssistantInput({
             "focus-within:border-accent/60",
           )}
         >
-          {modeSlot}
-
           <textarea
             ref={textareaRef}
             value={message}
@@ -111,9 +110,11 @@ export function AssistantInput({
           />
 
           <div className="flex items-center justify-between gap-2">
-            {/* Left: contextual capabilities (modes Act|Plan|Agent retirés —
-                ils dupliquaient le header sans valeur : voir audit interaction) */}
+            {/* Left: mode conversationnel (Plan/Act/Debug, couleurs Cline
+                conservées) à côté de l'import de fichiers, puis capacités
+                contextuelles (plugins, recherche, outils, voix) */}
             <div className="flex items-center gap-1">
+              {modeSlot}
               {pluginsSlot}
               {onAttach && (
                 <button
