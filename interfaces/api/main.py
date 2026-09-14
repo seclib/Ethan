@@ -42,6 +42,11 @@ from interfaces.api.routers.search import router as search_router
 from interfaces.api.routers.reminders import router as reminders_router
 from interfaces.api.routers.models import router as models_router, set_provider_manager as set_models_provider_manager, set_model_store
 from interfaces.api.routers.config import router as config_router, set_configuration_service
+from interfaces.api.routers.diagnostics import (
+    router as diagnostics_router,
+    set_diagnostics_service,
+    set_metrics_service,
+)
 from interfaces.api.routers.dedup import router as dedup_router, set_dedup_managers
 from interfaces.api.routers.domains import router as domains_router, set_domain_managers
 from interfaces.api.routers.capabilities import (
@@ -649,6 +654,43 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Failed to initialize OpenTelemetry: {e}")
 
+    # --- Diagnostics & Metrics (capacité Core-owned, servie au CLI + WebUI) ---
+    # SystemDiagnostics interroge les VRAIS composants (PG, Redis, NATS, kernel,
+    # providers, RAG, tools, MCP, plugins, filesystem) ; SystemMetrics collecte
+    # CPU/RAM/disque/GPU/Docker réels. Une dépendance absente → statut
+    # UNAVAILABLE explicite, jamais de valeur inventée.
+    try:
+        from core.diagnostics import SystemDiagnostics, SystemMetrics
+
+        try:
+            from core.plugins import get_plugin_registry as _get_plugin_registry
+
+            plugin_registry = _get_plugin_registry()
+        except Exception:  # noqa: BLE001 — registre pas encore prêt
+            plugin_registry = None
+
+        diagnostics_service = SystemDiagnostics(
+            pg_pool=pg_pool,
+            redis_client=redis_client,
+            nats_url=nats_url,
+            database_url=db_url,
+            kernel_url=os.getenv("ETHAN_KERNEL_URL", "http://localhost:8080"),
+            provider_manager=provider_manager,
+            rag_pipeline=core_domains.rag,
+            tool_manager=tool_manager,
+            tool_servers_manager=tool_servers_manager,
+            plugin_registry=plugin_registry,
+            workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
+        )
+        set_diagnostics_service(diagnostics_service)
+        set_metrics_service(SystemMetrics(
+            workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
+        ))
+        app.state.diagnostics = diagnostics_service
+        logger.info("Diagnostics service ready (12 composants réels)")
+    except Exception as exc:
+        logger.exception("Failed to initialize diagnostics service: %s", exc)
+
     yield
 
     # --- Shutdown ---
@@ -722,6 +764,7 @@ app.include_router(models_router)
 app.include_router(integrations_router)
 app.include_router(search_router)
 app.include_router(reminders_router)
+app.include_router(diagnostics_router)
 app.include_router(config_router)
 app.include_router(domains_router)
 app.include_router(capabilities_router)
@@ -733,6 +776,7 @@ app.include_router(realtime_router)
 # /openai/config and /api/chat/completions so the Open WebUI frontend fork
 # (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.
 app.include_router(openwebui_router)
+app.include_router(diagnostics_router)
 
 
 # Old startup code removed as it's now in the lifespan context manager.

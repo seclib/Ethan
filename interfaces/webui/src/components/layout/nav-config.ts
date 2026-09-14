@@ -93,11 +93,11 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/diagnostics", label: "Diagnostics", icon: Activity },
-      { href: "/logs", label: "Logs", icon: ScrollText },
+            { href: "/logs", label: "Logs", icon: ScrollText },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/groups", label: "Groups", icon: UsersRound },
       { href: "/plugins", label: "Plugins", icon: Puzzle },
-      { href: GRAFANA_URL, label: "Monitoring", icon: Gauge, external: true },
+      { href: "/monitoring", label: "Monitoring", icon: Gauge },
       { href: "/security", label: "Security", icon: ShieldCheck },
     ],
   },

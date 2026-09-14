@@ -38,6 +38,10 @@ PUBLIC_PATHS = {
     "/auth/register",
     "/v1/health",
     "/v1/version",
+    # Diagnostics système (lecture seule) — même politique que /health/detailed :
+    # consommé par le CLI (ethan doctor) et la WebUI, sans secret dans la réponse.
+    "/diagnostics",
+    "/diagnostics/metrics",
     # Open WebUI-compatible adapter endpoints (Phase 1 — auth is public).
     "/api/v1/auths/signin",
     "/api/v1/auths/signup",
