@@ -379,3 +379,80 @@ def test_execute_tool_call_runs_via_core_executor():
         assert "Unknown tool" in missing["error"]
 
     asyncio.run(scenario())
+
+def test_pipeline_run_persists_mode_metadata():
+    """Le mode et l'effort de raisonnement sont persistés avec les messages.
+
+    Le mode fait partie de l'état de la conversation (metadata Core) : il doit
+    être retrouvable après refresh et exploitable par la session suivante.
+    """
+
+    async def scenario():
+        chat_store = ChatStore(store=CoreRecordStore())
+        pipeline = ChatPipeline(chat_store=chat_store)  # fallback écho
+
+        result = await pipeline.run(
+            message="Analyse ce problème",
+            user_id="alice",
+            mode="plan",
+            reasoning_effort="high",
+        )
+        user_meta = result["user_message"]["metadata"]
+        assert user_meta["mode"] == "plan"
+        assert user_meta["reasoning_effort"] == "high"
+
+        # Le mode est aussi porté par le message assistant (restoration session).
+        assistant_meta = result["assistant_message"]["metadata"]
+        assert assistant_meta.get("mode") == "plan"
+        assert assistant_meta.get("reasoning_effort") == "high"
+
+    asyncio.run(scenario())
+
+
+def test_resolve_session_settings_applies_mode_profile_without_ghost_values():
+    """_resolve_session_settings : priorité requête > profil, jamais de valeur fantôme.
+
+    Sans capacité ``reasoning`` déclarée pour le modèle cible, l'effort du
+    profil (ex. PLAN → high) n'est PAS transmis (supported=False) — règle
+    core/chat/modes.resolve_reasoning. La requête explicite, elle, est portée
+    par l'intent et reste prioritaire.
+    """
+
+    async def scenario():
+        chat_store = ChatStore(store=CoreRecordStore())
+        from core.chat.session import SessionSettingsManager
+
+        manager = SessionSettingsManager(store=CoreRecordStore(), chats=None)
+        pipeline = ChatPipeline(chat_store=chat_store, session_settings=manager)
+
+        # Mode explicite, sans reasoning : le profil PLAN (high) est résolu mais
+        # non supporté (aucune capacité de modèle déclarée) → pas de valeur.
+        resolved, _provider, _model, re_effort, mode_meta = (
+            await pipeline._resolve_session_settings(
+                chat_id=None,
+                provider_id=None,
+                model=None,
+                mode="plan",
+                reasoning_effort=None,
+            )
+        )
+        assert resolved is not None
+        assert resolved.mode.value == "plan"
+        assert mode_meta["mode"] == "plan"
+        assert re_effort is None
+        assert "reasoning_effort" not in mode_meta
+
+        # Priorité requête : l'effort explicite est porté par l'intent.
+        _, _, _, re_explicit, meta_explicit = (
+            await pipeline._resolve_session_settings(
+                chat_id=None,
+                provider_id=None,
+                model=None,
+                mode="debug",
+                reasoning_effort="low",
+            )
+        )
+        assert re_explicit == "low"
+        assert meta_explicit["reasoning_effort"] == "low"
+
+    asyncio.run(scenario())

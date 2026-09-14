@@ -62,10 +62,17 @@ class OpenAICompatibleProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
+        reasoning_effort: str | None = None,
     ) -> ChatResponse:
         """Chat completion."""
         if not self._client:
             raise RuntimeError("OpenAI-compatible provider not initialized")
+
+        # Effort de raisonnement : porté via ``extra_body`` (convention des
+        # API OpenAI-compatibles type OpenRouter).  ``none``/``None`` → rien.
+        extra_body: dict[str, Any] = {}
+        if reasoning_effort and reasoning_effort.lower() != "none":
+            extra_body["reasoning_effort"] = reasoning_effort
 
         response = await self._client.chat.completions.create(
             model=model or self._default_model,
@@ -73,6 +80,7 @@ class OpenAICompatibleProvider(LLMProvider):
             temperature=temperature,
             max_tokens=max_tokens,
             stream=stream,
+            extra_body=extra_body or None,
         )
 
         return ChatResponse(
@@ -93,18 +101,27 @@ class OpenAICompatibleProvider(LLMProvider):
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> AsyncIterator[str]:
-        """Streaming chat."""
+        """Streaming chat.
+
+        ``reasoning_effort`` est porté via ``extra_body`` (convention des API
+        OpenAI-compatibles type OpenRouter) — mêmes règles que :meth:`chat`.
+        """
         if not self._client:
             raise RuntimeError("OpenAI-compatible provider not initialized")
 
-        stream_resp = await self._client.chat.completions.create(
-            model=model or self._default_model,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True,
-        )
+        create_kwargs: dict[str, Any] = {
+            "model": model or self._default_model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        if reasoning_effort and reasoning_effort.lower() != "none":
+            create_kwargs["extra_body"] = {"reasoning_effort": reasoning_effort}
+
+        stream_resp = await self._client.chat.completions.create(**create_kwargs)
 
         async for chunk in stream_resp:
             if chunk.choices and chunk.choices[0].delta.content:

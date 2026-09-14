@@ -19,7 +19,7 @@
  */
 
 import * as React from "react";
-import { Brain, ChevronDown, Database, ExternalLink, Sparkles, Wrench } from "lucide-react";
+import { Brain, ChevronDown, Database, ExternalLink, Puzzle, Sparkles, Wrench } from "lucide-react";
 
 export type ContextKind = "tool" | "skill" | "knowledge";
 
@@ -43,6 +43,10 @@ export interface ChatContextBarProps {
   tools?: ChatContextItem[];
   skills?: ChatContextItem[];
   knowledge?: ChatContextItem[];
+  /** Plugins actifs pour la conversation (pré-résolus depuis /v1/plugins). */
+  plugins?: ChatContextItem[];
+  /** Navigation vers la page Plugins (gestion). */
+  onPluginsPageClick?: () => void;
   /** Clic sur un lien de page dédiée depuis un panneau de détail. */
   onCapabilityPageClick?: (kind: ContextKind) => void;
 
@@ -199,6 +203,8 @@ export function ChatContextBar({
   tools = [],
   skills = [],
   knowledge = [],
+  plugins = [],
+  onPluginsPageClick,
   onCapabilityPageClick,
   memoryFactCount,
   onMemoryClick,
@@ -247,6 +253,15 @@ export function ChatContextBar({
       )}
       {knowledge.length > 0 && (
         <PanelChip kind="knowledge" items={knowledge} panel={panel} setPanel={setPanel} onPageClick={onCapabilityPageClick} />
+      )}
+
+      {(plugins?.length ?? 0) > 0 && (
+        <ContextChip
+          icon={<Puzzle className="h-3.5 w-3.5 text-accent" />}
+          label={`Plugins · ${plugins!.length}`}
+          title={`Plugins actifs pour cette conversation : ${plugins!.map((p) => p.name).join(", ")}`}
+          onClick={onPluginsPageClick}
+        />
       )}
 
       {!!memoryFactCount && memoryFactCount > 0 && (

@@ -58,6 +58,9 @@ BUILTIN_PLUGINS: list[PluginManifest] = [
         capabilities=["search", "read"],
         tools=["builtin_web_search"],
         skills=["web_search"],
+        permissions=["external_network", "read_data"],
+        featured=True,
+    ),
     PluginManifest(
         id="knowledge",
         name="Knowledge",
@@ -112,6 +115,7 @@ BUILTIN_PLUGINS: list[PluginManifest] = [
         capabilities=["read", "search"],
         skills=["pdf_analysis"],
         permissions=["local_files", "read_data"],
+    ),
     PluginManifest(
         id="email",
         name="Email Reader",
@@ -221,9 +225,3 @@ def catalogue_categories() -> list[dict[str, str]]:
 
 
 __all__ = ["BUILTIN_PLUGINS", "find_manifest", "catalogue_categories"]
-
-    ),
-
-        permissions=["external_network", "read_data"],
-        featured=True,
-    ),

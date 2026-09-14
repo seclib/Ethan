@@ -33,9 +33,21 @@ export interface ChatCompletionRequest {
 	skill_ids?: string[];
 	collection_ids?: string[];
 	tool_ids?: string[];
+	/** Plugins activés pour la conversation (arbitrés par le PluginRegistry Core). */
+	plugin_ids?: string[];
 	file_ids?: string[];
 	/** Routage Chat → Agent (résolu par le Core). */
 	agent_id?: string;
+	/**
+	 * Mode conversationnel (plan | act | debug) — arbitré par le
+	 * SessionSettingsManager Core (core/chat/modes.py), jamais par l'interface.
+	 */
+	mode?: 'plan' | 'act' | 'debug';
+	/**
+	 * Effort de raisonnement (none | low | medium | high | xhigh) — appliqué
+	 * par le Core selon les capacités du modèle cible (resolve_reasoning).
+	 */
+	reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 	metadata?: Record<string, unknown>;
 	knowledge_ids?: string[];
 }

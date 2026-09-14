@@ -32,6 +32,7 @@ from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage as LLMChatMessage
 from core.llm.types import LLMRequirements
 from core.missions import MissionManager
+from core.plugins import PluginRegistry
 from core.rag import RAGPipeline
 from core.rag.strategies import DEFAULT_STRATEGY, available_strategies, validate_strategy
 from core.skills.store import SkillStore
@@ -1420,14 +1421,22 @@ async def chat_completions_stream(data: dict[str, Any]):
     user_id = data.get("user_id", "anonymous")
     skill_ids = data.get("skill_ids") or None
     tool_ids = data.get("tool_ids") or None
+    plugin_ids = data.get("plugin_ids") or None
     knowledge_ids = data.get("knowledge_ids") or data.get("collection_ids") or None
     file_ids = data.get("file_ids") or None
     request_metadata = data.get("metadata") or {}
     agent_id = data.get("agent_id") or request_metadata.get("agent_id")
     project_id = data.get("project_id") or request_metadata.get("project_id")
+    # Mode conversationnel (plan/act/debug) + effort de raisonnement — résolus
+    # par le SessionSettingsManager Core (priorité requête > session > profil
+    # de mode > global). Le WebUI envoie l'intent ; le Core, seul, arbitre.
+    mode = data.get("mode") or request_metadata.get("mode")
+    reasoning_effort = data.get("reasoning_effort") or request_metadata.get(
+        "reasoning_effort"
+    )
 
     async def event_stream():
-        nonlocal provider_id, model, skill_ids, knowledge_ids, tool_ids
+        nonlocal provider_id, model, skill_ids, knowledge_ids, tool_ids, reasoning_effort, request_metadata, agent_id
         try:
             # 1. Créer ou réutiliser la conversation.
             cid = chat_id
@@ -1487,6 +1496,49 @@ async def chat_completions_stream(data: dict[str, Any]):
                         merged_tools.append(tid)
                 tool_ids = merged_tools
 
+            # 1quater. Routage Chat → Plugins : les plugins sélectionnés pour
+            # la conversation apportent leurs tools référencés au mécanisme
+            # EXISTANT (tool_ids → ToolRegistry) — pas de seconde pipeline.
+            # Arbitrage PluginRegistry Core : seuls les plugins installés ET
+            # actifs sont acceptés ; les autres ids sont ignorés (fail-soft).
+            if plugin_ids:
+                try:
+                    from core.plugins.registry import get_plugin_registry
+
+                    plugin_registry = get_plugin_registry()
+                except RuntimeError:
+                    plugin_registry = None
+                if plugin_registry is not None:
+                    from core.plugins.registry import resolve_conversation_tools
+
+                    (
+                        accepted_plugins,
+                        merged_plugin_tools,
+                    ) = await resolve_conversation_tools(
+                        plugin_registry, plugin_ids, tool_ids
+                    )
+                    if accepted_plugins:
+                        tool_ids = merged_plugin_tools
+                        request_metadata = {
+                            **request_metadata,
+                            "plugins": accepted_plugins,
+                        }
+
+            # 1quinquies. Résoudre les réglages de session (mode, reasoning,
+            # langue) : le SessionSettingsManager Core arbitre la priorité
+            # requête > session > profil de mode > global. Le mode injecte ses
+            # instructions comportementales dans le prompt (plan/act/debug) et
+            # la matrice de permissions filtre les outils proposés.
+            resolved, provider_id, model, reasoning_effort, mode_meta = (
+                await pipeline._resolve_session_settings(
+                    chat_id=cid,
+                    provider_id=provider_id,
+                    model=model,
+                    mode=mode,
+                    reasoning_effort=reasoning_effort,
+                )
+            )
+
             # 2. Persister le message utilisateur.
             user_msg = await pipeline._chats.add_message(
                 cid,
@@ -1502,11 +1554,12 @@ async def chat_completions_stream(data: dict[str, Any]):
                     "file_ids": file_ids or [],
                     "agent_id": agent_id,
                     "project_id": project_id,
+                    **mode_meta,
                 },
             )
 
             # 3. Construire le contexte LLM (skills, RAG scoping, fichiers,
-            # mémoire, catalogue d'outils, persona agent).
+            # mémoire, catalogue d'outils, persona agent, mode actif).
             llm_messages = await pipeline._build_llm_messages(
                 chat_id=cid,
                 user_message=user_message,
@@ -1517,6 +1570,18 @@ async def chat_completions_stream(data: dict[str, Any]):
                 tool_ids=tool_ids,
                 agent_info=agent_info,
                 project_info=project_info,
+                resolved=resolved,
+            )
+
+            # 3bis. Auto Compact (§14) : même arithmétique que ChatPipeline.run()
+            # — résumé préservant si la fenêtre du modèle approche, jamais
+            # bloquant.  Les récents + prioritaires restent en clair.
+            llm_messages, compaction_meta = await pipeline._maybe_auto_compact(
+                chat_id=cid,
+                provider_id=provider_id,
+                model=model,
+                resolved=resolved,
+                llm_messages=llm_messages,
             )
 
             # 4. Générer en streaming.
@@ -1526,7 +1591,8 @@ async def chat_completions_stream(data: dict[str, Any]):
                 yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': content})}\n\n"
                 await pipeline._chats.add_message(
                     cid, role="assistant", content=content, user_id=user_id,
-                    parent_id=user_msg["id"], metadata={"provider": "mock", "model": "echo"},
+                    parent_id=user_msg["id"],
+                    metadata={"provider": "mock", "model": "echo", **mode_meta},
                 )
                 yield f"data: {json.dumps({'type': 'done', 'chat_id': cid})}\n\n"
                 return
@@ -1549,7 +1615,16 @@ async def chat_completions_stream(data: dict[str, Any]):
                             await provider.initialize()
                     if provider is not None:
                         # chat_stream est un async generator : pas d'await.
-                        return provider.chat_stream(llm_messages, model=model or None)
+                        # L'effort de raisonnement n'est transmis qu'aux
+                        # providers qui déclarent le paramètre (même arbitrage
+                        # que ChatPipeline._generate) — aucune valeur fantôme.
+                        import inspect
+
+                        sig = inspect.signature(provider.chat_stream)
+                        kwargs: dict[str, Any] = {"model": model or None}
+                        if "reasoning_effort" in sig.parameters and reasoning_effort:
+                            kwargs["reasoning_effort"] = reasoning_effort
+                        return provider.chat_stream(llm_messages, **kwargs)
                     raise HTTPException(502, f"Provider {provider_id} unavailable")
                 requirements = LLMRequirements(task_type="chat")
                 return pipeline._manager.chat_stream(llm_messages, requirements)
@@ -1564,6 +1639,10 @@ async def chat_completions_stream(data: dict[str, Any]):
                 model=model,
                 status="pending",
                 done=False,
+                metadata={
+                    **mode_meta,
+                    **({"compaction": compaction_meta} if compaction_meta else {}),
+                },
             )
 
             full_content = ""
@@ -1732,27 +1811,115 @@ async def chat_history(limit: int = 50):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PLUGINS
+# PLUGINS — Core PluginRegistry (core/plugins). L'API est une passerelle
+# HTTP mince : catalogue, cycle de vie, connexion, permissions, capacités.
 # ═══════════════════════════════════════════════════════════════════════════
+
+_plugin_registry: PluginRegistry | None = None
+
+
+def set_plugin_registry(registry: PluginRegistry | None) -> None:
+    global _plugin_registry
+    _plugin_registry = registry
+
+
+def _plugins() -> PluginRegistry:
+    if _plugin_registry is None:
+        raise HTTPException(503, "PluginRegistry not initialized")
+    return _plugin_registry
+
 
 @router.get("/plugins")
 async def list_plugins():
-    return await get_webui_store().list_plugins()
+    """Vue fusionnée catalogue + état (manifest + status/installed/connected)."""
+    return await _plugins().list_plugins()
+
+
+@router.get("/plugins/categories")
+async def list_plugin_categories():
+    """Catégories dynamiques dérivées du catalogue Core."""
+    return {"categories": await _plugins().categories()}
+
 
 @router.get("/plugins/{plugin_id}")
 async def get_plugin(plugin_id: str):
-    plugin = await get_webui_store().get_plugin(plugin_id)
+    plugin = await _plugins().get(plugin_id)
     if plugin is None:
         raise HTTPException(404, f"Plugin {plugin_id} not found")
     return plugin
+
+
+@router.get("/plugins/{plugin_id}/permissions")
+async def get_plugin_permissions(plugin_id: str):
+    perms = await _plugins().permissions(plugin_id)
+    if perms is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return perms
+
+
+@router.get("/plugins/{plugin_id}/capabilities")
+async def get_plugin_capabilities(plugin_id: str):
+    caps = await _plugins().capabilities(plugin_id)
+    if caps is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return caps
+
 
 @router.post("/plugins/install")
 async def install_plugin(data: dict[str, Any]):
-    return await get_webui_store().install_plugin(data)
+    """Compatibilité : installe par id catalogue, sinon enregistre un custom."""
+    plugin_id = data.get("id")
+    if plugin_id:
+        installed = await _plugins().install(str(plugin_id))
+        if installed is not None:
+            return installed
+    return await _plugins().install_custom(str(data.get("name", "Unknown Plugin")))
 
-@router.put("/plugins/{plugin_id}/toggle")
-async def toggle_plugin(plugin_id: str):
-    plugin = await get_webui_store().toggle_plugin(plugin_id)
+
+@router.post("/plugins/{plugin_id}/install")
+async def install_plugin_by_id(plugin_id: str):
+    installed = await _plugins().install(plugin_id)
+    if installed is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found in catalogue")
+    return installed
+
+
+@router.post("/plugins/{plugin_id}/enable")
+async def enable_plugin(plugin_id: str):
+    plugin = await _plugins().enable(plugin_id)
     if plugin is None:
         raise HTTPException(404, f"Plugin {plugin_id} not found")
     return plugin
+
+
+@router.post("/plugins/{plugin_id}/disable")
+async def disable_plugin(plugin_id: str):
+    plugin = await _plugins().disable(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.put("/plugins/{plugin_id}/toggle")
+async def toggle_plugin(plugin_id: str):
+    plugin = await _plugins().toggle(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.post("/plugins/{plugin_id}/connect")
+async def connect_plugin(plugin_id: str, data: dict[str, Any] | None = None):
+    """État « connecté » géré par le Core — jamais de secret dans le corps."""
+    result = await _plugins().connect(plugin_id, (data or {}).get("config"))
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found or not installed")
+    return result
+
+
+@router.delete("/plugins/{plugin_id}/connection")
+async def disconnect_plugin(plugin_id: str):
+    result = await _plugins().disconnect(plugin_id)
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return result

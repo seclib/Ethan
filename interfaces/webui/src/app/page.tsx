@@ -10,6 +10,10 @@ import { useChats, type EthMessage } from "@/components/features/assistant/hooks
 import { listCollections } from "@/lib/api/knowledge";
 import { listSkills } from "@/lib/api/skills";
 import { listTools } from "@/lib/api/tools";
+import { listPlugins } from "@/lib/api/plugins";
+import { PluginPicker } from "@/components/features/assistant/components/plugin-picker";
+import { ChatModeToggle } from "@/components/features/assistant/components/chat-mode-toggle";
+import { useChatModeStore } from "@/store/chat-mode.store";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import {
   ChatContextBar,
@@ -33,6 +37,7 @@ function toDisplayMessage(msg: EthMessage): AssistantMessage {
     mcpCalls: msg.metadata?.mcpCalls as AssistantMessage["mcpCalls"],
     model: msg.metadata?.model as string | undefined,
     provider: msg.metadata?.provider as string | undefined,
+    mode: msg.metadata?.mode as string | undefined,
   };
 }
 
@@ -76,6 +81,10 @@ export default function ChatHomePage() {
   const [skills, setSkills] = React.useState<{ id: string; name: string }[]>([]);
   const [collections, setCollections] = React.useState<{ id: string; name: string }[]>([]);
   const [tools, setTools] = React.useState<{ id: string; name: string }[]>([]);
+  /** Catalogue plugins actifs (PluginRegistry Core — GET /v1/plugins). */
+  const [plugins, setPlugins] = React.useState<{ id: string; name: string }[]>([]);
+  /** Plugins activés pour la conversation courante (plugin_ids payload). */
+  const [selectedPluginIds, setSelectedPluginIds] = React.useState<string[]>([]);
 
   // ── Sélections pour le chat (Open-WebUI style) ──────────────────────────
   const [selectedSkillIds, setSelectedSkillIds] = React.useState<string[]>([]);
@@ -122,12 +131,25 @@ export default function ChatHomePage() {
     activeAgent?.metadata?.knowledge_ids,
     collections,
   );
+  // Plugins sélectionnés pour la conversation — pré-résolus depuis le
+  // catalogue Core (chips ChatContextBar, règle anti-fantôme conservée).
+  const activePlugins = React.useMemo(
+    () =>
+      selectedPluginIds
+        .map((id) => plugins.find((p) => p.id === id))
+        .filter((p): p is { id: string; name: string } => !!p),
+    [selectedPluginIds, plugins],
+  );
+  const togglePluginSelection = (id: string) =>
+    setSelectedPluginIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
 
   // Charger les catalogues une seule fois au montage (source de vérité Core).
   React.useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([listSkills(), listCollections(), listTools()]).then(
-      ([skillsRes, colsRes, toolsRes]) => {
+    Promise.allSettled([listSkills(), listCollections(), listTools(), listPlugins()]).then(
+      ([skillsRes, colsRes, toolsRes, pluginsRes]) => {
         if (cancelled) return;
         if (skillsRes.status === "fulfilled") {
           setSkills(skillsRes.value.map((s) => ({ id: s.id, name: s.name })));
@@ -137,6 +159,15 @@ export default function ChatHomePage() {
         }
         if (toolsRes.status === "fulfilled") {
           setTools(toolsRes.value.map((t) => ({ id: t.id, name: t.name, badge: t.provider })));
+        }
+        if (pluginsRes.status === "fulfilled") {
+          // Seuls les plugins installés ET actifs entrent dans le contexte
+          // de conversation (arbitrage PluginRegistry Core).
+          setPlugins(
+            pluginsRes.value
+              .filter((p) => p.installed && p.status === "active")
+              .map((p) => ({ id: p.id, name: p.name })),
+          );
         }
       },
     );
@@ -259,6 +290,11 @@ export default function ChatHomePage() {
     if (!content.trim() || isStreaming) return;
     const trimmed = content.trim();
 
+    // Mode (plan/act/debug) + effort de raisonnement : l'INTENT est envoyé au
+    // Core qui arbitre (priorité requête > session > profil > global) — jamais
+    // de décision de capacité côté WebUI.
+    const chatModeState = useChatModeStore.getState();
+
     const generator = sendMessageStream({
       message: trimmed,
       chat_id: currentChatId ?? undefined,
@@ -267,12 +303,22 @@ export default function ChatHomePage() {
       file_ids: attachedFileIds.length > 0 ? attachedFileIds : undefined,
       skill_ids: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
       tool_ids: selectedToolIds.length > 0 ? selectedToolIds : undefined,
+      // Plugins de la conversation : le Core valide les ids et injecte les
+      // tools référencés dans le mécanisme EXISTANT tool_ids (pas de
+      // seconde pipeline, pas de décision d'outil côté WebUI).
+      plugin_ids: selectedPluginIds.length > 0 ? selectedPluginIds : undefined,
       // Le backend (/v1/chat/completions/stream) lit knowledge_ids.
       knowledge_ids: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
       collection_ids: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
       // Routage Chat → Agent : résolu par le Core (provider/model/skills).
       agent_id: selectedAgentId ?? undefined,
-      metadata: selectedAgentId ? { agent_id: selectedAgentId } : undefined,
+      mode: chatModeState.mode,
+      reasoning_effort: chatModeState.reasoningEffort,
+      metadata: {
+        ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
+        mode: chatModeState.mode,
+        reasoning_effort: chatModeState.reasoningEffort,
+      },
     });
 
     setAttachedFileIds([]);
@@ -363,6 +409,8 @@ export default function ChatHomePage() {
           tools={activeTools}
           skills={activeSkills}
           knowledge={activeKnowledge}
+          plugins={activePlugins}
+          onPluginsPageClick={() => router.push("/plugins")}
           onCapabilityPageClick={(kind) =>
             router.push(
               kind === "tool" ? "/tools" : kind === "skill" ? "/skills" : "/knowledge",
@@ -384,6 +432,14 @@ export default function ChatHomePage() {
           onDismissError={clearError}
           onRegenerate={handleRegenerate}
           onEditMessage={handleEditMessage}
+          pluginsSlot={
+            <PluginPicker
+              selectedIds={selectedPluginIds}
+              onToggle={togglePluginSelection}
+              onManage={() => router.push("/plugins")}
+            />
+          }
+          modeSlot={<ChatModeToggle />}
         />
       </div>
     </div>

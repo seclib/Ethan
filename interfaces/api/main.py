@@ -468,6 +468,21 @@ async def lifespan(app: FastAPI):
     chat_pipeline.set_project_manager(project_manager)
     set_tool_manager(tool_manager)
 
+    # --- Plugin Registry (Core-owned) ---
+    # Source de vérité unique du système Plugins : catalogue de manifestes
+    # + état persistant (domaine `webui_plugins`).  Référence la ToolRegistry
+    # réelle pour résoudre tools/permissions — jamais de duplication.
+    from core.plugins import (
+        BUILTIN_PLUGINS,
+        PluginRegistry,
+        set_plugin_registry as _set_core_plugin_registry,
+    )
+
+    _set_core_plugin_registry(
+        PluginRegistry(store=domain_store, tool_registry=tool_manager.registry)
+    )
+    logger.info("PluginRegistry ready (%d builtin plugins)", len(BUILTIN_PLUGINS))
+
     # --- Skill manager (Core-owned skill execution) ---
     # The SkillManager composes a ToolManager (for step execution via
     # ToolManager.select_and_execute) and hydrates its registry with the

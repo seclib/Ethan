@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, useRef, KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   Send,
@@ -24,6 +24,18 @@ interface AssistantInputProps {
   onTools?: () => void;
   /** Voice input handler */
   onVoice?: () => void;
+  /**
+   * Slot Plugins (picker compact) — rendu dans les contrôles du composer.
+   * Le contenu (état, catalogue, actions) appartient à la page propriétaire ;
+   * l'input ne fait que l'exposer à sa place habituelle.
+   */
+  pluginsSlot?: ReactNode;
+  /**
+   * Slot Mode (ChatModeToggle) — rendu au-dessus de la zone de saisie.
+   * Réglage de conversation (Plan/Act/Debug + reasoning) possédé par la page
+   * via le store chat-mode ; l'input ne fait que l'exposer à sa place.
+   */
+  modeSlot?: ReactNode;
 }
 
 export function AssistantInput({
@@ -34,6 +46,8 @@ export function AssistantInput({
   onSearch,
   onTools,
   onVoice,
+  pluginsSlot,
+  modeSlot,
 }: AssistantInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -81,6 +95,8 @@ export function AssistantInput({
             "focus-within:border-accent/60",
           )}
         >
+          {modeSlot}
+
           <textarea
             ref={textareaRef}
             value={message}
@@ -98,6 +114,7 @@ export function AssistantInput({
             {/* Left: contextual capabilities (modes Act|Plan|Agent retirés —
                 ils dupliquaient le header sans valeur : voir audit interaction) */}
             <div className="flex items-center gap-1">
+              {pluginsSlot}
               {onAttach && (
                 <button
                   onClick={onAttach}

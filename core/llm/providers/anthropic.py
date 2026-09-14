@@ -52,6 +52,7 @@ class AnthropicProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
+        reasoning_effort: str | None = None,
     ) -> ChatResponse:
         """Chat completion."""
         if not self._client:
@@ -80,6 +81,21 @@ class AnthropicProvider(LLMProvider):
         if system_msg:
             kwargs["system"] = system_msg
 
+        # Effort de raisonnement → extended thinking Anthropic (budget).
+        # low/medium/high/xhigh → budget croissant en tokens de thinking.
+        if reasoning_effort and reasoning_effort.lower() not in ("none", ""):
+            thinking_budget = {
+                "low": 1024,
+                "medium": 2048,
+                "high": 4096,
+                "xhigh": 8192,
+            }.get(reasoning_effort.lower(), 2048)
+            budget = min(thinking_budget, kwargs["max_tokens"] - 1)
+            if budget >= 1024:
+                kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+                # L'extended thinking Anthropic exige temperature = 1.
+                kwargs["temperature"] = 1.0
+
         response = await self._client.messages.create(**kwargs)
 
         return ChatResponse(
@@ -94,8 +110,19 @@ class AnthropicProvider(LLMProvider):
             finish_reason=response.stop_reason,
         )
 
-    async def chat_stream(self, messages: list[ChatMessage], model: str | None = None, temperature: float = 0.7, max_tokens: int | None = None):
-        """Streaming chat."""
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
+    ):
+        """Streaming chat.
+
+        ``reasoning_effort`` active l'extended thinking Anthropic (budget de
+        tokens de thinking) — mêmes règles que :meth:`chat`.
+        """
         if not self._client:
             raise RuntimeError("Anthropic provider not initialized")
 
@@ -121,6 +148,20 @@ class AnthropicProvider(LLMProvider):
 
         if system_msg:
             kwargs["system"] = system_msg
+
+        # Effort de raisonnement → extended thinking Anthropic (budget).
+        if reasoning_effort and reasoning_effort.lower() not in ("none", ""):
+            thinking_budget = {
+                "low": 1024,
+                "medium": 2048,
+                "high": 4096,
+                "xhigh": 8192,
+            }.get(reasoning_effort.lower(), 2048)
+            budget = min(thinking_budget, kwargs["max_tokens"] - 1)
+            if budget >= 1024:
+                kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+                # L'extended thinking Anthropic exige temperature = 1.
+                kwargs["temperature"] = 1.0
 
         async with self._client.messages.stream(**kwargs) as stream:
             async for text in stream.text_stream:

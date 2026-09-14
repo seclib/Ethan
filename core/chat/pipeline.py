@@ -18,6 +18,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.chat.compaction import AutoCompactManager
+from core.chat.context_sources import ContextItem, ContextSourceSerializer
+from core.chat.modes import ChatMode, ReasoningEffort, mode_system_instructions
+from core.chat.session import ResolvedSessionSettings, SessionSettingsManager
 from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage as LLMChatMessage
 from core.llm.types import LLMRequirements
@@ -54,6 +58,9 @@ class ChatPipeline:
         tool_manager: Any | None = None,
         agent_manager: Any | None = None,
         project_manager: Any | None = None,
+        session_settings: SessionSettingsManager | None = None,
+        auto_compact: AutoCompactManager | None = None,
+        context_serializer: ContextSourceSerializer | None = None,
     ) -> None:
         self._chats = chat_store
         self._manager = provider_manager
@@ -65,6 +72,9 @@ class ChatPipeline:
         self._tools = tool_manager
         self._agents = agent_manager
         self._projects = project_manager
+        self._session = session_settings
+        self._compaction = auto_compact
+        self._contexts = context_serializer
 
     def set_provider_manager(self, manager: "ProviderManager") -> None:
         """Injecte/remplace le ProviderManager après construction.
@@ -95,6 +105,20 @@ class ChatPipeline:
         """
         self._projects = manager
 
+    def set_session_settings(self, manager: SessionSettingsManager) -> None:
+        """Injecte le SessionSettingsManager (modes, reasoning, language…)."""
+        self._session = manager
+
+    def set_auto_compact(self, manager: AutoCompactManager) -> None:
+        """Injecte l'AutoCompactManager (compaction du contexte, §14)."""
+        self._compaction = manager
+        if manager is not None and self._manager is not None:
+            manager.set_provider_manager(self._manager)
+
+    def set_context_serializer(self, serializer: ContextSourceSerializer) -> None:
+        """Injecte le ContextSourceSerializer (Add Context typé, §10)."""
+        self._contexts = serializer
+
     async def run(
         self,
         *,
@@ -111,13 +135,32 @@ class ChatPipeline:
         agent_id: str | None = None,
         project_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        mode: str | None = None,
+        reasoning_effort: str | None = None,
+        context_items: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Run the chat pipeline for a single user message.
+
+        ``mode`` (plan/act/debug) et ``reasoning_effort`` sont résolus par le
+        SessionSettingsManager (priorité requête > session > profil de mode >
+        global).  ``context_items`` sont les sources de contexte typées
+        explicitement attachées (Add Context — sérialisées par le Core).
 
         Returns:
             A dict with ``chat_id``, ``user_message``, ``assistant_message``
             and ``branch`` (the current message path).
         """
+        # 0. Résoudre les réglages de session (mode, reasoning, language…).
+        resolved, provider_id, model, reasoning_effort, mode_meta = (
+            await self._resolve_session_settings(
+                chat_id=chat_id,
+                provider_id=provider_id,
+                model=model,
+                mode=mode,
+                reasoning_effort=reasoning_effort,
+            )
+        )
+
         # 1. Créer ou réutiliser la conversation.
         if chat_id:
             chat_record = await self._chats.get_chat(chat_id)
@@ -178,10 +221,12 @@ class ChatPipeline:
                 "file_ids": file_ids or [],
                 "agent_id": agent_id,
                 "project_id": project_id,
+                "context_items": context_items or [],
+                **mode_meta,
             },
         )
 
-        # 3. Construire le contexte LLM.
+        # 3. Construire le contexte LLM (mode + contextes typés inclus).
         llm_messages = await self._build_llm_messages(
             chat_id=chat_id,
             user_message=message,
@@ -192,6 +237,18 @@ class ChatPipeline:
             tool_ids=tool_ids,
             agent_info=agent_info,
             project_info=project_info,
+            resolved=resolved,
+            context_items=context_items,
+        )
+
+        # 3bis. Auto Compact (§14) : compaction préservante si la fenêtre
+        # s'approche de la limite.  Les récents + prioritaires restent en clair.
+        llm_messages, compaction_meta = await self._maybe_auto_compact(
+            chat_id=chat_id,
+            provider_id=provider_id,
+            model=model,
+            resolved=resolved,
+            llm_messages=llm_messages,
         )
 
         # 4. Générer la réponse.
@@ -199,7 +256,12 @@ class ChatPipeline:
             llm_messages=llm_messages,
             provider_id=provider_id,
             model=model,
+            reasoning_effort=reasoning_effort,
         )
+        if mode_meta:
+            response_meta = {**response_meta, **{k: v for k, v in mode_meta.items() if v}}
+        if compaction_meta:
+            response_meta["compaction"] = compaction_meta
 
         # 5. Persister la réponse assistant (enfant du message utilisateur).
         assistant_message = await self._chats.add_message(
@@ -223,6 +285,126 @@ class ChatPipeline:
             "assistant_message": assistant_message,
             "branch": branch,
         }
+
+    async def _resolve_session_settings(
+        self,
+        *,
+        chat_id: str | None,
+        provider_id: str | None,
+        model: str | None,
+        mode: str | None,
+        reasoning_effort: str | None,
+    ) -> tuple[ResolvedSessionSettings | None, str | None, str | None, str | None, dict[str, Any]]:
+        """Résout la configuration effective de session (mode, reasoning, langue).
+
+        Priorité ``requête > session > profil de mode > global`` — arbitrée par
+        le SessionSettingsManager Core (:mod:`core.chat.session`).  La langue
+        effective est portée par ``resolved.language`` (injectée dans le prompt
+        par :meth:`_build_llm_messages`).
+
+        Returns:
+            ``(resolved, provider_id, model, reasoning_effort, mode_meta)`` :
+            les deux suivants peuvent être complétés par le profil de mode
+            (fallback) — la requête explicite garde la priorité ;
+            ``mode_meta`` sont les metadata de mode persistées avec le message.
+        """
+        resolved: ResolvedSessionSettings | None = None
+        if self._session is not None:
+            try:
+                overrides: dict[str, Any] = {}
+                if provider_id:
+                    overrides["provider_id"] = provider_id
+                if model:
+                    overrides["model"] = model
+                if reasoning_effort:
+                    overrides["reasoning_effort"] = reasoning_effort
+                resolved = await self._session.resolve(
+                    chat_id=chat_id or "",
+                    mode=mode,
+                    overrides=overrides or None,
+                )
+                # La résolution peut porter le provider/model du profil de
+                # mode (fallback) — la requête explicite garde la priorité.
+                provider_id = provider_id or resolved.provider_id or None
+                model = model or resolved.model or None
+                reasoning_effort = (
+                    reasoning_effort
+                    or (resolved.reasoning.get("effort") if resolved.reasoning.get("supported") else None)
+                )
+            except Exception as exc:
+                logger.warning("Session settings resolution failed: %s", exc)
+                resolved = None
+
+        # Metadata de mode (mode actif, effort, langue) — persistées avec le
+        # message pour restoration à la session suivante (§29).
+        mode_value = (resolved.mode.value if resolved else None) or mode or None
+        mode_meta: dict[str, Any] = {}
+        if mode_value:
+            mode_meta["mode"] = mode_value
+        if reasoning_effort:
+            mode_meta["reasoning_effort"] = reasoning_effort
+        if resolved is not None:
+            mode_meta["language"] = resolved.language
+        return resolved, provider_id, model, reasoning_effort, mode_meta
+
+    async def _maybe_auto_compact(
+        self,
+        *,
+        chat_id: str,
+        provider_id: str | None,
+        model: str | None,
+        resolved: ResolvedSessionSettings | None,
+        llm_messages: list[LLMChatMessage],
+    ) -> tuple[list[LLMChatMessage], dict[str, Any]]:
+        """Auto Compact (§14) : résumé préservant si la fenêtre du modèle approche.
+
+        Applicable à TOUTE entrée du pipeline (run / streaming SSE) — les
+        messages récents et prioritaires restent en clair, le résumé remplace
+        les anciens messages résumés.  Jamais bloquant : toute erreur est
+        loggée et la continuité de la conversation est garantie.
+
+        Returns:
+            ``(llm_messages, compaction_meta)`` — ``compaction_meta`` vide si
+            aucune compaction n'a eu lieu.
+        """
+        compaction_meta: dict[str, Any] = {}
+        if resolved is None or not resolved.auto_compact or self._compaction is None:
+            return llm_messages, compaction_meta
+        try:
+            branch = await self._chats.get_branch(chat_id)
+            history = [
+                {"role": m.get("role"), "content": m.get("content", ""), "metadata": m.get("metadata") or {}}
+                for m in branch
+                if m.get("role") in ("user", "assistant")
+            ]
+            context_length = await self._resolve_context_length(provider_id, model)
+            if context_length > 0:
+                compacted = await self._compaction.compact(
+                    history=history,
+                    model_context_length=context_length,
+                    strategy=resolved.compaction_strategy,
+                    provider_id=provider_id,
+                    model=model,
+                )
+                if compacted.compacted:
+                    # Rejouer l'historique compacté dans le LLM messages : le
+                    # résumé remplace les messages anciens résumés.
+                    new_history = getattr(compacted, "new_history", None)
+                    if new_history is not None:
+                        summary_message = LLMChatMessage(
+                            role="system",
+                            content=compacted.summary,
+                        )
+                        llm_messages = [summary_message, *llm_messages]
+                    compaction_meta = compacted.to_dict()
+                    logger.info(
+                        "Auto Compact (%s): %d messages résumés, ~%d → ~%d tokens",
+                        compacted.strategy, compacted.summarized_messages,
+                        compacted.estimated_tokens_before, compacted.estimated_tokens_after,
+                    )
+        except Exception as exc:
+            logger.warning("Auto Compact failed (continuité garantie): %s", exc)
+        return llm_messages, compaction_meta
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -384,12 +566,39 @@ class ChatPipeline:
         tool_ids: list[str] | None = None,
         agent_info: dict[str, Any] | None = None,
         project_info: dict[str, Any] | None = None,
+        resolved: ResolvedSessionSettings | None = None,
+        context_items: list[dict[str, Any]] | None = None,
     ) -> list[LLMChatMessage]:
-        """Build the LLM message list with resolved context."""
+        """Build the LLM message list with resolved context.
+
+        ``resolved`` porte la configuration effective de session : le prompt
+        de mode (plan/act/debug) et la langue y sont injectés.  ``context_items``
+        sont les sources Add Context typées — sérialisées par le Core.
+        """
         messages: list[LLMChatMessage] = []
 
         # Contexte système : skills activées.
         system_parts: list[str] = []
+
+        # Mode actif (plan/act/debug) : instructions comportementales du
+        # Core (§6/§7/§8) + niveau Debug effectif (§9) — en tête du prompt.
+        if resolved is not None:
+            mode_instructions = mode_system_instructions(resolved.mode)
+            if mode_instructions:
+                system_parts.append(mode_instructions)
+            if resolved.mode.value == "debug":
+                system_parts.append(
+                    f"[Niveau Debug: {resolved.debug_level.value}] — "
+                    + {
+                        "diagnose": "diagnostic seul : ne propose même pas de correctif complet.",
+                        "diagnose_propose": "propose un correctif détaillé mais NE L'APPLIQUE PAS.",
+                        "diagnose_apply": "applique le correctif si les permissions le permettent, puis vérifie par tests.",
+                    }[resolved.debug_level.value]
+                )
+            if resolved.language:
+                system_parts.append(
+                    f"[Langue] Communique avec l'utilisateur en « {resolved.language} »."
+                )
 
         # Instructions du projet (Chat → Projet) : injectées en tête du
         # prompt avant le persona agent (le projet est le contexte global).
@@ -506,6 +715,23 @@ class ChatPipeline:
                 except Exception as exc:
                     logger.warning("Attached-files context build failed: %s", exc)
 
+        # Contexte typé (Add Context, §10/§13) : sérialisation Core des
+        # sources explicitement attachées — bornée, avec type annoté.
+        if context_items:
+            if self._contexts is None:
+                logger.warning("Context items requested but no ContextSourceSerializer is injected")
+            else:
+                try:
+                    typed_items = [ContextItem.from_dict(item) for item in context_items]
+                    serialized = await self._contexts.serialize(typed_items)
+                    rendered = serialized.render()
+                    if rendered:
+                        system_parts.append(rendered)
+                    for note in serialized.notes:
+                        logger.info("Add Context note: %s", note)
+                except Exception as exc:
+                    logger.warning("Typed context serialization failed: %s", exc)
+
         if system_parts:
             messages.append(LLMChatMessage(role="system", content="\n\n".join(system_parts)))
 
@@ -527,8 +753,14 @@ class ChatPipeline:
         llm_messages: list[LLMChatMessage],
         provider_id: str | None,
         model: str | None,
+        reasoning_effort: str | None = None,
     ) -> tuple[str, dict[str, Any]]:
-        """Generate a response via the ProviderManager."""
+        """Generate a response via the ProviderManager.
+
+        ``reasoning_effort`` est transmis aux providers qui le supportent
+        (openai natif, openai-compatible extra_body, anthropic thinking) ;
+        le support a déjà été arbitré par :func:`resolve_reasoning`.
+        """
         if self._manager is None:
             logger.warning("ProviderManager not initialized — falling back to echo")
             return f"[ECHO] {llm_messages[-1].content if llm_messages else ''}", {
@@ -547,7 +779,13 @@ class ChatPipeline:
                         provider = create_provider_from_config({**config, "name": provider_id})
                         await provider.initialize()
                 if provider is not None:
-                    result = await provider.chat(llm_messages, model=model or None)
+                    import inspect
+
+                    sig = inspect.signature(provider.chat)
+                    kwargs: dict[str, Any] = {"model": model or None}
+                    if "reasoning_effort" in sig.parameters and reasoning_effort:
+                        kwargs["reasoning_effort"] = reasoning_effort
+                    result = await provider.chat(llm_messages, **kwargs)
                     return result.content, {
                         "provider": provider_id,
                         "model": result.model,
@@ -568,6 +806,25 @@ class ChatPipeline:
         except Exception as exc:
             logger.exception("Chat generation failed: %s", exc)
             raise
+
+    async def _resolve_context_length(self, provider_id: str | None, model: str | None) -> int:
+        """Fenêtre de contexte du modèle cible (0 = inconnue).
+
+        Interroge le ProviderManager : le model registry du Core est la
+        source de vérité — l'UI n'estime jamais la fenêtre elle-même.
+        """
+        if self._manager is None:
+            return 0
+        try:
+            models = await self._manager.list_models(provider_id)
+            for candidate in models:
+                if model and candidate.model == model or candidate.id == (model or ""):
+                    return int(getattr(candidate, "context_length", 0) or 0)
+            if models:
+                return int(getattr(models[0], "context_length", 0) or 0)
+        except Exception as exc:
+            logger.warning("Context length resolution failed: %s", exc)
+        return 0
 
 
 def _merge_unique(base: list[str] | None, extra: list[str] | None) -> list[str]:

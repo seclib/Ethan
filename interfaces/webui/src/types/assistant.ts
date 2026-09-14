@@ -56,6 +56,9 @@ export interface AssistantMessage {
   tokensTotal?: number;
   model?: string;
   provider?: string;
+  /** Mode conversationnel effectif (plan | act | debug) — résolu par le Core,
+   *  persisté dans les metadata du message. Affichage seul côté interface. */
+  mode?: string;
 }
 
 export interface SessionMetrics {

@@ -63,7 +63,12 @@ class PluginRegistry:
             if state is None:
                 view.update(self._default_state(plugin_id, manifest))
             else:
-                view.update(self._merge_state(state))
+                state_view = self._merge_state(state)
+                # L'état ne doit pas écraser les déclarations du manifest :
+                # une configuration d'état vide laisse la place au manifest.
+                if not state_view.get("configuration"):
+                    state_view.pop("configuration", None)
+                view.update(state_view)
             result.append(view)
 
         # Enregistrements legacy/custom hors catalogue.
@@ -183,13 +188,11 @@ class PluginRegistry:
         if plugin.get("installed") is not True:
             return None
         record = await self._store.get(_DOMAIN, plugin_id) or {}
-        non_secret = {
-            f["key"]: f
-            for f in plugin.get("configuration", [])
-            if not f.get("secret") and f.get("required")
-        }
+        fields = plugin.get("configuration", [])
+        non_secret_keys = [f["key"] for f in fields if not f.get("secret")]
+        required_keys = [f["key"] for f in fields if not f.get("secret") and f.get("required")]
         incoming = dict(config or {})
-        missing = [key for key in non_secret if key not in incoming]
+        missing = [key for key in required_keys if key not in incoming]
         if missing:
             return {
                 "connected": False,
@@ -202,7 +205,7 @@ class PluginRegistry:
                 ),
             }
         merged = dict(record.get("configuration") or {})
-        for key in non_secret:
+        for key in non_secret_keys:
             if key in incoming:
                 merged[key] = incoming[key]
         record["id"] = plugin_id
@@ -261,14 +264,15 @@ class PluginRegistry:
         for tool_id in plugin.get("tools", []):
             tool = None
             if registry is not None:
-                tool = registry.get_tool(tool_id)
+                tool = registry.get(tool_id)
             if tool is not None:
+                risk = getattr(tool, "risk_level", "low")
                 resolved.append(
                     {
                         "id": tool_id,
                         "name": getattr(tool, "name", tool_id),
                         "available": True,
-                        "risk_level": str(getattr(tool, "risk_level", "low")),
+                        "risk_level": getattr(risk, "value", str(risk)),
                     }
                 )
             else:
@@ -282,7 +286,7 @@ class PluginRegistry:
         if registry is None:
             return []
         for tool_id in plugin.get("tools", []):
-            tool = registry.get_tool(tool_id)
+            tool = registry.get(tool_id) if registry is not None else None
             if tool is None:
                 continue
             for permission in getattr(tool, "required_permissions", []) or []:
@@ -299,6 +303,39 @@ class PluginRegistry:
         record["installed"] = True
         await self._store.save(_DOMAIN, plugin_id, record)
         return await self.get(plugin_id)
+
+
+# ── Routage conversation → plugins ─────────────────────────────────────
+
+async def resolve_conversation_tools(
+    registry: PluginRegistry,
+    plugin_ids: list[str],
+    tool_ids: list[str] | None,
+) -> tuple[list[str], list[str]]:
+    """Injecte les tools des plugins sélectionnés dans le mécanisme EXISTANT
+    `tool_ids` (ToolRegistry) — pas de seconde pipeline.
+
+    Arbitrage Core : seuls les plugins installés ET actifs sont acceptés ;
+    les ids inconnus/inactifs sont ignorés (fail-soft).  Retourne
+    (accepted_plugin_ids, merged_tool_ids).
+    """
+    accepted: list[str] = []
+    merged = list(tool_ids or [])
+    for pid in plugin_ids:
+        plugin = await registry.get(str(pid))
+        if plugin is None:
+            continue
+        if not plugin.get("installed"):
+            continue
+        if plugin.get("status") != STATUS_ACTIVE:
+            continue
+        accepted.append(str(pid))
+        caps = await registry.capabilities(str(pid))
+        for tool in caps["tools"]:
+            tid = tool["id"]
+            if tool.get("available") and tid not in merged:
+                merged.append(tid)
+    return accepted, merged
 
 
 # ── Accessor module-level (composition root API) ──────────────────────

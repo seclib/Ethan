@@ -225,6 +225,7 @@ export function AssistantMessageView({
                     tokensTotal={message.tokensTotal}
                     model={message.model}
                     provider={message.provider}
+                    mode={message.mode}
                   />
                 </>
               )}

@@ -1,0 +1,19 @@
+# ETHAN WebUI — artefacts de build et locaux (jamais commités).
+
+# Build Next.js — régénéré à chaque `next build` / `next dev`.
+.next/
+.next/**/*
+!.next/CNAME
+
+# Cache TypeScript
+tsconfig.tsbuildinfo
+
+# Tests de bout en bout (rapports Playwright)
+playwright-report/
+
+# Logs / sorties de process
+nohup.out
+
+# Env locaux
+.env.local
+.env*.local

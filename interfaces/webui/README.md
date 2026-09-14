@@ -344,6 +344,42 @@ Voir `WEBUI_ROADMAP.md` pour les guidelines de contribution.
 
 ---
 
+## 📦 Plugins conversationnels (Core-owned)
+
+Le système de plugins ETHAN est **propriété du Core** — le catalogue, le registre et la
+résolution des outils vivent dans `core/plugins/*`. La WebUI n’est qu’un *render* + contrôle
+via l’API : aucune logique métier ne doit être implémentée dans une interface.
+
+Voir la documentation complète :
+
+- [`docs/ethan-up.md`](../../docs/ethan-up.md) — rapport d’intégration du système de plugins
+  (scope, API, injection conversationnelle, tests).
+
+### Utilisation rapide
+
+```ts
+import { listPlugins, installPlugin, togglePlugin } from "@/lib/api/plugins";
+import { PluginPicker } from "@/components/features/assistant/components/plugin-picker";
+```
+
+```tsx
+<PluginPicker
+  selectedIds={pluginIds}
+  onToggle={(id) => setPluginIds((p) =>
+    p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
+  )}
+/>
+```
+
+Les `plugin_ids` sélectionnés sont transmis dans le payload `chat` (`payload.plugin_ids`) ;
+le Core injecte via `resolve_conversation_tools` les **tools référencés** par chaque plugin
+actif+installé dans le pipeline existant `tool_ids`. Les plugins inactifs/inconnus sont
+silencieusement ignorés (fail-soft). **Aucun secret n’est jamais stocké côté frontend** :
+`connect()` rejette les champs secrets ; le Core utilise uniquement le secret-manager
+(var d’environnement / Vault).
+
+---
+
 ## 📄 License
 
 MIT

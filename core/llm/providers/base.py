@@ -70,8 +70,15 @@ class LLMProvider(ABC):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
+        reasoning_effort: str | None = None,
     ) -> ChatResponse:
-        """Chat completion."""
+        """Chat completion.
+
+        ``reasoning_effort`` : effort de raisonnement demandé
+        (``none|low|medium|high|xhigh``) — ``None``/``none`` = pas de demande.
+        Les providers qui ne supportent pas le reasoning l'ignorent ; le
+        support réel est arbitré en amont (``core.chat.modes.resolve_reasoning``).
+        """
         pass
 
     @abstractmethod

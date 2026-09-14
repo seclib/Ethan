@@ -261,53 +261,35 @@ class CoreWebUIStore:
         return deepcopy(record)
 
     # ── Plugins ────────────────────────────────────────────────────────
-
-    _DEFAULT_PLUGINS: list[dict[str, Any]] = [
-        {"id": "github", "name": "GitHub Integration", "status": "active", "version": "1.0.0"},
-        {"id": "slack", "name": "Slack Notifier", "status": "inactive", "version": "1.2.0"},
-    ]
+    # Délégué au PluginRegistry Core (core/plugins) — source de vérité
+    # unique du système Plugins.  Ces méthodes restent pour compatibilité
+    # avec les appelants historiques du CoreWebUIStore.
 
     async def list_plugins(self) -> list[dict[str, Any]]:
-        records = await self._store.list(_DOMAIN_PLUGINS)
-        if not records:
-            for plugin in self._DEFAULT_PLUGINS:
-                await self._store.save(_DOMAIN_PLUGINS, plugin["id"], plugin)
-            return deepcopy(self._DEFAULT_PLUGINS)
-        return records
+        from core.plugins import PluginRegistry
+
+        return await PluginRegistry(self._store).list_plugins()
 
     async def get_plugin(self, plugin_id: str) -> dict[str, Any] | None:
-        record = await self._store.get(_DOMAIN_PLUGINS, plugin_id)
-        if record is not None:
-            return record
-        for plugin in self._DEFAULT_PLUGINS:
-            if plugin["id"] == plugin_id:
-                return deepcopy(plugin)
-        return None
+        from core.plugins import PluginRegistry
+
+        return await PluginRegistry(self._store).get(plugin_id)
 
     async def install_plugin(self, data: dict[str, Any]) -> dict[str, Any]:
-        plugin_id = data.get("id") or str(uuid4())
-        record = {
-            "id": plugin_id,
-            "name": data.get("name", "Unknown Plugin"),
-            "status": "inactive",
-            "version": "0.1.0",
-        }
-        await self._store.save(_DOMAIN_PLUGINS, plugin_id, record)
-        return deepcopy(record)
+        from core.plugins import PluginRegistry
+
+        registry = PluginRegistry(self._store)
+        plugin_id = data.get("id")
+        if plugin_id:
+            installed = await registry.install(str(plugin_id))
+            if installed is not None:
+                return installed
+        return await registry.install_custom(str(data.get("name", "Unknown Plugin")))
 
     async def toggle_plugin(self, plugin_id: str) -> dict[str, Any] | None:
-        record = await self._store.get(_DOMAIN_PLUGINS, plugin_id)
-        if record is None:
-            for plugin in self._DEFAULT_PLUGINS:
-                if plugin["id"] == plugin_id:
-                    record = deepcopy(plugin)
-                    break
-        if record is None:
-            return None
-        record["status"] = "active" if record.get("status") == "inactive" else "inactive"
-        record["id"] = plugin_id
-        await self._store.save(_DOMAIN_PLUGINS, plugin_id, record)
-        return deepcopy(record)
+        from core.plugins import PluginRegistry
+
+        return await PluginRegistry(self._store).toggle(plugin_id)
 
 
 def _utc_now() -> str:

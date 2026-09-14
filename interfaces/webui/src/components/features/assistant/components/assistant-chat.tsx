@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { ArrowDown, AlertCircle, X, Loader2 } from "lucide-react";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
 import { AssistantMessageView } from "./assistant-message";
@@ -35,6 +35,18 @@ interface AssistantChatProps {
   /** Voice input handler. */
   onVoice?: () => void;
   /**
+   * Slot Plugins (picker compact rendu dans les contrôles du composer).
+   * Voir AssistantInput.pluginsSlot — la page propriétaire fournit le
+   * composant complet (catalogue Core + sélection conversation).
+   */
+  pluginsSlot?: ReactNode;
+  /**
+   * Slot Mode (ChatModeToggle) — rendu au-dessus de la zone de saisie du
+   * composer. Possédé par la page via le store chat-mode ; le Core, seul,
+   * arbitre la capacité (modes.py).
+   */
+  modeSlot?: ReactNode;
+  /**
    * NOTE (dé-duplication) : les props capacités du composer (skills/collections/
    * tools/sélections/provider/model) ont été RETIRÉES — le composer simplifié
    * ne les rend plus. Les sélections actives vivent dans la page (payload chat)
@@ -65,6 +77,8 @@ export function AssistantChat({
   onSearch,
   onTools,
   onVoice,
+  pluginsSlot,
+  modeSlot,
   error,
   onDismissError,
   onRegenerate,
@@ -220,6 +234,8 @@ export function AssistantChat({
         onSearch={onSearch}
         onTools={onTools}
         onVoice={onVoice}
+        pluginsSlot={pluginsSlot}
+        modeSlot={modeSlot}
       />
     </div>
   );

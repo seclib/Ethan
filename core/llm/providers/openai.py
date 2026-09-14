@@ -53,18 +53,25 @@ class OpenAIProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
+        reasoning_effort: str | None = None,
     ) -> ChatResponse:
         """Chat completion."""
         if not self._client:
             raise RuntimeError("OpenAI provider not initialized")
 
-        response = await self._client.chat.completions.create(
-            model=model or self.default_model,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=stream,
-        )
+        # Effort de raisonnement (API OpenAI native : o-series / gpt-5).
+        # ``none``/``None`` → pas de paramètre (pas de valeur fantôme).
+        params: dict[str, Any] = {
+            "model": model or self.default_model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream,
+        }
+        if reasoning_effort and reasoning_effort.lower() != "none":
+            params["reasoning_effort"] = reasoning_effort
+
+        response = await self._client.chat.completions.create(**params)
 
         return ChatResponse(
             content=response.choices[0].message.content,
@@ -78,18 +85,33 @@ class OpenAIProvider(LLMProvider):
             finish_reason=response.choices[0].finish_reason,
         )
 
-    async def chat_stream(self, messages: list[ChatMessage], model: str | None = None, temperature: float = 0.7, max_tokens: int | None = None):
-        """Streaming chat."""
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
+    ):
+        """Streaming chat.
+
+        ``reasoning_effort`` est transmis aux modèles OpenAI qui le supportent
+        (o-series / gpt-5) — même règle que :meth:`chat` ; val ``none`` → rien.
+        """
         if not self._client:
             raise RuntimeError("OpenAI provider not initialized")
 
-        stream = await self._client.chat.completions.create(
-            model=model or self.default_model,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True,
-        )
+        params: dict[str, Any] = {
+            "model": model or self.default_model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        if reasoning_effort and reasoning_effort.lower() != "none":
+            params["reasoning_effort"] = reasoning_effort
+
+        stream = await self._client.chat.completions.create(**params)
 
         async for chunk in stream:
             if chunk.choices[0].delta.content:
