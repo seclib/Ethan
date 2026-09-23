@@ -116,8 +116,13 @@ services:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
+      # URL interne du Kernel Runtime (healthcheck du composant `kernel` de
+      # GET /diagnostics). `localhost` ne vaut que depuis le host : en
+      # intra-Docker l'adresse correcte est le nom de service DNS `kernel`.
+      ETHAN_KERNEL_URL: http://kernel:8080
       LOG_LEVEL: INFO
       LOG_FORMAT: "${LOG_FORMAT:-text}"
+      JWT_SECRET: ${JWT_SECRET}
       # ── LLM Provider configuration ──────────────────────────────────
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
       OLLAMA_DEFAULT_MODEL: "${OLLAMA_DEFAULT_MODEL:-llama3.1}"
@@ -220,6 +225,7 @@ services:
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       LOG_LEVEL: INFO
       LOG_FORMAT: "${LOG_FORMAT:-text}"
+      JWT_SECRET: ${JWT_SECRET}
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
     command: python -m core.modules
     depends_on:
