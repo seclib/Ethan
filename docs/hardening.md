@@ -76,9 +76,9 @@ modules:
 
 **Problème** : Aucune supervision des conteneurs Docker après le démarrage.
 
-**Correction** : Création de `ethan-watchdog.service` + `ethan-watchdog.timer` (toutes les 30s).
+**Correction** : Création de `ethan-watchdog.service` + `ethan-watchdog.timer` (toutes les 30s), adossés à un circuit breaker par service (`scripts/cmd-watchdog.sh`) : détection `exited`/`restarting`/`dead` (lecture avec `ps --all`), redémarrage borné à 5 échecs consécutifs, puis circuit ouvert (plus de redémarrage automatique + alerte journal systemd), réarmement progressif après stabilité. Voir Runbook SRE § 7.3.
 
-**Fichiers** : `infrastructure/systemd/ethan-watchdog.service`, `infrastructure/systemd/ethan-watchdog.timer`
+**Fichiers** : `infrastructure/systemd/ethan-watchdog.service`, `infrastructure/systemd/ethan-watchdog.timer`, `scripts/cmd-watchdog.sh`
 
 ---
 
@@ -194,6 +194,26 @@ ports:
 - Volume dédié `postgres_backup`
 
 **Fichiers** : `docker-compose.yml`, `deploy/postgres/backup/backup.sh`
+
+---
+
+### 1.15 BOOT-07 : Doctor sans faux positifs
+
+**Problème** : Après le rebuild (core/ + sdk/ + plugins/), 6 checks du doctor produisaient des faux positifs sur un système sain (« 66 PASS, 6 WARNING ») : modules pré-rebuild référencés (`core.providers.*`, `core.registry`), dossier `runtime/` inexistant avec suggestion `pip install -e runtime` inapplicable, warning `PYTHONPATH` inconditionnel alors que les imports passent, `NODE_ENV` requis côté shell alors que le compose le fixe (`service ui`), et `redis-cli` absent du host limitant le test Redis à un simple test de port.
+
+**Correction** :
+- providers / plugins : checks re-pointés vers les modules actuels (`core.llm.provider_factory`, `core.plugins`) ;
+- `runtime` : check neutralisé tant que le dossier `runtime/` n'existe pas ;
+- `PYTHONPATH` : warning émis uniquement si `import core, sdk, plugins` échoue réellement ;
+- `NODE_ENV` : plus de warning si `docker-compose.yml` fixe la valeur (service ui) ;
+- Redis : fallback `docker exec ethan-redis redis-cli ping` (test réel via le conteneur) quand `redis-cli` est absent du host ;
+- `tests/install/` : quarantaine rendue effective aussi en collecte ciblée (`collect_ignore_glob` conditionné à l'absence du paquet `openjarvis`) — 10 erreurs de collection éliminées.
+
+Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) ».
+
+**Fichiers** : `scripts/cmd-doctor.sh`, `tests/install/conftest.py`
+
+**Test** : `pytest tests/deployment/test_doctor_checks.py` (imports résolvables, aucun import pré-rebuild, gardes anti-régression, live `0 FAIL` sans faux positif).
 
 ---
 

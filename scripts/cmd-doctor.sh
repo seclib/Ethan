@@ -48,6 +48,8 @@ show_fix() {
     arrow "Priorité: $priority"
 }
 
+# NB : `_env_get` (lecture sûre d'une clé du .env) est fourni par ethan-lib.sh.
+
 # ── Section 1 : Environnement ──────────────────────────────────────────
 
 check_environment() {
@@ -77,21 +79,28 @@ check_environment() {
             "medium"
     fi
 
-    # PYTHONPATH
+    # PYTHONPATH — n'est requis que si les imports échouent sans lui : depuis
+    # ETHAN_ROOT, `python3 -c 'import core'` fonctionne (cwd dans sys.path).
+    # On teste donc l'effet réel pour éviter un faux positif.
     if [ -n "${PYTHONPATH:-}" ]; then
         check_pass "PYTHONPATH défini : ${PYTHONPATH}"
+    elif (cd "${ETHAN_ROOT}" && python3 -c "import core, sdk, plugins" 2>/dev/null); then
+        check_pass "PYTHONPATH non requis : imports core/sdk/plugins OK depuis ${ETHAN_ROOT}"
     else
-        check_warn "PYTHONPATH non défini (peut empêcher les imports)"
+        check_warn "PYTHONPATH non défini et imports core/sdk/plugins en échec"
         show_fix \
-            "Python ne trouve pas les modules core/sdk/runtime" \
+            "Python ne trouve pas les modules core/sdk/plugins" \
             "export PYTHONPATH=\"\${PYTHONPATH}:${ETHAN_ROOT}\"" \
             "~/.bashrc, ~/.zshrc" \
             "high"
     fi
 
-    # NODE_ENV
+    # NODE_ENV — jamais requis côté shell : le service ui fixe sa valeur dans
+    # docker-compose.yml. Warning uniquement si le compose ne la gère pas.
     if [ -n "${NODE_ENV:-}" ]; then
         check_pass "NODE_ENV=${NODE_ENV}"
+    elif grep -q 'NODE_ENV' "${ETHAN_ROOT}/docker-compose.yml" 2>/dev/null; then
+        check_pass "NODE_ENV non défini (valeur fixée par docker-compose.yml pour le service ui)"
     else
         check_warn "NODE_ENV non défini (défaut: development)"
     fi
@@ -194,9 +203,14 @@ check_python_imports() {
             "high"
     fi
 
-    # Test de runtime (optionnel)
-    info "Import 'runtime'..."
-    if python3 -c "import runtime; print(runtime.__file__)" 2>/dev/null; then
+    # Test de runtime (optionnel).
+    # Le dépôt n'a pas de dossier runtime/ (architecture core/sdk/plugins) :
+    # dans ce cas le check est neutralisé — un warning (et son fix
+    # `pip install -e runtime`) serait un faux positif inapplicable.
+    # Le test redevient actif dès que le dossier apparaît.
+    if [ ! -d "${ETHAN_ROOT}/runtime" ]; then
+        info "Import 'runtime'... (dossier runtime/ absent — optionnel, check neutralisé)"
+    elif python3 -c "import runtime; print(runtime.__file__)" 2>/dev/null; then
         check_pass "runtime importable"
     else
         check_warn "Import runtime échoué (optionnel)"
@@ -422,11 +436,13 @@ check_http_connectivity() {
     local WEBUI_PORT="${PORT:-3001}"
 
     # API Gateway
+    # NB : `/` n'existe pas comme route publique (401 via middleware JWT) —
+    # le contrat de disponibilité est /health (PUBLIC_PATHS, healthcheck Docker).
     info "API Gateway (port ${API_PORT})..."
-    if wait_for_http "http://localhost:${API_PORT}/" 5; then
-        check_pass "API Gateway : répond sur /"
+    if wait_for_http "http://localhost:${API_PORT}/health" 5; then
+        check_pass "API Gateway : répond sur /health"
     else
-        check_fail "API Gateway : injoignable sur http://localhost:${API_PORT}/"
+        check_fail "API Gateway : injoignable sur http://localhost:${API_PORT}/health"
         show_fix \
             "L'API Gateway ne répond pas" \
             "docker compose logs api --tail 50 && docker compose restart api" \
@@ -434,22 +450,18 @@ check_http_connectivity() {
             "high"
     fi
 
-    # Health endpoint
-    if curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
-        check_pass "API Gateway : /health répond"
-    elif curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
-        check_pass "API Gateway : /health répond"
+    # Health readiness (contrat du healthcheck Docker)
+    if curl -sf "http://localhost:${API_PORT}/health/ready" >/dev/null 2>&1; then
+        check_pass "API Gateway : /health/ready répond"
     else
-        check_warn "API Gateway : /health inaccessible"
+        check_warn "API Gateway : /health/ready inaccessible"
     fi
 
-    # Version endpoint
-    if curl -sf "http://localhost:${API_PORT}/version" >/dev/null 2>&1; then
-        check_pass "API Gateway : /version répond"
-    elif curl -sf "http://localhost:${API_PORT}/api/v1/version" >/dev/null 2>&1; then
-        check_pass "API Gateway : /api/v1/version répond"
+    # Version endpoint (contrat public : /v1/version)
+    if curl -sf "http://localhost:${API_PORT}/v1/version" >/dev/null 2>&1; then
+        check_pass "API Gateway : /v1/version répond"
     else
-        check_warn "API Gateway : /version inaccessible"
+        check_warn "API Gateway : /v1/version inaccessible"
     fi
 
     # Swagger
@@ -460,12 +472,16 @@ check_http_connectivity() {
     fi
 
     # WebSocket endpoint (test basique)
-    if curl -sf -H "Connection: Upgrade" -H "Upgrade: websocket" \
-        "http://localhost:${API_PORT}/api/v1/events/ws" >/dev/null 2>&1; then
-        check_pass "API Gateway : WebSocket endpoint répond"
-    else
-        check_warn "API Gateway : WebSocket endpoint pourrait nécessiter un vrai client WS"
-    fi
+    # Sans vrai client WS, un HTTP 400/426 est la réponse légitime : l'enjeu
+    # est que la route existe (elle rejette le handshake) et non un 404/401.
+    local ws_code
+    ws_code="$(curl -s -o /dev/null -w '%{http_code}' \
+        -H "Connection: Upgrade" -H "Upgrade: websocket" \
+        "http://localhost:${API_PORT}/v1/events/ws" 2>/dev/null || true)"
+    case "$ws_code" in
+        101|400|426) check_pass "API Gateway : WebSocket /v1/events/ws présent (HTTP $ws_code)" ;;
+        *)           check_warn "API Gateway : WebSocket /v1/events/ws non vérifiable (HTTP ${ws_code:-—})" ;;
+    esac
 
     # WebUI
     info "WebUI (port ${WEBUI_PORT})..."
@@ -473,8 +489,10 @@ check_http_connectivity() {
         check_pass "WebUI : répond sur /"
 
         # Test de connectivité WebUI → API
+        # Contrat public : /health (et non les routes JWT-protégées comme
+        # /api/v1/version, qui répondaient 401 → faux échec).
         if curl -sf "http://localhost:${WEBUI_PORT}/" >/dev/null 2>&1 && \
-           curl -sf "http://localhost:${API_PORT}/api/v1/version" >/dev/null 2>&1; then
+           curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
             check_pass "WebUI → API : connectivité OK"
         else
             check_fail "WebUI → API : connectivité échouée"
@@ -521,15 +539,40 @@ check_infrastructure_services() {
     info "Redis (port 6379)..."
     if nc -z localhost 6379 2>/dev/null || (echo > /dev/tcp/localhost/6379) 2>/dev/null; then
         check_pass "Redis : port 6379 ouvert"
-        if redis-cli ping 2>/dev/null | grep -q "PONG"; then
-            check_pass "Redis : PING répond (PONG)"
+        # Le mot de passe vit dans .env (compose le lit) : sans lui, redis-cli
+        # répond NOAUTH → faux FAIL.
+        local redis_pass redis_ping
+        redis_pass="${REDIS_PASSWORD:-$(_env_get REDIS_PASSWORD)}"
+        if command -v redis-cli &>/dev/null; then
+            if [[ -n "$redis_pass" ]]; then
+                redis_ping="$(redis-cli -a "$redis_pass" ping 2>/dev/null || true)"
+            else
+                redis_ping="$(redis-cli ping 2>/dev/null || true)"
+            fi
+            if grep -q "PONG" <<<"$redis_ping"; then
+                check_pass "Redis : PING répond (PONG)"
+            else
+                check_fail "Redis : PING échoue"
+                show_fix \
+                    "Redis ne répond pas au PING" \
+                    "docker compose logs redis --tail 50 && docker compose restart redis" \
+                    "docker-compose.yml (service redis)" \
+                    "high"
+            fi
         else
-            check_fail "Redis : PING échoue"
-            show_fix \
-                "Redis ne répond pas au PING" \
-                "docker compose logs redis --tail 50 && docker compose restart redis" \
-                "docker-compose.yml (service redis)" \
-                "high"
+            # redis-cli absent du host → fallback via le conteneur : un port
+            # ouvert ne prouve pas que Redis répond (test réel).
+            local redis_container_cmd=(docker exec ethan-redis redis-cli)
+            if [[ -n "$redis_pass" ]]; then
+                redis_container_cmd+=(-a "$redis_pass")
+            fi
+            redis_container_cmd+=(ping)
+            redis_ping="$("${redis_container_cmd[@]}" 2>/dev/null || true)"
+            if grep -q "PONG" <<<"$redis_ping"; then
+                check_pass "Redis : PING répond via le conteneur (redis-cli absent du host)"
+            else
+                check_warn "Redis : port ouvert, PING non vérifiable (ni host ni conteneur)"
+            fi
         fi
     else
         check_fail "Redis : port 6379 fermé"
@@ -545,13 +588,19 @@ check_infrastructure_services() {
     if nc -z localhost 5432 2>/dev/null || (echo > /dev/tcp/localhost/5432) 2>/dev/null; then
         check_pass "PostgreSQL : port 5432 ouvert"
         if command -v psql &>/dev/null; then
-            if PGPASSWORD="${POSTGRES_PASSWORD:-ethan_dev_pass}" psql -h localhost -U ethan -d ethan -c "SELECT 1" &>/dev/null; then
+            # Le mot de passe vit dans .env (compose le lit) : le doctor doit
+            # le lire de la même façon, sinon faux FAIL d'authentification.
+            # (Jamais affiché : règle « aucun secret dans les logs ».)
+            local pg_password
+            pg_password="${POSTGRES_PASSWORD:-$(_env_get POSTGRES_PASSWORD)}"
+            pg_password="${pg_password:-ethan_dev_pass}"
+            if PGPASSWORD="$pg_password" psql -h localhost -U ethan -d ethan -c "SELECT 1" &>/dev/null; then
                 check_pass "PostgreSQL : connexion et requête OK"
             else
                 check_fail "PostgreSQL : impossible de se connecter"
                 show_fix \
                     "Connexion PostgreSQL échouée (vérifier identifiants)" \
-                    "PGPASSWORD=${POSTGRES_PASSWORD:-ethan_dev_pass} psql -h localhost -U ethan -d ethan" \
+                    "PGPASSWORD=<POSTGRES_PASSWORD du .env> psql -h localhost -U ethan -d ethan" \
                     "docker-compose.yml (POSTGRES_PASSWORD)" \
                     "high"
             fi
@@ -585,47 +634,45 @@ check_core() {
             "high"
     fi
 
-    info "Vérification des providers..."
-    # Vérifier que les providers sont détectés
-    if python3 -c "
+    info "Vérification des providers LLM..."
+    # Module réel : core/llm/provider_factory.py + core/llm/registry.py
+    # (l'ancien chemin core.providers.* a disparu lors du rebuild).
+    local provider_count
+    if provider_count=$(python3 -c "
 import sys
 sys.path.insert(0, '${ETHAN_ROOT}')
-from core.providers.registry import ProviderRegistry
-registry = ProviderRegistry()
-print(f'Providers chargés: {len(registry.providers)}')
-" 2>/dev/null; then
-        local provider_count
-        provider_count=$(python3 -c "
-import sys
-sys.path.insert(0, '${ETHAN_ROOT}')
-from core.providers.registry import ProviderRegistry
-registry = ProviderRegistry()
-print(len(registry.providers))
-" 2>/dev/null || echo "0")
-        check_pass "Core : ${provider_count} provider(s) détecté(s)"
+from core.llm.provider_factory import create_default_providers
+print(len(create_default_providers()))
+" 2>/dev/null) && [[ "$provider_count" =~ ^[0-9]+$ ]] && (( provider_count > 0 )); then
+        check_pass "Core : ${provider_count} provider(s) LLM par défaut (factory opérationnelle)"
     else
-        check_warn "Core : impossible de vérifier les providers"
+        check_warn "Core : impossible de vérifier les providers LLM"
+        show_fix \
+            "Le sous-système providers LLM du Core n'est pas importable" \
+            "cd ${ETHAN_ROOT} && python3 -c 'from core.llm.provider_factory import create_default_providers; print(len(create_default_providers()))'" \
+            "core/llm/provider_factory.py" \
+            "medium"
     fi
 
-    info "Vérification du registre de plugins..."
-    if python3 -c "
+    info "Vérification du catalogue de plugins..."
+    # Modules réels : core/plugins/ (catalogue BUILTIN_PLUGINS + PluginRegistry).
+    # PluginRegistry() exige un CoreRecordStore : on vérifie le catalogue et
+    # l'importabilité du registre (l'ancien chemin core.registry a disparu).
+    local plugin_count
+    if plugin_count=$(python3 -c "
 import sys
 sys.path.insert(0, '${ETHAN_ROOT}')
-from core.registry import PluginRegistry
-registry = PluginRegistry()
-print(f'Plugins enregistrés: {len(registry.plugins)}')
-" 2>/dev/null; then
-        local plugin_count
-        plugin_count=$(python3 -c "
-import sys
-sys.path.insert(0, '${ETHAN_ROOT}')
-from core.registry import PluginRegistry
-registry = PluginRegistry()
-print(len(registry.plugins))
-" 2>/dev/null || echo "0")
-        check_pass "Core : ${plugin_count} plugin(s) enregistré(s)"
+from core.plugins import BUILTIN_PLUGINS, PluginRegistry
+print(len(BUILTIN_PLUGINS))
+" 2>/dev/null) && [[ "$plugin_count" =~ ^[0-9]+$ ]] && (( plugin_count > 0 )); then
+        check_pass "Core : ${plugin_count} plugin(s) au catalogue (PluginRegistry importable)"
     else
-        check_warn "Core : impossible de vérifier le registre de plugins"
+        check_warn "Core : impossible de vérifier le catalogue de plugins"
+        show_fix \
+            "Le catalogue de plugins du Core n'est pas importable" \
+            "cd ${ETHAN_ROOT} && python3 -c 'from core.plugins import BUILTIN_PLUGINS; print(len(BUILTIN_PLUGINS))'" \
+            "core/plugins/catalog.py" \
+            "medium"
     fi
 }
 

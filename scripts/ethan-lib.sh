@@ -29,7 +29,8 @@ I_INPUT="▸"
 # ── Chemins ──────────────────────────────────────────────────────
 ETHAN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPTS_DIR="${ETHAN_ROOT}/scripts"
-COMPOSE_FILE="${ETHAN_ROOT}/docker-compose.yml"
+# Surcharge possible via l'environnement (tests sur projet Compose jetable).
+COMPOSE_FILE="${COMPOSE_FILE:-${ETHAN_ROOT}/docker-compose.yml}"
 COMPOSE_DEV="${ETHAN_ROOT}/docker-compose.dev.yml"
 COMPOSE_PROD="${ETHAN_ROOT}/docker-compose.prod.yml"
 LOG_DIR="${ETHAN_ROOT}/logs"
@@ -50,6 +51,15 @@ arrow()     { echo -e "  ${C_CYAN}${I_ARROW} $*${C_RESET}"; }
 metadata()  { echo -e "  ${C_DIM}${I_TIMER} $*${C_RESET}"; }
 dim()       { echo -e "  ${C_DIM}$*${C_RESET}"; }
 bold()      { echo -e "${C_BOLD}$*${C_RESET}"; }
+
+# ── Lecture sûre d'une clé du .env ───────────────────────────────
+# `source .env` est exclu : les valeurs peuvent contenir des caractères
+# spéciaux. Même convention que cmd-preflight.sh (grep + cut).
+_env_get() {
+    local key="$1"
+    grep -E "^${key}=" "${ETHAN_ROOT}/.env" 2>/dev/null \
+        | tail -1 | cut -d= -f2- | tr -d '"'"'" || true
+}
 
 # ── Docker helpers ───────────────────────────────────────────────
 

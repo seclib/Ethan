@@ -13,6 +13,9 @@ Type=exec
 User=ethan
 SupplementaryGroups=docker
 Environment=ETHAN_ROOT=/home/fatsio/AI/Ethan
+# Variables du circuit breaker, surchargeables via .env (EnvironmentFile) :
+#   ETHAN_WATCHDOG_MAX_RESTARTS=5                   # échecs consécutifs avant ouverture du circuit
+#   ETHAN_WATCHDOG_STATE=/tmp/ethan-watchdog-state  # fichier d'état (compteurs par service)
 EnvironmentFile=-/home/fatsio/AI/Ethan/.env
 WorkingDirectory=/home/fatsio/AI/Ethan
 ExecStart=/home/fatsio/AI/Ethan/ethan watchdog

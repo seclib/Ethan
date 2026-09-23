@@ -39,7 +39,7 @@ cd Ethan
 
 # 3. Démarrer
 ./ethan up              # démarre tout (5-15 min si sans cache)
-./ethan status          # vérifier que 7/7 sont healthy
+./ethan status          # vérifier que 8/8 sont healthy (8 services avec le compose actuel)
 ```
 
 ### 2.2 Démarrage normal
@@ -290,6 +290,39 @@ docker compose build --no-cache
 | Espace disque < 20% | 20% | Nettoyer logs + backups |
 | RAM > 80% | 80% | Vérifier OOM, augmenter limits |
 | Build échoué | 1 échec | Vérifier Docker Hub + pip |
+
+### 7.3 Watchdog & circuit breaker
+
+`ethan-watchdog.timer` déclenche `./ethan watchdog` toutes les 30 secondes.
+
+**Comportement (circuit breaker par service)** :
+- Détecte les services en échec (`exited`, `restarting`, `dead`) — l'état est lu
+  avec `docker compose ps --all` : sans `--all`, un conteneur stoppé est invisible.
+- Échecs 1 à 5 (consécutifs) : redémarrage automatique (`docker compose up -d <service>`).
+- Au-delà : circuit **ouvert** — plus aucun redémarrage automatique (fin des boucles
+  infinies), alerte dans le journal systemd, exit code 1.
+- **Réarmement progressif** : chaque cycle stable décrémente le compteur d'un cran
+  (≈ 5 × 30s de stabilité pour revenir à zéro).
+
+**Fichier d'état** : `/tmp/ethan-watchdog-state` (une ligne `service compteur` par
+service en échec ; supprimé lorsque tous les compteurs sont à zéro).
+
+**Surcharges** : `ETHAN_WATCHDOG_MAX_RESTARTS` (défaut 5),
+`ETHAN_WATCHDOG_STATE` (chemin du fichier d'état).
+
+**Diagnostic** :
+
+```bash
+systemctl status ethan-watchdog.timer      # timer actif ?
+journalctl -u ethan-watchdog -n 50         # dernières alertes
+docker compose ps --all                    # état réel (inclut les stoppés)
+cat /tmp/ethan-watchdog-state              # compteurs d'échecs en cours
+docker compose logs <service>              # cause racine du crash
+```
+
+Un circuit ouvert est volontairement **collant** : corriger la cause racine puis
+`docker compose up -d <service>` ; le compteur se réarme seul après quelques cycles
+stables. Réarmement immédiat (intervention manuelle) : `rm -f /tmp/ethan-watchdog-state`.
 
 ---
 

@@ -2,9 +2,26 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
+
+# ---------------------------------------------------------------------------
+# Quarantaine locale (miroir du collect_ignore global de tests/conftest.py).
+#
+# Ces tests importent `openjarvis.*`, paquet applicatif historique supprimé
+# lors du rebuild (core/ + sdk/ + plugins/ + interfaces/). Le collect_ignore
+# global ne s'applique PAS lorsque ce dossier est ciblé directement
+# (`pytest tests/install`), d'où ce garde-fou local : sans le paquet
+# `openjarvis`, aucun fichier n'est collecté (10 erreurs de collection avant).
+#
+# Ils redeviendront actifs automatiquement quand la migration
+# openjarvis.* → core.* (RFC dédiée) sera réalisée.
+# ---------------------------------------------------------------------------
+collect_ignore_glob = []
+if importlib.util.find_spec("openjarvis") is None:
+    collect_ignore_glob += ["*.py", "*/*.py"]
 
 
 @pytest.fixture
