@@ -30,36 +30,19 @@ Commands:
 from __future__ import annotations
 
 import sys
-import os
 
-from interfaces.cli.registry import Registry
 from interfaces.cli.core import colors as clr
+from interfaces.cli.registry import Registry, discover_commands
 
-# ── Import all command modules so @register decorators fire ──────
-# pylint: disable=unused-import
-from interfaces.cli.commands import (
-    status,
-    doctor,
-    logs,
-    memory,
-    plugin,
-    router,
-    think,
-    chat,
-    daemon,
-    version,
-    suggest,
-    bench,
-    update,
-    config_cmd,
-    domains,
-    auth,
-)
-# pylint: enable=unused-import
+# Les modules de commandes sont chargés dynamiquement par
+# discover_commands() (appelé en tête de main()) — voir registry.py.
+# Sans cet appel, COMMAND_HANDLERS reste vide et toute commande tombe
+# dans le REPL de repli.
 
 
 def main() -> None:
     """Main entry point — dispatch to registered commands or fallback to REPL."""
+    discover_commands()
     registry = Registry()
 
     if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
@@ -72,6 +55,7 @@ def main() -> None:
     # Special case: version
     if command in ("version", "--version", "-v"):
         from interfaces.cli._version import __version__
+
         print(f"ETHAN CLI v{__version__}")
         sys.exit(0)
 
@@ -79,8 +63,11 @@ def main() -> None:
     if command == "repl" or command not in registry.commands:
         if command != "repl":
             print(f"{clr.C.YELLOW}⚠ Unknown command: {command}{clr.C.RESET}")
-            print(f"  {clr.C.CYAN}→{clr.C.RESET} Starting REPL instead. Use '{clr.C.BOLD}help{clr.C.RESET}' for commands.\n")
+            print(
+                f"  {clr.C.CYAN}→{clr.C.RESET} Starting REPL instead. Use '{clr.C.BOLD}help{clr.C.RESET}' for commands.\n"  # noqa: E501
+            )
         from interfaces.cli.repl import repl_loop
+
         try:
             repl_loop()
         except KeyboardInterrupt:
@@ -107,7 +94,9 @@ def main() -> None:
 def _show_help(registry: Registry) -> None:
     """Display formatted help with all registered commands."""
     print()
-    print(f"{clr.C.BOLD}{clr.C.CYAN}◆ ETHAN CLI{clr.C.RESET}  {clr.C.DIM}Cognitive OS Terminal{clr.C.RESET}")
+    print(
+        f"{clr.C.BOLD}{clr.C.CYAN}◆ ETHAN CLI{clr.C.RESET}  {clr.C.DIM}Cognitive OS Terminal{clr.C.RESET}"  # noqa: E501
+    )
     print()
 
     # Group commands by category

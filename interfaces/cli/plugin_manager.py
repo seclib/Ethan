@@ -4,13 +4,14 @@ Plugin structure (~/.local/share/ethan/plugins/<name>/):
   plugin.py          # Must define ETHAN_PLUGIN
   requirements.txt   # Optional pip dependencies
 """
+
 import importlib.util
-import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from core.plugins.validator import PluginValidator
 
 USER_PLUGIN_DIR = Path.home() / ".local" / "share" / "ethan" / "plugins"
 ETHAN_API_VERSION = "2"
@@ -51,7 +52,9 @@ def _load_plugin(plugin_dir: Path):
     meta = mod.ETHAN_PLUGIN
     # API version check
     if meta.get("api_version") != ETHAN_API_VERSION:
-        print(f"Warning: plugin '{meta.get('name','?')}' requires API v{meta.get('api_version')}, CLI v{ETHAN_API_VERSION}")
+        print(
+            f"Warning: plugin '{meta.get('name', '?')}' requires API v{meta.get('api_version')}, CLI v{ETHAN_API_VERSION}"  # noqa: E501
+        )
         return None
     return meta
 
@@ -91,7 +94,15 @@ def install(source: str) -> bool:
             return False
         shutil.copytree(src, dest, dirs_exist_ok=True)
 
-    # Validate
+    # Validation Core avant tout chargement/exécution (P1-PLUGIN-01) :
+    # analyse AST du code copié (imports/builtins interdits) sans exec.
+    check = PluginValidator().validate_imports(dest)
+    if not check.valid:
+        shutil.rmtree(dest)
+        print(f"Plugin rejected by validator: {check.error}")
+        return False
+
+    # Validate (manifest ETHAN_PLUGIN + contrôle API version)
     meta = validate(dest)
     if meta is None:
         shutil.rmtree(dest)
@@ -102,11 +113,13 @@ def install(source: str) -> bool:
     req_file = dest / "requirements.txt"
     if req_file.exists():
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(req_file)], check=True)
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(req_file)], check=True
+            )
         except subprocess.CalledProcessError:
             print("Warning: pip dependencies failed to install")
 
-    print(f"Installed plugin: {meta.get('name','?')} v{meta.get('version','?')}")
+    print(f"Installed plugin: {meta.get('name', '?')} v{meta.get('version', '?')}")
     return True
 
 
