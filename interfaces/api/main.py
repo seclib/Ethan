@@ -8,89 +8,112 @@ If you encounter import errors, run the command above from the project root.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
-import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response, Request, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from slowapi.middleware import SlowAPIMiddleware
-
 import nats
-
-from core.telemetry.logger import setup_logging
-from interfaces.api.routers.message import router as message_router, set_nats_client
-from interfaces.api.routers.state import router as state_router
-from interfaces.api.routers.internal import router as internal_router, init_modules
-from interfaces.api.routers.folders import router as folders_router
-from interfaces.api.routers.projects import router as projects_router
-from interfaces.api.routers.web_ingest import router as web_ingest_router
-from interfaces.api.routers.knowledge_imports import router as knowledge_imports_router
-from interfaces.api.routers.core_domains import router as core_domains_router
-from interfaces.api.routers.v1 import (
-    CoreDomainServices,
-    router as v1_router,
-    set_core_domain_services,
-    set_provider_manager as set_v1_provider_manager,
-)
-from interfaces.api.routers.providers import router as providers_router, set_provider_manager
-from interfaces.api.routers.integrations import router as integrations_router
-from interfaces.api.routers.search import router as search_router
-from interfaces.api.routers.reminders import router as reminders_router
-from interfaces.api.routers.models import router as models_router, set_provider_manager as set_models_provider_manager, set_model_store
-from interfaces.api.routers.config import router as config_router, set_configuration_service
-from interfaces.api.routers.diagnostics import (
-    router as diagnostics_router,
-    set_diagnostics_service,
-    set_metrics_service,
-)
-from interfaces.api.routers.dedup import router as dedup_router, set_dedup_managers
-from interfaces.api.routers.domains import router as domains_router, set_domain_managers
-from interfaces.api.routers.capabilities import (
-    CapabilityManagers,
-    router as capabilities_router,
-    set_capability_managers,
-)
-from interfaces.api.routers.realtime import router as realtime_router
-from interfaces.api.routers.security import router as security_router, set_security_pool
-from interfaces.api.routers.openwebui import router as openwebui_router
-from interfaces.api.routers.v1 import (
-    set_chat_pipeline,
-    set_chat_store,
-    set_knowledge_collections,
-    set_skill_store,
-    get_skill_store,
-    set_tool_manager,
-    set_webui_store,
-)
-from interfaces.api.routers.cookbook import router as cookbook_router, set_cookbook_manager
-from interfaces.api.routers.email import router as email_router, set_email_manager
-from interfaces.api.routers.research import router as research_router, set_research_engine
-from core.config import ConfigurationService, ConfigStore
-from core.state import CoreRecordStore
-from core.state.webui_store import CoreWebUIStore
-from interfaces.api.auth import auth_middleware, create_access_token, verify_token, verify_token_string, security
-from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
+from core.agents import AgentManager
+from core.config import ConfigStore, ConfigurationService
+from core.knowledge import KnowledgeManager
 from core.llm.provider_manager import ProviderManager
 from core.llm.store import ProviderStore
-from core.agents import AgentManager
-from core.knowledge import KnowledgeManager
 from core.missions import MissionManager
 from core.rag import RAGPipeline
 from core.skills.store import SkillStore
+from core.state import CoreRecordStore
+from core.state.webui_store import CoreWebUIStore
+from core.telemetry.logger import setup_logging
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials
+from interfaces.api.auth import (
+    auth_middleware,
+    create_access_token,
+    security,
+    verify_token_string,
+)
+from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
+from interfaces.api.routers.capabilities import (
+    CapabilityManagers,
+    set_capability_managers,
+)
+from interfaces.api.routers.capabilities import (
+    router as capabilities_router,
+)
+from interfaces.api.routers.config import router as config_router
+from interfaces.api.routers.config import set_configuration_service
+from interfaces.api.routers.cookbook import router as cookbook_router
+from interfaces.api.routers.cookbook import set_cookbook_manager
+from interfaces.api.routers.core_domains import router as core_domains_router
+from interfaces.api.routers.dedup import router as dedup_router
+from interfaces.api.routers.dedup import set_dedup_managers
+from interfaces.api.routers.diagnostics import (
+    router as diagnostics_router,
+)
+from interfaces.api.routers.diagnostics import (
+    set_diagnostics_service,
+    set_metrics_service,
+)
+from interfaces.api.routers.domains import router as domains_router
+from interfaces.api.routers.domains import set_domain_managers
+from interfaces.api.routers.email import router as email_router
+from interfaces.api.routers.email import set_email_manager
+from interfaces.api.routers.folders import router as folders_router
+from interfaces.api.routers.integrations import router as integrations_router
+from interfaces.api.routers.internal import init_modules
+from interfaces.api.routers.internal import router as internal_router
+from interfaces.api.routers.knowledge_imports import router as knowledge_imports_router
+from interfaces.api.routers.message import router as message_router
+from interfaces.api.routers.message import set_nats_client
+from interfaces.api.routers.models import router as models_router
+from interfaces.api.routers.models import set_model_store
+from interfaces.api.routers.models import set_provider_manager as set_models_provider_manager
+from interfaces.api.routers.openwebui import router as openwebui_router
+from interfaces.api.routers.projects import router as projects_router
+from interfaces.api.routers.providers import router as providers_router
+from interfaces.api.routers.providers import set_provider_manager
+from interfaces.api.routers.realtime import router as realtime_router
+from interfaces.api.routers.reminders import router as reminders_router
+from interfaces.api.routers.research import router as research_router
+from interfaces.api.routers.research import set_research_engine
+from interfaces.api.routers.search import router as search_router
+from interfaces.api.routers.security import router as security_router
+from interfaces.api.routers.security import set_security_pool
+from interfaces.api.routers.state import router as state_router
+from interfaces.api.routers.v1 import (
+    CoreDomainServices,
+    get_skill_store,
+    set_chat_pipeline,
+    set_chat_store,
+    set_core_domain_services,
+    set_knowledge_collections,
+    set_skill_store,
+    set_tool_manager,
+    set_webui_store,
+)
+from interfaces.api.routers.v1 import (
+    router as v1_router,
+)
+from interfaces.api.routers.v1 import (
+    set_provider_manager as set_v1_provider_manager,
+)
+from interfaces.api.routers.web_ingest import router as web_ingest_router
+from slowapi.middleware import SlowAPIMiddleware
 
 try:
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
     HAS_PROMETHEUS = True
 except ImportError:  # pragma: no cover - optional dependency
     HAS_PROMETHEUS = False
 
 try:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from core.telemetry import init_telemetry
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
     HAS_TELEMETRY = True
 except ImportError:
     HAS_TELEMETRY = False
@@ -102,6 +125,7 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -154,6 +178,7 @@ async def lifespan(app: FastAPI):
 
     try:
         import redis.asyncio as aioredis
+
         redis_client = aioredis.from_url(redis_url, decode_responses=True, protocol=2)
         await asyncio.wait_for(redis_client.ping(), timeout=5)
         logger.info("ProviderManager Redis cache connected")
@@ -162,6 +187,7 @@ async def lifespan(app: FastAPI):
 
     try:
         import asyncpg
+
         pg_pool = await asyncio.wait_for(
             asyncpg.create_pool(db_url, min_size=1, max_size=5), timeout=10
         )
@@ -349,6 +375,7 @@ async def lifespan(app: FastAPI):
 
     # --- Event Bus (NATS-backed) ---
     from core.bus.nats_bus import EventBus as NatsEventBus
+
     event_bus = NatsEventBus(servers=nats_url)
     await event_bus.connect()
     app.state.event_bus = event_bus
@@ -356,6 +383,7 @@ async def lifespan(app: FastAPI):
 
     # --- Scheduler (background tasks, cron, reminders) ---
     from core.scheduler.scheduler import Scheduler
+
     scheduler = Scheduler(bus=event_bus)
     await scheduler.start()
     app.state.scheduler = scheduler
@@ -447,21 +475,21 @@ async def lifespan(app: FastAPI):
     #     analytics, channels, notes, tools, tool servers, prompts, scim) ---
     # All managers are Core-owned and share the same CoreRecordStore.  They are
     # injected here so the capabilities router stays a thin HTTP gateway.
+    from core.auth.ldap import LDAPManager
+    from core.auth.oauth import OAuthManager
+    from core.auth.scim import SCIMManager
+    from core.config.prompts import PromptManager
+    from core.learning.evaluations import EvaluationManager
+    from core.llm.images import ImageGenerator
+    from core.llm.tts import TTSEngine
+    from core.metrics.analytics import AnalyticsManager
     from core.scheduler.automations import AutomationManager
     from core.scheduler.calendar import CalendarManager
-    from core.llm.tts import TTSEngine
-    from core.llm.images import ImageGenerator
-    from core.learning.evaluations import EvaluationManager
-    from core.metrics.analytics import AnalyticsManager
+    from core.security.integration import build_secure_enforcer
     from core.state.channels import ChannelStore
     from core.state.notes import NoteStore
     from core.tools.manager import ToolManager
     from core.tools.servers import ToolServerManager
-    from core.config.prompts import PromptManager
-    from core.auth.scim import SCIMManager
-    from core.auth.ldap import LDAPManager
-    from core.auth.oauth import OAuthManager
-    from core.security.integration import build_secure_enforcer
 
     # Policy Engine + ToolManager créés plus haut (partagés avec
     # IntegrationManager et le chat pipeline) — réutilisés ici.
@@ -480,6 +508,8 @@ async def lifespan(app: FastAPI):
     from core.plugins import (
         BUILTIN_PLUGINS,
         PluginRegistry,
+    )
+    from core.plugins import (
         set_plugin_registry as _set_core_plugin_registry,
     )
 
@@ -492,14 +522,14 @@ async def lifespan(app: FastAPI):
     # The SkillManager composes a ToolManager (for step execution via
     # ToolManager.select_and_execute) and hydrates its registry with the
     # built-in Core skills so /v1/skills/{id}/execute is a real execution.
-    from core.skills.manager import SkillManager
     from core.skills.builtin import (
-        ProgrammingSkill,
-        WebSearchSkill,
-        PDFAnalysisSkill,
         EmailReaderSkill,
+        PDFAnalysisSkill,
+        ProgrammingSkill,
         ProjectCreatorSkill,
+        WebSearchSkill,
     )
+    from core.skills.manager import SkillManager
 
     skill_manager = SkillManager(tool_manager=tool_manager)
     for cls in (
@@ -599,9 +629,11 @@ async def lifespan(app: FastAPI):
             )
         )
         logger.info("Agent executor injected (Core real LLM adapter)")
-        logger.info("ProviderManager ready (default=%s, providers=%d)",
-                    provider_manager._default_provider,
-                    len(provider_manager._registry.list_providers()))
+        logger.info(
+            "ProviderManager ready (default=%s, providers=%d)",
+            provider_manager._default_provider,
+            len(provider_manager._registry.list_providers()),
+        )
     except Exception as exc:
         logger.exception("Failed to initialize ProviderManager: %s", exc)
         provider_manager = None
@@ -683,9 +715,11 @@ async def lifespan(app: FastAPI):
             workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
         )
         set_diagnostics_service(diagnostics_service)
-        set_metrics_service(SystemMetrics(
-            workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
-        ))
+        set_metrics_service(
+            SystemMetrics(
+                workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
+            )
+        )
         app.state.diagnostics = diagnostics_service
         logger.info("Diagnostics service ready (12 composants réels)")
     except Exception as exc:
@@ -695,6 +729,7 @@ async def lifespan(app: FastAPI):
 
     # --- Shutdown ---
     from interfaces.api.routers import message as _message_router
+
     nc = _message_router._nats
     if nc:
         try:
@@ -715,6 +750,7 @@ async def lifespan(app: FastAPI):
             await asyncio.wait_for(pg_pool.close(), timeout=5)
         except Exception as exc:
             logger.warning("Error closing PostgreSQL pool: %s", exc)
+
 
 app = FastAPI(
     title="Ethan Cognitive OS API",
@@ -744,7 +780,7 @@ app.middleware("http")(auth_middleware)
 
 
 # ── API Keys — Core APIKeyManager (wiring) ──────────────────
-from interfaces.api.routers.api_keys import router as api_keys_router
+from interfaces.api.routers.api_keys import router as api_keys_router  # noqa: E402
 
 app.include_router(api_keys_router)
 app.include_router(folders_router)
@@ -776,7 +812,6 @@ app.include_router(realtime_router)
 # /openai/config and /api/chat/completions so the Open WebUI frontend fork
 # (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.
 app.include_router(openwebui_router)
-app.include_router(diagnostics_router)
 
 
 # Old startup code removed as it's now in the lifespan context manager.
@@ -785,7 +820,6 @@ app.include_router(diagnostics_router)
 @app.post("/auth/login")
 async def login(request: Request, response: Response):
     """Login endpoint — returns a JWT token and sets an HttpOnly cookie."""
-    import json
 
     try:
         body = await request.json()
@@ -794,33 +828,42 @@ async def login(request: Request, response: Response):
 
     username = body.get("username", "developer")
     password = body.get("password", "")
-    
+
     role = "user"
     try:
-        import asyncpg
         import asyncio
+
+        import asyncpg
         import bcrypt
-        
+
         db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
-        
+
         # Connect to DB with timeout
         conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
         try:
-            row = await conn.fetchrow("SELECT password_hash, roles, is_active, totp_secret, totp_enabled FROM users WHERE username = $1", username)
+            row = await conn.fetchrow(
+                "SELECT password_hash, roles, is_active, totp_secret, totp_enabled "
+                "FROM users WHERE username = $1",
+                username,
+            )
             if not row:
                 # Prevent timing attacks
-                bcrypt.checkpw(password.encode('utf-8'), b"$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK")
+                bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    b"$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK",
+                )
                 raise HTTPException(status_code=401, detail="Invalid username or password")
-            
+
             if not row["is_active"]:
                 raise HTTPException(status_code=401, detail="User account is disabled")
-                
-            if not bcrypt.checkpw(password.encode('utf-8'), row["password_hash"].encode('utf-8')):
+
+            if not bcrypt.checkpw(password.encode("utf-8"), row["password_hash"].encode("utf-8")):
                 raise HTTPException(status_code=401, detail="Invalid username or password")
-                
+
             # 2FA — TOTP verification (Core-owned: core/auth/totp.py)
             if row["totp_enabled"]:
                 from core.auth.totp import verify_code
+
                 totp_code = str(body.get("totp_code", ""))
                 if not totp_code:
                     raise HTTPException(status_code=401, detail="Code 2FA requis.")
@@ -830,15 +873,15 @@ async def login(request: Request, response: Response):
             role = row["roles"][0] if row["roles"] else "user"
         finally:
             await conn.close()
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"DB Auth unavailable: {e}")
         raise HTTPException(status_code=503, detail="Authentication service unavailable")
-        
+
     token = create_access_token(data={"sub": username, "role": role})
-    
+
     response.set_cookie(
         key="ethan_token",
         value=token,
@@ -846,7 +889,7 @@ async def login(request: Request, response: Response):
         samesite="lax",
         max_age=86400,
         path="/",
-        secure=os.getenv("NODE_ENV") == "production"
+        secure=os.getenv("NODE_ENV") == "production",
     )
 
     return {
@@ -882,9 +925,9 @@ async def register(request: Request):
     # than 72 bytes" même pour des mots de passe courts).
     import bcrypt
 
-    password_hash = bcrypt.hashpw(
-        body.get("password").encode("utf-8"), bcrypt.gensalt()
-    ).decode("utf-8")
+    password_hash = bcrypt.hashpw(body.get("password").encode("utf-8"), bcrypt.gensalt()).decode(
+        "utf-8"
+    )
 
     import asyncpg
 
@@ -937,15 +980,20 @@ async def auth_me(request: Request):
 
 
 @app.post("/auth/refresh")
-async def auth_refresh(response: Response, credentials: HTTPAuthorizationCredentials = Depends(security), request: Request = None):
+async def auth_refresh(
+    response: Response,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request = None,
+):
     """Issue a new JWT token from a valid existing token."""
-    # We must explicitly read the token since Depends(security) might miss the cookie if no Bearer header is present.
+    # We must explicitly read the token since Depends(security) might miss the
+    # cookie if no Bearer header is present.
     token = request.cookies.get("ethan_token")
     if not token:
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            
+
     if not token:
         raise HTTPException(status_code=401, detail="Authentification requise.")
 
@@ -954,7 +1002,7 @@ async def auth_refresh(response: Response, credentials: HTTPAuthorizationCredent
         username = payload.get("sub", "unknown")
         role = payload.get("role", "user")
         new_token = create_access_token(data={"sub": username, "role": role})
-        
+
         response.set_cookie(
             key="ethan_token",
             value=new_token,
@@ -962,9 +1010,9 @@ async def auth_refresh(response: Response, credentials: HTTPAuthorizationCredent
             samesite="lax",
             max_age=86400,
             path="/",
-            secure=os.getenv("NODE_ENV") == "production"
+            secure=os.getenv("NODE_ENV") == "production",
         )
-        
+
         return {
             "access_token": new_token,
             "token": new_token,
@@ -981,12 +1029,7 @@ async def auth_refresh(response: Response, credentials: HTTPAuthorizationCredent
 @app.post("/auth/logout")
 async def auth_logout(response: Response):
     """Logout endpoint — clears the HttpOnly cookie."""
-    response.delete_cookie(
-        key="ethan_token",
-        httponly=True,
-        samesite="lax",
-        path="/"
-    )
+    response.delete_cookie(key="ethan_token", httponly=True, samesite="lax", path="/")
     return {"status": "ok", "message": "Logged out successfully"}
 
 
@@ -1032,15 +1075,18 @@ async def _health_readiness() -> Response | dict:
 async def health_detailed():
     """Detailed health check verifying connectivity to dependencies."""
     import asyncio
-    import os
     import json
+    import os
 
     results = {}
 
     from interfaces.api.routers import message as _message_router
+
     api_nats = _message_router._nats
     results["api_nats"] = (
-        "connected" if api_nats is not None and api_nats.is_connected else "error: API NATS disconnected"
+        "connected"
+        if api_nats is not None and api_nats.is_connected
+        else "error: API NATS disconnected"
     )
 
     nc = None
@@ -1060,6 +1106,7 @@ async def health_detailed():
     r = None
     try:
         import redis.asyncio as aioredis
+
         redis_url = os.getenv("REDIS_URL", "redis://default:ethan_dev_redis@redis:6379/0")
         r = aioredis.from_url(
             redis_url,
@@ -1080,6 +1127,7 @@ async def health_detailed():
     conn = None
     try:
         import asyncpg
+
         db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
         conn = await asyncio.wait_for(asyncpg.connect(db_url, timeout=2), timeout=3)
         results["postgresql"] = "connected"
@@ -1098,7 +1146,7 @@ async def health_detailed():
     return Response(
         content=json.dumps({"status": "ok" if all_ok else "degraded", "checks": results}),
         status_code=status_code,
-        media_type="application/json"
+        media_type="application/json",
     )
 
 

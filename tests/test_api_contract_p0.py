@@ -17,8 +17,8 @@ Invariants couverts :
 1. Existence des 92 routes P0 (regression de surface = echec) ;
 2. RBAC : sans token, toute route P0 hors /health* renvoie 401 (audit du
    24/09/2026 : 87/92 en 401, 5 exemptions publiques) ;
-3. Zero doublon (methode, chemin) nouveau sur l'application complete
-   (5 doublons connus du code committé, dette G-04/ADR-3008, figes) ;
+3. Zero doublon (methode, chemin) sur l'application complete
+   (les 5 doublons G-04/ADR-3008 ont ete supprimes le 24/09/2026) ;
 4. /openapi.json documente chaque chemin P0 ;
 5. Dette ADR-3006 : le nombre de routes P0 sans ``response_model`` (85 au
    24/09/2026) ne peut que baisser — garde-fou non bloquant.
@@ -61,16 +61,11 @@ PUBLIC_P0_ROUTES: set[tuple[str, str]] = {
 # Ce plafond ne peut que baisser (une hausse = nouvelle route sans schema).
 MAX_SANS_RESPONSE_MODEL = 85
 
-# Doublons connus du code committé (mesures sur clone vierge 92d0c396) :
-# dette G-04 / ADR-3008 (appartenance des routes a trancher). Le WIP local
-# les resout deja. Toute NOUVELLE paire dupliquee fera echouer le test.
-KNOWN_DOUBLONS: set[tuple[str, str]] = {
-    ("GET", "/v1/tools"),  # v1:list_tools + capabilities:list_tools
-    ("GET", "/users"),  # security + domains
-    ("POST", "/users"),  # security + domains
-    ("GET", "/diagnostics"),  # router diagnostics inclus 2x
-    ("GET", "/diagnostics/metrics"),  # router diagnostics inclus 2x
-}
+# Les 5 doublons G-04/ADR-3008 (mesurés sur clone vierge 92d0c396) ont été
+# supprimés du code committé le 24/09/2026 : l'application ne doit plus
+# comporter AUCUN doublon (methode, chemin). Toute nouvelle paire dupliquee
+# fera echouer le test.
+KNOWN_DOUBLONS: set[tuple[str, str]] = set()
 
 P0_ROUTES: set[tuple[str, str]] = {
     # --- Chat / completion --------------------------------------------
@@ -179,6 +174,8 @@ P0_ROUTES: set[tuple[str, str]] = {
     ("POST", "/v1/oauth/providers/{name}/disable"),
     ("GET", "/v1/dedup/health"),
 }
+
+
 def _resolve(path: str) -> str:
     """Remplace les parametres de chemin par un jeton inoffensif."""
     return re.sub(r"\{[^}]+\}", "x", path)
@@ -238,9 +235,7 @@ def test_aucune_route_dupliquee() -> None:
                 pairs.append((method, route.path))
     duplicates = {pair: n for pair, n in Counter(pairs).items() if n > 1}
     new_duplicates = set(duplicates) - KNOWN_DOUBLONS
-    assert not new_duplicates, (
-        f"nouveaux doublons (methode, chemin) : {sorted(new_duplicates)}"
-    )
+    assert not new_duplicates, f"nouveaux doublons (methode, chemin) : {sorted(new_duplicates)}"
 
 
 def test_rbac_p0_sans_token(client: TestClient) -> None:
@@ -252,10 +247,7 @@ def test_rbac_p0_sans_token(client: TestClient) -> None:
         response = client.request(method, _resolve(path))
         if response.status_code != 401:
             refused[(method, path)] = response.status_code
-    assert not refused, (
-        "routes P0 accessibles sans authentification (regression C-08) : "
-        f"{refused}"
-    )
+    assert not refused, f"routes P0 accessibles sans authentification (regression C-08) : {refused}"
 
 
 def test_health_publique(client: TestClient) -> None:
@@ -264,13 +256,9 @@ def test_health_publique(client: TestClient) -> None:
         response = client.request(method, _resolve(path))
         if path == "/health/detailed":
             # 503 tant que les dependances (NATS/Redis/PG) sont absentes.
-            assert response.status_code in (200, 503), (
-                f"{path} -> {response.status_code}"
-            )
+            assert response.status_code in (200, 503), f"{path} -> {response.status_code}"
         else:
-            assert response.status_code == 200, (
-                f"{path} -> {response.status_code}"
-            )
+            assert response.status_code == 200, f"{path} -> {response.status_code}"
 
 
 def test_openapi_couvre_les_chemins_p0(client: TestClient) -> None:
@@ -300,4 +288,3 @@ def test_dette_sans_schema_ne_regresse_pas() -> None:
         f"{MAX_SANS_RESPONSE_MODEL} : nouvelle route exposee sans schema "
         "(ADR-3006 — ajouter un response_model ou justifier en RFC)."
     )
-

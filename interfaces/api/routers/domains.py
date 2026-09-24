@@ -10,15 +10,14 @@ import io
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
-
 from core.auth import Permission
-from interfaces.api.auth import require_permission
 from core.auth.groups import GroupManager
 from core.auth.users import UserManager
 from core.state.chats import ChatStore
 from core.state.files import FileStore
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
+from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +84,16 @@ def _require_groups() -> GroupManager:
 # CHATS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 @router.get("/chats")
 async def list_chats(
     user_id: str | None = None,
     folder_id: str | None = None,
     archived: bool | None = None,
 ):
-    return await _require_chats().list_chats(user_id=user_id, folder_id=folder_id, archived=archived)
+    return await _require_chats().list_chats(
+        user_id=user_id, folder_id=folder_id, archived=archived
+    )
 
 
 @router.post("/chats", dependencies=[Depends(require_permission(Permission.WRITE))])
@@ -135,7 +137,9 @@ async def list_chat_messages(chat_id: str):
     return await _require_chats().list_messages(chat_id)
 
 
-@router.post("/chats/{chat_id}/messages", dependencies=[Depends(require_permission(Permission.WRITE))])
+@router.post(
+    "/chats/{chat_id}/messages", dependencies=[Depends(require_permission(Permission.WRITE))]
+)
 async def add_chat_message(chat_id: str, data: dict[str, Any]):
     try:
         return await _require_chats().add_message(
@@ -160,6 +164,7 @@ async def share_chat(chat_id: str):
 # ═══════════════════════════════════════════════════════════════════════
 # FILES
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.get("/files")
 async def list_files(user_id: str | None = None):
@@ -236,27 +241,9 @@ async def delete_file(file_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# USERS
+# USERS — routes /users/{user_id} uniquement : les paires GET+POST /users
+# sont possédées par le router `security` (fix doublons G-04/ADR-3008).
 # ═══════════════════════════════════════════════════════════════════════
-
-@router.get("/users", dependencies=[Depends(require_permission(Permission.ADMIN))])
-async def list_users():
-    return await _require_users().list()
-
-
-@router.post("/users", dependencies=[Depends(require_permission(Permission.ADMIN))])
-async def create_user(data: dict[str, Any]):
-    try:
-        return await _require_users().create(
-            username=data.get("username", ""),
-            email=data.get("email", ""),
-            role=data.get("role", "user"),
-            password_hash=data.get("password_hash", ""),
-            profile=data.get("profile"),
-            metadata=data.get("metadata"),
-        )
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/users/{user_id}")
@@ -285,6 +272,7 @@ async def delete_user(user_id: str):
 # ═══════════════════════════════════════════════════════════════════════
 # GROUPS
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.get("/groups", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def list_groups():
@@ -327,7 +315,10 @@ async def delete_group(group_id: str):
     return {"status": "deleted"}
 
 
-@router.post("/groups/{group_id}/members/{user_id}", dependencies=[Depends(require_permission(Permission.ADMIN))])
+@router.post(
+    "/groups/{group_id}/members/{user_id}",
+    dependencies=[Depends(require_permission(Permission.ADMIN))],
+)
 async def add_group_member(group_id: str, user_id: str):
     group = await _require_groups().add_member(group_id, user_id)
     if group is None:
@@ -335,7 +326,10 @@ async def add_group_member(group_id: str, user_id: str):
     return group
 
 
-@router.delete("/groups/{group_id}/members/{user_id}", dependencies=[Depends(require_permission(Permission.ADMIN))])
+@router.delete(
+    "/groups/{group_id}/members/{user_id}",
+    dependencies=[Depends(require_permission(Permission.ADMIN))],
+)
 async def remove_group_member(group_id: str, user_id: str):
     group = await _require_groups().remove_member(group_id, user_id)
     if group is None:

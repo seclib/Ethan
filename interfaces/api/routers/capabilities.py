@@ -13,9 +13,8 @@ import base64
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from core.auth import Permission
+from fastapi import APIRouter, Depends, HTTPException
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
@@ -81,6 +80,7 @@ def _require(manager: Any, name: str) -> Any:
 # AUTOMATIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/automations")
 async def list_automations(enabled: bool | None = None):
     manager = _require(_managers.automations, "Automation")
@@ -144,6 +144,7 @@ async def trigger_automation(automation_id: str):
 # CALENDAR
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/calendar")
 async def list_calendar_events():
     manager = _require(_managers.calendar, "Calendar")
@@ -195,6 +196,7 @@ async def delete_calendar_event(event_id: str):
 # AUDIO (TTS)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/audio/config")
 async def get_audio_config():
     manager = _require(_managers.tts, "TTS")
@@ -236,6 +238,7 @@ async def synthesize_audio(data: dict[str, Any]):
 # IMAGES
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/images/config")
 async def get_images_config():
     manager = _require(_managers.images, "ImageGeneration")
@@ -275,6 +278,7 @@ async def generate_image(data: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════════
 # EVALUATIONS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/evaluations")
 async def list_evaluations():
@@ -319,6 +323,7 @@ async def add_evaluation_result(eval_id: str, data: dict[str, Any]):
 # ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.post("/analytics/events", dependencies=[Depends(require_permission(Permission.WRITE))])
 async def record_analytics_event(data: dict[str, Any]):
     manager = _require(_managers.analytics, "Analytics")
@@ -356,6 +361,7 @@ async def get_analytics_summary(user_id: str | None = None):
 # ═══════════════════════════════════════════════════════════════════════════
 # CHANNELS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/channels")
 async def list_channels():
@@ -427,6 +433,7 @@ async def list_channel_messages(channel_id: str):
 # NOTES
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/notes")
 async def list_notes(user_id: str | None = None, pinned: bool | None = None):
     manager = _require(_managers.notes, "Note")
@@ -484,7 +491,10 @@ async def delete_note(note_id: str):
 # TOOLS AND TOOL SERVERS
 # ═══════════════════════════════════════════════════════════════════════════
 
-@router.get("/tools")
+
+# NOTE : la route GET /v1/tools est possédée par le router `v1` (monté en
+# premier) — le décorateur ici créait un doublon G-04/ADR-3008. Cette
+# fonction reste l'implémentation de référence du catalogue d'outils.
 async def list_tools():
     """List the Core-owned builtin, custom and discovered MCP tool catalogue."""
     manager = _require(_managers.tools, "Tool")
@@ -557,6 +567,7 @@ async def delete_tool_pipeline(pipeline_id: str):
     if not await manager.delete_pipeline(pipeline_id):
         raise HTTPException(404, f"Tool pipeline {pipeline_id} not found")
     return {"status": "deleted"}
+
 
 @router.get("/tools/servers")
 async def list_tool_servers(enabled: bool | None = None):
@@ -656,7 +667,10 @@ async def delete_tool_server(server_id: str):
 # SKILLS EXECUTION
 # ═══════════════════════════════════════════════════════════════════════════
 
-@router.post("/skills/{skill_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+
+@router.post(
+    "/skills/{skill_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))]
+)
 async def execute_skill(skill_id: str, data: dict[str, Any]):
     """Execute a Core skill through the SkillManager (not a stub)."""
     from core.skills.types import SkillContext
@@ -706,6 +720,7 @@ async def execute_skill(skill_id: str, data: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════════
 # PROMPTS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/prompts")
 async def list_prompts():
@@ -806,6 +821,7 @@ async def get_scim_status():
 
 # ── LDAP ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("/ldap/config")
 async def get_ldap_config():
     manager = _require(_managers.ldap, "LDAP")
@@ -839,6 +855,7 @@ async def get_ldap_status():
 
 # ── OAuth ────────────────────────────────────────────────────────────────────
 
+
 @router.get("/oauth/providers")
 async def list_oauth_providers():
     manager = _require(_managers.oauth, "OAuth")
@@ -867,7 +884,9 @@ async def register_oauth_provider(data: dict[str, Any]):
     return _redact(provider, "client_secret")
 
 
-@router.post("/oauth/providers/{name}/disable", dependencies=[Depends(require_permission(Permission.WRITE))])
+@router.post(
+    "/oauth/providers/{name}/disable", dependencies=[Depends(require_permission(Permission.WRITE))]
+)
 async def disable_oauth_provider(name: str):
     manager = _require(_managers.oauth, "OAuth")
     provider = await manager.disable_provider(name)
