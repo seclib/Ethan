@@ -90,6 +90,7 @@ class _EffectiveSet:
 
 # ── (SUITE) ──────────────────────────────────────────────────────────────────
 
+
 async def resolve_agent_resources(
     agent: Agent,
     *,
@@ -132,7 +133,9 @@ async def resolve_agent_resources(
             except Exception as exc:
                 logger.warning(
                     "Failed to resolve folder %s for agent %s: %s",
-                    folder_id, agent.name, exc,
+                    folder_id,
+                    agent.name,
+                    exc,
                 )
                 folder = None
         if folder is None:
@@ -144,9 +147,7 @@ async def resolve_agent_resources(
         try:
             memberships = await folders.list_folder_resources(folder_id)
         except Exception as exc:
-            logger.warning(
-                "Failed to list resources of folder %s: %s", folder_id, exc
-            )
+            logger.warning("Failed to list resources of folder %s: %s", folder_id, exc)
             memberships = []
         source = f"folder:{folder_id}"
         for membership in memberships:
@@ -157,9 +158,7 @@ async def resolve_agent_resources(
                 ghosts.append({"resource_type": r_type, "resource_id": r_id})
                 continue
             name = _name_of(record, r_id)
-            resources.append(
-                {"resource_type": r_type, "resource_id": r_id, "name": name}
-            )
+            resources.append({"resource_type": r_type, "resource_id": r_id, "name": name})
             if r_type == "knowledge":
                 eff_knowledge.add(r_id, {"id": r_id, "name": name}, source)
             elif r_type == "collection":
@@ -167,12 +166,8 @@ async def resolve_agent_resources(
             elif r_type == "skill":
                 eff_skills.add(r_id, {"id": r_id, "name": name}, source)
             elif r_type == "tool":
-                provider = (
-                    record.get("provider", "") if isinstance(record, dict) else ""
-                )
-                eff_tools.add(
-                    r_id, {"id": r_id, "name": name, "provider": provider}, source
-                )
+                provider = record.get("provider", "") if isinstance(record, dict) else ""
+                eff_tools.add(r_id, {"id": r_id, "name": name, "provider": provider}, source)
         folder_trees.append(
             {
                 "id": folder_id,
@@ -195,7 +190,10 @@ async def resolve_agent_resources(
         except Exception as exc:
             logger.warning(
                 "Failed to resolve %s %s for agent %s: %s",
-                resource_type, resource_id, agent.name, exc,
+                resource_type,
+                resource_id,
+                agent.name,
+                exc,
             )
             return None
         return record

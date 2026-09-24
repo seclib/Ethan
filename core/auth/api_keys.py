@@ -82,7 +82,9 @@ class APIKeyManager:
         return {**record, "key": raw_key}
 
     async def validate_key(
-        self, raw_key: str, require_scopes: list[str] | None = None,
+        self,
+        raw_key: str,
+        require_scopes: list[str] | None = None,
     ) -> dict[str, Any] | None:
         """Valide une clé : active, non expirée, scopes requis couverts."""
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()

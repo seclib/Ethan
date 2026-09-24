@@ -12,22 +12,23 @@ import asyncio
 import logging
 from typing import Any
 
-from core.modules.base import Module, ModuleContext, ModuleState
-from core.modules.interface import ModuleInterface
 from core.bus.interface import EventBus
+from core.modules.base import Module, ModuleContext
+from core.modules.interface import ModuleInterface
 from core.registry.capability import CapabilityRegistry
-from core.modules.capability import Capability
 
 logger = logging.getLogger(__name__)
 
 
 class ModuleNotFoundError(Exception):
     """Module non trouvé dans le registry."""
+
     pass
 
 
 class ModuleStartupError(Exception):
     """Échec au démarrage du module."""
+
     pass
 
 
@@ -188,15 +189,11 @@ class ModuleRegistry:
                             module.health_check(), timeout=min(interval, 10)
                         )
                         if status.get("status") == "unhealthy":
-                            logger.warning(
-                                "Module '%s' healthcheck: unhealthy", name
-                            )
+                            logger.warning("Module '%s' healthcheck: unhealthy", name)
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
-                    logger.error(
-                        "Module '%s' healthcheck failed: %s", name, e
-                    )
+                    logger.error("Module '%s' healthcheck failed: %s", name, e)
 
         task = asyncio.create_task(_healthcheck_loop())
         task.add_done_callback(self._health_task_done)

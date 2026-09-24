@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
+from core.ethan_types.sdk.learning import SelfModel
 from core.ethan_types.sdk.metacognition import (
     COGNITIVE_MODES,
-    CognitiveMode,
-    DecisionStrategy,
-    DEEP_REASONING_MODE,
     DEBUG_MODE,
+    DEEP_REASONING_MODE,
     EXPLORATION_MODE,
     FAST_EXECUTION_MODE,
     SAFE_MODE,
+    DecisionStrategy,
 )
-from core.ethan_types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +81,13 @@ class DecisionStrategySelector:
 
     def _estimate_complexity(self, task_type: str, context: Dict[str, Any]) -> int:
         """Heuristic complexity 1-10."""
-        base = {"analysis": 7, "research": 6, "communication": 4, "scheduling": 5, "general": 5}.get(task_type, 5)
+        base = {
+            "analysis": 7,
+            "research": 6,
+            "communication": 4,
+            "scheduling": 5,
+            "general": 5,
+        }.get(task_type, 5)
         input_len = len(context.get("input", ""))
         if input_len > 500:
             base += 2

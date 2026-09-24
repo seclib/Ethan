@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date, datetime
 from typing import Any
 
 from core.cost.tracker import CostTracker
@@ -23,8 +22,13 @@ logger = logging.getLogger(__name__)
 
 def _default_publish(alert: BudgetAlert) -> None:
     """Publish par défaut : log uniquement."""
-    logger.info("BudgetAlert: [%s] %s (%.2f/%.2f $)",
-                alert.status.value, alert.message, alert.spent_usd, alert.limit_usd)
+    logger.info(
+        "BudgetAlert: [%s] %s (%.2f/%.2f $)",
+        alert.status.value,
+        alert.message,
+        alert.spent_usd,
+        alert.limit_usd,
+    )
 
 
 class BudgetGuard:
@@ -115,7 +119,10 @@ class BudgetGuard:
             )
             logger.warning(
                 "BudgetGuard HARD_STOP: %s/%s %.4f > %.4f$",
-                scope.value, scope_id, projected, limit,
+                scope.value,
+                scope_id,
+                projected,
+                limit,
             )
             return False
 
@@ -131,14 +138,13 @@ class BudgetGuard:
                     status=BudgetStatus.WARNING,
                     spent=spent,
                     limit=limit,
-                    message=(
-                        f"Budget {scope.value} à "
-                        f"{ratio:.0%}: {projected:.4f} / {limit:.4f}$"
-                    ),
+                    message=(f"Budget {scope.value} à {ratio:.0%}: {projected:.4f} / {limit:.4f}$"),
                 )
                 logger.info(
                     "BudgetGuard WARNING: %s/%s %.0f%%",
-                    scope.value, scope_id, ratio * 100,
+                    scope.value,
+                    scope_id,
+                    ratio * 100,
                 )
 
         return True
@@ -181,9 +187,7 @@ class BudgetGuard:
             pid: {
                 "spent_usd": round(spent, 6),
                 "limit_usd": self._config.project_limit_usd,
-                "remaining_usd": round(
-                    max(0.0, self._config.project_limit_usd - spent), 6
-                ),
+                "remaining_usd": round(max(0.0, self._config.project_limit_usd - spent), 6),
             }
             for pid, spent in self._project_spent.items()
         }
@@ -194,9 +198,9 @@ class BudgetGuard:
                 "spent_usd": round(global_spent, 6),
                 "limit_usd": global_limit,
                 "remaining_usd": round(max(0.0, global_limit - global_spent), 6),
-                "utilization_pct": round(
-                    global_spent / global_limit * 100, 2
-                ) if global_limit > 0 else 0.0,
+                "utilization_pct": round(global_spent / global_limit * 100, 2)
+                if global_limit > 0
+                else 0.0,
                 "status": self._get_status(global_spent, global_limit).value,
             },
             "projects": projects,

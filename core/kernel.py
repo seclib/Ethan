@@ -5,17 +5,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Optional
+from typing import Optional
 
 from core.autonomy.controller import AutonomyLoopController
 from core.bus.interface import EventBus, Subscription
+from core.ethan_types.event import Event, EventType
 from core.goals.manager import GoalManager
 from core.learning.engine import LearningEngine
 from core.metacognition.engine import MetaCognitionEngine
 from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
 from core.state.interface import StateBackend
-from core.ethan_types.event import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,8 @@ class CognitiveKernel:
     def __init__(
         self,
         bus: EventBus,
-        state: StateBackend,  # Unified state backend (RedisLiveState + PostgresPersistentState wrapper)
+        # Unified state backend (RedisLiveState + PostgresPersistentState wrapper)
+        state: StateBackend,
         registry: ModuleRegistry,
         goals: GoalManager,
         scheduler: Scheduler,
@@ -90,11 +91,14 @@ class CognitiveKernel:
                 logger.info("Autonomy Engine started")
 
             await asyncio.wait_for(
-                self.bus.publish("system.kernel.started", Event(
-                    type=EventType.SYSTEM_BOOT,
-                    source="kernel",
-                    payload={"version": "0.7.0", "phase": "7.0"},
-                )),
+                self.bus.publish(
+                    "system.kernel.started",
+                    Event(
+                        type=EventType.SYSTEM_BOOT,
+                        source="kernel",
+                        payload={"version": "0.7.0", "phase": "7.0"},
+                    ),
+                ),
                 timeout=10,
             )
             logger.info("Cognitive Kernel started")
@@ -119,17 +123,37 @@ class CognitiveKernel:
                     first_error = exc
                 logger.error("Kernel shutdown step failed: %s", name, exc_info=True)
 
-        await shutdown_step("learning", self.learning.stop if self.learning and "learning" in self._started_components else _noop)
-        await shutdown_step("metacognition", self.metacognition.stop if self.metacognition and "metacognition" in self._started_components else _noop)
-        await shutdown_step("autonomy", self.autonomy.stop if self.autonomy and "autonomy" in self._started_components else _noop)
+        await shutdown_step(
+            "learning",
+            self.learning.stop
+            if self.learning and "learning" in self._started_components
+            else _noop,
+        )
+        await shutdown_step(
+            "metacognition",
+            self.metacognition.stop
+            if self.metacognition and "metacognition" in self._started_components
+            else _noop,
+        )
+        await shutdown_step(
+            "autonomy",
+            self.autonomy.stop
+            if self.autonomy and "autonomy" in self._started_components
+            else _noop,
+        )
         await shutdown_step(
             "kernel stopping event",
-            lambda: self.bus.publish("system.kernel.stopping", Event(
-                type=EventType.SYSTEM_SHUTDOWN,
-                source="kernel",
-            )),
+            lambda: self.bus.publish(
+                "system.kernel.stopping",
+                Event(
+                    type=EventType.SYSTEM_SHUTDOWN,
+                    source="kernel",
+                ),
+            ),
         )
-        await shutdown_step("scheduler", self.scheduler.stop if "scheduler" in self._started_components else _noop)
+        await shutdown_step(
+            "scheduler", self.scheduler.stop if "scheduler" in self._started_components else _noop
+        )
         for subscription in reversed(self._subscriptions):
             await shutdown_step("subscription", subscription.unsubscribe, timeout=5)
         await shutdown_step("bus", self.bus.close)
@@ -159,11 +183,13 @@ class CognitiveKernel:
         class _SimpleModule(Module):
             def __init__(self, name: str = module_id):
                 super().__init__(name)
-            
+
             async def initialize(self, context: ModuleContext) -> None:
                 logger.info("Module %s initialized with caps=%s", module_id, capabilities)
+
             async def handle_event(self, event: Event) -> None:
                 logger.debug("Module %s received event: %s", module_id, event.type)
+
             async def shutdown(self) -> None:
                 pass
 
@@ -194,11 +220,14 @@ class CognitiveKernel:
             logger.info("Dispatched %s in %.1fms", event.type, duration)
         except Exception as e:
             logger.error("Dispatch failed for %s: %s", event.id, e, exc_info=True)
-            await self.bus.publish("system.error", Event(
-                type=EventType.SYSTEM_ERROR,
-                source="kernel",
-                payload={"event_id": event.id, "error": str(e)},
-            ))
+            await self.bus.publish(
+                "system.error",
+                Event(
+                    type=EventType.SYSTEM_ERROR,
+                    source="kernel",
+                    payload={"event_id": event.id, "error": str(e)},
+                ),
+            )
 
     async def handle_event(self, event: Event) -> None:
         await self.dispatch_event(event)

@@ -5,10 +5,9 @@ Uses the canonical Event from core.ethan_types.event for consistency.
 
 from __future__ import annotations
 
-import json
+import asyncio
 import inspect
 import logging
-import asyncio
 import os
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -21,6 +20,7 @@ try:
     import nats
     from nats.aio.client import Client as NATSClient
     from nats.aio.msg import Msg
+
     NATS_AVAILABLE = True
 except ImportError:
     NATS_AVAILABLE = False

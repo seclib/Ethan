@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from core.ethan_types.event import Event
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetentionPolicy:
     """Politique de rétention des événements."""
+
     max_age_days: int = 30
     max_size_gb: int = 100
     max_events: int | None = None

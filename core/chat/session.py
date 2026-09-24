@@ -119,16 +119,25 @@ class SessionSettingsManager:
             return profile
         return self._hydrate_profile(profile, record)
 
-    async def update_mode_profile(self, mode: ChatMode | str, data: dict[str, Any]) -> dict[str, Any]:
+    async def update_mode_profile(
+        self, mode: ChatMode | str, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Mettre à jour un profil de mode (validation stricte des clés)."""
         mode_value = mode.value if isinstance(mode, ChatMode) else str(mode)
         if mode_value not in [m.value for m in ChatMode]:
             raise ValueError(f"Unknown chat mode: {mode_value}")
         current = (await self.get_mode_profile(mode_value)).to_dict()
         allowed = {
-            "provider_id", "model", "reasoning_effort", "auto_compact",
-            "system_access", "compaction_strategy", "debug_level",
-            "terminal", "auto_approval", "language",
+            "provider_id",
+            "model",
+            "reasoning_effort",
+            "auto_compact",
+            "system_access",
+            "compaction_strategy",
+            "debug_level",
+            "terminal",
+            "auto_approval",
+            "language",
         }
         for key in allowed:
             if key in data:
@@ -152,9 +161,13 @@ class SessionSettingsManager:
                 base,
                 provider_id=str(record.get("provider_id") or ""),
                 model=str(record.get("model") or ""),
-                reasoning_effort=ReasoningEffort(str(record.get("reasoning_effort") or base.reasoning_effort.value)),
+                reasoning_effort=ReasoningEffort(
+                    str(record.get("reasoning_effort") or base.reasoning_effort.value)
+                ),
                 auto_compact=bool(record.get("auto_compact", base.auto_compact)),
-                system_access=SystemAccess(str(record.get("system_access") or base.system_access.value)),
+                system_access=SystemAccess(
+                    str(record.get("system_access") or base.system_access.value)
+                ),
                 compaction_strategy=CompactionStrategy(
                     str(record.get("compaction_strategy") or base.compaction_strategy.value)
                 ),
@@ -166,7 +179,9 @@ class SessionSettingsManager:
                         str(terminal_data.get("default") or base.terminal.default.value)
                     ),
                 ),
-                auto_approval=AutoApproval(str(record.get("auto_approval") or base.auto_approval.value)),
+                auto_approval=AutoApproval(
+                    str(record.get("auto_approval") or base.auto_approval.value)
+                ),
                 language=str(record.get("language") or ""),
             )
         except (ValueError, TypeError) as exc:

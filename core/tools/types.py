@@ -10,6 +10,7 @@ from typing import Any
 
 class RiskLevel(str, Enum):
     """Niveaux de risque d'un outil."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -19,6 +20,7 @@ class RiskLevel(str, Enum):
 @dataclass
 class Tool:
     """Outil avec toutes ses métadonnées."""
+
     id: str
     name: str
     description: str
@@ -48,6 +50,7 @@ class Tool:
 @dataclass
 class ToolContext:
     """Contexte de sélection d'outil."""
+
     query: str
     source: str = "llm"
     user_id: str = "default"
@@ -62,6 +65,7 @@ class ToolContext:
 @dataclass
 class ScoredTool:
     """Outil avec son score."""
+
     tool: Tool
     score: float
     reasoning: str = ""
@@ -70,6 +74,7 @@ class ScoredTool:
 @dataclass
 class ToolResult:
     """Résultat d'exécution."""
+
     status: str  # "success", "failed", "timeout", "rejected"
     output: Any = None
     error: str | None = None

@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.skills.registry import SkillRegistry
-from core.skills.types import Skill, SkillContext, SkillResult, SkillStatus
+from core.skills.types import SkillContext, SkillResult, SkillStatus
 
 logger = logging.getLogger(__name__)
 
 
 class SkillComposer:
     """Compose plusieurs skills en un workflow.
-    
+
     Responsabilités :
     - Composition séquentielle
     - Composition parallèle

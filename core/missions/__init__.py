@@ -4,7 +4,7 @@ Gestion des objectifs longs avec tâches et progression.
 """
 
 from core.missions.manager import MissionManager
-from core.missions.types import Mission, MissionStatus, MissionStep, StepStatus, MissionVerdict
+from core.missions.types import Mission, MissionStatus, MissionStep, MissionVerdict, StepStatus
 
 __all__ = [
     "MissionManager",

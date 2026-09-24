@@ -9,17 +9,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from core.llm.providers.base import LLMProvider
-from core.llm.providers.ollama import OllamaProvider
-from core.llm.providers.openai import OpenAIProvider
 from core.llm.providers.anthropic import AnthropicProvider
-from core.llm.providers.vllm import VLLMProvider
+from core.llm.providers.azure import AzureOpenAIProvider
+from core.llm.providers.base import LLMProvider
+from core.llm.providers.gemini import GeminiProvider
 from core.llm.providers.llamacpp import LlamaCppProvider
 from core.llm.providers.lmstudio import LMStudioProvider
-from core.llm.providers.gemini import GeminiProvider
+from core.llm.providers.ollama import OllamaProvider
+from core.llm.providers.openai import OpenAIProvider
 from core.llm.providers.openai_compatible import OpenAICompatibleProvider
 from core.llm.providers.openrouter import OpenRouterProvider
-from core.llm.providers.azure import AzureOpenAIProvider
+from core.llm.providers.vllm import VLLMProvider
 
 logger = logging.getLogger(__name__)
 

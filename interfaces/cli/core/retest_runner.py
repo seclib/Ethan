@@ -1,4 +1,5 @@
 """Retest runner — re-run failed commands after fixes."""
+
 import time
 from dataclasses import dataclass
 
@@ -6,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class RetestResult:
     """Result of retest attempt."""
+
     attempt: int
     exit_code: int
     success: bool
@@ -36,8 +38,7 @@ class RetestRunner:
         delay = 0
         # Import here to avoid circular dependencies
         try:
-            from interfaces.cli.core.fix_map import FixRecipe
-            if hasattr(self, '_current_recipe') and self._current_recipe:
+            if hasattr(self, "_current_recipe") and self._current_recipe:
                 delay = self._current_recipe.retry_delay
         except Exception:
             pass

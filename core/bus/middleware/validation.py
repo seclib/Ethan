@@ -24,7 +24,9 @@ class ValidationMiddleware:
         """
         self._validators.append(validator)
 
-    async def process(self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
+    async def process(
+        self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]
+    ) -> None:
         """Traite un événement.
 
         Args:

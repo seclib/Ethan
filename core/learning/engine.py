@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
 
 from core.bus.interface import EventBus
+from core.ethan_types.event import Event, EventType
+from core.ethan_types.sdk.learning import Experience
 from core.learning.detector import PatternDetector
 from core.learning.generator import RuleGenerator
 from core.learning.modeler import SelfModelUpdater
 from core.learning.store import ExperienceStore
-from core.ethan_types.event import Event, EventType
-from core.ethan_types.sdk.learning import Experience, Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,9 @@ class LearningEngine:
         self._running = True
         await self.bus.subscribe("task.>", self._on_task_event, queue="learning-tasks")
         await self.bus.subscribe("memory.>", self._on_memory_event, queue="learning-memory")
-        await self.bus.subscribe("reflection.>", self._on_reflection_event, queue="learning-reflection")
+        await self.bus.subscribe(
+            "reflection.>", self._on_reflection_event, queue="learning-reflection"
+        )
         logger.info("Learning Engine started")
 
     async def stop(self) -> None:
@@ -103,27 +104,36 @@ class LearningEngine:
             for pattern in patterns:
                 rule = await self.generator.propose(pattern)
 
-                await self.bus.publish(EventType.RULE_PROPOSAL, Event(
-                    type=EventType.RULE_PROPOSAL,
-                    source="learning-engine",
-                    payload=rule.dict(),
-                ))
+                await self.bus.publish(
+                    EventType.RULE_PROPOSAL,
+                    Event(
+                        type=EventType.RULE_PROPOSAL,
+                        source="learning-engine",
+                        payload=rule.dict(),
+                    ),
+                )
 
-                await self.bus.publish(EventType.LEARNING_INSIGHT, Event(
-                    type=EventType.LEARNING_INSIGHT,
-                    source="learning-engine",
-                    payload={
-                        "pattern": pattern.dict(),
-                        "rule": rule.dict(),
-                    },
-                ))
+                await self.bus.publish(
+                    EventType.LEARNING_INSIGHT,
+                    Event(
+                        type=EventType.LEARNING_INSIGHT,
+                        source="learning-engine",
+                        payload={
+                            "pattern": pattern.dict(),
+                            "rule": rule.dict(),
+                        },
+                    ),
+                )
 
             self_model = await self.modeler.get_model()
-            await self.bus.publish(EventType.SELF_MODEL_UPDATED, Event(
-                type=EventType.SELF_MODEL_UPDATED,
-                source="learning-engine",
-                payload={"self_model": self_model},
-            ))
+            await self.bus.publish(
+                EventType.SELF_MODEL_UPDATED,
+                Event(
+                    type=EventType.SELF_MODEL_UPDATED,
+                    source="learning-engine",
+                    payload={"self_model": self_model},
+                ),
+            )
 
         except Exception as e:
             logger.error(f"Learning analysis failed: {e}")

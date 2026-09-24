@@ -21,7 +21,7 @@ Usage:
 """
 
 from .client import JarvisClient
-from .models import ChatMessage, ChatResponse, AgentInfo, MemoryEntry
+from .models import AgentInfo, ChatMessage, ChatResponse, MemoryEntry
 
 __all__ = [
     "JarvisClient",

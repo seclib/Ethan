@@ -1,7 +1,7 @@
 """ETHAN logs — query structured logs."""
+
 from interfaces.cli.registry import register
 from interfaces.cli.core import logging as logs
-from interfaces.cli.core.ux import UX
 
 
 @register("logs")
@@ -20,10 +20,14 @@ def cmd_logs(args):
 
     if args[0] == "--errors":
         for e in logs.query_errors(20):
-            print(f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error','')}")
+            print(
+                f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"
+            )
         return 0
 
     # text search
     for e in logs.query_text(args[0], 20):
-        print(f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error','')}")
+        print(
+            f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"
+        )
     return 0

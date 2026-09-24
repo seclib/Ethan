@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class MessageRequest(BaseModel):
     """Incoming user message."""
+
     input: str = Field(..., description="User input text")
     session_id: Optional[str] = Field("", description="Optional session identifier")
     user_id: Optional[str] = Field("anonymous", description="User identifier")
@@ -17,6 +18,7 @@ class MessageRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     """Response after emitting the event to the system."""
+
     success: bool = True
     event_id: str = ""
     goal_id: str = ""
@@ -25,6 +27,7 @@ class MessageResponse(BaseModel):
 
 class IntentRequest(BaseModel):
     """Structured intent from external systems."""
+
     source: str = Field("api", description="Source of the intent")
     input: str = Field(..., description="Intent input")
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)

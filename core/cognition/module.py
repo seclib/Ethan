@@ -190,7 +190,9 @@ class CognitionModule(Agent):
                 confidence=0.9,
                 raw_query=query,
             )
-        elif "?" in query or query_lower.startswith(("quoi", "qui", "où", "quand", "comment", "pourquoi")):
+        elif "?" in query or query_lower.startswith(
+            ("quoi", "qui", "où", "quand", "comment", "pourquoi")
+        ):
             return Intent(
                 type=IntentType.QUERY,
                 entities={},
@@ -220,7 +222,9 @@ class CognitionModule(Agent):
             "S'agit-il d'une question ou d'une tâche à accomplir ?",
         ]
 
-    async def _assemble_context(self, session_id: str, query: str, intent: Intent) -> dict[str, Any]:
+    async def _assemble_context(
+        self, session_id: str, query: str, intent: Intent
+    ) -> dict[str, Any]:
         """Assemble le contexte pour le raisonnement.
 
         MVP : contexte minimal.
@@ -242,7 +246,11 @@ class CognitionModule(Agent):
         """
         # Simulation d'un raisonnement
         return Reasoning(
-            chain_of_thought=f"Analyzing: {query}\nIntent: {intent.type.value}\nContext: {len(context.get('messages', []))} items",
+            chain_of_thought=(
+                f"Analyzing: {query}\n"
+                f"Intent: {intent.type.value}\n"
+                f"Context: {len(context.get('messages', []))} items"
+            ),
             goal=query,
             required_capabilities=[],
             tokens_used=100,
@@ -280,16 +288,20 @@ class CognitionModule(Agent):
 
         for task in tasks:
             # Simulation d'exécution
-            results.append({
-                "task_id": task["id"],
-                "capability": task["capability"],
-                "status": "completed",
-                "result": f"Executed: {task['params'].get('description', '')}",
-            })
+            results.append(
+                {
+                    "task_id": task["id"],
+                    "capability": task["capability"],
+                    "status": "completed",
+                    "result": f"Executed: {task['params'].get('description', '')}",
+                }
+            )
 
         return results
 
-    async def _reflect(self, query: str, plan: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
+    async def _reflect(
+        self, query: str, plan: dict[str, Any], results: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Réflexion sur les résultats.
 
         MVP : évaluation simple.

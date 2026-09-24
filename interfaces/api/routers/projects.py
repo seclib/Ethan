@@ -19,7 +19,7 @@ from typing import Any
 # Le Core reste découpé : le router API est le bon endroit pour ce helper.
 from core.auth import Permission
 from core.projects import ProjectManager
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from interfaces.api.auth import require_permission
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
@@ -205,14 +205,22 @@ async def upload_project_document(
         raise HTTPException(413, "File too large (max 50 MB)")
     # Validation MIME (formats supportés par le pipeline Core).
     allowed = {
-        "text/plain", "text/markdown", "text/csv", "application/json",
-        "application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/msword", "image/png", "image/jpeg", "image/webp",
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+        "application/json",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+        "image/png",
+        "image/jpeg",
+        "image/webp",
     }
     if file.content_type and file.content_type not in allowed:
         raise HTTPException(415, f"Unsupported file type: {file.content_type}")
     try:
-        import tempfile, os
+        import tempfile
+
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(contents)
             tmp_path = tmp.name
@@ -237,9 +245,7 @@ async def upload_project_document(
 async def delete_project_document(request: Request, project_id: str, doc_id: str):
     """Supprime un document du projet (scope vérifié, 403 si hors scope)."""
     uid = _current_user_id(request)
-    deleted = await get_project_manager().delete_project_document(
-        project_id, doc_id, user_id=uid
-    )
+    deleted = await get_project_manager().delete_project_document(project_id, doc_id, user_id=uid)
     if not deleted:
         raise HTTPException(404, f"Document {doc_id} not found in project {project_id}")
     return {"status": "deleted", "document_id": doc_id, "project_id": project_id}

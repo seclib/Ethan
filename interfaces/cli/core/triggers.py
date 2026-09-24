@@ -72,6 +72,7 @@ class TriggerRegistry:
 
         try:
             import yaml
+
             with _TRIGGERS_FILE.open() as f:
                 data = yaml.safe_load(f) or {}
             for trigger in data.get("triggers", []):
@@ -91,6 +92,7 @@ class TriggerRegistry:
                 continue
             try:
                 import json
+
                 with manifest_path.open() as f:
                     manifest = json.load(f)
                 triggers = manifest.get("triggers", [])
@@ -131,10 +133,12 @@ class TriggerRegistry:
         for trigger in self._triggers:
             score = self._match_single(trigger, text_lower)
             if score > 0:
-                matches.append({
-                    **trigger,
-                    "match_score": score,
-                })
+                matches.append(
+                    {
+                        **trigger,
+                        "match_score": score,
+                    }
+                )
 
         # Trier par priorité puis score
         matches.sort(key=lambda m: (-m.get("priority", 0), -m.get("match_score", 0)))
@@ -207,6 +211,7 @@ class TriggerRegistry:
         try:
             _TRIGGERS_DIR.mkdir(parents=True, exist_ok=True)
             import yaml
+
             with _TRIGGERS_FILE.open("w") as f:
                 yaml.dump({"triggers": user_triggers}, f, default_flow_style=False)
         except Exception as e:
@@ -231,7 +236,10 @@ def check_triggers(text: str) -> str | None:
 
     logger.info(
         "Trigger match: '%s' → %s (action=%s, source=%s)",
-        text[:50], match.get("description", "?"), action, match.get("source", "?"),
+        text[:50],
+        match.get("description", "?"),
+        action,
+        match.get("source", "?"),
     )
 
     if action == "command":

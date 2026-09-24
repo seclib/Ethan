@@ -11,10 +11,10 @@ JSON-in-JSON is hard to read in `docker logs`, so TEXT is the default.
 
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 
 
 class JSONFormatter(logging.Formatter):
@@ -44,10 +44,10 @@ class TextFormatter(logging.Formatter):
     """Human-readable colored formatter for terminal/docker logs."""
 
     COLORS = {
-        "DEBUG": "\033[36m",     # Cyan
-        "INFO": "\033[32m",      # Green
-        "WARNING": "\033[33m",   # Yellow
-        "ERROR": "\033[31m",     # Red
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
         "CRITICAL": "\033[35m",  # Magenta
     }
     RESET = "\033[0m"
@@ -55,7 +55,9 @@ class TextFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         color = self.COLORS.get(record.levelname, "")
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
-        base = f"{ts} {color}{record.levelname:8s}{self.RESET} [{record.name}] {record.getMessage()}"
+        base = (
+            f"{ts} {color}{record.levelname:8s}{self.RESET} [{record.name}] {record.getMessage()}"
+        )
         if record.exc_info and record.exc_info[0]:
             base += "\n" + self.formatException(record.exc_info)
         return base

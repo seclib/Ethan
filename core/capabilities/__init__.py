@@ -6,7 +6,6 @@ Le Core ne connaît que des capacités, jamais des outils ou des technologies.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -29,6 +28,7 @@ class RiskLevel(str, Enum):
 @dataclass
 class CapabilityContext:
     """Contexte d'exécution d'une Capability."""
+
     user_id: str
     session_id: str
     trace_id: str
@@ -40,6 +40,7 @@ class CapabilityContext:
 @dataclass
 class CapabilityResult:
     """Résultat d'exécution d'une Capability."""
+
     status: CapabilityStatus
     output: Any = None
     error: Optional[str] = None
@@ -49,13 +50,13 @@ class CapabilityResult:
 
 class Capability(ABC):
     """Interface abstraite pour toutes les Capabilities.
-    
+
     Une Capability est :
     - autonome
     - interchangeable
     - isolée
     - testable
-    
+
     Le Core ne connaît que cette interface.
     """
 
@@ -67,7 +68,7 @@ class Capability(ABC):
     @abstractmethod
     async def validate(self, context: CapabilityContext) -> bool:
         """Valide que la capability peut être exécutée dans ce contexte.
-        
+
         Vérifie :
         - permissions de l'utilisateur
         - risque acceptable
@@ -83,7 +84,7 @@ class Capability(ABC):
     @abstractmethod
     async def observe(self, result: CapabilityResult) -> dict:
         """Analyse le résultat et produit une observation.
-        
+
         Retourne un dict d'observations pour la mémoire.
         """
         pass
@@ -98,7 +99,9 @@ class Capability(ABC):
 
 
 # Capability Registry — Registre central des capacités ETHAN
-from core.capabilities.registry import CapabilityRegistry, CapabilityInfo
+# Import placé en fin de module : le registre importe les classes définies
+# ci-dessus (garde contre l'import circulaire).
+from core.capabilities.registry import CapabilityInfo, CapabilityRegistry  # noqa: E402
 
 __all__ = [
     "CapabilityStatus",

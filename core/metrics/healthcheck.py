@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HealthStatus:
     """Statut de santé d'un composant."""
+
     name: str
     healthy: bool
     message: str = ""
@@ -38,7 +39,7 @@ class HealthChecker:
             check_fn: Fonction async qui retourne (healthy: bool, message: str)
         """
         self._checks[name] = HealthStatus(name=name, healthy=False)
-        self._check_fns = getattr(self, '_check_fns', {})
+        self._check_fns = getattr(self, "_check_fns", {})
         self._check_fns[name] = check_fn
 
     async def check_all(self) -> dict[str, HealthStatus]:
@@ -80,7 +81,7 @@ class HealthChecker:
 
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
 
             healthy = True
             issues = []

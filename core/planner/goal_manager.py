@@ -10,11 +10,9 @@ Responsabilités :
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
-from core.planner.types import Goal, Priority, Conflict
+from core.planner.types import Conflict, Goal, Priority
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +96,14 @@ class GoalManager:
         common_caps = caps1 & caps2
 
         if common_caps:
-            conflicts.append(Conflict(
-                type="capability_conflict",
-                goals=[goal1.id, goal2.id],
-                description=f"Both goals require capabilities: {', '.join(common_caps)}",
-                severity="warning",
-            ))
+            conflicts.append(
+                Conflict(
+                    type="capability_conflict",
+                    goals=[goal1.id, goal2.id],
+                    description=f"Both goals require capabilities: {', '.join(common_caps)}",
+                    severity="warning",
+                )
+            )
 
         # Conflit de ressources (TODO: implémenter avec ResourceManager)
         # if goal1.resources & goal2.resources:

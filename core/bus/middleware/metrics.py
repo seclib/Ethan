@@ -17,7 +17,9 @@ class MetricsMiddleware:
     def __init__(self, metrics_collector: Any | None = None):
         self._metrics = metrics_collector
 
-    async def process(self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
+    async def process(
+        self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]
+    ) -> None:
         """Traite un événement.
 
         Args:
@@ -35,23 +37,32 @@ class MetricsMiddleware:
             duration = (time.time() - start) * 1000
 
             # Métriques de succès
-            self._metrics.increment("eventbus.consumed", tags={
-                "type": event.type.value,
-                "success": "true",
-            })
+            self._metrics.increment(
+                "eventbus.consumed",
+                tags={
+                    "type": event.type.value,
+                    "success": "true",
+                },
+            )
             self._metrics.histogram("eventbus.consume.latency", duration)
 
-        except Exception as e:
+        except Exception:
             duration = (time.time() - start) * 1000
 
             # Métriques d'erreur
-            self._metrics.increment("eventbus.consumed", tags={
-                "type": event.type.value,
-                "success": "false",
-            })
-            self._metrics.increment("eventbus.errors", tags={
-                "type": event.type.value,
-            })
+            self._metrics.increment(
+                "eventbus.consumed",
+                tags={
+                    "type": event.type.value,
+                    "success": "false",
+                },
+            )
+            self._metrics.increment(
+                "eventbus.errors",
+                tags={
+                    "type": event.type.value,
+                },
+            )
             self._metrics.histogram("eventbus.consume.latency", duration)
 
             raise

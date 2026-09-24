@@ -38,11 +38,11 @@ _DOMAIN_CREDENTIALS = "integration-credentials"
 
 # Kinds réellement supportés par le socle (chaque kind a un healthcheck).
 INTEGRATION_KINDS = (
-    "mcp",           # Model Context Protocol servers (délégation ToolServerManager)
-    "web-search",    # moteurs de recherche web
-    "storage",       # stockage externe (S3, GDrive, ...)
-    "automation",    # plateformes d'automatisation (n8n, Zapier, ...)
-    "developer",     # services développeur (GitHub, GitLab, CI, ...)
+    "mcp",  # Model Context Protocol servers (délégation ToolServerManager)
+    "web-search",  # moteurs de recherche web
+    "storage",  # stockage externe (S3, GDrive, ...)
+    "automation",  # plateformes d'automatisation (n8n, Zapier, ...)
+    "developer",  # services développeur (GitHub, GitLab, CI, ...)
     "external-app",  # application externe générique déclarée
 )
 
@@ -131,9 +131,7 @@ class IntegrationManager:
             await self._store_credentials(integration_id, credentials)
 
         public = self._public(record)
-        await self._publish(
-            EventType.INTEGRATION_REGISTERED, "integration.registered", public
-        )
+        await self._publish(EventType.INTEGRATION_REGISTERED, "integration.registered", public)
         return public
 
     async def list(
@@ -283,14 +281,10 @@ class IntegrationManager:
         missing: list[str] = []
         meta = record.get("metadata") or {}
         config = record.get("config") or {}
-        missing.extend(
-            k for k in (meta.get("required_config") or []) if not config.get(k)
-        )
+        missing.extend(k for k in (meta.get("required_config") or []) if not config.get(k))
 
         creds = await self._store.get(_DOMAIN_CREDENTIALS, record["id"]) or {}
-        missing.extend(
-            k for k in (meta.get("required_credentials") or []) if not creds.get(k)
-        )
+        missing.extend(k for k in (meta.get("required_credentials") or []) if not creds.get(k))
 
         if missing:
             return {
@@ -332,8 +326,7 @@ class IntegrationManager:
             "connected": True,
             "status": "connected",
             "message": (
-                f"MCP server '{server.get('name')}' bound "
-                f"(status: {server.get('status')})"
+                f"MCP server '{server.get('name')}' bound (status: {server.get('status')})"
             ),
         }
 
@@ -346,9 +339,7 @@ class IntegrationManager:
 
     # ── Credentials (usage interne Core/Runtime uniquement) ──────────────
 
-    async def _store_credentials(
-        self, integration_id: str, credentials: dict[str, str]
-    ) -> None:
+    async def _store_credentials(self, integration_id: str, credentials: dict[str, str]) -> None:
         """Persiste les credentials dans le domaine dédié (jamais le record)."""
         payload = {k: str(v) for k, v in credentials.items() if v is not None}
         await self._store.save(_DOMAIN_CREDENTIALS, integration_id, payload)
@@ -385,8 +376,7 @@ class IntegrationManager:
         candidate = str(kind or "").strip().lower()
         if candidate not in INTEGRATION_KINDS:
             raise IntegrationError(
-                f"Unknown integration kind: {kind!r} "
-                f"(supported: {', '.join(INTEGRATION_KINDS)})"
+                f"Unknown integration kind: {kind!r} (supported: {', '.join(INTEGRATION_KINDS)})"
             )
         return candidate
 
@@ -403,16 +393,13 @@ class IntegrationManager:
             candidate = str(perm).strip().lower()
             if candidate not in valid:
                 raise IntegrationError(
-                    f"Unknown ETHAN permission: {perm!r} "
-                    f"(valid: {', '.join(sorted(valid))})"
+                    f"Unknown ETHAN permission: {perm!r} (valid: {', '.join(sorted(valid))})"
                 )
             if candidate not in normalized:
                 normalized.append(candidate)
         return normalized
 
-    async def _publish(
-        self, event_type: EventType, subject: str, payload: dict[str, Any]
-    ) -> None:
+    async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         await self._bus.publish(

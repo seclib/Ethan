@@ -10,6 +10,7 @@ from typing import Any
 
 class AgentStatus(str, Enum):
     """États possibles d'un agent."""
+
     IDLE = "idle"
     RUNNING = "running"
     PAUSED = "paused"
@@ -28,6 +29,7 @@ class AgentExecutionStatus(str, Enum):
 @dataclass
 class Agent:
     """Enregistrement d'un agent (persisté)."""
+
     id: str
     name: str
     description: str = ""
@@ -102,14 +104,16 @@ class Agent:
             # Rétro-compatibilité : la WebUI stockait les tools dans
             # metadata.tool_ids (convention UI).  Le champ typé prime.
             knowledge_ids=list(data.get("knowledge_ids", []) or []),
-            tool_ids=list(
-                data.get("tool_ids") or metadata.get("tool_ids", [])
-            ),
+            tool_ids=list(data.get("tool_ids") or metadata.get("tool_ids", [])),
             folder_ids=list(data.get("folder_ids", []) or []),
             domain_ids=list(data.get("domain_ids", []) or []),
             metadata=metadata,
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.utcnow(),
-            updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.utcnow(),
+            created_at=datetime.fromisoformat(data["created_at"])
+            if data.get("created_at")
+            else datetime.utcnow(),
+            updated_at=datetime.fromisoformat(data["updated_at"])
+            if data.get("updated_at")
+            else datetime.utcnow(),
         )
 
 

@@ -13,7 +13,10 @@ from pathlib import Path
 RULES = {
     "C001": {
         "name": "Core ne dépend pas de technologies externes",
-        "pattern": r"import (redis|asyncpg|qdrant_client|httpx|aiohttp|requests|sqlalchemy|docker|kubernetes)",
+        "pattern": (
+            r"import (redis|asyncpg|qdrant_client|httpx|aiohttp|requests|sqlalchemy"
+            r"|docker|kubernetes)"
+        ),
         "paths": ["core/"],
         "exclude": ["core/memory/", "core/providers/"],
     },

@@ -26,7 +26,9 @@ class EnrichmentMiddleware:
         """
         self._enrichers.append(enricher)
 
-    async def process(self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
+    async def process(
+        self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]
+    ) -> None:
         """Traite un événement.
 
         Args:
@@ -46,6 +48,7 @@ class EnrichmentMiddleware:
 
 # Enrichisseurs standards
 
+
 def add_correlation_id(event: Event) -> None:
     """Ajoute un correlation_id si absent."""
     if not event.correlation_id:
@@ -56,7 +59,7 @@ def add_timestamps(event: Event) -> None:
     """Ajoute des timestamps."""
     if not event.metadata:
         event.metadata = {}
-    
+
     if "published_at" not in event.metadata:
         event.metadata["published_at"] = datetime.utcnow().isoformat()
 
@@ -65,9 +68,9 @@ def add_trace_ids(event: Event) -> None:
     """Ajoute des IDs de tracing."""
     if not event.metadata:
         event.metadata = {}
-    
+
     if "span_id" not in event.metadata:
         event.metadata["span_id"] = str(uuid4())
-    
+
     if "parent_span_id" not in event.metadata:
         event.metadata["parent_span_id"] = event.metadata.get("span_id")

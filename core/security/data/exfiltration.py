@@ -114,14 +114,13 @@ class TransmissionPolicy:
             "ttl_seconds": self.ttl_seconds,
         }
 
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
 def policy_id(destination: str, allowed_kinds: frozenset[str]) -> str:
     """Génère un ID de politique déterministe SHA-256."""
-    h = hashlib.sha256(
-        f"{destination}:{','.join(sorted(allowed_kinds))}".encode()
-    ).hexdigest()
+    h = hashlib.sha256(f"{destination}:{','.join(sorted(allowed_kinds))}".encode()).hexdigest()
     return f"tx_{h[:16]}"
 
 
@@ -142,6 +141,7 @@ def _glob_match(pattern: str, value: str) -> bool:
 
 # ── Anti prompt-injection structurelle ───────────────────────────────────────
 
+
 def strip_instruction_blocks(content: str) -> str:
     """Nettoie un contenu récupéré de toute tentative d'instruction.
 
@@ -154,9 +154,7 @@ def strip_instruction_blocks(content: str) -> str:
     """
     import re
 
-    cleaned = re.sub(
-        r"(?is)<\s*system\s*>.*?<\s*/\s*system\s*>", "[blocked]", content
-    )
+    cleaned = re.sub(r"(?is)<\s*system\s*>.*?<\s*/\s*system\s*>", "[blocked]", content)
     cleaned = re.sub(
         r"(?is)<\s*instruction\s*>.*?<\s*/\s*instruction\s*>",
         "[blocked]",
@@ -221,7 +219,10 @@ class ExfilGuard:
         self._policies[policy.id] = policy
         logger.info(
             "Transmission policy granted: %s -> %s (kinds=%s, by=%s)",
-            policy.id, destination, sorted(kinds), granted_by,
+            policy.id,
+            destination,
+            sorted(kinds),
+            granted_by,
         )
         return policy
 
@@ -229,9 +230,7 @@ class ExfilGuard:
         """Révoque toutes les politiques d'une destination."""
         removed = False
         for pid, policy in list(self._policies.items()):
-            if _glob_match(policy.destination, destination) or (
-                policy.destination == destination
-            ):
+            if _glob_match(policy.destination, destination) or (policy.destination == destination):
                 del self._policies[pid]
                 removed = True
         if removed:
@@ -242,7 +241,6 @@ class ExfilGuard:
         """Liste les politiques actives (non expirées)."""
         now = time.time()
         return [p for p in self._policies.values() if not p.is_expired(now)]
-
 
     # ── Évaluation d'une transmission externe ────────────────────────────
 
@@ -320,7 +318,6 @@ class ExfilGuard:
         )
         self._audit.append(decision)
         return decision
-
 
     # ── Exécution protégée (jamais de callback si non autorisé) ──────────
 
@@ -424,4 +421,3 @@ async def _call(fn: Callable[[str], object], payload: str) -> object:
     if inspect.isawaitable(result):
         return await result
     return result
-

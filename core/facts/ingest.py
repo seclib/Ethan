@@ -7,12 +7,15 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from core.facts.store import FactStore
 from core.facts.types import (
-    DecayPolicy, Fact, FactCategory,
-    FactRelationType, FactStatus, ObservationType,
+    DecayPolicy,
+    Fact,
+    FactCategory,
+    FactRelationType,
+    FactStatus,
+    ObservationType,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,16 +40,19 @@ _DECAY_BY_CATEGORY: dict[FactCategory, DecayPolicy] = {
     FactCategory.SYSTEM: DecayPolicy.NONE,
 }
 
-_STABLE_CATEGORIES: frozenset[FactCategory] = frozenset({
-    FactCategory.IDENTITY,
-    FactCategory.GOAL,
-    FactCategory.RULE,
-})
+_STABLE_CATEGORIES: frozenset[FactCategory] = frozenset(
+    {
+        FactCategory.IDENTITY,
+        FactCategory.GOAL,
+        FactCategory.RULE,
+    }
+)
 
 
 @dataclass
 class IngestResult:
     """Résultat d'une ingestion complète."""
+
     facts_created: list[Fact] = field(default_factory=list)
     facts_confirmed: list[Fact] = field(default_factory=list)
     facts_superseded: list[Fact] = field(default_factory=list)
@@ -140,8 +146,10 @@ class MemoryIngest:
 
         decay = _DECAY_BY_CATEGORY.get(category, DecayPolicy.MEDIUM)
         initial_conf = (
-            CONFIDENCE_EXPLICIT if candidate.get("confidence_source") == "explicit"
-            else CONFIDENCE_CORRECTION if candidate.get("confidence_source") == "correction"
+            CONFIDENCE_EXPLICIT
+            if candidate.get("confidence_source") == "explicit"
+            else CONFIDENCE_CORRECTION
+            if candidate.get("confidence_source") == "correction"
             else CONFIDENCE_INFERENCE
         )
 
@@ -149,9 +157,13 @@ class MemoryIngest:
 
         if existing is None:
             fact = Fact(
-                subject=subject, predicate=predicate, object=obj,
-                category=category, confidence=initial_conf,
-                importance=importance, decay_policy=decay,
+                subject=subject,
+                predicate=predicate,
+                object=obj,
+                category=category,
+                confidence=initial_conf,
+                importance=importance,
+                decay_policy=decay,
                 source=candidate.get("confidence_source", "inference"),
                 status=FactStatus.ACTIVE,
             )
@@ -165,7 +177,8 @@ class MemoryIngest:
             existing.last_seen_at = datetime.utcnow()
             self._store.update(existing)
             self._store.record_observation(
-                fact_id=existing.id, event_id="",
+                fact_id=existing.id,
+                event_id="",
                 observation_type=ObservationType.CONFIRM,
                 confidence_delta=CONFIRM_DELTA,
             )
@@ -175,9 +188,13 @@ class MemoryIngest:
             existing.status = FactStatus.SUPERSEDED
             self._store.update(existing)
             new_fact = Fact(
-                subject=subject, predicate=predicate, object=obj,
-                category=category, confidence=initial_conf,
-                importance=importance, decay_policy=decay,
+                subject=subject,
+                predicate=predicate,
+                object=obj,
+                category=category,
+                confidence=initial_conf,
+                importance=importance,
+                decay_policy=decay,
                 source=candidate.get("confidence_source", "inference"),
                 status=FactStatus.ACTIVE,
             )
@@ -187,9 +204,13 @@ class MemoryIngest:
             result.facts_superseded.append(existing)
         else:
             fact = Fact(
-                subject=subject, predicate=predicate, object=obj,
-                category=category, confidence=initial_conf,
-                importance=importance, decay_policy=decay,
+                subject=subject,
+                predicate=predicate,
+                object=obj,
+                category=category,
+                confidence=initial_conf,
+                importance=importance,
+                decay_policy=decay,
                 source=candidate.get("confidence_source", "inference"),
                 status=FactStatus.ACTIVE,
             )
@@ -212,7 +233,10 @@ class MemoryIngest:
             return []
         raw_facts = data.get("facts", []) if isinstance(data, dict) else []
         return [
-            item for item in raw_facts
+            item
+            for item in raw_facts
             if isinstance(item, dict)
-            and item.get("subject") and item.get("predicate") and item.get("object")
+            and item.get("subject")
+            and item.get("predicate")
+            and item.get("object")
         ]

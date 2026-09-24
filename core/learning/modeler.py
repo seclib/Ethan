@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from core.state.redis_state import RedisLiveState
 from core.ethan_types.sdk.learning import SelfModel
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,11 @@ class SelfModelUpdater:
     async def save(self, model: SelfModel) -> None:
         """Persist self-model to Redis."""
         await self.redis.set(self.model_key, model.dict(), ttl=86400)
-        logger.debug(f"Self-model saved: reliability={model.reliability:.2f} error_rate={model.error_rate:.2f}")
+        logger.debug(
+            "Self-model saved: reliability=%.2f error_rate=%.2f",
+            model.reliability,
+            model.error_rate,
+        )
 
     async def update_skill(self, skill: str, outcome: str) -> None:
         """Update skill confidence based on outcome."""
@@ -76,7 +80,9 @@ class SelfModelUpdater:
             model.reliability = model.successful_tasks / model.total_tasks
             model.error_rate = model.failed_tasks / model.total_tasks
 
-        model.updated_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        model.updated_at = (
+            __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        )
 
         await self.save(model)
         logger.info(f"Skill updated: {skill}={model.skills[skill]:.2f} outcome={outcome}")

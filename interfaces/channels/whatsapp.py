@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from interfaces.channels.base import ChannelAdapter, IncomingMessage, MessageTarget, Platform
+from interfaces.channels.base import ChannelAdapter, MessageTarget, Platform
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,7 @@ class WhatsAppAdapter(ChannelAdapter):
             # Tentative d'import de whatsapp-python (Baileys wrapper)
             from whatsapp import WhatsAppClient
         except ImportError:
-            logger.warning(
-                "WhatsAppAdapter: whatsapp-python non installé, mode simulation"
-            )
+            logger.warning("WhatsAppAdapter: whatsapp-python non installé, mode simulation")
             WhatsAppClient = None
 
         if WhatsAppClient is not None:
@@ -58,7 +56,8 @@ class WhatsAppAdapter(ChannelAdapter):
             # Mode simulation : loguer
             logger.info(
                 "WhatsAppAdapter [SIMULATION] → %s: %s",
-                target.user_id, reply[:100],
+                target.user_id,
+                reply[:100],
             )
             return
         if target.platform != Platform.WHATSAPP:

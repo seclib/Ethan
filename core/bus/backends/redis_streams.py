@@ -7,15 +7,15 @@ from datetime import datetime
 from typing import Any, AsyncIterator
 
 from core.bus.backends.base import StorageBackend
-from core.bus.store import StoredEvent, Checkpoint
 from core.bus.snapshot import Snapshot
+from core.bus.store import Checkpoint, StoredEvent
 
 logger = logging.getLogger(__name__)
 
 
 class RedisStreamsBackend(StorageBackend):
     """Backend Redis Streams.
-    
+
     Pour cache hot et streaming rapide.
     - Très rapide
     - TTL automatique
@@ -67,13 +67,16 @@ class RedisStreamsBackend(StorageBackend):
         import json
 
         key = f"ethan:checkpoint:{checkpoint.id}"
-        await self._redis.hset(key, mapping={
-            "id": checkpoint.id,
-            "subject_pattern": checkpoint.subject_pattern,
-            "timestamp": checkpoint.timestamp.isoformat(),
-            "position": str(checkpoint.position),
-            "metadata": json.dumps(checkpoint.metadata),
-        })
+        await self._redis.hset(
+            key,
+            mapping={
+                "id": checkpoint.id,
+                "subject_pattern": checkpoint.subject_pattern,
+                "timestamp": checkpoint.timestamp.isoformat(),
+                "position": str(checkpoint.position),
+                "metadata": json.dumps(checkpoint.metadata),
+            },
+        )
 
     async def get_checkpoint(self, checkpoint_id: str) -> Checkpoint | None:
         """Récupère un checkpoint."""
@@ -101,13 +104,16 @@ class RedisStreamsBackend(StorageBackend):
         import json
 
         key = f"ethan:snapshot:{snapshot.id}"
-        await self._redis.hset(key, mapping={
-            "id": snapshot.id,
-            "position": str(snapshot.position),
-            "state": json.dumps(snapshot.state),
-            "created_at": snapshot.created_at.isoformat(),
-            "metadata": json.dumps(snapshot.metadata),
-        })
+        await self._redis.hset(
+            key,
+            mapping={
+                "id": snapshot.id,
+                "position": str(snapshot.position),
+                "state": json.dumps(snapshot.state),
+                "created_at": snapshot.created_at.isoformat(),
+                "metadata": json.dumps(snapshot.metadata),
+            },
+        )
 
     async def get_snapshot(self, snapshot_id: str) -> Snapshot | None:
         """Récupère un snapshot."""

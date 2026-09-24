@@ -20,15 +20,17 @@ EventHandler = Callable[[Event], Coroutine[Any, Any, None]]
 
 class RoutingStrategy(Enum):
     """Stratégies de routage."""
-    BROADCAST = "broadcast"          # Tous les abonnés
-    QUEUE_GROUP = "queue_group"      # Un seul par groupe (load balancing)
-    PRIORITY = "priority"            # Par ordre de priorité
-    FILTERED = "filtered"            # Avec filtres
+
+    BROADCAST = "broadcast"  # Tous les abonnés
+    QUEUE_GROUP = "queue_group"  # Un seul par groupe (load balancing)
+    PRIORITY = "priority"  # Par ordre de priorité
+    FILTERED = "filtered"  # Avec filtres
 
 
 @dataclass
 class Route:
     """Route d'événement."""
+
     id: str
     pattern: str
     handler: EventHandler
@@ -41,7 +43,7 @@ class Route:
 
 class EventRouter:
     """Roue les événements vers les abonnés.
-    
+
     Responsabilités :
     - Filtrage par sujet (pattern matching)
     - Routage par priorité

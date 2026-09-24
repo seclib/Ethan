@@ -14,7 +14,6 @@ Enforcement:
 """
 
 import ast
-import sys
 from pathlib import Path
 
 # Kernel modules that plugins MUST NOT import
@@ -72,6 +71,7 @@ ALLOWED_IMPORTS = {
 
 class IsolationViolation(Exception):
     """Raised when a plugin violates isolation rules."""
+
     pass
 
 
@@ -87,7 +87,9 @@ class PluginAnalyzer(ast.NodeVisitor):
             name = alias.name
             self._imported_names.add(name)
             # Check forbidden imports
-            if name in FORBIDDEN_IMPORTS or any(name.startswith(f + ".") for f in FORBIDDEN_IMPORTS):
+            if name in FORBIDDEN_IMPORTS or any(
+                name.startswith(f + ".") for f in FORBIDDEN_IMPORTS
+            ):
                 self.violations.append(f"forbidden import: {name}")
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
@@ -96,7 +98,9 @@ class PluginAnalyzer(ast.NodeVisitor):
         module = node.module
         self._imported_names.add(module)
         # Check forbidden imports
-        if module in FORBIDDEN_IMPORTS or any(module.startswith(f + ".") for f in FORBIDDEN_IMPORTS):
+        if module in FORBIDDEN_IMPORTS or any(
+            module.startswith(f + ".") for f in FORBIDDEN_IMPORTS
+        ):
             self.violations.append(f"forbidden import: {module}")
         # Check specific forbidden functions
         for alias in node.names:
@@ -146,7 +150,9 @@ class PluginSandbox:
         """Emit an event via NATS (allowed)."""
         # Validation: plugin can only emit events on its own subjects
         prefix = self._name.replace("-", ".").lower()
-        if not subject.startswith(f"ethan.capability.{prefix}") and not subject.startswith(f"ethan.plugin.{self._name}"):
+        if not subject.startswith(f"ethan.capability.{prefix}") and not subject.startswith(
+            f"ethan.plugin.{self._name}"
+        ):
             raise IsolationViolation(f"plugin '{self._name}' cannot emit on subject '{subject}'")
         # In production, this would publish to NATS
         pass

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class EventPublisher:
     """Publie des événements sur le bus.
-    
+
     Responsabilités :
     - Validation des événements
     - Enrichissement (metadata, correlation_id)
@@ -61,6 +61,7 @@ class EventPublisher:
                     raise
                 logger.warning(f"Publish attempt {attempt + 1} failed, retrying...")
                 import asyncio
+
                 await asyncio.sleep(self._retry_delay * (attempt + 1))
 
     def _enrich(self, event: Event, priority: Priority) -> None:
@@ -77,10 +78,10 @@ class EventPublisher:
         # Span ID pour tracing
         if not event.metadata:
             event.metadata = {}
-        
+
         if "span_id" not in event.metadata:
             event.metadata["span_id"] = str(uuid4())
-        
+
         if "parent_span_id" not in event.metadata:
             event.metadata["parent_span_id"] = event.metadata.get("span_id")
 

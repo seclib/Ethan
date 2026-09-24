@@ -10,20 +10,19 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from core.folders import FolderManager
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
+from core.knowledge.web_ingest import WebIngestionManager
+from core.rag import RAGPipeline
+from core.state import CoreRecordStore
 from fastapi import HTTPException
-
-from routers import v1
-from interfaces.api.routers.folders import set_folder_manager
 from interfaces.api.routers import web_ingest as routes
+from interfaces.api.routers.folders import set_folder_manager
 from interfaces.api.routers.web_ingest import (
     get_web_ingest_manager,
     set_web_ingest_manager,
 )
-from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
-from core.knowledge.web_ingest import WebIngestionManager
-from core.folders import FolderManager
-from core.rag import RAGPipeline
-from core.state import CoreRecordStore
+from routers import v1
 
 HOST = "https://docs.example.com"
 
@@ -70,14 +69,22 @@ def real_services():
     collections = KnowledgeCollectionManager(store=store, rag=rag)
     folders = FolderManager(store=store, knowledge=knowledge, collections=collections)
 
-    v1.set_core_domain_services(v1.CoreDomainServices(
-        knowledge=knowledge, rag=rag,
-    ))
+    v1.set_core_domain_services(
+        v1.CoreDomainServices(
+            knowledge=knowledge,
+            rag=rag,
+        )
+    )
     v1.set_knowledge_collections(collections)
     set_folder_manager(folders)
     manager = WebIngestionManager(
-        rag=rag, knowledge=knowledge, collections=collections, folders=folders,
-        fetcher=_FakeFetcher(), resolver=_fake_resolver, request_delay=0.0,
+        rag=rag,
+        knowledge=knowledge,
+        collections=collections,
+        folders=folders,
+        fetcher=_FakeFetcher(),
+        resolver=_fake_resolver,
+        request_delay=0.0,
     )
     set_web_ingest_manager(manager)
     yield manager
@@ -88,11 +95,18 @@ def real_services():
 
 # ── (SUITE) ──────────────────────────────────────────────────────────────────
 
+
 def test_scan_route_returns_preview_without_internal_text():
     """POST /web-ingest/scan : preview public (titre, extrait) sans `text`."""
-    preview = asyncio.run(routes.scan_web({
-        "url": f"{HOST}/", "max_pages": 10, "max_depth": 1,
-    }))
+    preview = asyncio.run(
+        routes.scan_web(
+            {
+                "url": f"{HOST}/",
+                "max_pages": 10,
+                "max_depth": 1,
+            }
+        )
+    )
     assert preview["scan_id"]
     assert preview["robots"]["exists"] is True
     urls = {p["url"]: p for p in preview["pages"]}
@@ -122,14 +136,18 @@ def test_ingest_route_creates_collection_and_folder():
     preview = asyncio.run(routes.scan_web({"url": f"{HOST}/", "max_pages": 5}))
     page_ids = [p["page_id"] for p in preview["pages"] if p["status"] == "ok"]
 
-    result = asyncio.run(routes.ingest_web({
-        "scan_id": preview["scan_id"],
-        "page_ids": page_ids,
-        "new_folder_name": "Docs Web",
-        "target": "collection",
-        "new_collection_name": "Docs Produit",
-        "retrieval_strategy": "semantic",
-    }))
+    result = asyncio.run(
+        routes.ingest_web(
+            {
+                "scan_id": preview["scan_id"],
+                "page_ids": page_ids,
+                "new_folder_name": "Docs Web",
+                "target": "collection",
+                "new_collection_name": "Docs Produit",
+                "retrieval_strategy": "semantic",
+            }
+        )
+    )
     assert result["folder"]["name"] == "Docs Web"
     assert result["collection"]["name"] == "Docs Produit"
     assert result["indexed_count"] == 2
@@ -143,15 +161,26 @@ def test_ingest_route_creates_collection_and_folder():
 def test_ingest_route_validates_payload():
     """Scan inconnu → 422 ; page inconnue → 422."""
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(routes.ingest_web({
-            "scan_id": "ghost", "page_ids": [], "target": "knowledge",
-        }))
+        asyncio.run(
+            routes.ingest_web(
+                {
+                    "scan_id": "ghost",
+                    "page_ids": [],
+                    "target": "knowledge",
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
     preview = asyncio.run(routes.scan_web({"url": f"{HOST}/"}))
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(routes.ingest_web({
-            "scan_id": preview["scan_id"], "page_ids": ["ghost-page"],
-            "target": "knowledge",
-        }))
+        asyncio.run(
+            routes.ingest_web(
+                {
+                    "scan_id": preview["scan_id"],
+                    "page_ids": ["ghost-page"],
+                    "target": "knowledge",
+                }
+            )
+        )
     assert exc.value.status_code == 422

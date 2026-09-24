@@ -29,7 +29,8 @@ def cmd_restart(args: list[str]) -> int:
 
     result = subprocess.run(
         ["docker", "compose", "-f", "docker-compose.yml", "restart"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
 
     if result.returncode != 0:

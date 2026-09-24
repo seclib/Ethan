@@ -58,9 +58,7 @@ _CATEGORY_ALIASES: dict[str, str] = {
 _KNOWN_CATEGORIES = {c.value for c in ActionCategory}
 
 
-def classify_tool_call(
-    tool: Tool, params: dict[str, Any]
-) -> tuple[str, str, str]:
+def classify_tool_call(tool: Tool, params: dict[str, Any]) -> tuple[str, str, str]:
     """Mappe un appel de tool vers une requête Policy (catégorie, action, ressource).
 
     Le mapping est **structurel** (métadonnées du tool + paramètres), jamais
@@ -152,9 +150,7 @@ class SecureToolEnforcer:
 
     # ── Configuration ────────────────────────────────────────────────────
 
-    def set_subject_resolver(
-        self, resolver: Callable[[ToolContext], str]
-    ) -> "SecureToolEnforcer":
+    def set_subject_resolver(self, resolver: Callable[[ToolContext], str]) -> "SecureToolEnforcer":
         """Définit comment dériver le sujet (agent/user) depuis le contexte."""
         self._subject_resolver = resolver
         return self
@@ -178,19 +174,25 @@ class SecureToolEnforcer:
         actor = f"{subject}"
 
         # 1. Policy Engine (hiérarchie, fail-closed, neutralité A6)
-        decision = self._engine.check(
-            category, action, resource, source=source
-        )
+        decision = self._engine.check(category, action, resource, source=source)
         if decision.result is PolicyResult.DENY:
             self._record(
-                AuditDecision.DENIED, actor, category, action, resource,
+                AuditDecision.DENIED,
+                actor,
+                category,
+                action,
+                resource,
                 f"policy:{decision.policy_id or 'silence'}",
                 decision.reason,
             )
             raise ToolRejectedError(decision.reason, decision=decision)
         if decision.result is PolicyResult.REQUIRE_CONFIRMATION:
             self._record(
-                AuditDecision.REJECTED, actor, category, action, resource,
+                AuditDecision.REJECTED,
+                actor,
+                category,
+                action,
+                resource,
                 f"policy:{decision.policy_id}",
                 "Confirmation humaine requise (fail-closed).",
             )
@@ -200,33 +202,42 @@ class SecureToolEnforcer:
 
         # 2. Capability System (droit du sujet, phase 05)
         if self._capabilities is not None:
-            result, reason, _cap = self._capabilities.check(
-                subject, category, action, resource
-            )
+            result, reason, _cap = self._capabilities.check(subject, category, action, resource)
             if result is not PolicyResult.ALLOW:
                 self._record(
-                    AuditDecision.DENIED, actor, category, action, resource,
-                    "capability", reason,
+                    AuditDecision.DENIED,
+                    actor,
+                    category,
+                    action,
+                    resource,
+                    "capability",
+                    reason,
                 )
                 raise ToolRejectedError(reason)
-
 
         # 3. ExfilGuard (transmission externe, phase 06)
         if category == ActionCategory.EXTERNAL_TRANSMISSION and self._exfil is not None:
             content = params.get("content") or params.get("payload") or ""
-            exfil_decision = self._exfil.evaluate(
-                resource, str(content), source=source
-            )
+            exfil_decision = self._exfil.evaluate(resource, str(content), source=source)
             if not exfil_decision.allowed:
                 self._record(
-                    AuditDecision.DENIED, actor, category, action, resource,
-                    f"exfil:{exfil_decision.result.value}", exfil_decision.reason,
+                    AuditDecision.DENIED,
+                    actor,
+                    category,
+                    action,
+                    resource,
+                    f"exfil:{exfil_decision.result.value}",
+                    exfil_decision.reason,
                 )
                 raise ToolRejectedError(exfil_decision.reason)
 
         # 4. Audit ALLOWED
         self._record(
-            AuditDecision.ALLOWED, actor, category, action, resource,
+            AuditDecision.ALLOWED,
+            actor,
+            category,
+            action,
+            resource,
             f"policy:{decision.policy_id or 'base'}",
             decision.reason,
         )
@@ -297,6 +308,7 @@ def build_secure_enforcer(
     """
     if capabilities is None:
         from core.security.policy.capabilities import CapabilityManager as _CM
+
         capabilities = _CM(allowed_roots=["/workspace"])
     return SecureToolEnforcer(
         engine=engine,
@@ -304,4 +316,3 @@ def build_secure_enforcer(
         exfil=exfil,
         audit=audit,
     )
-

@@ -35,8 +35,8 @@ from core.missions import MissionManager
 from core.plugins import PluginRegistry
 from core.rag import RAGPipeline
 from core.rag.strategies import DEFAULT_STRATEGY, available_strategies, validate_strategy
-from core.skills.store import SkillStore
 from core.skills.lab import SkillLab
+from core.skills.store import SkillStore
 from core.skills.validation import collect_unknown_tools
 from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
@@ -74,12 +74,14 @@ def _parse_tool_calls(content: str) -> list[dict[str, Any]]:
 
 def _strip_tool_blocks(content: str, note_by_name: dict[str, str] | None = None) -> str:
     """Retire les blocs <tool> du contenu affiché, avec une note par appel."""
+
     def _repl(match: re.Match[str]) -> str:
         name = match.group(1)
         note = (note_by_name or {}).get(name, f"_[Outil « {name} » exécuté]_")
         return f"\n\n{note}\n\n"
 
     return _TOOL_CALL_RE.sub(_repl, content)
+
 
 # Instance globale du ProviderManager — injectée au démarrage via set_provider_manager()
 _manager: ProviderManager | None = None
@@ -259,6 +261,7 @@ def _utc_now_rfc3339() -> str:
 # AGENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/agents")
 async def list_agents():
     return [agent.to_dict() for agent in await _domains.agents.list()]
@@ -384,12 +387,8 @@ async def _validated_domain_ids(data: dict[str, Any]) -> list[str]:
 async def create_agent(data: dict[str, Any]):
     try:
         knowledge_collection_ids = await _validated_knowledge_collection_ids(data)
-        folder_ids = (
-            await _validated_folder_ids(data) if data.get("folder_ids") else []
-        )
-        domain_ids = (
-            await _validated_domain_ids(data) if data.get("domain_ids") else []
-        )
+        folder_ids = await _validated_folder_ids(data) if data.get("folder_ids") else []
+        domain_ids = await _validated_domain_ids(data) if data.get("domain_ids") else []
         knowledge_ids = await _validated_knowledge_node_ids(data)
         tool_ids = _validated_tool_ids(data)
         agent = await _domains.agents.create(
@@ -456,18 +455,23 @@ async def list_tools():
     """
     if _tool_manager is None:
         raise HTTPException(503, "ToolManager not initialized")
-    return [tool.to_dict() if hasattr(tool, "to_dict") else {
-        "id": tool.id,
-        "name": tool.name,
-        "description": tool.description,
-        "parameters": tool.parameters,
-        "category": tool.category,
-        "capabilities": tool.capabilities,
-        "provider": tool.provider,
-        "is_available": tool.is_available,
-        "risk_level": getattr(tool.risk_level, "value", str(tool.risk_level)),
-        "tags": tool.tags,
-    } for tool in _tool_manager.list_tools()]
+    return [
+        tool.to_dict()
+        if hasattr(tool, "to_dict")
+        else {
+            "id": tool.id,
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+            "category": tool.category,
+            "capabilities": tool.capabilities,
+            "provider": tool.provider,
+            "is_available": tool.is_available,
+            "risk_level": getattr(tool.risk_level, "value", str(tool.risk_level)),
+            "tags": tool.tags,
+        }
+        for tool in _tool_manager.list_tools()
+    ]
 
 
 @router.put("/agents/{agent_id}")
@@ -505,7 +509,9 @@ async def delete_agent(agent_id: str):
     return {"status": "deleted"}
 
 
-@router.post("/agents/{agent_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+@router.post(
+    "/agents/{agent_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))]
+)
 async def execute_agent(agent_id: str, data: dict[str, Any]):
     """Request agent work through the Core execution adapter."""
     try:
@@ -533,6 +539,7 @@ async def list_agent_executions(agent_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # GOALS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/goals")
 async def list_goals():
@@ -577,6 +584,7 @@ async def delete_goal(goal_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # MISSIONS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/missions")
 async def list_missions(status: str | None = None):
@@ -647,10 +655,11 @@ async def approve_mission_step(mission_id: str, step_id: str):
 # MEMORY / FACTS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/memory/facts")
 async def list_facts(limit: int = 20, category: str | None = None):
     facts = await get_webui_store().list_facts(category=category)
-    return facts[: limit]
+    return facts[:limit]
 
 
 @router.get("/memory/facts/search")
@@ -697,6 +706,7 @@ async def get_memory_entry(memory_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # SKILLS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/skills")
 async def list_skills(
@@ -855,7 +865,9 @@ async def update_skill_valves(skill_id: str, data: dict[str, Any]):
     return valves
 
 
-@router.post("/skills/{skill_id}/run", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+@router.post(
+    "/skills/{skill_id}/run", dependencies=[Depends(require_permission(Permission.EXECUTE))]
+)
 async def run_skill(skill_id: str, data: dict[str, Any]):
     """Exécute une skill du catalogue via le ChatPipeline Core (moteur réel).
 
@@ -910,6 +922,7 @@ async def run_skill(skill_id: str, data: dict[str, Any]):
 # KNOWLEDGE
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/knowledge")
 async def list_knowledge():
     return [node.to_dict() for node in await _domains.knowledge.list()]
@@ -955,9 +968,7 @@ async def retrieve_collections_multi(data: dict[str, Any]):
     collection_ids = data.get("collection_ids", [])
     top_k = data.get("top_k")
     try:
-        return await get_knowledge_collections().retrieve_multi(
-            query, collection_ids, top_k=top_k
-        )
+        return await get_knowledge_collections().retrieve_multi(query, collection_ids, top_k=top_k)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -1130,6 +1141,7 @@ async def ingest_knowledge_into_rag(knowledge_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # RAG / DOCUMENTS
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.get("/rag/documents")
 async def list_rag_documents():
@@ -1306,9 +1318,7 @@ async def ingest_rag_document_from_file(file_id: str, data: dict[str, Any] | Non
     collection_id = body.get("collection_id")
     if collection_id:
         try:
-            collection = await get_knowledge_collections().add_document(
-                collection_id, document.id
-            )
+            collection = await get_knowledge_collections().add_document(collection_id, document.id)
         except ValueError as exc:
             raise HTTPException(404, str(exc)) from exc
         if collection is None:
@@ -1368,6 +1378,7 @@ async def build_rag_context(data: dict[str, Any]):
 # FLUX / EVENTS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/flux")
 async def list_flux_events(limit: int = 50, type: str | None = None):
     return await get_webui_store().list_events(type=type, limit=limit)
@@ -1385,6 +1396,7 @@ async def get_flux_event(event_id: str):
 # SETTINGS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/settings")
 async def get_settings():
     return await get_webui_store().get_settings()
@@ -1398,6 +1410,7 @@ async def update_settings(data: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════════
 # CHAT
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @router.post("/chat/completions/stream")
 async def chat_completions_stream(data: dict[str, Any]):
@@ -1431,12 +1444,18 @@ async def chat_completions_stream(data: dict[str, Any]):
     # par le SessionSettingsManager Core (priorité requête > session > profil
     # de mode > global). Le WebUI envoie l'intent ; le Core, seul, arbitre.
     mode = data.get("mode") or request_metadata.get("mode")
-    reasoning_effort = data.get("reasoning_effort") or request_metadata.get(
-        "reasoning_effort"
-    )
+    reasoning_effort = data.get("reasoning_effort") or request_metadata.get("reasoning_effort")
 
     async def event_stream():
-        nonlocal provider_id, model, skill_ids, knowledge_ids, tool_ids, reasoning_effort, request_metadata, agent_id
+        nonlocal \
+            provider_id, \
+            model, \
+            skill_ids, \
+            knowledge_ids, \
+            tool_ids, \
+            reasoning_effort, \
+            request_metadata, \
+            agent_id
         try:
             # 1. Créer ou réutiliser la conversation.
             cid = chat_id
@@ -1514,9 +1533,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                     (
                         accepted_plugins,
                         merged_plugin_tools,
-                    ) = await resolve_conversation_tools(
-                        plugin_registry, plugin_ids, tool_ids
-                    )
+                    ) = await resolve_conversation_tools(plugin_registry, plugin_ids, tool_ids)
                     if accepted_plugins:
                         tool_ids = merged_plugin_tools
                         request_metadata = {
@@ -1529,14 +1546,18 @@ async def chat_completions_stream(data: dict[str, Any]):
             # requête > session > profil de mode > global. Le mode injecte ses
             # instructions comportementales dans le prompt (plan/act/debug) et
             # la matrice de permissions filtre les outils proposés.
-            resolved, provider_id, model, reasoning_effort, mode_meta = (
-                await pipeline._resolve_session_settings(
-                    chat_id=cid,
-                    provider_id=provider_id,
-                    model=model,
-                    mode=mode,
-                    reasoning_effort=reasoning_effort,
-                )
+            (
+                resolved,
+                provider_id,
+                model,
+                reasoning_effort,
+                mode_meta,
+            ) = await pipeline._resolve_session_settings(
+                chat_id=cid,
+                provider_id=provider_id,
+                model=model,
+                mode=mode,
+                reasoning_effort=reasoning_effort,
             )
 
             # 2. Persister le message utilisateur.
@@ -1588,9 +1609,16 @@ async def chat_completions_stream(data: dict[str, Any]):
             if pipeline._manager is None:
                 # Fallback écho.
                 content = f"[ECHO] {user_message}"
-                yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': content})}\n\n"
+                yield (
+                    "data: "
+                    + json.dumps({"type": "content", "chat_id": cid, "content": content})
+                    + "\n\n"
+                )
                 await pipeline._chats.add_message(
-                    cid, role="assistant", content=content, user_id=user_id,
+                    cid,
+                    role="assistant",
+                    content=content,
+                    user_id=user_id,
                     parent_id=user_msg["id"],
                     metadata={"provider": "mock", "model": "echo", **mode_meta},
                 )
@@ -1611,6 +1639,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                             from core.llm.provider_factory import (
                                 create_provider_from_config,
                             )
+
                             provider = create_provider_from_config({**config, "name": provider_id})
                             await provider.initialize()
                     if provider is not None:
@@ -1657,7 +1686,11 @@ async def chat_completions_stream(data: dict[str, Any]):
                         if chunk:
                             round_content += chunk
                             full_content += chunk
-                            yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"
+                            yield (
+                                "data: "
+                                + json.dumps({"type": "content", "chat_id": cid, "content": chunk})
+                                + "\n\n"
+                            )
 
                     calls = _parse_tool_calls(round_content)
                     if not calls or round_index == MAX_TOOL_ROUNDS:
@@ -1669,9 +1702,22 @@ async def chat_completions_stream(data: dict[str, Any]):
                     result_lines: list[str] = []
                     for call in calls:
                         name = call["name"]
-                        yield f"data: {json.dumps({'type': 'tool_call', 'chat_id': cid, 'tool': name, 'params': call['params']})}\n\n"
+                        yield (
+                            "data: "
+                            + json.dumps(
+                                {
+                                    "type": "tool_call",
+                                    "chat_id": cid,
+                                    "tool": name,
+                                    "params": call["params"],
+                                }
+                            )
+                            + "\n\n"
+                        )
                         outcome = await pipeline.execute_tool_call(
-                            name, call["params"], user_id=user_id,
+                            name,
+                            call["params"],
+                            user_id=user_id,
                         )
                         summary = (
                             outcome.get("output")
@@ -1682,12 +1728,30 @@ async def chat_completions_stream(data: dict[str, Any]):
                             f"[Résultat outil « {name} » ({outcome.get('status')})]\n{summary}"
                         )
                         notes[name] = f"_[Outil « {name} » exécuté ({outcome.get('status')})]_"
-                        yield f"data: {json.dumps({'type': 'tool_result', 'chat_id': cid, 'tool': name, 'status': outcome.get('status'), 'output': str(summary)[:2000]})}\n\n"
+                        yield (
+                            "data: "
+                            + json.dumps(
+                                {
+                                    "type": "tool_result",
+                                    "chat_id": cid,
+                                    "tool": name,
+                                    "status": outcome.get("status"),
+                                    "output": str(summary)[:2000],
+                                }
+                            )
+                            + "\n\n"
+                        )
 
                     # Les blocs bruts sont remplacés par une note lisible
                     # dans le contenu affiché puis persisté.
                     full_content = _strip_tool_blocks(full_content, notes)
-                    yield f"data: {json.dumps({'type': 'content_replace', 'chat_id': cid, 'content': full_content})}\n\n"
+                    yield (
+                        "data: "
+                        + json.dumps(
+                            {"type": "content_replace", "chat_id": cid, "content": full_content}
+                        )
+                        + "\n\n"
+                    )
 
                     # Continuation : réponse intermédiaire + résultats
                     # d'outils injectés dans le contexte du tour suivant.
@@ -1715,23 +1779,24 @@ async def chat_completions_stream(data: dict[str, Any]):
                 async def _persist_stopped() -> None:
                     try:
                         await pipeline._chats.update_message(
-                            cid, assistant_msg["id"],
+                            cid,
+                            assistant_msg["id"],
                             {"content": persisted, "status": "stopped", "done": True},
                         )
                     except Exception:
                         logger.exception(
-                            "Failed to persist partial chat message (chat %s)", cid,
+                            "Failed to persist partial chat message (chat %s)",
+                            cid,
                         )
 
                 asyncio.get_running_loop().create_task(_persist_stopped())
                 raise
             else:
                 # Fin normale : réponse complète persistée + événement done.
-                persisted = (
-                    _strip_tool_blocks(full_content) if tool_ids else full_content
-                )
+                persisted = _strip_tool_blocks(full_content) if tool_ids else full_content
                 await pipeline._chats.update_message(
-                    cid, assistant_msg["id"],
+                    cid,
+                    assistant_msg["id"],
                     {"content": persisted, "status": "done", "done": True},
                 )
                 done_payload = json.dumps(

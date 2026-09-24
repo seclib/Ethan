@@ -1,23 +1,22 @@
-"""Internal API Router — Endpoints pour les nouveaux modules (Audit, Budget, Approval, Facts, SkillLab).
+"""Internal API Router — Endpoints pour les nouveaux modules
+(Audit, Budget, Approval, Facts, SkillLab).
 
 Accessible via /internal/* pour le dashboard web et les clients.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-
-from core.audit import AuditStore, AuditCategory, AuditDecision
-from core.cost import BudgetGuard, CostTracker, BudgetScope
-from core.facts import FactStore, Fact, FactCategory, FactStatus
 from core.approval import ApprovalEngine
-from core.skills.lab import SkillLab
+from core.audit import AuditCategory, AuditDecision, AuditStore
 from core.auth import Permission
+from core.cost import BudgetGuard, BudgetScope, CostTracker
+from core.facts import Fact, FactCategory, FactStatus, FactStore
+from core.skills.lab import SkillLab
+from fastapi import APIRouter, Depends, HTTPException, Query
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
@@ -60,7 +59,6 @@ def init_modules(
         # (les endpoints renvoient 503) — aucun fallback local.
         _skill_lab = SkillLab(docker_client=None, publish_fn=publish_fn)
         logger.warning("SkillLab initialized WITHOUT Docker (%s) — endpoints will return 503", exc)
-
 
     logger.info("Internal modules initialized: audit, budget, facts, approval, skilllab")
 
@@ -158,7 +156,10 @@ async def reserve_budget(data: dict[str, Any]):
         scope=scope,
         scope_id=data.get("scope_id", ""),
     )
-    return {"allowed": allowed, "remaining": _budget_guard.remaining(scope, data.get("scope_id", ""))}
+    return {
+        "allowed": allowed,
+        "remaining": _budget_guard.remaining(scope, data.get("scope_id", "")),
+    }
 
 
 @router.post("/budget/record", dependencies=[Depends(require_permission(Permission.WRITE))])

@@ -1,4 +1,5 @@
 """Example module — capability declarations."""
+
 ETHAN_CAPABILITIES = [
     {
         "name": "example.echo",

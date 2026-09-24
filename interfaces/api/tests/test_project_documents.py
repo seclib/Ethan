@@ -6,15 +6,12 @@ et les validations (taille, MIME, accès refusé).
 
 from __future__ import annotations
 
-import asyncio
 import io
 
 import pytest
-from fastapi import HTTPException
-
 from core.projects import ProjectManager
 from core.state import CoreRecordStore
-from interfaces.api.routers.projects import get_project_manager, set_project_manager
+from interfaces.api.routers.projects import set_project_manager
 
 
 @pytest.fixture(autouse=True)
@@ -48,8 +45,12 @@ async def test_record_and_list_documents(real_services):
     manager = real_services
     project = await _create_project(manager)
     await manager.record_document_upload(
-        project_id=project["id"], file_id="/tmp/t.txt", filename="t.txt",
-        mime_type="text/plain", size_bytes=12, user_id="user-a",
+        project_id=project["id"],
+        file_id="/tmp/t.txt",
+        filename="t.txt",
+        mime_type="text/plain",
+        size_bytes=12,
+        user_id="user-a",
     )
     docs = await manager.list_project_documents(project["id"], user_id="user-a")
     assert len(docs) == 1
@@ -64,12 +65,18 @@ async def test_documents_isolated_between_projects(real_services):
     pa = await _create_project(manager, name="A", user_id="user-a")
     pb = await _create_project(manager, name="B", user_id="user-b")
     await manager.record_document_upload(
-        project_id=pa["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=pa["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
     await manager.record_document_upload(
-        project_id=pb["id"], file_id="/tmp/b.txt", filename="b.txt",
-        mime_type="text/plain", user_id="user-b",
+        project_id=pb["id"],
+        file_id="/tmp/b.txt",
+        filename="b.txt",
+        mime_type="text/plain",
+        user_id="user-b",
     )
     docs_a = await manager.list_project_documents(pa["id"], user_id="user-a")
     docs_b = await manager.list_project_documents(pb["id"], user_id="user-b")
@@ -83,8 +90,11 @@ async def test_list_documents_access_denied(real_services):
     manager = real_services
     pb = await _create_project(manager, name="B", user_id="user-b")
     await manager.record_document_upload(
-        project_id=pb["id"], file_id="/tmp/b.txt", filename="b.txt",
-        mime_type="text/plain", user_id="user-b",
+        project_id=pb["id"],
+        file_id="/tmp/b.txt",
+        filename="b.txt",
+        mime_type="text/plain",
+        user_id="user-b",
     )
     with pytest.raises(ValueError, match="access denied"):
         await manager.list_project_documents(pb["id"], user_id="user-a")
@@ -96,12 +106,13 @@ async def test_delete_document_success(real_services):
     manager = real_services
     project = await _create_project(manager)
     doc = await manager.record_document_upload(
-        project_id=project["id"], file_id="/tmp/t.txt", filename="t.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project["id"],
+        file_id="/tmp/t.txt",
+        filename="t.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
-    deleted = await manager.delete_project_document(
-        project["id"], doc["id"], user_id="user-a"
-    )
+    deleted = await manager.delete_project_document(project["id"], doc["id"], user_id="user-a")
     assert deleted is True
     docs = await manager.list_project_documents(project["id"], user_id="user-a")
     assert len(docs) == 0
@@ -114,8 +125,11 @@ async def test_delete_document_wrong_project(real_services):
     pa = await _create_project(manager, name="A", user_id="user-a")
     pb = await _create_project(manager, name="B", user_id="user-b")
     doc = await manager.record_document_upload(
-        project_id=pa["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=pa["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
     deleted = await manager.delete_project_document(pb["id"], doc["id"], user_id="user-a")
     assert deleted is False
@@ -135,8 +149,11 @@ async def test_update_document_status(real_services):
     manager = real_services
     project = await _create_project(manager)
     doc = await manager.record_document_upload(
-        project_id=project["id"], file_id="/tmp/t.txt", filename="t.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project["id"],
+        file_id="/tmp/t.txt",
+        filename="t.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
     await manager.update_document_status(doc["id"], "ready", chunk_count=3)
     docs = await manager.list_project_documents(project["id"], user_id="user-a")

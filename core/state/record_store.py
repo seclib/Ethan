@@ -9,9 +9,9 @@ keeps an in-process fallback for standalone development and tests.
 
 from __future__ import annotations
 
-from copy import deepcopy
 import json
 import logging
+from copy import deepcopy
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,9 @@ class CoreRecordStore:
                     ex=self._cache_ttl,
                 )
             except Exception as exc:
-                logger.warning("Core record cache save failed for %s/%s: %s", domain, record_id, exc)
+                logger.warning(
+                    "Core record cache save failed for %s/%s: %s", domain, record_id, exc
+                )
 
         if not persisted and self._pg is not None:
             logger.info("Using in-process fallback for Core record %s/%s", domain, record_id)
@@ -92,7 +94,9 @@ class CoreRecordStore:
                     self._memory[(domain, record_id)] = record
                     return self._clone(record)
             except Exception as exc:
-                logger.warning("Core record cache read failed for %s/%s: %s", domain, record_id, exc)
+                logger.warning(
+                    "Core record cache read failed for %s/%s: %s", domain, record_id, exc
+                )
 
         if self._pg is not None:
             try:
@@ -161,7 +165,9 @@ class CoreRecordStore:
             try:
                 await self._redis.delete(self._cache_key(domain, record_id))
             except Exception as exc:
-                logger.warning("Core record cache delete failed for %s/%s: %s", domain, record_id, exc)
+                logger.warning(
+                    "Core record cache delete failed for %s/%s: %s", domain, record_id, exc
+                )
 
         return existed
 

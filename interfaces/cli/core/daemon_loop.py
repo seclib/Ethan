@@ -1,4 +1,5 @@
 """ETHAN daemon loop — extracted subprocess entrypoint for stable daemonisation."""
+
 import json
 import os
 import signal
@@ -28,6 +29,7 @@ def _cache_write(state):
     """Atomic cache write with size limit."""
     payload = {"ts": datetime.now().isoformat(), "state": state}
     import tempfile
+
     fd, tmp = tempfile.mkstemp(dir=CACHE_DIR, prefix="cache_", suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as f:

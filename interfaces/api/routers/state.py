@@ -1,12 +1,12 @@
 """State router — expose kernel state to interfaces."""
+
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
-from nats.aio.client import Client as NatsClient
-
+from fastapi import APIRouter
 from interfaces.api.models.state_response import StateResponse
+from nats.aio.client import Client as NatsClient
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ async def get_state() -> StateResponse:
 async def get_version():
     """Return ETHAN version."""
     from core._version import __version__
+
     return {
         "version": __version__,
         "name": "ETHAN Cognitive OS",

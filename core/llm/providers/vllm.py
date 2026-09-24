@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.llm.providers.base import LLMProvider
 from core.llm.types import ChatMessage, ChatResponse, ModelInfo
@@ -25,6 +24,7 @@ class VLLMProvider(LLMProvider):
         """Initialise le client."""
         try:
             import httpx
+
             self._client = httpx.AsyncClient(timeout=300.0)
             logger.info(f"vLLM provider initialized ({self._base_url})")
         except ImportError:
@@ -63,7 +63,13 @@ class VLLMProvider(LLMProvider):
             usage=data.get("usage", {}),
         )
 
-    async def chat_stream(self, messages: list[ChatMessage], model: str | None = None, temperature: float = 0.7, max_tokens: int | None = None):
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ):
         """Streaming chat."""
         if not self._client:
             raise RuntimeError("vLLM provider not initialized")
@@ -82,6 +88,7 @@ class VLLMProvider(LLMProvider):
             async for line in response.aiter_lines():
                 if line.startswith("data: "):
                     import json
+
                     data = json.loads(line[6:])
                     if "choices" in data and len(data["choices"]) > 0:
                         delta = data["choices"][0].get("delta", {})
@@ -121,18 +128,20 @@ class VLLMProvider(LLMProvider):
             models = []
             for model_data in data.get("data", []):
                 model_id = model_data["id"]
-                models.append(ModelInfo(
-                    id=model_id,
-                    provider=self.name,
-                    name=model_id,
-                    model=model_id,
-                    context_length=4096,
-                    quality_score=0.85,
-                    avg_latency_ms=200.0,  # Rapide (GPU)
-                    is_local=True,
-                    is_private=True,
-                    capabilities=["chat", "embedding", "code"],
-                ))
+                models.append(
+                    ModelInfo(
+                        id=model_id,
+                        provider=self.name,
+                        name=model_id,
+                        model=model_id,
+                        context_length=4096,
+                        quality_score=0.85,
+                        avg_latency_ms=200.0,  # Rapide (GPU)
+                        is_local=True,
+                        is_private=True,
+                        capabilities=["chat", "embedding", "code"],
+                    )
+                )
 
             return models
         except Exception as e:

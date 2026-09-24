@@ -10,11 +10,10 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
-from routers import v1
 from core.skills.lab import SkillLab
 from core.skills.store import SkillStore
+from fastapi import HTTPException
+from routers import v1
 
 
 class _FakeTool:
@@ -107,6 +106,7 @@ def test_run_inactive_skill_409():
 
     asyncio.run(scenario())
 
+
 def test_list_filters():
     async def scenario():
         v1.set_skill_store(SkillStore())
@@ -191,4 +191,3 @@ def test_lab_test_422_without_code():
         v1._skill_lab = None
 
     asyncio.run(scenario())
-

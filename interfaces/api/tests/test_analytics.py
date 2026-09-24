@@ -8,7 +8,6 @@ set_capability_managers.
 """
 
 import pytest
-
 from core.learning.evaluations import EvaluationManager
 from core.metrics.analytics import AnalyticsManager
 from core.state.record_store import CoreRecordStore
@@ -43,10 +42,16 @@ async def test_summary_empty(core_managers):
 async def test_summary_with_real_events(core_managers):
     """Événements réels enregistrés via AnalyticsManager → totaux exacts."""
     await core_managers.analytics.record_event(
-        "chat_completion", tokens_in=100, tokens_out=50, cost=0.0025,
+        "chat_completion",
+        tokens_in=100,
+        tokens_out=50,
+        cost=0.0025,
     )
     await core_managers.analytics.record_event(
-        "chat_completion", tokens_in=10, tokens_out=20, cost=0.0005,
+        "chat_completion",
+        tokens_in=10,
+        tokens_out=20,
+        cost=0.0005,
     )
 
     summary = await get_analytics_summary()
@@ -81,7 +86,8 @@ async def test_evaluations_list_with_results(core_managers):
         description="Évalue la pertinence du RAG",
     )
     await core_managers.evaluations.add_result(
-        created["id"], {"score": 0.87, "passed": True},
+        created["id"],
+        {"score": 0.87, "passed": True},
     )
 
     evaluations = await list_evaluations()

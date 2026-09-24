@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +99,8 @@ class CostTracker:
                 cursor = self._pg_conn.cursor()
                 cursor.execute(
                     """INSERT INTO cost_log
-                       (timestamp, scope, scope_id, provider, model, tokens_input, tokens_output, cost_usd, context, metadata)
+                       (timestamp, scope, scope_id, provider, model, tokens_input, tokens_output,
+                        cost_usd, context, metadata)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
                         entry["timestamp"],
@@ -138,7 +139,8 @@ class CostTracker:
             try:
                 cursor = self._pg_conn.cursor()
                 cursor.execute(
-                    "SELECT provider, cost_usd, tokens_input, tokens_output FROM cost_log WHERE timestamp >= %s",
+                    "SELECT provider, cost_usd, tokens_input, tokens_output FROM cost_log "
+                    "WHERE timestamp >= %s",
                     (first_of_month.isoformat(),),
                 )
                 for row in cursor.fetchall():

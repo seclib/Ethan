@@ -98,9 +98,7 @@ class TTSEngine:
         if provider in ("openai", "openai-compatible"):
             return await _synthesize_openai_compatible(text, cfg)
 
-        raise NotImplementedError(
-            f"TTS provider '{provider}' is not implemented yet"
-        )
+        raise NotImplementedError(f"TTS provider '{provider}' is not implemented yet")
 
 
 async def _synthesize_openai_compatible(text: str, cfg: dict[str, Any]) -> bytes:
@@ -124,12 +122,14 @@ async def _synthesize_openai_compatible(text: str, cfg: dict[str, Any]) -> bytes
     voice = str(cfg.get("voice") or "alloy")
     if voice == "default":
         voice = "alloy"
-    payload = _json.dumps({
-        "model": model,
-        "input": text[:4096],
-        "voice": voice,
-        "response_format": "wav",
-    }).encode()
+    payload = _json.dumps(
+        {
+            "model": model,
+            "input": text[:4096],
+            "voice": voice,
+            "response_format": "wav",
+        }
+    ).encode()
 
     req = urllib.request.Request(
         f"{base_url}/audio/speech",

@@ -13,6 +13,7 @@ def manage(config: dict, args) -> int:
 
     if action == "show":
         import yaml
+
         print(yaml.dump(config, default_flow_style=False))
 
     elif action == "get" and args.key:
@@ -42,6 +43,7 @@ def manage(config: dict, args) -> int:
 
     elif action == "edit":
         import subprocess
+
         xdg_config = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
         path = os.path.join(xdg_config, "ethan", "config.yaml")
         editor = os.environ.get("EDITOR", "nano")

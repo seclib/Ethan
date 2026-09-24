@@ -1,6 +1,6 @@
 """Debug trap — capture command execution for self-healing."""
+
 import time
-import sys
 from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr
 

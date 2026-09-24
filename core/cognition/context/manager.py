@@ -41,7 +41,7 @@ class ContextManager:
         context = {
             "session_id": session_id,
             "query": query,
-            "intent": intent.type.value if hasattr(intent, 'type') else str(intent),
+            "intent": intent.type.value if hasattr(intent, "type") else str(intent),
             "messages": [],
             "memory_items": [],
             "system_state": {},
@@ -52,8 +52,7 @@ class ContextManager:
             try:
                 history = await self._memory.search(f"session:{session_id}", query, limit=5)
                 context["messages"] = [
-                    {"role": "history", "content": r.value, "score": r.score}
-                    for r in history
+                    {"role": "history", "content": r.value, "score": r.score} for r in history
                 ]
             except Exception as e:
                 logger.warning(f"Failed to retrieve history: {e}")

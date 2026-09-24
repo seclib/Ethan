@@ -2,19 +2,20 @@
 
 Tests real functional paths for each category per the architecture matrix.
 """
+
 import asyncio
-import sys
-import os
 import logging
+import os
+import sys
 
 logging.basicConfig(level=logging.WARNING)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def section(title):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 async def test_skills():
@@ -22,7 +23,7 @@ async def test_skills():
     section("SKILLS — SkillManager.execute -> ToolManager.select_and_execute")
 
     from core.skills.manager import SkillManager
-    from core.skills.types import Skill, SkillStep, SkillContext, SkillStatus
+    from core.skills.types import Skill, SkillContext, SkillStatus, SkillStep
     from core.tools.manager import ToolManager
 
     tool_manager = ToolManager()
@@ -37,13 +38,15 @@ async def test_skills():
         description="Smoke test skill",
         category="test",
         tags=["test"],
-        steps=[SkillStep(
-            id="step1",
-            name="web_search",
-            description="Search the web",
-            tool_id="web_search",
-            parameters={"query": "ETHAN AI"},
-        )],
+        steps=[
+            SkillStep(
+                id="step1",
+                name="web_search",
+                description="Search the web",
+                tool_id="web_search",
+                parameters={"query": "ETHAN AI"},
+            )
+        ],
         is_builtin=True,
     )
     skill_manager.register_skill(skill)
@@ -70,8 +73,7 @@ async def test_tools():
     section("TOOLS — ToolManager.select_and_execute -> ToolExecutor.execute")
 
     from core.tools.manager import ToolManager
-    from core.tools.types import ToolContext, ToolResult
-    from core.tools.types import Tool
+    from core.tools.types import ToolContext
 
     tool_manager = ToolManager()
     await tool_manager.initialize()
@@ -108,7 +110,7 @@ async def test_agents():
     """Test Agents path: AgentManager.create + execute (with executor injected)."""
     section("AGENTS — AgentManager.create -> AgentManager.execute")
 
-    from core.agents.manager import AgentManager, AgentExecutionUnavailable
+    from core.agents.manager import AgentExecutionUnavailable, AgentManager
     from core.agents.types import AgentExecutionStatus
 
     # Test 1: Without executor → should raise AgentExecutionUnavailable (not a stub)
@@ -118,11 +120,11 @@ async def test_agents():
 
     try:
         execution = await manager.execute(agent.id, task="test task")
-        print(f"    [UNEXPECTED] Execution succeeded without executor")
+        print("    [UNEXPECTED] Execution succeeded without executor")
         return False
     except AgentExecutionUnavailable as e:
         print(f"[2] Correctly raised AgentExecutionUnavailable when no executor: {e}")
-        print(f"    [PASS] Agent execute raises clear error (not a fake success stub)")
+        print("    [PASS] Agent execute raises clear error (not a fake success stub)")
 
     # Test 2: With executor → should execute and return COMPLETED
     async def fake_executor(agent=None, task=None, context=None, skill_id=None):
@@ -148,19 +150,20 @@ async def test_mcp():
     """Test MCP integration: ToolServerManager + MCPClient availability."""
     section("MCP — ToolServerManager + MCPClient")
 
+    from core.tools.mcp_client import MCP_AVAILABLE, MCPClient
     from core.tools.servers import ToolServerManager
-    from core.tools.mcp_client import MCPClient, MCP_AVAILABLE
 
     print(f"[1] MCP_AVAILABLE: {MCP_AVAILABLE}")
 
     # ToolServerManager can be instantiated without a real MCP server
     # (store=None → in-memory, registry from ToolManager)
     from core.tools.manager import ToolManager
+
     tool_manager = ToolManager()
     await tool_manager.initialize()
 
     server_manager = ToolServerManager(store=None, registry=tool_manager.registry)
-    print(f"[2] ToolServerManager created")
+    print("[2] ToolServerManager created")
 
     servers = await server_manager.list()
     print(f"[3] Listed servers: {len(servers)}")
@@ -177,9 +180,8 @@ async def test_orchestration():
     """Test Orchestration: Orchestrator.process with cognitive pipeline."""
     section("ORCHESTRATION — Orchestrator.process")
 
-    from core.orchestrator.orchestrator import Orchestrator
     from core.orchestrator.context import OrchestratorContext
-    from core.orchestrator.pipeline import CapabilityPipeline
+    from core.orchestrator.orchestrator import Orchestrator
 
     orchestrator = Orchestrator()
     print(f"[1] Orchestrator created: {orchestrator is not None}")

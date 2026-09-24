@@ -16,32 +16,30 @@ le desactiver, le contourner ou modifier les patterns.
 
 from __future__ import annotations
 
-import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
-from typing import Any
-
-from core.security.policy.types import ActionCategory
-
 
 # ── Classification de sensibilité ─────────────────────────────────────────────
 
+
 class Sensitivity(IntEnum):
     """Niveau de sensibilité d'une resource ou d'un contenu."""
-    CLEAN = 0        # Pas de données sensibles
-    LOW = 1          # Potentiellement identifiable (email, nom)
-    MEDIUM = 2       # Informations personnelles / métier
-    HIGH = 3         # Secrets techniques (clés API, mots de passe)
-    CRITICAL = 4     # Secrets critiques (clés privées, root)
+
+    CLEAN = 0  # Pas de données sensibles
+    LOW = 1  # Potentiellement identifiable (email, nom)
+    MEDIUM = 2  # Informations personnelles / métier
+    HIGH = 3  # Secrets techniques (clés API, mots de passe)
+    CRITICAL = 4  # Secrets critiques (clés privées, root)
 
 
 # ── Patterns de secrets ───────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class SecretPattern:
     """Un pattern de détection de secret."""
+
     name: str
     pattern: re.Pattern[str]
     sensitivity: Sensitivity
@@ -110,9 +108,7 @@ SECRET_PATTERNS: list[SecretPattern] = [
     ),
     SecretPattern(
         name="jwt_token",
-        pattern=re.compile(
-            r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
-        ),
+        pattern=re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
         sensitivity=Sensitivity.HIGH,
         description="Jeton JWT",
     ),
@@ -124,9 +120,7 @@ SECRET_PATTERNS: list[SecretPattern] = [
     ),
     SecretPattern(
         name="private_key_pem",
-        pattern=re.compile(
-            r"-----BEGIN (?:RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY-----"
-        ),
+        pattern=re.compile(r"-----BEGIN (?:RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY-----"),
         sensitivity=Sensitivity.CRITICAL,
         description="Clé privée PEM",
     ),
@@ -165,9 +159,7 @@ SECRET_PATTERNS: list[SecretPattern] = [
     ),
     SecretPattern(
         name="phone_number",
-        pattern=re.compile(
-            r"\b\+?1?\s*\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
-        ),
+        pattern=re.compile(r"\b\+?1?\s*\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
         sensitivity=Sensitivity.LOW,
         description="Numéro de téléphone",
     ),

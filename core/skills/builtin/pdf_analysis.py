@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from core.skills.types import Skill, SkillStep
 from core.skills.builtin.base import BaseBuiltinSkill
+from core.skills.types import Skill, SkillStep
 
 
 class PDFAnalysisSkill(BaseBuiltinSkill):
     """Skill d'analyse de PDF.
-    
+
     Outils utilisés :
     - pdf_reader : Lire un PDF
     - text_extractor : Extraire le texte

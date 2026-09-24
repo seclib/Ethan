@@ -12,8 +12,8 @@ from core.bootstrap.bootstrapper import SystemBootstrapper
 from core.bus.nats_bus import EventBus as NatsEventBus
 from core.goals.manager import GoalManager
 from core.kernel import CognitiveKernel
-from core.learning.engine import LearningEngine
 from core.learning.detector import PatternDetector
+from core.learning.engine import LearningEngine
 from core.learning.generator import RuleGenerator
 from core.learning.modeler import SelfModelUpdater
 from core.learning.store import ExperienceStore
@@ -122,8 +122,12 @@ async def main():
     )
 
     setup_logging(log_level)
-    logger.info("Cognitive Kernel bootstrapping... learning=%s metacognition=%s autonomy=%s",
-                enable_learning, enable_metacognition, enable_autonomy)
+    logger.info(
+        "Cognitive Kernel bootstrapping... learning=%s metacognition=%s autonomy=%s",
+        enable_learning,
+        enable_metacognition,
+        enable_autonomy,
+    )
 
     bus = NatsEventBus(servers=nats_url)
     redis = RedisLiveState(redis_url)
@@ -132,20 +136,29 @@ async def main():
     # ── Résilience : retry borné + timeout par tentative ─────────────
     try:
         await _connect_with_retries(
-            "NATS", bus.connect, timeout=connect_timeout,
-            attempts=connect_attempts, retry_delay=2,
+            "NATS",
+            bus.connect,
+            timeout=connect_timeout,
+            attempts=connect_attempts,
+            retry_delay=2,
             deadline=dependency_deadline,
         )
         logger.info("NATS connection established")
         await _connect_with_retries(
-            "Redis", redis.connect, timeout=connect_timeout,
-            attempts=connect_attempts, retry_delay=2,
+            "Redis",
+            redis.connect,
+            timeout=connect_timeout,
+            attempts=connect_attempts,
+            retry_delay=2,
             deadline=dependency_deadline,
         )
         logger.info("Redis connection established")
         await _connect_with_retries(
-            "PostgreSQL", pg.connect, timeout=connect_timeout,
-            attempts=connect_attempts, retry_delay=2,
+            "PostgreSQL",
+            pg.connect,
+            timeout=connect_timeout,
+            attempts=connect_attempts,
+            retry_delay=2,
             deadline=dependency_deadline,
         )
         logger.info("PostgreSQL connection established")
@@ -158,9 +171,7 @@ async def main():
     bootstrap_ok = True
     bootstrap_timeout = float(os.getenv("BOOTSTRAP_TIMEOUT", "120"))
     try:
-        bootstrap_ok = await asyncio.wait_for(
-            bootstrapper.run(), timeout=bootstrap_timeout
-        )
+        bootstrap_ok = await asyncio.wait_for(bootstrapper.run(), timeout=bootstrap_timeout)
     except BaseException:
         await _close_startup_dependencies(bus, redis, pg)
         raise
@@ -205,7 +216,7 @@ async def main():
 
     # Create composite state backend for Kernel (Clean Architecture)
     state = CompositeStateBackend(redis, pg)
-    
+
     kernel = CognitiveKernel(
         bus=bus,
         state=state,
@@ -222,6 +233,7 @@ async def main():
     except asyncio.TimeoutError as exc:
         logger.error("Kernel start timed out after 30s")
         raise RuntimeError("Kernel failed to start within timeout") from exc
+
     # ── Health server (port 8080) for Docker healthcheck ──────────────
     async def _health_handler(reader, writer):
         """Serve liveness and readiness probes for the kernel."""
@@ -236,17 +248,17 @@ async def main():
             code = 200
             reason = "OK"
         elif path in {"/health", "/health/ready"}:
-            nats_ok = bus.is_connected if hasattr(bus, 'is_connected') else False
+            nats_ok = bus.is_connected if hasattr(bus, "is_connected") else False
             redis_ok = False
             try:
-                if hasattr(redis, '_redis') and redis._redis is not None:
+                if hasattr(redis, "_redis") and redis._redis is not None:
                     await asyncio.wait_for(redis._redis.ping(), timeout=2)
                     redis_ok = True
             except Exception:
                 redis_ok = False
             pg_ok = False
             try:
-                if hasattr(pg, '_pool') and pg._pool is not None:
+                if hasattr(pg, "_pool") and pg._pool is not None:
                     conn = await asyncio.wait_for(pg._pool.acquire(), timeout=2)
                     try:
                         await asyncio.wait_for(conn.execute("SELECT 1"), timeout=2)
@@ -255,15 +267,25 @@ async def main():
                     pg_ok = True
             except Exception:
                 pg_ok = False
-            running = kernel._running if hasattr(kernel, '_running') else False
+            running = kernel._running if hasattr(kernel, "_running") else False
             all_ok = running and bootstrap_ok and nats_ok and redis_ok and pg_ok
             status = "ok" if all_ok else "degraded"
             code = 200 if all_ok else 503
-            reason = 'OK' if code == 200 else 'Service Unavailable'
+            reason = "OK" if code == 200 else "Service Unavailable"
             body = (
-                '{"status":"' + status + '","service":"kernel","running":' + str(running).lower()
-                + ',"nats":' + str(nats_ok).lower() + ',"redis":' + str(redis_ok).lower()
-                + ',"postgresql":' + str(pg_ok).lower() + ',"bootstrap":' + str(bootstrap_ok).lower() + '}'
+                '{"status":"'
+                + status
+                + '","service":"kernel","running":'
+                + str(running).lower()
+                + ',"nats":'
+                + str(nats_ok).lower()
+                + ',"redis":'
+                + str(redis_ok).lower()
+                + ',"postgresql":'
+                + str(pg_ok).lower()
+                + ',"bootstrap":'
+                + str(bootstrap_ok).lower()
+                + "}"
             )
         else:
             body = '{"error":"not found"}'

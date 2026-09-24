@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class ChatMessage:
     """Message de chat."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     name: str | None = None
@@ -17,6 +18,7 @@ class ChatMessage:
 @dataclass
 class ChatResponse:
     """Réponse de chat."""
+
     content: str
     model: str
     provider: str
@@ -27,6 +29,7 @@ class ChatResponse:
 @dataclass
 class AgentInfo:
     """Informations sur un agent."""
+
     name: str
     description: str
     status: str
@@ -38,6 +41,7 @@ class AgentInfo:
 @dataclass
 class MemoryEntry:
     """Entrée mémoire."""
+
     key: str
     value: str
     namespace: str = "default"

@@ -99,7 +99,8 @@ class CoreWebUIStore:
         q_lower = q.lower()
         facts = await self._store.list(_DOMAIN_FACTS)
         return [
-            f for f in facts
+            f
+            for f in facts
             if q_lower in f.get("subject", "").lower()
             or q_lower in f.get("predicate", "").lower()
             or q_lower in f.get("object", "").lower()
@@ -115,7 +116,11 @@ class CoreWebUIStore:
             "category": data.get("category", "knowledge"),
             "confidence": data.get("confidence", 0.5),
             "created_at": _utc_now(),
-            **{k: v for k, v in data.items() if k not in {"subject", "predicate", "object", "category", "confidence"}},
+            **{
+                k: v
+                for k, v in data.items()
+                if k not in {"subject", "predicate", "object", "category", "confidence"}
+            },
         }
         await self._store.save(_DOMAIN_FACTS, fact_id, record)
         return deepcopy(record)
@@ -212,10 +217,34 @@ class CoreWebUIStore:
     # ── Providers ──────────────────────────────────────────────────────
 
     _DEFAULT_PROVIDERS: list[dict[str, Any]] = [
-        {"id": "openai", "name": "OpenAI", "type": "LLM", "status": "connected", "configured": True},
-        {"id": "anthropic", "name": "Anthropic", "type": "LLM", "status": "connected", "configured": True},
-        {"id": "huggingface", "name": "HuggingFace", "type": "LLM", "status": "disconnected", "configured": False},
-        {"id": "pinecone", "name": "Pinecone", "type": "VectorDB", "status": "connected", "configured": True},
+        {
+            "id": "openai",
+            "name": "OpenAI",
+            "type": "LLM",
+            "status": "connected",
+            "configured": True,
+        },
+        {
+            "id": "anthropic",
+            "name": "Anthropic",
+            "type": "LLM",
+            "status": "connected",
+            "configured": True,
+        },
+        {
+            "id": "huggingface",
+            "name": "HuggingFace",
+            "type": "LLM",
+            "status": "disconnected",
+            "configured": False,
+        },
+        {
+            "id": "pinecone",
+            "name": "Pinecone",
+            "type": "VectorDB",
+            "status": "connected",
+            "configured": True,
+        },
     ]
 
     async def list_providers(self) -> list[dict[str, Any]]:
@@ -242,7 +271,9 @@ class CoreWebUIStore:
                 return deepcopy(provider)
         return None
 
-    async def update_provider(self, provider_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
+    async def update_provider(
+        self, provider_id: str, data: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """⚠️ DÉPRÉCIÉ — voir ``list_providers``. Remplacez par ``ProviderManager``."""
         record = await self._store.get(_DOMAIN_PROVIDERS, provider_id)
         if record is None:

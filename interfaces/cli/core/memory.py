@@ -1,4 +1,5 @@
 """ETHAN local memory — command history + suggestions."""
+
 import json
 import os
 from collections import Counter
@@ -76,9 +77,11 @@ def suggest_prefix(prefix, n=5):
 
 # ── Session Management ────────────────────────────────
 
+
 def new_session() -> str:
     """Create a new session ID and save it."""
     import uuid
+
     session_id = str(uuid.uuid4())
     os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
     with open(SESSION_FILE, "w") as f:
@@ -110,6 +113,7 @@ def get_history(session_id: str, limit=20) -> list[dict]:
 
 
 # ── Session Information ────────────────────────────────
+
 
 def get_session_info(session_id: str) -> dict:
     """Return session metadata."""

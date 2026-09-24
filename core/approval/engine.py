@@ -138,7 +138,9 @@ class ApprovalEngine:
 
             logger.warning(
                 "Approval TIMEOUT: %s (%ss) — %s",
-                request.id, timeout_seconds, title,
+                request.id,
+                timeout_seconds,
+                title,
             )
 
             if self._audit_log_fn is not None:
@@ -196,7 +198,9 @@ class ApprovalEngine:
 
         logger.info(
             "Approval RESOLVED: %s → %s (by %s)",
-            request_id, status.value, responder,
+            request_id,
+            status.value,
+            responder,
         )
 
         # Logger l'audit
@@ -260,10 +264,7 @@ class ApprovalEngine:
         """Liste les requêtes en attente (sans la Future)."""
         # On ne peut pas récupérer le détail depuis la Future,
         # donc on retourne juste les IDs
-        return [
-            {"request_id": rid, "status": "pending"}
-            for rid in self._pending.keys()
-        ]
+        return [{"request_id": rid, "status": "pending"} for rid in self._pending.keys()]
 
     @property
     def pending_count(self) -> int:

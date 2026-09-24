@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
 from core.bus.interface import EventBus
@@ -89,7 +89,9 @@ def next_cron_occurrence(cron_expr: str, tz: str = "UTC") -> Optional[datetime]:
             if next_months:
                 candidate = candidate.replace(month=next_months[0], day=1, hour=0, minute=0)
             else:
-                candidate = candidate.replace(year=candidate.year + 1, month=months[0], day=1, hour=0, minute=0)
+                candidate = candidate.replace(
+                    year=candidate.year + 1, month=months[0], day=1, hour=0, minute=0
+                )
             continue
         if candidate.day not in days or candidate.weekday() not in weekdays:
             candidate = candidate.replace(hour=0, minute=0)
@@ -123,7 +125,9 @@ def next_cron_occurrence(cron_expr: str, tz: str = "UTC") -> Optional[datetime]:
     return None
 
 
-def _next_candidate_day(candidate: datetime, days: list[int], weekdays: list[int]) -> Optional[datetime]:
+def _next_candidate_day(
+    candidate: datetime, days: list[int], weekdays: list[int]
+) -> Optional[datetime]:
     """Find the next valid day from the candidate."""
     for offset in range(1, 366):
         next_day = candidate + __import__("datetime").timedelta(days=offset)
@@ -143,23 +147,6 @@ class Scheduler:
         self._timezones: Dict[str, str] = {}
 
     async def start(self) -> None:
-        """Start the scheduler."""
-        self._running = True
-        logger.info("Scheduler started")
-
-    async def stop(self) -> None:
-        """Stop the scheduler and cancel all tasks."""
-        self._running = False
-        for name, task in list(self._tasks.items()):
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*self._tasks.values(), return_exceptions=True)
-        self._tasks.clear()
-        self._cron_expressions.clear()
-        self._timezones.clear()
-        logger.info("Scheduler stopped")
-
-    async def start(self) -> None:
         """Start scheduler loop."""
         self._running = True
         logger.info("Scheduler started")
@@ -173,44 +160,16 @@ class Scheduler:
             logger.info(f"Cancelled scheduled task: {name}")
         self._tasks.clear()
         if tasks:
-            results = await asyncio.gather(
-                *(task for _, task in tasks), return_exceptions=True
-            )
+            results = await asyncio.gather(*(task for _, task in tasks), return_exceptions=True)
             for (name, _), result in zip(tasks, results):
-                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                if isinstance(result, BaseException) and not isinstance(
+                    result, asyncio.CancelledError
+                ):
                     logger.error(
                         "Scheduled task failed during shutdown: %s",
                         name,
                         exc_info=(type(result), result, result.__traceback__),
                     )
-
-    async def schedule_cron(
-        self, name: str, interval_seconds: int, topic: str, payload: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Schedule a recurring event at a fixed interval."""
-        if interval_seconds <= 0:
-            raise ValueError("interval_seconds must be greater than zero")
-
-        previous = self._tasks.get(name)
-        if previous is not None and not previous.done():
-            previous.cancel()
-            await asyncio.gather(previous, return_exceptions=True)
-
-        async def _loop():
-            while self._running:
-                await asyncio.sleep(interval_seconds)
-                event = Event(
-                    type=EventType.SCHEDULE_TRIGGER,
-                    source=f"scheduler:{name}",
-                    payload={"topic": topic, "payload": payload or {}},
-                )
-                await self.bus.publish(topic, event)
-                logger.debug(f"Scheduled trigger: {name} → {topic}")
-
-        task = asyncio.create_task(_loop(), name=name)
-        self._tasks[name] = task
-        task.add_done_callback(self._task_done)
-        logger.info(f"Scheduled cron: {name} every {interval_seconds}s → {topic}")
 
     async def schedule_cron(
         self,
@@ -335,11 +294,7 @@ class Scheduler:
 
     def list_schedules(self) -> list[Dict[str, Any]]:
         """List all active schedules."""
-        return [
-            self.get_schedule(name)
-            for name in self._tasks
-            if not self._tasks[name].done()
-        ]
+        return [self.get_schedule(name) for name in self._tasks if not self._tasks[name].done()]
 
     def _task_done(self, task: asyncio.Task) -> None:
         """Consume task exceptions so failed schedules are observable."""

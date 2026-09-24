@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Dict
 
 from core.bus.interface import EventBus
-from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.autonomy import HealthStatus
 from core.ethan_types.event import Event
+from core.ethan_types.sdk.autonomy import HealthStatus
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,9 @@ class SelfHealingSystem:
                 healthy=consecutive < self.ISOLATION_THRESHOLD,
                 consecutive_failures=consecutive,
                 last_failure=event.timestamp,
-                isolation_reason="" if consecutive < self.ISOLATION_THRESHOLD else f"Failed {consecutive} times",
+                isolation_reason=""
+                if consecutive < self.ISOLATION_THRESHOLD
+                else f"Failed {consecutive} times",
             )
             await self.redis.set(f"health:{module_id}", status.dict(), ttl=3600)
 
@@ -56,26 +58,38 @@ class SelfHealingSystem:
             else:
                 logger.warning(f"Module {module_id} failure {consecutive}/{self.MAX_RETRIES}")
 
-            await self.bus.publish("autonomy.self_heal.triggered", Event(
-                type="autonomy.self_heal.triggered",
-                source="self-healing",
-                payload={"status": status.dict()},
-            ))
+            await self.bus.publish(
+                "autonomy.self_heal.triggered",
+                Event(
+                    type="autonomy.self_heal.triggered",
+                    source="self-healing",
+                    payload={"status": status.dict()},
+                ),
+            )
         except Exception as e:
             logger.error(f"Self-healing handler failed: {e}")
 
     async def _isolate_module(self, module_id: str) -> None:
         """Remove broken module from registry."""
         logger.warning(f"Isolating module: {module_id}")
-        await self.bus.publish("system.module.unhealthy", Event(
-            type="system.module.unhealthy",
-            source="self-healing",
-            payload={"module_id": module_id, "action": "isolate"},
-        ))
+        await self.bus.publish(
+            "system.module.unhealthy",
+            Event(
+                type="system.module.unhealthy",
+                source="self-healing",
+                payload={"module_id": module_id, "action": "isolate"},
+            ),
+        )
 
     async def reset_failures(self, module_id: str) -> None:
         """Clear failure counter after successful operation."""
         self._failures.pop(module_id, None)
-        status = HealthStatus(module_id=module_id, healthy=True, consecutive_failures=0,
-                              last_success=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat())
+        status = HealthStatus(
+            module_id=module_id,
+            healthy=True,
+            consecutive_failures=0,
+            last_success=__import__("datetime")
+            .datetime.now(__import__("datetime").timezone.utc)
+            .isoformat(),
+        )
         await self.redis.set(f"health:{module_id}", status.dict(), ttl=3600)

@@ -9,6 +9,7 @@ from typing import Any
 @dataclass
 class PluginVersion:
     """Version sémantique d'un plugin."""
+
     major: int
     minor: int
     patch: int

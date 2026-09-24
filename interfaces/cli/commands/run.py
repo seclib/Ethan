@@ -1,7 +1,5 @@
 """ETHAN run — agent-like task execution mode."""
 
-import sys
-import time
 from interfaces.cli.core import colors as clr
 from interfaces.cli.core.loading import StepProgress
 from interfaces.cli.core.intent import PromptIntelligence
@@ -20,6 +18,7 @@ try:
             return
         RunExecutor(task, verbose=verbose, quiet=quiet, resume=resume).run()
 except ImportError:
+
     def cmd_run(args):
         task = " ".join(args)
         RunExecutor(task).run()
@@ -78,7 +77,12 @@ class RunExecutor:
         intent = PromptIntelligence.classify(task)
         if intent.kind == "intent":
             target = intent.params.get("target", "task")
-            return [f"Analyze {target}", f"Prepare {target}", f"Execute {target}", f"Verify {target}"]
+            return [
+                f"Analyze {target}",
+                f"Prepare {target}",
+                f"Execute {target}",
+                f"Verify {target}",
+            ]
         if intent.kind == "smart_cmd":
             return [f"Run: {task}", "Validate output", "Report result"]
         return [f"Process: {task}", "Confirm success"]

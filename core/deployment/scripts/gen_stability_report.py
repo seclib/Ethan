@@ -13,11 +13,10 @@ The script:
   5. Compiles a report with score.
 """
 
-import os
-import re
-import sys
 import json
+import re
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -31,7 +30,10 @@ def git_commit() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, cwd=REPO_ROOT, timeout=5
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=5,
         )
         return result.stdout.strip()
     except Exception:
@@ -100,25 +102,27 @@ class StabilityScanner:
         self.scores["concurrency"] = (score // max(total, 1), 100)
 
         if score < 80:
-            self.risks_remaining.append({
-                "file": "cli/core/streaming.py",
-                "risk": "Concurrency insuffisante",
-                "priority": "HIGH",
-            })
+            self.risks_remaining.append(
+                {
+                    "file": "cli/core/streaming.py",
+                    "risk": "Concurrency insuffisante",
+                    "priority": "HIGH",
+                }
+            )
         else:
-            self.risks_fixed.append({
-                "file": "cli/core/streaming.py + loading.py",
-                "risk": "Race conditions threads",
-                "fix": "threading.Lock + threading.Event + try/except",
-            })
+            self.risks_fixed.append(
+                {
+                    "file": "cli/core/streaming.py + loading.py",
+                    "risk": "Race conditions threads",
+                    "fix": "threading.Lock + threading.Event + try/except",
+                }
+            )
 
     def _scan_daemon(self):
         """Check daemon resilience."""
         score = 0
-        total = 5
 
         dm = CLI_CORE / "daemon.py"
-        dl = CLI_CORE / "daemon_loop.py"
 
         if dm.exists():
             # No os.fork()
@@ -152,22 +156,25 @@ class StabilityScanner:
             risks.append("Pas de heartbeat")
 
         if risks:
-            self.risks_remaining.append({
-                "file": "cli/core/daemon.py",
-                "risk": ", ".join(risks),
-                "priority": "HIGH",
-            })
+            self.risks_remaining.append(
+                {
+                    "file": "cli/core/daemon.py",
+                    "risk": ", ".join(risks),
+                    "priority": "HIGH",
+                }
+            )
         else:
-            self.risks_fixed.append({
-                "file": "cli/core/daemon.py",
-                "risk": "os.fork(), PID race, cache non borné",
-                "fix": "subprocess.Popen, fcntl.flock, heartbeat, cache limit",
-            })
+            self.risks_fixed.append(
+                {
+                    "file": "cli/core/daemon.py",
+                    "risk": "os.fork(), PID race, cache non borné",
+                    "fix": "subprocess.Popen, fcntl.flock, heartbeat, cache limit",
+                }
+            )
 
     def _scan_error_handling(self):
         """Check error handling in registry.py."""
         score = 0
-        total = 3
 
         if CLI_REGISTRY.exists():
             text = CLI_REGISTRY.read_text()
@@ -178,20 +185,24 @@ class StabilityScanner:
             if "EthanError" in text:
                 score += 30
             # Silent except: return (bad)
-            if "except Exception:" in text and "return" in text.split("except Exception:")[1].split("\n")[0]:
+            if (
+                "except Exception:" in text
+                and "return" in text.split("except Exception:")[1].split("\n")[0]
+            ):
                 score -= 20
-                self.risks_remaining.append({
-                    "file": "cli/registry.py",
-                    "risk": "except Exception: return silencieux ligne 38",
-                    "priority": "MEDIUM",
-                })
+                self.risks_remaining.append(
+                    {
+                        "file": "cli/registry.py",
+                        "risk": "except Exception: return silencieux ligne 38",
+                        "priority": "MEDIUM",
+                    }
+                )
 
         self.scores["error_handling"] = (max(score, 0), 100)
 
     def _scan_registry(self):
         """Check for dual registry problem."""
         score = 50  # default: half score
-        total = 1
 
         # Check if discovery.py has its own registry
         disc = CLI_CORE / "discovery.py"
@@ -201,11 +212,13 @@ class StabilityScanner:
 
             # If both have register() or COMMANDS = {}
             if "class CommandRegistry" in disc_text and "COMMANDS = {}" in reg_text:
-                self.risks_remaining.append({
-                    "file": "cli/registry.py + cli/core/discovery.py",
-                    "risk": "Deux registres de commandes (COMMANDS + CommandRegistry)",
-                    "priority": "CRITICAL",
-                })
+                self.risks_remaining.append(
+                    {
+                        "file": "cli/registry.py + cli/core/discovery.py",
+                        "risk": "Deux registres de commandes (COMMANDS + CommandRegistry)",
+                        "priority": "CRITICAL",
+                    }
+                )
                 score = 20
             else:
                 score = 90
@@ -215,7 +228,6 @@ class StabilityScanner:
     def _scan_tests(self):
         """Check test coverage for stability modules."""
         score = 0
-        total = 5
         test_dir = REPO_ROOT / "tests"
 
         stability_tests = [
@@ -232,11 +244,13 @@ class StabilityScanner:
 
         if score < 60:
             missing = [t for t in stability_tests if not (test_dir / t).exists()]
-            self.risks_remaining.append({
-                "file": "tests/",
-                "risk": f"Tests unitaires manquants : {', '.join(missing)}",
-                "priority": "HIGH",
-            })
+            self.risks_remaining.append(
+                {
+                    "file": "tests/",
+                    "risk": f"Tests unitaires manquants : {', '.join(missing)}",
+                    "priority": "HIGH",
+                }
+            )
 
         self.scores["tests"] = (score, 100)
 
@@ -268,58 +282,67 @@ def generate_report(commit: str) -> str:
     n_remaining = len(scanner.risks_remaining)
 
     lines = [
-        f"# ETHAN CLI — Stability Plan",
-        f"",
+        "# ETHAN CLI — Stability Plan",
+        "",
         f"> Généré le {now}",
-        f">",
+        ">",
         f"> Commit : `{commit}`",
-        f">",
+        ">",
         f"> Score production : **{score}/100**",
-        f"",
-        f"## Résumé",
-        f"",
-        f"Analyse de stabilité et plan d'amélioration pour le CLI ETHAN.",
-        f"",
+        "",
+        "## Résumé",
+        "",
+        "Analyse de stabilité et plan d'amélioration pour le CLI ETHAN.",
+        "",
         f"**Risques corrigés : {n_fixed}**",
         f"**Risques restants : {n_remaining}**",
-        f"",
-        f"---",
-        f"",
-        f"## 1. Risques identifiés et corrigés",
-        f"",
-        f"### 🔴 Corrigés (Critiques)",
-        f"",
-        f"| # | Fichier | Risque | Fix |",
-        f"|---|---------|--------|-----|",
+        "",
+        "---",
+        "",
+        "## 1. Risques identifiés et corrigés",
+        "",
+        "### 🔴 Corrigés (Critiques)",
+        "",
+        "| # | Fichier | Risque | Fix |",
+        "|---|---------|--------|-----|",
     ]
 
     for i, r in enumerate(scanner.risks_fixed, 1):
         lines.append(f"| {i} | `{r['file']}` | {r['risk']} | {r['fix']} |")
 
-    lines.extend([
-        f"",
-        f"### 🟠 Restants (Non corrigés)",
-        f"",
-        f"| # | Fichier | Risque | Priorité |",
-        f"|---|---------|--------|----------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "### 🟠 Restants (Non corrigés)",
+            "",
+            "| # | Fichier | Risque | Priorité |",
+            "|---|---------|--------|----------|",
+        ]
+    )
 
     priority_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
     for i, r in enumerate(
-        sorted(scanner.risks_remaining, key=lambda x: priority_order.get(x.get("priority", "LOW"), 3)), 1
+        sorted(
+            scanner.risks_remaining, key=lambda x: priority_order.get(x.get("priority", "LOW"), 3)
+        ),
+        1,
     ):
-        p_icon = {"CRITICAL": "🔴", "HIGH": "🟡", "MEDIUM": "🟠", "LOW": "🟢"}.get(r.get("priority", "LOW"), "⚪")
+        p_icon = {"CRITICAL": "🔴", "HIGH": "🟡", "MEDIUM": "🟠", "LOW": "🟢"}.get(
+            r.get("priority", "LOW"), "⚪"
+        )
         lines.append(f"| {i} | `{r['file']}` | {r['risk']} | {p_icon} {r['priority']} |")
 
-    lines.extend([
-        f"",
-        f"---",
-        f"",
-        f"## 2. Scores par catégorie",
-        f"",
-        f"| Catégorie | Score |",
-        f"|-----------|:-----:|",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 2. Scores par catégorie",
+            "",
+            "| Catégorie | Score |",
+            "|-----------|:-----:|",
+        ]
+    )
 
     for key, label in [
         ("concurrency", "Concurrency safety"),
@@ -332,15 +355,17 @@ def generate_report(commit: str) -> str:
         score_str = f"{val}/{max_val}" if max_val > 0 else "N/A"
         lines.append(f"| {label} | {score_str} |")
 
-    lines.extend([
-        f"",
-        f"**Score global : {score}/100**",
-        f"",
-        f"---",
-        f"",
-        f"## 3. Statistiques",
-        f"",
-    ])
+    lines.extend(
+        [
+            "",
+            f"**Score global : {score}/100**",
+            "",
+            "---",
+            "",
+            "## 3. Statistiques",
+            "",
+        ]
+    )
 
     # Count files
     cli_files = list(CLI_CORE.glob("*.py")) + list(CLI_COMMANDS.glob("*.py"))

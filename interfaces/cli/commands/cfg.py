@@ -1,4 +1,5 @@
 """ETHAN config — view & manage configuration."""
+
 from interfaces.cli.registry import register
 from interfaces.cli.core import config as cfg
 from interfaces.cli.core.ux import UX
@@ -35,6 +36,10 @@ def cmd_config(args):
         return 0
 
     suggestion = UX.suggest_command(args[0], KNOWN_CONFIG_SUBS)
-    msg = f"Did you mean? {suggestion}" if suggestion else "usage: ethan config [get <key>|set <key> <value>|reset]"
+    msg = (
+        f"Did you mean? {suggestion}"
+        if suggestion
+        else "usage: ethan config [get <key>|set <key> <value>|reset]"
+    )
     print(f"Unknown subcommand: {args[0]}\n  {msg}")
     return 1

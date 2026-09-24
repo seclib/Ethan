@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from core.skills.types import Skill, SkillStep
 from core.skills.builtin.base import BaseBuiltinSkill
+from core.skills.types import Skill, SkillStep
 
 
 class ProjectCreatorSkill(BaseBuiltinSkill):
     """Skill de création de projet.
-    
+
     Outils utilisés :
     - project_scaffolder : Créer la structure
     - dependency_installer : Installer les dépendances

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 import os
+import sys
 
 from core.bus.memory_bus import MemoryEventBus
 from core.goals.manager import GoalManager
@@ -23,7 +23,6 @@ from core.registry.module import ModuleRegistry
 from core.scheduler.scheduler import Scheduler
 from core.state.interface import StateBackend
 from core.state.memory_backend import MemoryStateBackend
-
 
 logger = logging.getLogger(__name__)
 
@@ -52,19 +51,17 @@ async def create_kernel(
     Returns:
         Kernel prêt à démarrer
     """
-    from core.learning.engine import LearningEngine
+    from core.autonomy.controller import AutonomyLoopController
     from core.learning.detector import PatternDetector
+    from core.learning.engine import LearningEngine
     from core.learning.generator import RuleGenerator
     from core.learning.modeler import SelfModelUpdater
     from core.learning.store import ExperienceStore
-
     from core.metacognition.engine import MetaCognitionEngine
     from core.metacognition.load import CognitiveLoadManager
     from core.metacognition.prioritizer import ModulePrioritizer
     from core.metacognition.strategy import DecisionStrategySelector
     from core.metacognition.trace import ThoughtTraceAnalyzer
-
-    from core.autonomy.controller import AutonomyLoopController
 
     enable_learning = config.get("enable_learning", False)
     enable_metacognition = config.get("enable_metacognition", False)
@@ -99,7 +96,7 @@ async def create_kernel(
 
     goals = GoalManager(bus, state, state)
     scheduler = Scheduler(bus)
-    
+
     kernel = CognitiveKernel(
         bus=bus,
         state=state,

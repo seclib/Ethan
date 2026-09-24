@@ -6,17 +6,16 @@ Routes can be marked as public (health, metrics) or protected (everything else).
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Request, HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from core.auth import Permission, rbac
+from fastapi import HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from starlette.responses import JSONResponse
-
-from core.auth import rbac, Permission
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,9 @@ security = HTTPBearer(auto_error=False)
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS))
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -77,6 +78,7 @@ async def verify_token_string(token: str) -> dict:
             detail="Token JWT invalide ou expiré.",
         )
 
+
 async def verify_token(credentials: Optional[HTTPAuthorizationCredentials]) -> dict:
     """Legacy helper for verifying Authorization header credentials."""
     if credentials is None:
@@ -90,7 +92,9 @@ async def verify_token(credentials: Optional[HTTPAuthorizationCredentials]) -> d
 
 def is_public_path(path: str) -> bool:
     """Check if a path is public (no auth required)."""
-    return path in PUBLIC_PATHS or path.startswith(("/health", "/metrics", "/docs", "/openapi.json", "/redoc"))
+    return path in PUBLIC_PATHS or path.startswith(
+        ("/health", "/metrics", "/docs", "/openapi.json", "/redoc")
+    )
 
 
 async def auth_middleware(request: Request, call_next):
@@ -141,19 +145,20 @@ def require_permission(permission: Permission):
     """
     FastAPI dependency to enforce RBAC permissions.
     Expects auth_middleware to have populated request.state.token_payload.
-    
+
     Usage:
         @router.get("/something", dependencies=[Depends(require_permission(Permission.READ))])
     """
+
     def permission_checker(request: Request):
         payload = getattr(request.state, "token_payload", {})
         role = payload.get("role")
-        
+
         if not role or not rbac.has_permission(role, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Accès refusé. Permission requise : {permission.value}"
+                detail=f"Accès refusé. Permission requise : {permission.value}",
             )
         return True
-        
+
     return permission_checker

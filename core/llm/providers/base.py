@@ -11,7 +11,7 @@ provider based on declared capabilities.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 from core.llm.types import (
     ChatMessage,
@@ -114,9 +114,7 @@ class LLMProvider(ABC):
         Raises:
             NotImplementedError: If this provider does not support vision.
         """
-        raise NotImplementedError(
-            f"Provider '{self.name}' does not support vision analysis"
-        )
+        raise NotImplementedError(f"Provider '{self.name}' does not support vision analysis")
 
     async def transcribe(self, request: TranscriptionRequest) -> TranscriptionResponse:
         """Transcribe audio to text.
@@ -124,9 +122,7 @@ class LLMProvider(ABC):
         Raises:
             NotImplementedError: If this provider does not support transcription.
         """
-        raise NotImplementedError(
-            f"Provider '{self.name}' does not support audio transcription"
-        )
+        raise NotImplementedError(f"Provider '{self.name}' does not support audio transcription")
 
     # ── Lifecycle ───────────────────────────────────────────────────────────
 

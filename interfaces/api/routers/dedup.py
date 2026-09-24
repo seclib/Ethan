@@ -12,27 +12,23 @@ field — the resolver returns ``needs_confirm`` otherwise, never deleting.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-
+from core.auth import Permission
 from core.dedup import (
     DuplicateAction,
     DuplicateCategory,
     DuplicateDetector,
-    DuplicateGroup,
     DuplicateReport,
     DuplicateResolver,
-    ScannedItem,
 )
-from interfaces.api.auth import require_permission
-from core.auth import Permission
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
+from core.projects import ProjectManager
+from core.rag import RAGPipeline
 from core.state import CoreRecordStore
 from core.state.files import FileStore
-from core.projects import ProjectManager
-from core.knowledge import KnowledgeManager, KnowledgeCollectionManager
-from core.rag import RAGPipeline
+from fastapi import APIRouter, Depends, HTTPException
+from interfaces.api.auth import require_permission
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +69,12 @@ def _detector() -> DuplicateDetector:
     if _store is None:
         raise HTTPException(503, "Dedup store not initialised")
     return DuplicateDetector(
-        store=_store, files=_files, projects=_projects,
-        knowledge=_knowledge, collections=_collections, rag=_rag,
+        store=_store,
+        files=_files,
+        projects=_projects,
+        knowledge=_knowledge,
+        collections=_collections,
+        rag=_rag,
     )
 
 
@@ -82,9 +82,13 @@ def _resolver() -> DuplicateResolver:
     if _store is None:
         raise HTTPException(503, "Dedup store not initialised")
     return DuplicateResolver(
-        store=_store, files=_files, projects=_projects,
-        collections=_collections, rag=_rag,
+        store=_store,
+        files=_files,
+        projects=_projects,
+        collections=_collections,
+        rag=_rag,
     )
+
 
 class ScanRequest(BaseModel):
     user_id: str | None = None
@@ -153,6 +157,9 @@ async def resolve_group(
     if group is None:
         raise HTTPException(404, f"Group {body.group_id} not found")
     result = await _resolver().resolve(
-        group, body.action, confirmed=body.confirmed, primary_item_id=body.primary_item_id,
+        group,
+        body.action,
+        confirmed=body.confirmed,
+        primary_item_id=body.primary_item_id,
     )
     return result.to_dict()

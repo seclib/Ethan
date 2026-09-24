@@ -41,6 +41,7 @@ class LLMClient:
     async def initialize(self) -> None:
         """Initialise le client."""
         from core.llm.tracker import CostTracker
+
         self._cost_tracker = CostTracker()
         logger.info("LLM Client initialized with circuit breakers")
 
@@ -62,7 +63,9 @@ class LLMClient:
                 breaker = self._get_breaker(provider_name)
                 model, provider = alt_model, alt_provider
             else:
-                raise RuntimeError(f"All LLM providers unavailable (circuit breaker OPEN for {provider_name})")
+                raise RuntimeError(
+                    f"All LLM providers unavailable (circuit breaker OPEN for {provider_name})"
+                )
 
         response = await breaker.call(
             provider.chat,

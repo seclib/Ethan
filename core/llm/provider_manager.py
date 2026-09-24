@@ -16,6 +16,13 @@ import logging
 import os
 from typing import Any, AsyncIterator
 
+from core.llm.client import LLMClient
+from core.llm.provider_factory import create_provider_from_config
+from core.llm.providers.base import LLMProvider
+from core.llm.registry import LLMProviderRegistry
+from core.llm.router import LLMRouter
+from core.llm.selector import LLMSelector
+from core.llm.store import ProviderStore
 from core.llm.types import (
     ChatMessage,
     ChatResponse,
@@ -27,13 +34,6 @@ from core.llm.types import (
     VisionRequest,
     VisionResponse,
 )
-from core.llm.registry import LLMProviderRegistry
-from core.llm.client import LLMClient
-from core.llm.selector import LLMSelector
-from core.llm.router import LLMRouter
-from core.llm.providers.base import LLMProvider
-from core.llm.provider_factory import create_provider_from_config
-from core.llm.store import ProviderStore
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +239,7 @@ class ProviderManager:
         keys: dict[str, str | None] = {}
         try:
             from core.config.secrets import get_secrets
+
             secrets = get_secrets()
             keys["openai"] = getattr(secrets, "openai_api_key", None)
             keys["anthropic"] = getattr(secrets, "anthropic_api_key", None)
@@ -269,7 +270,9 @@ class ProviderManager:
                 try:
                     await close_fn()
                 except Exception as exc:
-                    logger.debug("Error closing provider %s: %s", getattr(provider, "name", "?"), exc)
+                    logger.debug(
+                        "Error closing provider %s: %s", getattr(provider, "name", "?"), exc
+                    )
         if self._store is not None:
             try:
                 await self._store.close()
@@ -513,7 +516,9 @@ class ProviderManager:
         Raises:
             ValueError: Si le provider n'existe pas.
         """
-        if provider_id not in self._providers_config and not self._registry.get_provider(provider_id):
+        if provider_id not in self._providers_config and not self._registry.get_provider(
+            provider_id
+        ):
             raise ValueError(f"Provider '{provider_id}' not found")
 
         self._default_provider = provider_id
@@ -570,6 +575,7 @@ class ProviderManager:
         if config.get("enabled", False):
             try:
                 import asyncio
+
                 result = await asyncio.wait_for(self.test_connection(provider_id), timeout=12.0)
                 connection_status = result["status"]
             except asyncio.TimeoutError:
@@ -733,9 +739,7 @@ class ProviderManager:
             if provider is None:
                 raise ValueError(f"Provider '{provider_name}' not found")
             if not check(provider):
-                raise ValueError(
-                    f"Provider '{provider_name}' does not support {capability}"
-                )
+                raise ValueError(f"Provider '{provider_name}' does not support {capability}")
             return provider
 
         # Auto-discover: find first provider with the capability

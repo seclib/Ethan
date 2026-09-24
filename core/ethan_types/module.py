@@ -10,6 +10,7 @@ from typing import Any
 
 class ModuleState(str, Enum):
     """États possibles d'un module."""
+
     CREATED = "created"
     INITIALIZING = "initializing"
     READY = "ready"
@@ -26,6 +27,7 @@ class ModuleConfig:
 
     Définit comment le Kernel doit démarrer et superviser un module.
     """
+
     name: str
     module_path: str  # Chemin Python (e.g., "core.agents.executive")
     enabled: bool = True
@@ -43,6 +45,7 @@ class ModuleConfig:
 @dataclass
 class ModuleStateData:
     """État courant d'un module (stocké dans Redis)."""
+
     name: str
     state: ModuleState = ModuleState.CREATED
     pid: int = 0

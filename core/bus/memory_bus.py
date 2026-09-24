@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import deque
-from typing import Any, Callable
 from uuid import uuid4
 
 from core.bus.interface import EventBus, EventHandler, Subscription
@@ -87,6 +86,7 @@ class InMemoryBus(EventBus):
         async with self._lock:
             if pattern not in self._subscriptions:
                 self._subscriptions[pattern] = []
+
         async def unsubscribe_from_memory() -> None:
             async with self._lock:
                 handlers = self._subscriptions.get(pattern, [])
@@ -207,7 +207,7 @@ class InMemoryBus(EventBus):
 
         # Pattern se termine par ">"
         if pattern.endswith(">"):
-            return pattern_parts[:-1] == subject_parts[:len(pattern_parts) - 1]
+            return pattern_parts[:-1] == subject_parts[: len(pattern_parts) - 1]
 
         if len(pattern_parts) != len(subject_parts):
             return False

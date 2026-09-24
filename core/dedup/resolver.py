@@ -16,9 +16,6 @@ from typing import Any
 
 from core.dedup.types import (
     DuplicateAction,
-    DuplicateCategory,
-    DuplicateGroup,
-    ScannedItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,7 +59,6 @@ class ResolutionResult:
         }
 
 
-
 class DuplicateResolver:
     """Apply a resolution action on a duplicate group (Core-owned)."""
 
@@ -91,8 +87,11 @@ class DuplicateResolver:
         if action == DuplicateAction.MERGE_ASSOCIATIONS:
             return await self._merge_associations(group, ctx)
         return ResolutionResult(
-            group_id=group.group_id, action=action, status="failed",
-            error=f"Unknown action: {action.value}", **ctx,
+            group_id=group.group_id,
+            action=action,
+            status="failed",
+            error=f"Unknown action: {action.value}",
+            **ctx,
         )
 
     @staticmethod
@@ -116,9 +115,12 @@ class DuplicateResolver:
 
     def _keep_both(self, group, ctx):
         return ResolutionResult(
-            group_id=group.group_id, action=DuplicateAction.KEEP_BOTH,
-            status="applied", message="Both items retained.",
-            affected_items=[i.id for i in group.items], **ctx,
+            group_id=group.group_id,
+            action=DuplicateAction.KEEP_BOTH,
+            status="applied",
+            message="Both items retained.",
+            affected_items=[i.id for i in group.items],
+            **ctx,
         )
 
     async def _move_to_archive(self, group, ctx):
@@ -126,15 +128,21 @@ class DuplicateResolver:
             try:
                 rec = await self._store.get("files", item.id)
                 if rec is not None:
-                    rec["metadata"] = {**(rec.get("metadata") or {}), "archived": True,
-                                       "duplicate_group": group.group_id}
+                    rec["metadata"] = {
+                        **(rec.get("metadata") or {}),
+                        "archived": True,
+                        "duplicate_group": group.group_id,
+                    }
                     await self._store.save("files", item.id, rec)
             except Exception as exc:
                 logger.warning("Archive mark failed for %s: %s", item.id, exc)
         return ResolutionResult(
-            group_id=group.group_id, action=DuplicateAction.MOVE_TO_ARCHIVE,
-            status="applied", message="Items marked archived (metadata only).",
-            affected_items=[i.id for i in group.items], **ctx,
+            group_id=group.group_id,
+            action=DuplicateAction.MOVE_TO_ARCHIVE,
+            status="applied",
+            message="Items marked archived (metadata only).",
+            affected_items=[i.id for i in group.items],
+            **ctx,
         )
 
     async def _replace_with_newest(self, group, ctx, confirmed):
@@ -145,24 +153,37 @@ class DuplicateResolver:
 
     async def _keep_primary(self, group, ctx, confirmed, primary_item_id):
         if not primary_item_id:
-            return ResolutionResult(group_id=group.group_id,
-                action=DuplicateAction.KEEP_PRIMARY, status="failed",
-                error="primary_item_id required", **ctx)
+            return ResolutionResult(
+                group_id=group.group_id,
+                action=DuplicateAction.KEEP_PRIMARY,
+                status="failed",
+                error="primary_item_id required",
+                **ctx,
+            )
         keeper = next((i for i in group.items if i.id == primary_item_id), None)
         if keeper is None:
-            return ResolutionResult(group_id=group.group_id,
-                action=DuplicateAction.KEEP_PRIMARY, status="failed",
-                error=f"{primary_item_id} not in group", **ctx)
+            return ResolutionResult(
+                group_id=group.group_id,
+                action=DuplicateAction.KEEP_PRIMARY,
+                status="failed",
+                error=f"{primary_item_id} not in group",
+                **ctx,
+            )
         to_remove = [i for i in group.items if i.id != primary_item_id]
         return await self._remove_items(group, ctx, keeper, to_remove, confirmed)
 
     async def _delete_after_confirm(self, group, ctx, confirmed):
         if not confirmed:
             return ResolutionResult(
-                group_id=group.group_id, action=DuplicateAction.DELETE_AFTER_CONFIRM,
-                status="needs_confirm", needs_confirmation=True,
-                message="Destructive: removes from projects/collections and deletes files. Confirm.",
-                affected_items=[i.id for i in group.items], **ctx,
+                group_id=group.group_id,
+                action=DuplicateAction.DELETE_AFTER_CONFIRM,
+                status="needs_confirm",
+                needs_confirmation=True,
+                message=(
+                    "Destructive: removes from projects/collections and deletes files. Confirm."
+                ),
+                affected_items=[i.id for i in group.items],
+                **ctx,
             )
         return await self._remove_items(group, ctx, group.items[0], group.items[1:], confirmed=True)
 
@@ -195,11 +216,15 @@ class DuplicateResolver:
             elif item.domain.value == "file":
                 removed.append(item.id)
         return ResolutionResult(
-            group_id=group.group_id, action=DuplicateAction.DELETE_AFTER_CONFIRM,
+            group_id=group.group_id,
+            action=DuplicateAction.DELETE_AFTER_CONFIRM,
             status="applied" if not errors else "partially_completed",
-            kept_item_id=keeper.id, removed_item_ids=[i.id for i in to_remove],
+            kept_item_id=keeper.id,
+            removed_item_ids=[i.id for i in to_remove],
             message=f"Kept {keeper.id}, processed {len(to_remove)} item(s).",
-            affected_items=[i.id for i in group.items], error="; ".join(errors), **ctx,
+            affected_items=[i.id for i in group.items],
+            error="; ".join(errors),
+            **ctx,
         )
 
     async def _repair_reference(self, group, ctx):
@@ -207,12 +232,21 @@ class DuplicateResolver:
         if target is None:
             target = group.items[0] if group.items else None
         if target is None:
-            return ResolutionResult(group_id=group.group_id, action=DuplicateAction.REPAIR_REFERENCE,
-                                    status="failed", error="No items to repair", **ctx)
+            return ResolutionResult(
+                group_id=group.group_id,
+                action=DuplicateAction.REPAIR_REFERENCE,
+                status="failed",
+                error="No items to repair",
+                **ctx,
+            )
         return ResolutionResult(
-            group_id=group.group_id, action=DuplicateAction.REPAIR_REFERENCE,
-            status="applied", message=f"Reference repaired to {target.id} ({target.name}).",
-            kept_item_id=target.id, affected_items=[i.id for i in group.items], **ctx,
+            group_id=group.group_id,
+            action=DuplicateAction.REPAIR_REFERENCE,
+            status="applied",
+            message=f"Reference repaired to {target.id} ({target.name}).",
+            kept_item_id=target.id,
+            affected_items=[i.id for i in group.items],
+            **ctx,
         )
 
     async def _merge_associations(self, group, ctx):
@@ -247,8 +281,13 @@ class DuplicateResolver:
         ctx.pop("project_ids", None)
         ctx.pop("collection_ids", None)
         return ResolutionResult(
-            group_id=group.group_id, action=DuplicateAction.MERGE_ASSOCIATIONS,
-            status="applied", kept_item_id=keeper.id,
+            group_id=group.group_id,
+            action=DuplicateAction.MERGE_ASSOCIATIONS,
+            status="applied",
+            kept_item_id=keeper.id,
             message=f"Associations merged onto {keeper.id}.",
-            affected_items=[i.id for i in group.items], project_ids=mp, collection_ids=mc, **ctx,
+            affected_items=[i.id for i in group.items],
+            project_ids=mp,
+            collection_ids=mc,
+            **ctx,
         )

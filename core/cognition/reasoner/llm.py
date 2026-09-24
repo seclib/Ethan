@@ -57,7 +57,7 @@ class Reasoner:
 
     def _build_prompt(self, query: str, intent: Any, context: dict[str, Any]) -> str:
         """Construit le prompt pour le LLM."""
-        intent_type = intent.type.value if hasattr(intent, 'type') else "unknown"
+        intent_type = intent.type.value if hasattr(intent, "type") else "unknown"
 
         prompt = f"""You are ETHAN, a cognitive AI assistant.
 
@@ -104,10 +104,16 @@ Respond in JSON format:
         # TODO: Intégrer le LLM provider
         raise NotImplementedError("LLM client not configured")
 
-    def _simulate_reasoning(self, query: str, intent: Any, context: dict[str, Any]) -> dict[str, Any]:
+    def _simulate_reasoning(
+        self, query: str, intent: Any, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Simule un raisonnement (MVP)."""
         return {
-            "chain_of_thought": f"Analyzing query: {query}\nIntent: {intent.type.value if hasattr(intent, 'type') else 'unknown'}\nContext items: {len(context.get('messages', []))}",
+            "chain_of_thought": (
+                f"Analyzing query: {query}\n"
+                f"Intent: {intent.type.value if hasattr(intent, 'type') else 'unknown'}\n"
+                f"Context items: {len(context.get('messages', []))}"
+            ),
             "goal": query,
             "required_capabilities": [],
             "confidence": 0.8,

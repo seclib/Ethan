@@ -1,7 +1,7 @@
 """ETHAN daemon — background cache control."""
+
 from interfaces.cli.registry import register
 from interfaces.cli.core import daemon as daemon_core
-from interfaces.cli.core.ux import UX
 
 
 @register("daemon")

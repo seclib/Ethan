@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Optional
 
+from core.bootstrap.config_evolution import ConfigEvolutionEngine
 from core.bootstrap.integrity import IntegrityChecker
 from core.bootstrap.repair import RepairEngine
-from core.bootstrap.config_evolution import ConfigEvolutionEngine
 from core.bus.interface import EventBus
+from core.ethan_types.event import Event
 from core.state.postgres_state import PostgresPersistentState
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +40,14 @@ class SystemBootstrapper:
         # 1. Integrity check
         logger.info("[1/5] Integrity check...")
         report = await self.integrity.check_all()
-        await self.bus.publish("bootstrap.integrity.completed", Event(
-            type="bootstrap.integrity.completed",
-            source="bootstrapper",
-            payload={"report": report.dict()},
-        ))
+        await self.bus.publish(
+            "bootstrap.integrity.completed",
+            Event(
+                type="bootstrap.integrity.completed",
+                source="bootstrapper",
+                payload={"report": report.dict()},
+            ),
+        )
 
         if not report.ok:
             logger.warning(f"Integrity issues detected: {report.issues}")
@@ -73,11 +74,14 @@ class SystemBootstrapper:
 
         # 4. Final system event
         logger.info("[4/5] Publishing bootstrap complete...")
-        await self.bus.publish("system.bootstrap.completed", Event(
-            type="system.bootstrap.completed",
-            source="bootstrapper",
-            payload={"success": report.ok, "issues": report.issues},
-        ))
+        await self.bus.publish(
+            "system.bootstrap.completed",
+            Event(
+                type="system.bootstrap.completed",
+                source="bootstrapper",
+                payload={"success": report.ok, "issues": report.issues},
+            ),
+        )
 
         # 5. Boot sequence complete
         logger.info("[5/5] Bootstrap sequence completed")

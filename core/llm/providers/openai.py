@@ -41,6 +41,7 @@ class OpenAIProvider(LLMProvider):
         """Initialise le client."""
         try:
             from openai import AsyncOpenAI
+
             self._client = AsyncOpenAI(api_key=self._api_key)
             logger.info("OpenAI provider initialized")
         except ImportError:
@@ -183,17 +184,21 @@ class OpenAIProvider(LLMProvider):
         content: list[dict[str, Any]] = [{"type": "text", "text": request.prompt}]
         for img in request.images:
             if img.is_url:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": img.data},
-                })
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": img.data},
+                    }
+                )
             else:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{img.mime_type};base64,{img.data}",
-                    },
-                })
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{img.mime_type};base64,{img.data}",
+                        },
+                    }
+                )
 
         response = await self._client.chat.completions.create(
             model=model,

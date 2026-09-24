@@ -24,18 +24,21 @@ from typing import Any
 
 class RuntimeMode(str, Enum):
     """Mode d'exécution du runtime."""
-    AUTO = "auto"           # Détection : NATS si dispo, sinon in-memory
+
+    AUTO = "auto"  # Détection : NATS si dispo, sinon in-memory
     STANDALONE = "standalone"  # InMemoryBus, mono-processus
-    DISTRIBUTED = "distributed" # NATS, kernel + workers
+    DISTRIBUTED = "distributed"  # NATS, kernel + workers
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime (infrastructure)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BusConfig:
     """Configuration du bus d'événements."""
+
     type: str = "auto"  # "inmemory", "nats", "auto"
     servers: str = "nats://localhost:4222"
     record_history: bool = True
@@ -45,6 +48,7 @@ class BusConfig:
 @dataclass
 class StorageConfig:
     """Configuration du stockage."""
+
     redis_url: str = "redis://localhost:6379/0"
     redis_prefix: str = "ethan:"
     postgres_url: str = "postgresql://ethan:ethan@localhost:5432/ethan"
@@ -55,6 +59,7 @@ class StorageConfig:
 @dataclass
 class RuntimeConfig:
     """Configuration du runtime (infrastructure)."""
+
     mode: RuntimeMode = RuntimeMode.AUTO
     bus: BusConfig = field(default_factory=BusConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
@@ -69,6 +74,7 @@ class RuntimeConfig:
 # Providers LLM
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ProviderConfig:
     """Configuration d'un fournisseur LLM individuel.
@@ -76,6 +82,7 @@ class ProviderConfig:
     Les clés API ne sont JAMAIS stockées ici — elles proviennent de
     ``core/config/secrets.py`` (env / Vault / Docker secrets).
     """
+
     name: str = ""
     type: str = ""
     enabled: bool = False
@@ -89,6 +96,7 @@ class ProviderConfig:
 @dataclass
 class ProvidersConfig:
     """Configuration globale des providers LLM."""
+
     active: str = "ollama"
     providers: dict[str, ProviderConfig] = field(default_factory=dict)
 
@@ -152,9 +160,11 @@ class ProvidersConfig:
 # Models / Routage
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ModelRoutingConfig:
     """Routage des modèles par type de tâche."""
+
     reasoning: str = "claude-sonnet-4-20250514"
     code: str = "claude-3-5-sonnet-20241022"
     fast: str = "llama3.1"
@@ -165,6 +175,7 @@ class ModelRoutingConfig:
 @dataclass
 class ModelsConfig:
     """Configuration des modèles et du routage."""
+
     default: str = "llama3.1"
     routing: ModelRoutingConfig = field(default_factory=ModelRoutingConfig)
     fallback: str = "llama3.1"
@@ -174,9 +185,11 @@ class ModelsConfig:
 # RAG
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RAGConfig:
     """Configuration du pipeline RAG."""
+
     enabled: bool = True
     chunk_size: int = 1000
     chunk_overlap: int = 200
@@ -193,9 +206,11 @@ class RAGConfig:
 # Memory
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class MemoryConfig:
     """Configuration de la mémoire / faits."""
+
     enabled: bool = True
     max_facts: int = 10000
     ttl_days: int = 30
@@ -209,9 +224,11 @@ class MemoryConfig:
 # Agents
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class AgentsConfig:
     """Configuration globale des agents cognitifs."""
+
     max_concurrent: int = 4
     default_timeout_seconds: int = 300
     auto_restart: bool = True
@@ -234,9 +251,11 @@ AgentConfig = AgentsConfig
 # Planner
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class PlannerConfig:
     """Configuration du planificateur de tâches."""
+
     max_depth: int = 5
     max_steps: int = 50
     timeout_seconds: int = 600
@@ -249,9 +268,11 @@ class PlannerConfig:
 # Plugins
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class PluginsConfig:
     """Configuration de la gestion des plugins."""
+
     auto_load: bool = True
     allowed_paths: list[str] = field(default_factory=list)
     sandbox_enabled: bool = True
@@ -263,9 +284,11 @@ class PluginsConfig:
 # Authentication
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class AuthenticationConfig:
     """Configuration de l'authentification et de l'autorisation."""
+
     enabled: bool = True
     jwt_secret_env: str = "JWT_SECRET"
     jwt_expiry_hours: int = 24
@@ -280,6 +303,7 @@ class AuthenticationConfig:
 # Point d'entrée
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ConfigSchema:
     """Point d'entrée de la configuration — source de vérité unique.
@@ -287,6 +311,7 @@ class ConfigSchema:
     Toutes les interfaces (Runtime, Core, CLI, WebUI, Desktop) accèdent
     à la configuration via ce schéma.
     """
+
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     providers: ProvidersConfig = field(default_factory=ProvidersConfig)
     models: ModelsConfig = field(default_factory=ModelsConfig)
@@ -303,6 +328,7 @@ class ConfigSchema:
     def to_dict(self) -> dict[str, Any]:
         """Sérialise la configuration complète en dict."""
         from dataclasses import asdict
+
         return asdict(self)
 
     @classmethod
@@ -312,8 +338,15 @@ class ConfigSchema:
         result = cls()
 
         for domain_name in (
-            "runtime", "providers", "models", "rag", "memory",
-            "agents", "planner", "plugins", "authentication",
+            "runtime",
+            "providers",
+            "models",
+            "rag",
+            "memory",
+            "agents",
+            "planner",
+            "plugins",
+            "authentication",
         ):
             domain_data = data.get(domain_name, {})
             if not isinstance(domain_data, dict):

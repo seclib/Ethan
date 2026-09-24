@@ -40,9 +40,7 @@ class ProviderStore:
         """
         if self._pg:
             try:
-                rows = await self._pg.fetch(
-                    "SELECT provider_id, config FROM llm_providers"
-                )
+                rows = await self._pg.fetch("SELECT provider_id, config FROM llm_providers")
                 configs: dict[str, dict[str, Any]] = {}
                 for row in rows:
                     cfg = row["config"]

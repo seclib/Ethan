@@ -14,9 +14,8 @@ import logging
 from typing import Any
 
 import bcrypt
-from fastapi import APIRouter, HTTPException, Request
-
 from core.auth.totp import generate_secret, provisioning_uri, verify_code
+from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +96,7 @@ async def twofa_confirm(request: Request, data: dict[str, Any]):
         raise HTTPException(401, "Code 2FA invalide.")
     async with _pg_pool.acquire() as conn:
         await conn.execute(
-            "UPDATE users SET totp_enabled = true, updated_at = now()"
-            " WHERE username = $1",
+            "UPDATE users SET totp_enabled = true, updated_at = now() WHERE username = $1",
             username,
         )
     return {"enabled": True, "status": "2FA activée"}
@@ -185,9 +183,7 @@ async def set_user_active(request: Request, username: str, data: dict[str, Any])
 async def _count_active_admins(conn: Any) -> int:
     """Nombre de comptes admin actifs (protection « dernier admin »)."""
     return int(
-        await conn.fetchval(
-            "SELECT count(*) FROM users WHERE 'admin' = ANY(roles) AND is_active"
-        )
+        await conn.fetchval("SELECT count(*) FROM users WHERE 'admin' = ANY(roles) AND is_active")
     )
 
 
@@ -245,7 +241,7 @@ async def update_user(request: Request, username: str, data: dict[str, Any]):
 
     async with _pg_pool.acquire() as conn:
         row = await conn.fetchrow(
-            f"SELECT id, username, roles, is_active FROM users WHERE username = $1",
+            "SELECT id, username, roles, is_active FROM users WHERE username = $1",
             username,
         )
         if row is None:

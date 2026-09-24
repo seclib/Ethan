@@ -16,15 +16,15 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from core.events import Event, EventBus, EventHandler
 from core.ethan_types.event import EventType
-
+from core.events import Event, EventBus, EventHandler
 
 logger = logging.getLogger(__name__)
 
 
 class RiskLevel(str, Enum):
     """Niveaux de risque."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -33,6 +33,7 @@ class RiskLevel(str, Enum):
 
 class Effect(str, Enum):
     """Effet d'une permission."""
+
     ALLOW = "allow"
     DENY = "deny"
 
@@ -40,6 +41,7 @@ class Effect(str, Enum):
 @dataclass
 class Permission:
     """Permission atomique."""
+
     resource: str
     action: str
     effect: Effect = Effect.ALLOW
@@ -48,6 +50,7 @@ class Permission:
 @dataclass
 class Role:
     """Rôle avec permissions."""
+
     name: str
     permissions: List[Permission]
     inherits: List[str] = field(default_factory=list)
@@ -56,6 +59,7 @@ class Role:
 @dataclass
 class SafetyContext:
     """Contexte de sécurité pour une requête."""
+
     user_id: str
     roles: List[str]
     risk_level: RiskLevel = RiskLevel.LOW
@@ -65,6 +69,7 @@ class SafetyContext:
 @dataclass
 class AuditEvent:
     """Événement d'audit."""
+
     timestamp: datetime
     user_id: str
     action: str
@@ -97,9 +102,7 @@ class SafetyChecker(ABC):
     """Interface abstraite pour le vérificateur de sécurité."""
 
     @abstractmethod
-    async def check_permission(
-        self, context: SafetyContext, resource: str, action: str
-    ) -> bool:
+    async def check_permission(self, context: SafetyContext, resource: str, action: str) -> bool:
         """Vérifier si l'utilisateur a la permission."""
         pass
 
@@ -154,9 +157,7 @@ class DefaultSafetyChecker(SafetyChecker):
     def __init__(self, role_registry: RoleRegistry):
         self.role_registry = role_registry
 
-    async def check_permission(
-        self, context: SafetyContext, resource: str, action: str
-    ) -> bool:
+    async def check_permission(self, context: SafetyContext, resource: str, action: str) -> bool:
         """Vérifier si l'utilisateur a la permission."""
         permissions = await self._get_user_permissions(context)
 
@@ -203,14 +204,14 @@ class DefaultSafetyChecker(SafetyChecker):
         """Évaluer le risque d'une action."""
         # Simplified risk assessment
         high_risk_actions = ["delete", "drop", "truncate", "shutdown", "admin"]
-        
+
         if any(risk_action in action.lower() for risk_action in high_risk_actions):
             return RiskLevel.HIGH
-        
+
         # Check user risk level
         if context.risk_level == RiskLevel.CRITICAL:
             return RiskLevel.CRITICAL
-        
+
         return RiskLevel.LOW
 
 

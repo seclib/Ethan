@@ -6,8 +6,8 @@ sends create/update actions through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -60,7 +60,9 @@ class NoteStore:
         """Retrieve a note by id."""
         return await self._store.get(self._DOMAIN, note_id)
 
-    async def list(self, user_id: str | None = None, pinned: bool | None = None) -> list[dict[str, Any]]:
+    async def list(
+        self, user_id: str | None = None, pinned: bool | None = None
+    ) -> list[dict[str, Any]]:
         """List notes, optionally filtered."""
         notes = await self._store.list(self._DOMAIN)
         if user_id is not None:
@@ -94,7 +96,8 @@ class NoteStore:
         notes = await self.list(user_id=user_id)
         query_lower = query.lower()
         return [
-            n for n in notes
+            n
+            for n in notes
             if query_lower in n.get("title", "").lower()
             or query_lower in n.get("content", "").lower()
         ]
@@ -102,4 +105,6 @@ class NoteStore:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="note-store", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="note-store", payload=payload)
+        )

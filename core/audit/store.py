@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -216,7 +216,8 @@ class AuditStore:
                 cursor = self._pg_conn.cursor()
                 cursor.execute(
                     """INSERT INTO audit_log
-                       (id, timestamp, category, decision, action, actor, source, details, correlation_id, tags)
+                       (id, timestamp, category, decision, action, actor, source, details,
+                        correlation_id, tags)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
                         data["id"],

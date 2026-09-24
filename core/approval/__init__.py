@@ -5,7 +5,13 @@ Les modules peuvent demander une approbation et attendre la réponse de manière
 """
 
 from .engine import ApprovalEngine
-from .types import ApprovalRequest, ApprovalResponse, ApprovalStatus, ApprovalCategory
+from .types import ApprovalCategory, ApprovalRequest, ApprovalResponse, ApprovalStatus
 
 __version__ = "1.0.0"
-__all__ = ["ApprovalEngine", "ApprovalRequest", "ApprovalResponse", "ApprovalStatus", "ApprovalCategory"]
+__all__ = [
+    "ApprovalEngine",
+    "ApprovalRequest",
+    "ApprovalResponse",
+    "ApprovalStatus",
+    "ApprovalCategory",
+]

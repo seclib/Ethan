@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class SkillExecutor:
     """Exécute les skills en orchestrant les outils.
-    
+
     Responsabilités :
     - Exécution séquentielle des étapes
     - Gestion des dépendances

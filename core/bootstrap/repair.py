@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict
 
 from core.bus.interface import EventBus
-from core.state.redis_state import RedisLiveState
-from core.state.postgres_state import PostgresPersistentState
 from core.ethan_types.event import Event
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,14 @@ class RepairEngine:
 
         # Attempt reconnection
         await asyncio.sleep(self.RETRY_DELAY)
-        await self.bus.publish("module.repair.requested", Event(
-            type="module.repair.requested",
-            source="repair-engine",
-            payload={"module_id": module_id, "attempt": retries + 1},
-        ))
+        await self.bus.publish(
+            "module.repair.requested",
+            Event(
+                type="module.repair.requested",
+                source="repair-engine",
+                payload={"module_id": module_id, "attempt": retries + 1},
+            ),
+        )
 
         # Reset retry count on success
         self._retry_counts.pop(module_id, None)
@@ -62,11 +65,14 @@ class RepairEngine:
 
     async def _isolate_module(self, module_id: str) -> None:
         """Mark module as isolated."""
-        await self.bus.publish("system.module.unhealthy", Event(
-            type="system.module.unhealthy",
-            source="repair-engine",
-            payload={"module_id": module_id, "action": "isolate"},
-        ))
+        await self.bus.publish(
+            "system.module.unhealthy",
+            Event(
+                type="system.module.unhealthy",
+                source="repair-engine",
+                payload={"module_id": module_id, "action": "isolate"},
+            ),
+        )
         logger.warning(f"Module {module_id} isolated")
 
     async def reset_failures(self, module_id: str) -> None:

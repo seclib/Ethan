@@ -10,7 +10,7 @@ Pattern de composition pour les capabilities:
 from __future__ import annotations
 
 import asyncio
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from typing import List
 
@@ -21,12 +21,14 @@ from core.orchestrator.executor import Executor
 @dataclass
 class PipelineStep(ABC):
     """Abstract pipeline step."""
+
     pass
 
 
 @dataclass
 class SequentialStep(PipelineStep):
     """Execute a single capability sequentially."""
+
     capability: str
     args: dict
 
@@ -34,12 +36,14 @@ class SequentialStep(PipelineStep):
 @dataclass
 class ParallelStep(PipelineStep):
     """Execute multiple capabilities in parallel."""
+
     capabilities: List[str]
 
 
 @dataclass
 class ConditionalStep(PipelineStep):
     """Execute one of two branches based on a condition."""
+
     condition: str  # Name of the condition check
     true_branch: CapabilityPipeline
     false_branch: CapabilityPipeline
@@ -48,20 +52,21 @@ class ConditionalStep(PipelineStep):
 @dataclass
 class RetryStep(PipelineStep):
     """Retry a step on failure."""
+
     max_attempts: int
     step: PipelineStep
 
 
 class CapabilityPipeline:
     """Compose capabilities into reusable workflows.
-    
+
     Usage:
         pipeline = CapabilityPipeline(executor)
         pipeline.then("validate", data=...)
                .then("process", input=...)
                .parallel("notify_email", "notify_slack")
                .then("finalize")
-        
+
         results = await pipeline.execute(context)
     """
 
@@ -112,16 +117,14 @@ class CapabilityPipeline:
                 results.append(result)
 
             elif isinstance(step, ParallelStep):
-                tasks = [
-                    self.executor.run(cap, context) for cap in step.capabilities
-                ]
+                tasks = [self.executor.run(cap, context) for cap in step.capabilities]
                 parallel_results = await asyncio.gather(*tasks)
                 results.extend(parallel_results)
 
             elif isinstance(step, ConditionalStep):
                 # Evaluate condition (simplified: check if condition string is in context metadata)
                 should_execute_true = self._evaluate_condition(step.condition, context)
-                
+
                 if should_execute_true:
                     branch_results = await step.true_branch.execute(context)
                     results.extend(branch_results)
@@ -133,7 +136,7 @@ class CapabilityPipeline:
                 attempt = 0
                 last_result = None
                 success = False
-                
+
                 while attempt < step.max_attempts:
                     if isinstance(step.step, SequentialStep):
                         last_result = await self.executor.run(
@@ -141,18 +144,15 @@ class CapabilityPipeline:
                         )
                         success = last_result.status == CapabilityStatus.SUCCESS
                     elif isinstance(step.step, ParallelStep):
-                        tasks = [
-                            self.executor.run(cap, context)
-                            for cap in step.step.capabilities
-                        ]
+                        tasks = [self.executor.run(cap, context) for cap in step.step.capabilities]
                         last_result = await asyncio.gather(*tasks)
                         success = all(r.status == CapabilityStatus.SUCCESS for r in last_result)
-                    
+
                     if success:
                         break
-                    
+
                     attempt += 1
-                
+
                 if isinstance(last_result, list):
                     results.extend(last_result)
                 elif last_result:
@@ -162,7 +162,7 @@ class CapabilityPipeline:
 
     def _evaluate_condition(self, condition: str, context: CapabilityContext) -> bool:
         """Evaluate a condition string.
-        
+
         Simplified implementation: checks if condition exists in context metadata.
         In production, this would use a proper expression evaluator.
         """

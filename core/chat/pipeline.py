@@ -20,7 +20,7 @@ from typing import Any
 
 from core.chat.compaction import AutoCompactManager
 from core.chat.context_sources import ContextItem, ContextSourceSerializer
-from core.chat.modes import ChatMode, ReasoningEffort, mode_system_instructions
+from core.chat.modes import mode_system_instructions
 from core.chat.session import ResolvedSessionSettings, SessionSettingsManager
 from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage as LLMChatMessage
@@ -151,14 +151,18 @@ class ChatPipeline:
             and ``branch`` (the current message path).
         """
         # 0. Résoudre les réglages de session (mode, reasoning, language…).
-        resolved, provider_id, model, reasoning_effort, mode_meta = (
-            await self._resolve_session_settings(
-                chat_id=chat_id,
-                provider_id=provider_id,
-                model=model,
-                mode=mode,
-                reasoning_effort=reasoning_effort,
-            )
+        (
+            resolved,
+            provider_id,
+            model,
+            reasoning_effort,
+            mode_meta,
+        ) = await self._resolve_session_settings(
+            chat_id=chat_id,
+            provider_id=provider_id,
+            model=model,
+            mode=mode,
+            reasoning_effort=reasoning_effort,
         )
 
         # 1. Créer ou réutiliser la conversation.
@@ -327,9 +331,10 @@ class ChatPipeline:
                 # mode (fallback) — la requête explicite garde la priorité.
                 provider_id = provider_id or resolved.provider_id or None
                 model = model or resolved.model or None
-                reasoning_effort = (
-                    reasoning_effort
-                    or (resolved.reasoning.get("effort") if resolved.reasoning.get("supported") else None)
+                reasoning_effort = reasoning_effort or (
+                    resolved.reasoning.get("effort")
+                    if resolved.reasoning.get("supported")
+                    else None
                 )
             except Exception as exc:
                 logger.warning("Session settings resolution failed: %s", exc)
@@ -373,7 +378,11 @@ class ChatPipeline:
         try:
             branch = await self._chats.get_branch(chat_id)
             history = [
-                {"role": m.get("role"), "content": m.get("content", ""), "metadata": m.get("metadata") or {}}
+                {
+                    "role": m.get("role"),
+                    "content": m.get("content", ""),
+                    "metadata": m.get("metadata") or {},
+                }
                 for m in branch
                 if m.get("role") in ("user", "assistant")
             ]
@@ -399,8 +408,10 @@ class ChatPipeline:
                     compaction_meta = compacted.to_dict()
                     logger.info(
                         "Auto Compact (%s): %d messages résumés, ~%d → ~%d tokens",
-                        compacted.strategy, compacted.summarized_messages,
-                        compacted.estimated_tokens_before, compacted.estimated_tokens_after,
+                        compacted.strategy,
+                        compacted.summarized_messages,
+                        compacted.estimated_tokens_before,
+                        compacted.estimated_tokens_after,
                     )
         except Exception as exc:
             logger.warning("Auto Compact failed (continuité garantie): %s", exc)
@@ -592,7 +603,10 @@ class ChatPipeline:
                     + {
                         "diagnose": "diagnostic seul : ne propose même pas de correctif complet.",
                         "diagnose_propose": "propose un correctif détaillé mais NE L'APPLIQUE PAS.",
-                        "diagnose_apply": "applique le correctif si les permissions le permettent, puis vérifie par tests.",
+                        "diagnose_apply": (
+                            "applique le correctif si les permissions le permettent, "
+                            "puis vérifie par tests."
+                        ),
                     }[resolved.debug_level.value]
                 )
             if resolved.language:
@@ -670,9 +684,7 @@ class ChatPipeline:
                             if ctx.strip():
                                 rag_parts.append(ctx)
                         except Exception as exc:
-                            logger.warning(
-                                "Collection %s RAG failed: %s", collection_id, exc
-                            )
+                            logger.warning("Collection %s RAG failed: %s", collection_id, exc)
                     if rag_parts:
                         system_parts.append("[Contexte documentaire]\n" + "\n\n".join(rag_parts))
                 elif not collection_ids and self._knowledge_collections is None:
@@ -690,7 +702,9 @@ class ChatPipeline:
         if file_ids:
             file_store = getattr(self, "_files", None)
             if file_store is None:
-                logger.warning("Attached files requested but no FileStore is injected into ChatPipeline")
+                logger.warning(
+                    "Attached files requested but no FileStore is injected into ChatPipeline"
+                )
             else:
                 try:
                     file_parts: list[str] = []
@@ -776,6 +790,7 @@ class ChatPipeline:
                     config = self._manager._providers_config.get(provider_id)
                     if config and config.get("enabled", False):
                         from core.llm.provider_factory import create_provider_from_config
+
                         provider = create_provider_from_config({**config, "name": provider_id})
                         await provider.initialize()
                 if provider is not None:

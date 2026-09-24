@@ -43,6 +43,7 @@ class OpenAICompatibleProvider(LLMProvider):
         """Initialise le client OpenAI."""
         try:
             from openai import AsyncOpenAI
+
             self._client = AsyncOpenAI(
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,

@@ -45,7 +45,7 @@ class AzureOpenAIProvider(LLMProvider):
         """Initialise le client Azure OpenAI."""
         try:
             from openai import AsyncAzureOpenAI
-            
+
             self._client = AsyncAzureOpenAI(
                 api_key=self._api_key,
                 api_version=self._api_version,
@@ -133,8 +133,9 @@ class AzureOpenAIProvider(LLMProvider):
             return []
 
         try:
-            # Note: Azure OpenAI's /models endpoint behaves differently and often needs the deployment names manually defined
-            # But we try to list them anyway if the RBAC allows it.
+            # Note: Azure OpenAI's /models endpoint behaves differently and
+            # often needs the deployment names manually defined. We still try
+            # to list them anyway if the RBAC allows it.
             response = await self._client.models.list()
             models = []
             for m in response.data:
@@ -160,7 +161,9 @@ class AzureOpenAIProvider(LLMProvider):
                 return False
         try:
             models = await self.list_models()
-            return len(models) >= 0  # Azure might return empty if no RBAC for listing, but connection succeeds
+            return (
+                len(models) >= 0
+            )  # Azure might return empty if no RBAC for listing, but connection succeeds
         except Exception as e:
             logger.warning("Connection test failed for Azure OpenAI: %s", e)
             return False
@@ -187,10 +190,12 @@ async def _azure_vision_analyze(self, request):
         if img.is_url:
             content.append({"type": "image_url", "image_url": {"url": img.data}})
         else:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{img.mime_type};base64,{img.data}"},
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{img.mime_type};base64,{img.data}"},
+                }
+            )
 
     response = await self._client.chat.completions.create(
         model=model,

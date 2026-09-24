@@ -13,11 +13,13 @@ class CostTracker:
     """Suit les coûts d'utilisation des LLM."""
 
     def __init__(self):
-        self._usage: dict[str, dict[str, Any]] = defaultdict(lambda: {
-            "calls": 0,
-            "tokens": 0,
-            "cost": 0.0,
-        })
+        self._usage: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "calls": 0,
+                "tokens": 0,
+                "cost": 0.0,
+            }
+        )
         self._budgets: dict[str, float] = {}
 
     def track(self, provider: str, model: str, usage: dict[str, Any]) -> None:
@@ -68,8 +70,9 @@ class CostTracker:
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)
 
-        cost = (input_tokens * pricing[key]["input"] + 
-                output_tokens * pricing[key]["output"]) / 1000
+        cost = (
+            input_tokens * pricing[key]["input"] + output_tokens * pricing[key]["output"]
+        ) / 1000
 
         return cost
 

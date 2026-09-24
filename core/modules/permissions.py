@@ -73,6 +73,7 @@ class Permissions:
     def _matches_any(value: str, patterns: list[str]) -> bool:
         """Vérifie si une valeur correspond à au moins un pattern glob."""
         import fnmatch
+
         for pattern in patterns:
             if fnmatch.fnmatch(value, pattern):
                 return True
@@ -82,6 +83,7 @@ class Permissions:
 @dataclass(frozen=True)
 class PermissionDenied(Exception):
     """Exception levée quand un module tente une action non autorisée."""
+
     module: str
     action: str
     target: str

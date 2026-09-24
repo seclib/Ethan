@@ -42,8 +42,11 @@ class SystemMetrics:
             "disk": self._disk(),
             "gpu": self._gpu(),
             "process": self._process(),
-            "docker": self._docker() if include_docker else {
-                "available": False, "reason": "non demandé",
+            "docker": self._docker()
+            if include_docker
+            else {
+                "available": False,
+                "reason": "non demandé",
             },
         }
 
@@ -142,20 +145,20 @@ class SystemMetrics:
                 mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
                 util = pynvml.nvmlDeviceGetUtilizationRates(handle)
                 try:
-                    temp = pynvml.nvmlDeviceGetTemperature(
-                        handle, pynvml.NVML_TEMPERATURE_GPU
-                    )
+                    temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
                 except Exception:  # noqa: BLE001
                     temp = None
-                gpus.append({
-                    "index": i,
-                    "name": name.decode() if isinstance(name, bytes) else str(name),
-                    "vram_total_bytes": mem.total,
-                    "vram_used_bytes": mem.used,
-                    "vram_percent": round(mem.used / mem.total * 100, 1) if mem.total else None,
-                    "gpu_percent": util.gpu,
-                    "temperature_c": temp,
-                })
+                gpus.append(
+                    {
+                        "index": i,
+                        "name": name.decode() if isinstance(name, bytes) else str(name),
+                        "vram_total_bytes": mem.total,
+                        "vram_used_bytes": mem.used,
+                        "vram_percent": round(mem.used / mem.total * 100, 1) if mem.total else None,
+                        "gpu_percent": util.gpu,
+                        "temperature_c": temp,
+                    }
+                )
             return {"available": True, "count": count, "gpus": gpus}
         except Exception as exc:  # noqa: BLE001
             return {"available": False, "reason": f"NVML a échoué : {exc}"}
@@ -165,11 +168,11 @@ class SystemMetrics:
             except Exception:  # noqa: BLE001
                 pass
 
-
     @staticmethod
     def _process() -> dict[str, Any]:
         try:
             import psutil
+
             proc = psutil.Process()
             with proc.oneshot():
                 cpu = proc.cpu_percent(interval=None)
@@ -193,9 +196,17 @@ class SystemMetrics:
             }
         try:
             proc = subprocess.run(
-                ["docker", "stats", "--no-stream", "--format",
-                 "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"],
-                capture_output=True, text=True, timeout=10, check=True,
+                [
+                    "docker",
+                    "stats",
+                    "--no-stream",
+                    "--format",
+                    "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
             )
         except subprocess.TimeoutExpired:
             return {"available": False, "reason": "timeout de docker stats (10s)"}
@@ -208,13 +219,14 @@ class SystemMetrics:
         for line in proc.stdout.strip().splitlines():
             parts = line.split("\t")
             if len(parts) >= 3:
-                containers.append({
-                    "name": parts[0],
-                    "cpu_percent": parts[1].strip().removesuffix("%"),
-                    "mem_usage": parts[2].strip(),
-                })
+                containers.append(
+                    {
+                        "name": parts[0],
+                        "cpu_percent": parts[1].strip().removesuffix("%"),
+                        "mem_usage": parts[2].strip(),
+                    }
+                )
         return {"available": True, "containers": containers}
 
 
 __all__ = ["SystemMetrics"]
-

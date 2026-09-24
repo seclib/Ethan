@@ -13,6 +13,7 @@ class Error:
     Toute erreur du système suit ce format.
     Pas de stack traces dans les messages — uniquement dans les logs.
     """
+
     code: str = "UNKNOWN"
     message: str = ""
     details: dict[str, Any] = field(default_factory=dict)
@@ -22,6 +23,7 @@ class Error:
 @dataclass
 class Progress:
     """Progression d'une opération longue."""
+
     task_id: str = ""
     current: int = 0
     total: int = 100
@@ -35,6 +37,7 @@ class Result:
 
     Encapsule le succès ou l'échec d'une opération.
     """
+
     success: bool = True
     data: Any = None
     error: Error | None = None

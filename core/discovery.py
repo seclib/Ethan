@@ -16,8 +16,6 @@ Versioning:
 """
 
 import importlib.util
-import os
-import sys
 from pathlib import Path
 
 ETHAN_PLUGIN_API = "2"
@@ -53,7 +51,7 @@ def _load_module(plugin_dir: Path):
     mod = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(mod)
-    except Exception as e:
+    except Exception:
         return None
 
     if not hasattr(mod, "ETHAN_PLUGIN"):

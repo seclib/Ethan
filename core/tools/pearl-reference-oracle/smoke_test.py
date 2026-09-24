@@ -48,7 +48,11 @@ def main() -> None:
     try:
         import pearl_mining
     except ImportError as e:
-        _fail(f"could not import pearl_mining — install with `uv pip install py-pearl-mining` or build from source: {e}", 1)
+        _fail(
+            "could not import pearl_mining — install with "
+            f"`uv pip install py-pearl-mining` or build from source: {e}",
+            1,
+        )
 
     _ok(f"pearl_mining loaded from {pearl_mining.__file__}")
     _ok(

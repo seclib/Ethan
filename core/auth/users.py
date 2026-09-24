@@ -6,8 +6,8 @@ and sends management actions through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -54,7 +54,11 @@ class UserManager:
             "updated_at": datetime.utcnow().isoformat(),
         }
         await self._store.save(self._DOMAIN, user["id"], user)
-        await self._publish(EventType.USER_CREATED, "user.created", {"user": {k: v for k, v in user.items() if k != "password_hash"}})
+        await self._publish(
+            EventType.USER_CREATED,
+            "user.created",
+            {"user": {k: v for k, v in user.items() if k != "password_hash"}},
+        )
         return user
 
     async def get(self, user_id: str) -> dict[str, Any] | None:
@@ -104,4 +108,6 @@ class UserManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="user-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="user-manager", payload=payload)
+        )

@@ -31,9 +31,7 @@ class DiscordAdapter(ChannelAdapter):
             import discord
             from discord.ext import commands
         except ImportError as e:
-            raise RuntimeError(
-                "discord.py requis : pip install discord.py"
-            ) from e
+            raise RuntimeError("discord.py requis : pip install discord.py") from e
 
         intents = discord.Intents.default()
         intents.message_content = True
@@ -64,6 +62,7 @@ class DiscordAdapter(ChannelAdapter):
         self._client = bot
         # Lancer le bot en arrière-plan (ne pas bloquer)
         import asyncio
+
         asyncio.create_task(bot.start(self._token))
         logger.info("DiscordAdapter: started")
 

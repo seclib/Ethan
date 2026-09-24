@@ -8,6 +8,7 @@ Les cles API / secrets ne sont JAMAIS persistees ici — elles vivent dans
 """
 
 from __future__ import annotations
+
 import json
 import logging
 from typing import Any
@@ -32,9 +33,7 @@ class ConfigStore:
         """Retourne la config de tous les domaines."""
         if self._pg:
             try:
-                rows = await self._pg.fetch(
-                    "SELECT domain_name, config FROM ethan_config"
-                )
+                rows = await self._pg.fetch("SELECT domain_name, config FROM ethan_config")
                 return {row["domain_name"]: row["config"] for row in rows}
             except Exception as e:
                 logger.warning("PostgreSQL config load failed, falling back: %s", e)

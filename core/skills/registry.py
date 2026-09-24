@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SkillRegistry:
     """Catalogue central des skills.
-    
+
     Responsabilités :
     - Enregistrement des skills
     - Recherche et filtrage
@@ -110,10 +110,7 @@ class SkillRegistry:
         Returns:
             Liste de skills
         """
-        return [
-            s for s in self._skills.values()
-            if any(tag in s.tags for tag in tags)
-        ]
+        return [s for s in self._skills.values() if any(tag in s.tags for tag in tags)]
 
     def search(self, query: str) -> list[Skill]:
         """Recherche par nom/description.
@@ -126,9 +123,9 @@ class SkillRegistry:
         """
         query_lower = query.lower()
         return [
-            s for s in self._skills.values()
-            if query_lower in s.name.lower()
-            or query_lower in s.description.lower()
+            s
+            for s in self._skills.values()
+            if query_lower in s.name.lower() or query_lower in s.description.lower()
         ]
 
     def validate_dependencies(self, skill_id: str) -> bool:
@@ -165,8 +162,5 @@ class SkillRegistry:
         return {
             "total_skills": len(self._skills),
             "categories": len(self._categories),
-            "by_category": {
-                cat: len(skills)
-                for cat, skills in self._categories.items()
-            },
+            "by_category": {cat: len(skills) for cat, skills in self._categories.items()},
         }

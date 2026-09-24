@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from uuid import uuid4
-
 
 # ── Cognitive Modes ─────────────────────────────────────
 
@@ -27,9 +26,11 @@ COGNITIVE_MODES = [
 
 # ── Schemas ─────────────────────────────────────────────
 
+
 @dataclass
 class CognitiveMode:
     """Current thinking mode configuration."""
+
     mode: str = FAST_EXECUTION_MODE
     depth: int = 3  # 1-5
     speed_priority: bool = True
@@ -53,6 +54,7 @@ class CognitiveMode:
 @dataclass
 class DecisionStrategy:
     """Strategy selection result."""
+
     strategy_id: str = field(default_factory=lambda: str(uuid4()))
     mode: str = FAST_EXECUTION_MODE
     depth: int = 3
@@ -78,6 +80,7 @@ class DecisionStrategy:
 @dataclass
 class ThoughtTrace:
     """Reasoning chain trace."""
+
     trace_id: str = field(default_factory=lambda: str(uuid4()))
     task_id: str = ""
     steps: List[Dict[str, Any]] = field(default_factory=list)
@@ -103,6 +106,7 @@ class ThoughtTrace:
 @dataclass
 class ModulePriority:
     """Module ranking for a specific task."""
+
     task_type: str = ""
     rankings: List[Dict[str, Any]] = field(default_factory=list)
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

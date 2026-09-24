@@ -40,6 +40,7 @@ class AnthropicProvider(LLMProvider):
         """Initialise le client."""
         try:
             import anthropic
+
             self._client = anthropic.AsyncClient(api_key=self._api_key)
             logger.info("Anthropic provider initialized")
         except ImportError:
@@ -66,10 +67,12 @@ class AnthropicProvider(LLMProvider):
             if msg.role == "system":
                 system_msg = msg.content
             else:
-                anthropic_messages.append({
-                    "role": msg.role,
-                    "content": msg.content,
-                })
+                anthropic_messages.append(
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                    }
+                )
 
         kwargs = {
             "model": model or self.default_model,
@@ -133,10 +136,12 @@ class AnthropicProvider(LLMProvider):
             if msg.role == "system":
                 system_msg = msg.content
             else:
-                anthropic_messages.append({
-                    "role": msg.role,
-                    "content": msg.content,
-                })
+                anthropic_messages.append(
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                    }
+                )
 
         kwargs = {
             "model": model or self.default_model,

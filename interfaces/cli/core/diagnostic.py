@@ -21,6 +21,7 @@ from typing import Optional
 @dataclass
 class CheckResult:
     """Result of a single diagnostic check."""
+
     name: str
     passed: bool
     detail: str = ""
@@ -30,6 +31,7 @@ class CheckResult:
 @dataclass
 class DiagnosticReport:
     """Full diagnostic report."""
+
     checks: list[CheckResult] = field(default_factory=list)
 
     @property
@@ -64,14 +66,16 @@ class BootDiagnostic:
 
     def check_all(self) -> DiagnosticReport:
         """Run all diagnostic checks and return a report."""
-        return DiagnosticReport(checks=[
-            self._check_docker(),
-            self._check_docker_compose(),
-            self._check_memory(),
-            self._check_disk(),
-            self._check_ports(),
-            self._check_compose_file(),
-        ])
+        return DiagnosticReport(
+            checks=[
+                self._check_docker(),
+                self._check_docker_compose(),
+                self._check_memory(),
+                self._check_disk(),
+                self._check_ports(),
+                self._check_compose_file(),
+            ]
+        )
 
     def explain_failure(self) -> str:
         """Generate a human-readable explanation of why ETHAN won't start."""
@@ -114,7 +118,9 @@ class BootDiagnostic:
         try:
             result = subprocess.run(
                 ["docker", "info"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode != 0:
                 return CheckResult(
@@ -148,7 +154,9 @@ class BootDiagnostic:
         try:
             result = subprocess.run(
                 ["docker", "compose", "version"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode != 0:
                 return CheckResult(
@@ -217,7 +225,7 @@ class BootDiagnostic:
         try:
             stat = os.statvfs("/var/lib/docker" if os.path.exists("/var/lib/docker") else ".")
             free_bytes = stat.f_bavail * stat.f_frsize
-            free_gb = free_bytes / (1024 ** 3)
+            free_gb = free_bytes / (1024**3)
             if free_gb >= self.MIN_DISK_GB:
                 return CheckResult(
                     name="Espace disque",

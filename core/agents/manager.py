@@ -250,4 +250,6 @@ class AgentManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="agent-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="agent-manager", payload=payload)
+        )

@@ -9,15 +9,17 @@ from typing import Any
 
 class IntentType(str, Enum):
     """Types d'intention."""
-    QUERY = "query"                  # Question
-    COMMAND = "command"              # Commande
-    TASK = "task"                    # Tâche à accomplir
-    CONVERSATION = "conversation"    # Conversation générale
+
+    QUERY = "query"  # Question
+    COMMAND = "command"  # Commande
+    TASK = "task"  # Tâche à accomplir
+    CONVERSATION = "conversation"  # Conversation générale
     CLARIFICATION = "clarification"  # Demande de clarification
 
 
 class Intent:
     """Intention extraite d'une requête."""
+
     type: IntentType
     entities: dict[str, Any]
     confidence: float
@@ -28,6 +30,7 @@ class Intent:
 @dataclass
 class CognitionRequest:
     """Requête abstraite vers le module Cognition."""
+
     query: str
     context: dict[str, Any] = field(default_factory=dict)
     session_id: str = "default"
@@ -38,6 +41,7 @@ class CognitionRequest:
 @dataclass
 class CognitionResponse:
     """Réponse du module Cognition."""
+
     success: bool
     output: Any = None
     reasoning: str = ""
@@ -50,6 +54,7 @@ class CognitionResponse:
 @dataclass
 class Reasoning:
     """Résultat du raisonnement."""
+
     chain_of_thought: str
     goal: str
     required_capabilities: list[str]
@@ -61,6 +66,7 @@ class Reasoning:
 @dataclass
 class CognitiveState:
     """État interne du module Cognition."""
+
     session_id: str
     current_intent: Intent | None = None
     working_memory: dict[str, Any] = field(default_factory=dict)

@@ -7,15 +7,15 @@ from datetime import datetime
 from typing import Any, AsyncIterator
 
 from core.bus.backends.base import StorageBackend
-from core.bus.store import StoredEvent, Checkpoint
 from core.bus.snapshot import Snapshot
+from core.bus.store import Checkpoint, StoredEvent
 
 logger = logging.getLogger(__name__)
 
 
 class NATSJetStreamBackend(StorageBackend):
     """Backend NATS JetStream.
-    
+
     Pour production.
     - Persistance distribuée
     - Retentions configurables
@@ -50,15 +50,18 @@ class NATSJetStreamBackend(StorageBackend):
             raise RuntimeError("JetStream not initialized")
 
         import json
-        data = json.dumps({
-            "id": stored_event.event.id,
-            "type": stored_event.event.type.value,
-            "source": stored_event.event.source,
-            "timestamp": stored_event.event.timestamp.isoformat(),
-            "payload": stored_event.event.payload,
-            "metadata": stored_event.event.metadata,
-            "position": stored_event.position,
-        }).encode("utf-8")
+
+        data = json.dumps(
+            {
+                "id": stored_event.event.id,
+                "type": stored_event.event.type.value,
+                "source": stored_event.event.source,
+                "timestamp": stored_event.event.timestamp.isoformat(),
+                "payload": stored_event.event.payload,
+                "metadata": stored_event.event.metadata,
+                "position": stored_event.position,
+            }
+        ).encode("utf-8")
 
         await self._js.publish(
             f"ethan.event.{stored_event.event.type.value}",

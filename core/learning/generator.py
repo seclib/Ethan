@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
 
 from core.ethan_types.sdk.learning import Pattern, RuleProposal
 
@@ -40,7 +39,10 @@ class RuleGenerator:
         return RuleProposal(
             rule_type="capability_enhancement",
             condition=f"skill='{pattern.skill}' AND success_rate>={pattern.success_rate}",
-            suggestion=f"Use {pattern.skill} as default for similar tasks (success rate {pattern.success_rate:.0%})",
+            suggestion=(
+                f"Use {pattern.skill} as default for similar tasks "
+                f"(success rate {pattern.success_rate:.0%})"
+            ),
             target_module=pattern.skill,
             confidence=pattern.success_rate,
             based_on_pattern_id=pattern.pattern_id,
@@ -51,7 +53,9 @@ class RuleGenerator:
         return RuleProposal(
             rule_type="performance_tuning",
             condition=f"skill='{pattern.skill}' AND avg_duration_ms>{pattern.avg_duration_ms}",
-            suggestion=f"Optimize {pattern.skill} — avg {pattern.avg_duration_ms:.0f}ms (target < 2000ms)",
+            suggestion=(
+                f"Optimize {pattern.skill} — avg {pattern.avg_duration_ms:.0f}ms (target < 2000ms)"
+            ),
             target_module=pattern.skill,
             confidence=0.7,
             based_on_pattern_id=pattern.pattern_id,

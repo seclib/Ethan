@@ -242,13 +242,16 @@ class FactStore:
         else:
             self._sqlite_insert(fact)
 
-        self._publish("fact.created", {
-            "fact_id": fact.id,
-            "subject": fact.subject,
-            "predicate": fact.predicate,
-            "object": fact.object,
-            "category": fact.category.value,
-        })
+        self._publish(
+            "fact.created",
+            {
+                "fact_id": fact.id,
+                "subject": fact.subject,
+                "predicate": fact.predicate,
+                "object": fact.object,
+                "category": fact.category.value,
+            },
+        )
 
     def _pg_insert(self, fact: Fact) -> None:
         cursor = self._pg_conn.cursor()
@@ -258,12 +261,21 @@ class FactStore:
                 source, source_event_id, created_at, updated_at, last_seen_at, tags, metadata)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
-                fact.id, fact.subject, fact.predicate, fact.object,
-                fact.category.value, fact.status.value, fact.confidence, fact.importance,
-                fact.source, fact.source_event_id,
-                fact.created_at.isoformat(), fact.updated_at.isoformat(),
+                fact.id,
+                fact.subject,
+                fact.predicate,
+                fact.object,
+                fact.category.value,
+                fact.status.value,
+                fact.confidence,
+                fact.importance,
+                fact.source,
+                fact.source_event_id,
+                fact.created_at.isoformat(),
+                fact.updated_at.isoformat(),
                 fact.last_seen_at.isoformat(),
-                fact.tags, json.dumps(fact.metadata),
+                fact.tags,
+                json.dumps(fact.metadata),
             ),
         )
         self._pg_conn.commit()
@@ -276,12 +288,21 @@ class FactStore:
                     source, source_event_id, created_at, updated_at, last_seen_at, tags, metadata)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    fact.id, fact.subject, fact.predicate, fact.object,
-                    fact.category.value, fact.status.value, fact.confidence, fact.importance,
-                    fact.source, fact.source_event_id,
-                    fact.created_at.isoformat(), fact.updated_at.isoformat(),
+                    fact.id,
+                    fact.subject,
+                    fact.predicate,
+                    fact.object,
+                    fact.category.value,
+                    fact.status.value,
+                    fact.confidence,
+                    fact.importance,
+                    fact.source,
+                    fact.source_event_id,
+                    fact.created_at.isoformat(),
+                    fact.updated_at.isoformat(),
                     fact.last_seen_at.isoformat(),
-                    json.dumps(fact.tags), json.dumps(fact.metadata),
+                    json.dumps(fact.tags),
+                    json.dumps(fact.metadata),
                 ),
             )
             conn.commit()
@@ -293,11 +314,14 @@ class FactStore:
         else:
             self._sqlite_update(fact)
 
-        self._publish("fact.updated", {
-            "fact_id": fact.id,
-            "status": fact.status.value,
-            "confidence": fact.confidence,
-        })
+        self._publish(
+            "fact.updated",
+            {
+                "fact_id": fact.id,
+                "status": fact.status.value,
+                "confidence": fact.confidence,
+            },
+        )
 
     def _pg_update(self, fact: Fact) -> None:
         cursor = self._pg_conn.cursor()
@@ -307,9 +331,14 @@ class FactStore:
                last_seen_at=%s, tags=%s, metadata=%s
                WHERE id=%s""",
             (
-                fact.status.value, fact.confidence, fact.importance,
-                fact.updated_at.isoformat(), fact.last_seen_at.isoformat(),
-                fact.tags, json.dumps(fact.metadata), fact.id,
+                fact.status.value,
+                fact.confidence,
+                fact.importance,
+                fact.updated_at.isoformat(),
+                fact.last_seen_at.isoformat(),
+                fact.tags,
+                json.dumps(fact.metadata),
+                fact.id,
             ),
         )
         self._pg_conn.commit()
@@ -322,9 +351,14 @@ class FactStore:
                    updated_at=?, last_seen_at=?, tags=?, metadata=?
                    WHERE id=?""",
                 (
-                    fact.status.value, fact.confidence, fact.importance,
-                    now, fact.last_seen_at.isoformat(),
-                    json.dumps(fact.tags), json.dumps(fact.metadata), fact.id,
+                    fact.status.value,
+                    fact.confidence,
+                    fact.importance,
+                    now,
+                    fact.last_seen_at.isoformat(),
+                    json.dumps(fact.tags),
+                    json.dumps(fact.metadata),
+                    fact.id,
                 ),
             )
             conn.commit()
@@ -357,21 +391,21 @@ class FactStore:
             row = conn.execute("SELECT * FROM facts WHERE id=?", (fact_id,)).fetchone()
         return self._sqlite_row_to_fact(row) if row else None
 
-    def find_active(
-        self, subject: str, predicate: str, category: str | None = None
-    ) -> Fact | None:
+    def find_active(self, subject: str, predicate: str, category: str | None = None) -> Fact | None:
         """Cherche un fait ACTIF avec subject+predicate normalisé."""
         s, p = subject.strip().lower(), predicate.strip().lower()
         if self._pg_conn is not None:
             cursor = self._pg_conn.cursor()
             if category:
                 cursor.execute(
-                    "SELECT * FROM ethan.facts WHERE lower(subject)=%s AND lower(predicate)=%s AND category=%s AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
+                    "SELECT * FROM ethan.facts WHERE lower(subject)=%s AND lower(predicate)=%s "
+                    "AND category=%s AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
                     (s, p, category),
                 )
             else:
                 cursor.execute(
-                    "SELECT * FROM ethan.facts WHERE lower(subject)=%s AND lower(predicate)=%s AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
+                    "SELECT * FROM ethan.facts WHERE lower(subject)=%s AND lower(predicate)=%s "
+                    "AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
                     (s, p),
                 )
             row = cursor.fetchone()
@@ -380,12 +414,14 @@ class FactStore:
             with self._sqlite_conn() as conn:
                 if category:
                     row = conn.execute(
-                        "SELECT * FROM facts WHERE lower(subject)=? AND lower(predicate)=? AND category=? AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
+                        "SELECT * FROM facts WHERE lower(subject)=? AND lower(predicate)=? "
+                        "AND category=? AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
                         (s, p, category),
                     ).fetchone()
                 else:
                     row = conn.execute(
-                        "SELECT * FROM facts WHERE lower(subject)=? AND lower(predicate)=? AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
+                        "SELECT * FROM facts WHERE lower(subject)=? AND lower(predicate)=? "
+                        "AND status='active' ORDER BY last_seen_at DESC LIMIT 1",
                         (s, p),
                     ).fetchone()
             return self._sqlite_row_to_fact(row) if row else None
@@ -407,19 +443,23 @@ class FactStore:
                 ).fetchall()
             return [self._sqlite_row_to_fact(r) for r in rows]
 
-    def list_by_category(self, category: FactCategory, status: FactStatus = FactStatus.ACTIVE, limit: int = 50) -> list[Fact]:
+    def list_by_category(
+        self, category: FactCategory, status: FactStatus = FactStatus.ACTIVE, limit: int = 50
+    ) -> list[Fact]:
         """Liste les faits par catégorie et statut."""
         if self._pg_conn is not None:
             cursor = self._pg_conn.cursor()
             cursor.execute(
-                "SELECT * FROM ethan.facts WHERE category=%s AND status=%s ORDER BY last_seen_at DESC LIMIT %s",
+                "SELECT * FROM ethan.facts WHERE category=%s AND status=%s "
+                "ORDER BY last_seen_at DESC LIMIT %s",
                 (category.value, status.value, limit),
             )
             return [self._row_to_fact(r) for r in cursor.fetchall()]
         else:
             with self._sqlite_conn() as conn:
                 rows = conn.execute(
-                    "SELECT * FROM facts WHERE category=? AND status=? ORDER BY last_seen_at DESC LIMIT ?",
+                    "SELECT * FROM facts WHERE category=? AND status=? "
+                    "ORDER BY last_seen_at DESC LIMIT ?",
                     (category.value, status.value, limit),
                 ).fetchall()
             return [self._sqlite_row_to_fact(r) for r in rows]
@@ -436,7 +476,9 @@ class FactStore:
         else:
             with self._sqlite_conn() as conn:
                 if status:
-                    row = conn.execute("SELECT COUNT(*) FROM facts WHERE status=?", (status.value,)).fetchone()
+                    row = conn.execute(
+                        "SELECT COUNT(*) FROM facts WHERE status=?", (status.value,)
+                    ).fetchone()
                 else:
                     row = conn.execute("SELECT COUNT(*) FROM facts").fetchone()
             return int(row[0]) if row else 0
@@ -454,8 +496,10 @@ class FactStore:
     def _pg_search(self, query: str, k: int) -> list[FactSearchResult]:
         cursor = self._pg_conn.cursor()
         cursor.execute(
-            """SELECT *, ts_rank(to_tsvector('english', subject || ' ' || predicate || ' ' || object),
-                       plainto_tsquery('english', %s)) AS rank
+            """SELECT *,
+                      ts_rank(to_tsvector('english',
+                                          subject || ' ' || predicate || ' ' || object),
+                              plainto_tsquery('english', %s)) AS rank
                FROM ethan.facts
                WHERE to_tsvector('english', subject || ' ' || predicate || ' ' || object) @@
                      plainto_tsquery('english', %s)
@@ -470,7 +514,7 @@ class FactStore:
         return results
 
     def _sqlite_search(self, query: str, k: int) -> list[FactSearchResult]:
-        safe_query = '"' + query.replace('"', ' ') + '"'
+        safe_query = '"' + query.replace('"', " ") + '"'
         with self._sqlite_conn() as conn:
             try:
                 rows = conn.execute(
@@ -511,15 +555,35 @@ class FactStore:
         if self._pg_conn is not None:
             cursor = self._pg_conn.cursor()
             cursor.execute(
-                "INSERT INTO ethan.fact_observations(id, fact_id, event_id, observation_type, confidence_delta, source, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (obs.id, obs.fact_id, obs.event_id, obs.observation_type.value, obs.confidence_delta, obs.source, obs.created_at.isoformat()),
+                "INSERT INTO ethan.fact_observations"
+                " (id, fact_id, event_id, observation_type, confidence_delta, source, created_at)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (
+                    obs.id,
+                    obs.fact_id,
+                    obs.event_id,
+                    obs.observation_type.value,
+                    obs.confidence_delta,
+                    obs.source,
+                    obs.created_at.isoformat(),
+                ),
             )
             self._pg_conn.commit()
         else:
             with self._sqlite_conn() as conn:
                 conn.execute(
-                    "INSERT INTO fact_observations(id, fact_id, event_id, observation_type, confidence_delta, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (obs.id, obs.fact_id, obs.event_id, obs.observation_type.value, obs.confidence_delta, obs.source, obs.created_at.isoformat()),
+                    "INSERT INTO fact_observations"
+                    " (id, fact_id, event_id, observation_type, confidence_delta, source, created_at)"  # noqa: E501
+                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        obs.id,
+                        obs.fact_id,
+                        obs.event_id,
+                        obs.observation_type.value,
+                        obs.confidence_delta,
+                        obs.source,
+                        obs.created_at.isoformat(),
+                    ),
                 )
                 conn.commit()
         return obs
@@ -532,24 +596,36 @@ class FactStore:
                 "SELECT * FROM ethan.fact_observations WHERE fact_id=%s ORDER BY created_at",
                 (fact_id,),
             )
-            return [FactObservation(
-                id=r[0], fact_id=r[1], event_id=r[2],
-                observation_type=ObservationType(r[3]),
-                confidence_delta=float(r[4]), source=r[5],
-                created_at=datetime.fromisoformat(r[6]),
-            ) for r in cursor.fetchall()]
+            return [
+                FactObservation(
+                    id=r[0],
+                    fact_id=r[1],
+                    event_id=r[2],
+                    observation_type=ObservationType(r[3]),
+                    confidence_delta=float(r[4]),
+                    source=r[5],
+                    created_at=datetime.fromisoformat(r[6]),
+                )
+                for r in cursor.fetchall()
+            ]
         else:
             with self._sqlite_conn() as conn:
                 rows = conn.execute(
                     "SELECT * FROM fact_observations WHERE fact_id=? ORDER BY created_at",
                     (fact_id,),
                 ).fetchall()
-            return [FactObservation(
-                id=r["id"], fact_id=r["fact_id"], event_id=r["event_id"],
-                observation_type=ObservationType(r["observation_type"]),
-                confidence_delta=float(r["confidence_delta"]), source=r["source"],
-                created_at=datetime.fromisoformat(r["created_at"]),
-            ) for r in rows]
+            return [
+                FactObservation(
+                    id=r["id"],
+                    fact_id=r["fact_id"],
+                    event_id=r["event_id"],
+                    observation_type=ObservationType(r["observation_type"]),
+                    confidence_delta=float(r["confidence_delta"]),
+                    source=r["source"],
+                    created_at=datetime.fromisoformat(r["created_at"]),
+                )
+                for r in rows
+            ]
 
     # ── Relations ───────────────────────────────────────────────────
 
@@ -577,15 +653,31 @@ class FactStore:
         if self._pg_conn is not None:
             cursor = self._pg_conn.cursor()
             cursor.execute(
-                "INSERT INTO ethan.fact_relations(id, from_fact_id, to_fact_id, relation_type, created_at) VALUES (%s, %s, %s, %s, %s)",
-                (rel.id, rel.from_fact_id, rel.to_fact_id, rel.relation_type.value, rel.created_at.isoformat()),
+                "INSERT INTO ethan.fact_relations"
+                " (id, from_fact_id, to_fact_id, relation_type, created_at)"
+                " VALUES (%s, %s, %s, %s, %s)",
+                (
+                    rel.id,
+                    rel.from_fact_id,
+                    rel.to_fact_id,
+                    rel.relation_type.value,
+                    rel.created_at.isoformat(),
+                ),
             )
             self._pg_conn.commit()
         else:
             with self._sqlite_conn() as conn:
                 conn.execute(
-                    "INSERT INTO fact_relations(id, from_fact_id, to_fact_id, relation_type, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (rel.id, rel.from_fact_id, rel.to_fact_id, rel.relation_type.value, rel.created_at.isoformat()),
+                    "INSERT INTO fact_relations"
+                    " (id, from_fact_id, to_fact_id, relation_type, created_at)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (
+                        rel.id,
+                        rel.from_fact_id,
+                        rel.to_fact_id,
+                        rel.relation_type.value,
+                        rel.created_at.isoformat(),
+                    ),
                 )
                 conn.commit()
         return rel
@@ -595,25 +687,37 @@ class FactStore:
         if self._pg_conn is not None:
             cursor = self._pg_conn.cursor()
             cursor.execute(
-                "SELECT * FROM ethan.fact_relations WHERE from_fact_id=%s OR to_fact_id=%s ORDER BY created_at",
+                "SELECT * FROM ethan.fact_relations "
+                "WHERE from_fact_id=%s OR to_fact_id=%s ORDER BY created_at",
                 (fact_id, fact_id),
             )
-            return [FactRelation(
-                id=r[0], from_fact_id=r[1], to_fact_id=r[2],
-                relation_type=FactRelationType(r[3]),
-                created_at=datetime.fromisoformat(r[4]),
-            ) for r in cursor.fetchall()]
+            return [
+                FactRelation(
+                    id=r[0],
+                    from_fact_id=r[1],
+                    to_fact_id=r[2],
+                    relation_type=FactRelationType(r[3]),
+                    created_at=datetime.fromisoformat(r[4]),
+                )
+                for r in cursor.fetchall()
+            ]
         else:
             with self._sqlite_conn() as conn:
                 rows = conn.execute(
-                    "SELECT * FROM fact_relations WHERE from_fact_id=? OR to_fact_id=? ORDER BY created_at",
+                    "SELECT * FROM fact_relations "
+                    "WHERE from_fact_id=? OR to_fact_id=? ORDER BY created_at",
                     (fact_id, fact_id),
                 ).fetchall()
-            return [FactRelation(
-                id=r["id"], from_fact_id=r["from_fact_id"], to_fact_id=r["to_fact_id"],
-                relation_type=FactRelationType(r["relation_type"]),
-                created_at=datetime.fromisoformat(r["created_at"]),
-            ) for r in rows]
+            return [
+                FactRelation(
+                    id=r["id"],
+                    from_fact_id=r["from_fact_id"],
+                    to_fact_id=r["to_fact_id"],
+                    relation_type=FactRelationType(r["relation_type"]),
+                    created_at=datetime.fromisoformat(r["created_at"]),
+                )
+                for r in rows
+            ]
 
     # ── Correction humaine ──────────────────────────────────────────
 
@@ -652,12 +756,15 @@ class FactStore:
             source=source,
         )
 
-        self._publish("fact.corrected", {
-            "fact_id": fact.id,
-            "changes": changes,
-            "correction": correction_text,
-            "source": source,
-        })
+        self._publish(
+            "fact.corrected",
+            {
+                "fact_id": fact.id,
+                "changes": changes,
+                "correction": correction_text,
+                "source": source,
+            },
+        )
 
         return True, "; ".join(changes)
 
@@ -680,14 +787,29 @@ class FactStore:
                 d = dict(row)
             else:
                 columns = [
-                    "id", "subject", "predicate", "object", "category", "status",
-                    "confidence", "importance", "source", "source_event_id",
-                    "created_at", "updated_at", "last_seen_at", "tags", "metadata",
+                    "id",
+                    "subject",
+                    "predicate",
+                    "object",
+                    "category",
+                    "status",
+                    "confidence",
+                    "importance",
+                    "source",
+                    "source_event_id",
+                    "created_at",
+                    "updated_at",
+                    "last_seen_at",
+                    "tags",
+                    "metadata",
                 ]
                 d = dict(zip(columns, row))
             return Fact(
-                id=d["id"], subject=d["subject"], predicate=d["predicate"],
-                object=d["object"], category=FactCategory(d["category"]),
+                id=d["id"],
+                subject=d["subject"],
+                predicate=d["predicate"],
+                object=d["object"],
+                category=FactCategory(d["category"]),
                 status=FactStatus(d.get("status", "active")),
                 confidence=float(d.get("confidence", 0.5)),
                 importance=float(d.get("importance", 0.5)),
@@ -709,16 +831,23 @@ class FactStore:
             return None
         try:
             return Fact(
-                id=row["id"], subject=row["subject"], predicate=row["predicate"],
-                object=row["object"], category=FactCategory(row["category"]),
+                id=row["id"],
+                subject=row["subject"],
+                predicate=row["predicate"],
+                object=row["object"],
+                category=FactCategory(row["category"]),
                 status=FactStatus(row["status"] if "status" in row.keys() else "active"),
                 confidence=float(row["confidence"]) if "confidence" in row.keys() else 0.5,
                 importance=float(row["importance"]) if "importance" in row.keys() else 0.5,
                 source=row["source"] if "source" in row.keys() else "system",
                 source_event_id=row["source_event_id"] if "source_event_id" in row.keys() else "",
                 created_at=datetime.fromisoformat(row["created_at"]),
-                updated_at=datetime.fromisoformat(row["updated_at"]) if "updated_at" in row.keys() else datetime.fromisoformat(row["created_at"]),
-                last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if "last_seen_at" in row.keys() else datetime.fromisoformat(row["created_at"]),
+                updated_at=datetime.fromisoformat(row["updated_at"])
+                if "updated_at" in row.keys()
+                else datetime.fromisoformat(row["created_at"]),
+                last_seen_at=datetime.fromisoformat(row["last_seen_at"])
+                if "last_seen_at" in row.keys()
+                else datetime.fromisoformat(row["created_at"]),
                 tags=json.loads(row["tags"]) if "tags" in row.keys() else [],
                 metadata=json.loads(row["metadata"]) if "metadata" in row.keys() else {},
             )

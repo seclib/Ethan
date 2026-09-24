@@ -74,9 +74,7 @@ _TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # Cookies de session
     (
         SensitiveKind.COOKIE,
-        re.compile(
-            r"\b(?:sessionid|connect\.sid|PHPSESSID|JSESSIONID)=[A-Za-z0-9%._-]{8,}"
-        ),
+        re.compile(r"\b(?:sessionid|connect\.sid|PHPSESSID|JSESSIONID)=[A-Za-z0-9%._-]{8,}"),
     ),
     # Paires clé=valeur manifestement sensibles (secret=, password=, token=)
     (
@@ -161,9 +159,7 @@ class SensitiveDataClassifier:
     contenu sémantique du prompt.
     """
 
-    def __init__(
-        self, text_patterns: Iterable[tuple[str, re.Pattern[str]]] | None = None
-    ) -> None:
+    def __init__(self, text_patterns: Iterable[tuple[str, re.Pattern[str]]] | None = None) -> None:
         self._text_patterns = tuple(text_patterns or _TEXT_PATTERNS)
 
     # ── Scan de texte ────────────────────────────────────────────────────
@@ -231,4 +227,3 @@ class SensitiveDataClassifier:
         if len(value) <= 4:
             return "[…]"
         return value[:4] + "…" + value[-4:]
-

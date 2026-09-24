@@ -62,7 +62,7 @@ class ContextItem:
     """Source de contexte explicitement attachée à une conversation."""
 
     type: ContextType
-    ref: str                       # file_id / folder_id / url / path / ref
+    ref: str  # file_id / folder_id / url / path / ref
     label: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -112,7 +112,9 @@ class ContextSourceSerializer:
             try:
                 section = await self._serialize_one(item)
             except Exception as exc:
-                logger.warning("Context serialization failed (%s %s): %s", item.type.value, item.ref, exc)
+                logger.warning(
+                    "Context serialization failed (%s %s): %s", item.type.value, item.ref, exc
+                )
                 result.notes.append(f"context {item.type.value}:{item.ref} indisponible")
                 continue
             if section:
@@ -129,9 +131,15 @@ class ContextSourceSerializer:
         if item.type == ContextType.KNOWLEDGE:
             # Context ≠ RAG : la collection est déjà résolue par la récupération
             # existante (knowledge_ids) — ici, simple référence annotée.
-            return f"=== Knowledge: {item.label or item.ref} (collection {item.ref}) ===\n(contenu indexé — résolution RAG active)"
+            return (
+                f"=== Knowledge: {item.label or item.ref} (collection {item.ref}) ===\n"
+                "(contenu indexé — résolution RAG active)"
+            )
         if item.type == ContextType.PROJECT:
-            return f"=== Projet: {item.label or item.ref} ===\n(contexte projet — instructions résolues par le Core)"
+            return (
+                f"=== Projet: {item.label or item.ref} ===\n"
+                "(contexte projet — instructions résolues par le Core)"
+            )
         # git / terminal / log : références annotées — le modèle lit ces
         # sources via les outils autorisés du mode (pas de sortie factice).
         note = {
@@ -152,7 +160,9 @@ class ContextSourceSerializer:
             downloaded = await self._files.download(item.ref)
             if downloaded is not None:
                 data, _meta = downloaded
-                content = data.decode("utf-8", errors="replace") if isinstance(data, bytes) else str(data)
+                content = (
+                    data.decode("utf-8", errors="replace") if isinstance(data, bytes) else str(data)
+                )
         except Exception as exc:
             logger.warning("Attached file download failed (%s): %s", item.ref, exc)
         if not content:
@@ -168,13 +178,19 @@ class ContextSourceSerializer:
             return f"=== Folder: {label} ===\n(dossier introuvable)"
         name = folder.get("name", item.ref)
         resources = folder.get("resources") or []
-        lines = [f"- {r.get('resource_type', '?')}:{r.get('resource_id', '?')}" for r in resources[:100]]
+        lines = [
+            f"- {r.get('resource_type', '?')}:{r.get('resource_id', '?')}" for r in resources[:100]
+        ]
         listing = "\n".join(lines) if lines else "(vide)"
-        return f"=== Folder: {name} ({len(resources)} ressources) ===\n{_truncate(listing, MAX_LIST_CHARS)}"
+        return (
+            f"=== Folder: {name} ({len(resources)} ressources) ===\n"
+            f"{_truncate(listing, MAX_LIST_CHARS)}"
+        )
 
     async def _serialize_url(self, item: ContextItem) -> str:
-        import httpx
         from urllib.parse import urlsplit
+
+        import httpx
 
         url = item.ref.strip()
         label = item.label or url

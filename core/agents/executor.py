@@ -38,9 +38,7 @@ class _NoOpSkillStore:
         return None
 
 
-async def _resolve_provider(
-    provider_manager: Any, provider_id: str | None
-) -> Any | None:
+async def _resolve_provider(provider_manager: Any, provider_id: str | None) -> Any | None:
     """Résout une instance de provider depuis le ProviderManager.
 
     Réutilise le registry s'il existe, sinon instancie depuis la config
@@ -149,9 +147,7 @@ def create_agent_executor(
             skills=skills,
             tools=tools,
         )
-        folder_skill_ids = [
-            s["id"] for s in resolved["skills"] if s["source"] != "explicit"
-        ]
+        folder_skill_ids = [s["id"] for s in resolved["skills"] if s["source"] != "explicit"]
         folder_collection_ids = [
             c["id"] for c in resolved["collections"] if c["source"] != "explicit"
         ]
@@ -195,9 +191,11 @@ def create_agent_executor(
                 elif rtype == "skill":
                     domain_skill_ids.append(rid)
 
-        skill_ids = [skill_id] if skill_id else list(
-            dict.fromkeys(
-                [*(agent.skill_ids or []), *folder_skill_ids, *domain_skill_ids]
+        skill_ids = (
+            [skill_id]
+            if skill_id
+            else list(
+                dict.fromkeys([*(agent.skill_ids or []), *folder_skill_ids, *domain_skill_ids])
             )
         )
         for sid in skill_ids:
@@ -235,7 +233,9 @@ def create_agent_executor(
             except Exception as exc:
                 logger.warning(
                     "Failed to load knowledge %s for agent %s: %s",
-                    item["id"], agent.name, exc,
+                    item["id"],
+                    agent.name,
+                    exc,
                 )
                 continue
             record = node.to_dict() if node is not None and hasattr(node, "to_dict") else node
@@ -269,9 +269,7 @@ def create_agent_executor(
         )
         if knowledge_ids:
             try:
-                rag_context = await knowledge.build_context_multi(
-                    task, knowledge_ids
-                )
+                rag_context = await knowledge.build_context_multi(task, knowledge_ids)
             except Exception as exc:
                 logger.warning(
                     "Failed to build RAG context for agent %s: %s",
@@ -297,12 +295,10 @@ def create_agent_executor(
         # Aucun tool global n'est exposé par défaut.
         if allowed_tools:
             tool_lines = "\n".join(
-                f"- {t['name']} ({t.get('provider') or 'tool'})"
-                for t in allowed_tools
+                f"- {t['name']} ({t.get('provider') or 'tool'})" for t in allowed_tools
             )
             system_parts.append(
-                "Outils autorisés — le runtime n'expose QUE ces tools/MCP :\n"
-                + tool_lines
+                "Outils autorisés — le runtime n'expose QUE ces tools/MCP :\n" + tool_lines
             )
 
         if agent.capabilities:

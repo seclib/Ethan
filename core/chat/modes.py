@@ -273,7 +273,7 @@ class ModePermissions:
 
     allow_write: bool = False
     allow_execute: bool = False
-    max_tool_risk: str = "medium"          # low | medium | high
+    max_tool_risk: str = "medium"  # low | medium | high
     destructive_actions: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -324,7 +324,9 @@ def effective_mode_permissions(
 ) -> ModePermissions:
     """Permissions effectives d'un mode, contraintes par le niveau Debug."""
     mode_value = mode.value if isinstance(mode, ChatMode) else str(mode)
-    perms = ModePermissions(**dict(MODE_PERMISSIONS.get(mode_value, MODE_PERMISSIONS[ChatMode.ACT.value])))
+    perms = ModePermissions(
+        **dict(MODE_PERMISSIONS.get(mode_value, MODE_PERMISSIONS[ChatMode.ACT.value]))
+    )
     if mode_value == ChatMode.DEBUG.value and debug_level is not None:
         level_value = debug_level.value if isinstance(debug_level, DebugLevel) else str(debug_level)
         constraints = DEBUG_LEVEL_CONSTRAINTS.get(level_value)

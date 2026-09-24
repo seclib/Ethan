@@ -13,7 +13,6 @@ import asyncio
 import logging
 import os
 import shlex
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -25,10 +24,27 @@ class TerminalPlugin:
 
     def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
-        self._allowed_commands = set(self.config.get("allowed_commands", [
-            "ls", "cat", "head", "tail", "grep", "find",
-            "ps", "df", "du", "echo", "pwd", "whoami", "date", "uname",
-        ]))
+        self._allowed_commands = set(
+            self.config.get(
+                "allowed_commands",
+                [
+                    "ls",
+                    "cat",
+                    "head",
+                    "tail",
+                    "grep",
+                    "find",
+                    "ps",
+                    "df",
+                    "du",
+                    "echo",
+                    "pwd",
+                    "whoami",
+                    "date",
+                    "uname",
+                ],
+            )
+        )
         self._timeout = self.config.get("timeout", 30)
         self._max_output = self.config.get("max_output", 100000)
         self._workdir = Path(self.config.get("working_directory", "/workspace"))
@@ -44,8 +60,7 @@ class TerminalPlugin:
         # Check if command is in allowed list
         if cmd not in self._allowed_commands:
             raise ValueError(
-                f"Command '{cmd}' is not allowed. "
-                f"Allowed: {sorted(self._allowed_commands)}"
+                f"Command '{cmd}' is not allowed. Allowed: {sorted(self._allowed_commands)}"
             )
 
         # Prevent dangerous patterns
@@ -82,8 +97,8 @@ class TerminalPlugin:
                     "return_code": -1,
                 }
 
-            stdout_str = stdout.decode("utf-8", errors="replace")[:self._max_output]
-            stderr_str = stderr.decode("utf-8", errors="replace")[:self._max_output]
+            stdout_str = stdout.decode("utf-8", errors="replace")[: self._max_output]
+            stderr_str = stderr.decode("utf-8", errors="replace")[: self._max_output]
 
             return {
                 "status": "success" if process.returncode == 0 else "error",
@@ -127,14 +142,12 @@ class TerminalPlugin:
                 cwd=str(self._workdir),
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self._timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self._timeout)
 
             return {
                 "status": "success" if process.returncode == 0 else "error",
-                "stdout": stdout.decode("utf-8", errors="replace")[:self._max_output],
-                "stderr": stderr.decode("utf-8", errors="replace")[:self._max_output],
+                "stdout": stdout.decode("utf-8", errors="replace")[: self._max_output],
+                "stderr": stderr.decode("utf-8", errors="replace")[: self._max_output],
                 "return_code": process.returncode,
             }
 
@@ -163,13 +176,15 @@ class TerminalPlugin:
         entries = []
         for entry in sorted(target.iterdir()):
             stat = entry.stat()
-            entries.append({
-                "name": entry.name,
-                "path": str(entry.relative_to(self._workdir)),
-                "type": "directory" if entry.is_dir() else "file",
-                "size": stat.st_size,
-                "modified": stat.st_mtime,
-            })
+            entries.append(
+                {
+                    "name": entry.name,
+                    "path": str(entry.relative_to(self._workdir)),
+                    "type": "directory" if entry.is_dir() else "file",
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime,
+                }
+            )
         return entries
 
     async def read_file(self, path: str) -> str:
@@ -198,13 +213,15 @@ class TerminalPlugin:
             for line in lines[1:]:  # Skip header
                 parts = line.split(None, 10)
                 if len(parts) >= 11:
-                    processes.append({
-                        "user": parts[0],
-                        "pid": int(parts[1]),
-                        "cpu": float(parts[2]),
-                        "memory": float(parts[3]),
-                        "command": parts[10],
-                    })
+                    processes.append(
+                        {
+                            "user": parts[0],
+                            "pid": int(parts[1]),
+                            "cpu": float(parts[2]),
+                            "memory": float(parts[3]),
+                            "command": parts[10],
+                        }
+                    )
             return processes
         return []
 

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
+from typing import Any, Dict
 
 
 @dataclass
 class CycleState:
     """Current autonomy loop state."""
+
     state: str = "idle"  # idle | running | paused | stopped
     cycle_count: int = 0
     last_cycle_start: str = ""
@@ -32,6 +32,7 @@ class CycleState:
 @dataclass
 class GoalPriority:
     """Priority score for goal selection."""
+
     goal_id: str = ""
     priority: float = 0.0  # 0.0-1.0
     category: str = "user"  # user | system | exploration
@@ -55,6 +56,7 @@ class GoalPriority:
 @dataclass
 class HealthStatus:
     """Module health snapshot."""
+
     module_id: str = ""
     healthy: bool = True
     consecutive_failures: int = 0

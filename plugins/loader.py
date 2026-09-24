@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """ETHAN Plugin Loader — full plugin lifecycle management.
 
 Handles manifest.json parsing, entry point loading, capability registration,
@@ -12,12 +10,12 @@ Usage:
     loader.load(name)   # load single plugin
 """
 
+from __future__ import annotations
+
 import hashlib
 import importlib.util
 import json
 import logging
-import os
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,6 +35,7 @@ CRASH_WINDOW_SECONDS = 300  # 5 minutes
 @dataclass
 class CircuitBreaker:
     """Circuit breaker for plugin crashes."""
+
     crash_count: int = 0
     first_crash_ts: float = 0.0
     disabled: bool = False
@@ -62,10 +61,12 @@ class CircuitBreaker:
 @dataclass
 class PluginState:
     """Runtime state for a loaded plugin."""
+
     meta: Any
     breaker: CircuitBreaker = field(default_factory=CircuitBreaker)
     loaded_at: float = field(default_factory=time.time)
     crash_count: int = 0
+
 
 # Discovery paths
 BUILTIN_DIR = Path(__file__).parent.parent / "plugins" / "builtin"
@@ -88,7 +89,10 @@ class Permission:
             return False
         resource = parts[0]
         action = parts[1]
-        return resource in ("state", "filesystem", "network", "execute") and action in Permission.LEVELS
+        return (
+            resource in ("state", "filesystem", "network", "execute")
+            and action in Permission.LEVELS
+        )
 
     @staticmethod
     def check(required: list[str], granted: list[str]) -> bool:
@@ -102,6 +106,7 @@ class Permission:
     def _matches(pattern: str, granted: str) -> bool:
         # Simple glob: * matches any segment, ** matches any depth
         import fnmatch
+
         return fnmatch.fnmatch(pattern, granted)
 
 
@@ -144,7 +149,9 @@ class PluginMeta:
             if not cmd.get("handler"):
                 errors.append(f"command '{cmd_name}' missing handler")
             elif not hasattr(self.module, cmd["handler"]):
-                errors.append(f"command '{cmd_name}' handler '{cmd['handler']}' not found in plugin.py")
+                errors.append(
+                    f"command '{cmd_name}' handler '{cmd['handler']}' not found in plugin.py"
+                )
         for subj, handler in self.subscriptions.items():
             if not hasattr(self.module, handler):
                 errors.append(f"subscription '{subj}' handler '{handler}' not found in plugin.py")
@@ -235,9 +242,7 @@ class PluginLoader:
             # Validation du plugin avant chargement
             validation = self._validator.validate(plugin_dir, manifest)
             if not validation.valid:
-                logger.warning(
-                    f"Plugin '{name}' rejeté par le validateur : {validation.error}"
-                )
+                logger.warning(f"Plugin '{name}' rejeté par le validateur : {validation.error}")
                 continue
 
             module = self._load_entry_point(plugin_dir, manifest)

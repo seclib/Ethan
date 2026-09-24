@@ -89,9 +89,9 @@ class PolicyEngine:
         """
         # 1. Règles matchantes (A5 : matching exact action/resource/catégorie).
         matched = [
-            rule for rule in self._rules.values()
-            if rule.enabled
-            and rule.matches(request.category, request.action, request.resource)
+            rule
+            for rule in self._rules.values()
+            if rule.enabled and rule.matches(request.category, request.action, request.resource)
         ]
 
         # 2. Fail-closed : silence = refus (A4).
@@ -99,8 +99,7 @@ class PolicyEngine:
             return PolicyDecision(
                 result=PolicyResult.DENY,
                 reason=(
-                    "Aucune politique n'autorise explicitement cette action "
-                    "(deny by default)."
+                    "Aucune politique n'autorise explicitement cette action (deny by default)."
                 ),
                 matched=[],
             )
@@ -118,10 +117,7 @@ class PolicyEngine:
         decisive = top_rules_sorted[0]
         restrictivity_score = decisive.restrictivity
         # Toutes les règles du niveau partageant l'effet le plus restrictif.
-        decisive_group = [
-            rule for rule in top_rules
-            if rule.restrictivity == restrictivity_score
-        ]
+        decisive_group = [rule for rule in top_rules if rule.restrictivity == restrictivity_score]
 
         # 5. Décision finale (A2 : on ne redescend pas).
         result = _effect_to_result(decisive.effect)
@@ -177,7 +173,4 @@ def _effect_to_result(effect: PolicyEffect) -> PolicyResult:
 
 def _default_reason(result: PolicyResult, request: PolicyRequest) -> str:
     """Raison par défaut lorsque la règle n'en fournit pas."""
-    return (
-        f"Action {request.category}:{request.action} sur {request.resource} "
-        f"-> {result.value}"
-    )
+    return f"Action {request.category}:{request.action} sur {request.resource} -> {result.value}"

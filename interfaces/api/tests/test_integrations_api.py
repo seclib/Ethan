@@ -12,11 +12,10 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
 from core.auth import Permission
 from core.integrations import IntegrationManager
 from core.state.record_store import CoreRecordStore
+from fastapi import HTTPException
 from interfaces.api.auth import require_permission
 from interfaces.api.routers import integrations as integrations_router
 from interfaces.api.routers.integrations import set_integration_manager
@@ -31,9 +30,7 @@ list_integrations = integrations_router.list_integrations
 test_integration = integrations_router.test_integration
 update_integration = integrations_router.update_integration
 integrations_router.test_integration.__test__ = False
-integrations_router.test_connection = getattr(
-    integrations_router, "test_connection", None
-)
+integrations_router.test_connection = getattr(integrations_router, "test_connection", None)
 
 
 SECRET = "sk-integration-secret-98765"
@@ -59,14 +56,18 @@ def _run(coro):
 
 
 def test_create_and_list_without_secrets(manager):
-    created = _run(create_integration({
-        "name": "github-prod",
-        "kind": "developer",
-        "config": {"base_url": "https://api.github.com"},
-        "credentials": {"token": SECRET},
-        "capabilities": ["repos.read"],
-        "required_permissions": ["execute"],
-    }))
+    created = _run(
+        create_integration(
+            {
+                "name": "github-prod",
+                "kind": "developer",
+                "config": {"base_url": "https://api.github.com"},
+                "credentials": {"token": SECRET},
+                "capabilities": ["repos.read"],
+                "required_permissions": ["execute"],
+            }
+        )
+    )
     assert created["name"] == "github-prod"
     assert SECRET not in str(created)
 
@@ -78,10 +79,15 @@ def test_create_and_list_without_secrets(manager):
 
 
 def test_get_detail_reports_credential_keys_not_values(manager):
-    created = _run(create_integration({
-        "name": "s3", "kind": "storage",
-        "credentials": {"secret_key": SECRET},
-    }))
+    created = _run(
+        create_integration(
+            {
+                "name": "s3",
+                "kind": "storage",
+                "credentials": {"secret_key": SECRET},
+            }
+        )
+    )
     detail = _run(get_integration(created["id"]))
     assert SECRET not in str(detail)
     assert detail["has_credentials"] is True
@@ -101,13 +107,18 @@ def test_get_missing_returns_404(manager):
 
 
 def test_update_config_and_rotate_credentials(manager):
-    created = _run(create_integration({
-        "name": "rot", "kind": "storage", "credentials": {"token": SECRET}
-    }))
-    updated = _run(update_integration(created["id"], {
-        "config": {"bucket": "ethan"},
-        "credentials": {"token": "sk-rotated"},
-    }))
+    created = _run(
+        create_integration({"name": "rot", "kind": "storage", "credentials": {"token": SECRET}})
+    )
+    updated = _run(
+        update_integration(
+            created["id"],
+            {
+                "config": {"bucket": "ethan"},
+                "credentials": {"token": "sk-rotated"},
+            },
+        )
+    )
     assert updated["config"] == {"bucket": "ethan"}
     assert SECRET not in str(updated)
     # Rotation effective côté Core
@@ -116,9 +127,9 @@ def test_update_config_and_rotate_credentials(manager):
 
 
 def test_delete_purges_credentials(manager):
-    created = _run(create_integration({
-        "name": "bye", "kind": "storage", "credentials": {"token": SECRET}
-    }))
+    created = _run(
+        create_integration({"name": "bye", "kind": "storage", "credentials": {"token": SECRET}})
+    )
     result = _run(delete_integration(created["id"]))
     assert result["status"] == "deleted"
     assert _run(manager.get_credentials(created["id"])) == {}
@@ -128,11 +139,16 @@ def test_delete_purges_credentials(manager):
 
 
 def test_connect_disconnect_test_flow(manager):
-    created = _run(create_integration({
-        "name": "flow", "kind": "web-search",
-        "credentials": {"api_key": "k"},
-        "metadata": {"required_credentials": ["api_key"]},
-    }))
+    created = _run(
+        create_integration(
+            {
+                "name": "flow",
+                "kind": "web-search",
+                "credentials": {"api_key": "k"},
+                "metadata": {"required_credentials": ["api_key"]},
+            }
+        )
+    )
 
     health = _run(test_integration(created["id"]))
     assert health["connected"] is True
@@ -192,15 +208,25 @@ def test_read_permission_allows_listing_for_all_roles():
 def test_integration_declared_permissions_are_ethan_permissions(manager):
     """Les permissions déclarées d'une intégration sont des permissions ETHAN
     valides — une intégration ne peut pas inventer ses propres droits."""
-    created = _run(create_integration({
-        "name": "scoped", "kind": "automation",
-        "required_permissions": ["execute", "files"],
-    }))
+    created = _run(
+        create_integration(
+            {
+                "name": "scoped",
+                "kind": "automation",
+                "required_permissions": ["execute", "files"],
+            }
+        )
+    )
     valid = {p.value for p in Permission}
     assert set(created["required_permissions"]) <= valid
     with pytest.raises(HTTPException) as exc:
-        _run(create_integration({
-            "name": "escalate", "kind": "automation",
-            "required_permissions": ["become-root"],
-        }))
+        _run(
+            create_integration(
+                {
+                    "name": "escalate",
+                    "kind": "automation",
+                    "required_permissions": ["become-root"],
+                }
+            )
+        )
     assert exc.value.status_code == 422

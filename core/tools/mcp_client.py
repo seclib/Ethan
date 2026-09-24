@@ -29,6 +29,7 @@ try:
     from mcp.shared.auth import OAuthClientMetadata
 
     from mcp import ClientSession
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -47,17 +48,17 @@ DEFAULT_TIMEOUT = 10.0
 def _build_httpx_client(headers=None, timeout=None, auth=None, verify=True):
     """Create an httpx AsyncClient for MCP transport."""
     kwargs = {
-        'follow_redirects': True,
-        'verify': verify,
+        "follow_redirects": True,
+        "verify": verify,
     }
     if timeout is not None:
-        kwargs['timeout'] = timeout
+        kwargs["timeout"] = timeout
     else:
-        kwargs['timeout'] = DEFAULT_TIMEOUT
+        kwargs["timeout"] = DEFAULT_TIMEOUT
     if headers is not None:
-        kwargs['headers'] = headers
+        kwargs["headers"] = headers
     if auth is not None:
-        kwargs['auth'] = auth
+        kwargs["auth"] = auth
     return httpx.AsyncClient(**kwargs)
 
 
@@ -66,9 +67,7 @@ def create_httpx_client(headers=None, timeout=None, auth=None):
 
 
 def create_insecure_httpx_client(headers=None, timeout=None, auth=None):
-    return _build_httpx_client(
-        headers=headers, timeout=timeout, auth=auth, verify=False
-    )
+    return _build_httpx_client(headers=headers, timeout=timeout, auth=auth, verify=False)
 
 
 class InMemoryTokenStorage(TokenStorage):
@@ -106,9 +105,7 @@ class MCPClient:
 
     def __init__(self):
         if not MCP_AVAILABLE:
-            log.warning(
-                "MCP libraries are not installed. MCPClient will fail to connect."
-            )
+            log.warning("MCP libraries are not installed. MCPClient will fail to connect.")
         self.session: Optional[ClientSession] = None
         self.exit_stack: Optional[AsyncExitStack] = None
         self._transport: str = "http"
@@ -162,17 +159,13 @@ class MCPClient:
                 else:
                     # Transport http / streamable_http
                     http_client_factory = (
-                        create_httpx_client
-                        if verify_ssl
-                        else create_insecure_httpx_client
+                        create_httpx_client if verify_ssl else create_insecure_httpx_client
                     )
 
                     # Gestion OAuth
                     if auth_type == "oauth" and auth_config:
                         client_metadata = OAuthClientMetadata(
-                            client_name=auth_config.get(
-                                "client_name", "ETHAN Core"
-                            ),
+                            client_name=auth_config.get("client_name", "ETHAN Core"),
                             redirect_uris=[
                                 auth_config.get(
                                     "redirect_uri",
@@ -191,17 +184,11 @@ class MCPClient:
                         url,
                         http_client=http_client_factory(headers=headers),
                     )
-                    transport_streams = await exit_stack.enter_async_context(
-                        streams_context
-                    )
+                    transport_streams = await exit_stack.enter_async_context(streams_context)
                     read_stream, write_stream = transport_streams
 
-                self._session_context = ClientSession(
-                    read_stream, write_stream
-                )
-                self.session = await exit_stack.enter_async_context(
-                    self._session_context
-                )
+                self._session_context = ClientSession(read_stream, write_stream)
+                self.session = await exit_stack.enter_async_context(self._session_context)
                 with anyio.fail_after(10):
                     await self.session.initialize()
                 self.exit_stack = exit_stack.pop_all()
@@ -216,20 +203,20 @@ class MCPClient:
             Liste de specs d'outils : ``{name, description, parameters}``.
         """
         if not self.session:
-            raise RuntimeError('MCP client is not connected.')
+            raise RuntimeError("MCP client is not connected.")
 
         result = await self.session.list_tools()
         tools = result.tools
 
         tool_specs = []
         for tool in tools:
-            tool_specs.append({
-                'name': tool.name,
-                'description': tool.description,
-                'parameters': getattr(
-                    tool, 'input_schema', getattr(tool, 'inputSchema', {})
-                )
-            })
+            tool_specs.append(
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": getattr(tool, "input_schema", getattr(tool, "inputSchema", {})),
+                }
+            )
 
         return tool_specs
 
@@ -244,14 +231,14 @@ class MCPClient:
             Contenu du résultat (liste de blocs content).
         """
         if not self.session:
-            raise RuntimeError('MCP client is not connected.')
+            raise RuntimeError("MCP client is not connected.")
 
         result = await self.session.call_tool(function_name, function_args)
         if not result:
-            raise Exception('No result returned from MCP tool call.')
+            raise Exception("No result returned from MCP tool call.")
 
-        result_dict = result.model_dump(mode='json')
-        result_content = result_dict.get('content', {})
+        result_dict = result.model_dump(mode="json")
+        result_content = result_dict.get("content", {})
 
         if getattr(result, "isError", False):
             raise Exception(result_content)
@@ -271,11 +258,11 @@ class MCPClient:
             with anyio.fail_after(5.0):
                 await exit_stack.aclose()
         except TimeoutError:
-            log.warning('MCPClient.disconnect() timed out after 5s')
+            log.warning("MCPClient.disconnect() timed out after 5s")
         except RuntimeError as exc:
-            log.debug('MCPClient.disconnect() suppressed RuntimeError: %s', exc)
+            log.debug("MCPClient.disconnect() suppressed RuntimeError: %s", exc)
         except Exception as exc:
-            log.debug('MCPClient.disconnect() error: %s', exc)
+            log.debug("MCPClient.disconnect() error: %s", exc)
 
     async def __aenter__(self):
         if self.exit_stack:

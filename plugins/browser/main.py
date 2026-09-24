@@ -10,10 +10,8 @@ Capabilities:
   - execute_javascript: Execute JavaScript in page context
 """
 
-import asyncio
 import base64
 import logging
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)

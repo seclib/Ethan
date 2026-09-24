@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 class Capability:
     """A capability declared by a module"""
-    
+
     def __init__(
         self,
         name: str,
@@ -29,7 +29,7 @@ class Capability:
         self.state_writes = state_writes or []
         self.dependencies = dependencies or []
         self.shared = shared
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -43,7 +43,7 @@ class Capability:
             "dependencies": self.dependencies,
             "shared": self.shared,
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Capability":
         return cls(
@@ -62,16 +62,16 @@ class Capability:
 
 class CapabilityRegistry:
     """Registry of all module capabilities"""
-    
+
     def __init__(self):
         self._capabilities: Dict[str, Capability] = {}
         self._modules: Dict[str, List[str]] = {}
-        
+
     async def start(self) -> None:
         """Initialize the registry"""
         # Register built-in capabilities
         self._register_builtin()
-        
+
     def _register_builtin(self) -> None:
         """Register built-in capabilities"""
         builtins = [
@@ -100,42 +100,40 @@ class CapabilityRegistry:
         ]
         for cap in builtins:
             self.register(cap)
-    
+
     def register(self, capability: Capability) -> None:
         """Register a capability"""
         if capability.name in self._capabilities:
             existing = self._capabilities[capability.name]
             if existing.version >= capability.version:
                 return  # Don't downgrade
-        
+
         self._capabilities[capability.name] = capability
-        
+
         if capability.module not in self._modules:
             self._modules[capability.module] = []
         if capability.name not in self._modules[capability.module]:
             self._modules[capability.module].append(capability.name)
-    
+
     def unregister(self, name: str) -> None:
         """Unregister a capability"""
         if name in self._capabilities:
             cap = self._capabilities.pop(name)
             if cap.module in self._modules:
-                self._modules[cap.module] = [
-                    c for c in self._modules[cap.module] if c != name
-                ]
-    
+                self._modules[cap.module] = [c for c in self._modules[cap.module] if c != name]
+
     def get(self, name: str) -> Optional[Capability]:
         """Get a capability by name"""
         return self._capabilities.get(name)
-    
+
     def find(self, query: str) -> List[Capability]:
         """Find capabilities matching a query"""
         results = []
         for cap in self._capabilities.values():
-            if (query in cap.name or query in cap.description):
+            if query in cap.name or query in cap.description:
                 results.append(cap)
         return results
-    
+
     def list_by_module(self, module: str) -> List[Capability]:
         """List capabilities for a module"""
         caps = []
@@ -143,11 +141,11 @@ class CapabilityRegistry:
             if name in self._capabilities:
                 caps.append(self._capabilities[name])
         return caps
-    
+
     def list_all(self) -> List[Capability]:
         """List all registered capabilities"""
         return list(self._capabilities.values())
-    
+
     def validate_dependencies(self, name: str) -> bool:
         """Validate that a capability's dependencies are met"""
         cap = self.get(name)
@@ -157,7 +155,7 @@ class CapabilityRegistry:
             if dep not in self._capabilities:
                 return False
         return True
-    
+
     def get_conflicts(self, capability: Capability) -> List[str]:
         """Check for write conflicts with existing capabilities"""
         conflicts = []
@@ -168,20 +166,17 @@ class CapabilityRegistry:
                 if key in existing.state_writes and not existing.shared:
                     conflicts.append(f"{existing.name} writes to {key}")
         return conflicts
-    
+
     @property
     def count(self) -> int:
         return len(self._capabilities)
-    
+
     @property
     def modules(self) -> List[str]:
         return list(self._modules.keys())
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "capabilities": {
-                name: cap.to_dict()
-                for name, cap in self._capabilities.items()
-            },
+            "capabilities": {name: cap.to_dict() for name, cap in self._capabilities.items()},
             "modules": self._modules,
         }

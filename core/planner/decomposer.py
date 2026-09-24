@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from core.planner.types import Goal, Task, Priority
+from core.planner.types import Goal, Priority, Task
 
 logger = logging.getLogger(__name__)
 
@@ -74,79 +74,101 @@ class TaskDecomposer:
 
         # Règle: Docker build
         if "docker" in desc_lower and "build" in desc_lower:
-            tasks.append(Task(
-                id="t1",
-                capability="docker.build",
-                params={"image": "app"},
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t2",
-                capability="docker.push",
-                depends_on=["t1"],
-                priority=Priority.HIGH,
-            ))
+            tasks.append(
+                Task(
+                    id="t1",
+                    capability="docker.build",
+                    params={"image": "app"},
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t2",
+                    capability="docker.push",
+                    depends_on=["t1"],
+                    priority=Priority.HIGH,
+                )
+            )
 
         # Règle: Deploy
         elif "deploy" in desc_lower:
-            tasks.append(Task(
-                id="t1",
-                capability="deploy.prepare",
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t2",
-                capability="deploy.execute",
-                depends_on=["t1"],
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t3",
-                capability="health.check",
-                depends_on=["t2"],
-                priority=Priority.MEDIUM,
-            ))
+            tasks.append(
+                Task(
+                    id="t1",
+                    capability="deploy.prepare",
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t2",
+                    capability="deploy.execute",
+                    depends_on=["t1"],
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t3",
+                    capability="health.check",
+                    depends_on=["t2"],
+                    priority=Priority.MEDIUM,
+                )
+            )
 
         # Règle: Test
         elif "test" in desc_lower:
-            tasks.append(Task(
-                id="t1",
-                capability="test.run",
-                priority=Priority.MEDIUM,
-            ))
+            tasks.append(
+                Task(
+                    id="t1",
+                    capability="test.run",
+                    priority=Priority.MEDIUM,
+                )
+            )
 
         # Règle: Build + Deploy
         elif "build" in desc_lower and "deploy" in desc_lower:
-            tasks.append(Task(
-                id="t1",
-                capability="docker.build",
-                params={"image": "app"},
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t2",
-                capability="docker.push",
-                depends_on=["t1"],
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t3",
-                capability="deploy.prepare",
-                depends_on=["t2"],
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t4",
-                capability="deploy.execute",
-                depends_on=["t3"],
-                priority=Priority.HIGH,
-            ))
-            tasks.append(Task(
-                id="t5",
-                capability="health.check",
-                depends_on=["t4"],
-                priority=Priority.MEDIUM,
-            ))
+            tasks.append(
+                Task(
+                    id="t1",
+                    capability="docker.build",
+                    params={"image": "app"},
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t2",
+                    capability="docker.push",
+                    depends_on=["t1"],
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t3",
+                    capability="deploy.prepare",
+                    depends_on=["t2"],
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t4",
+                    capability="deploy.execute",
+                    depends_on=["t3"],
+                    priority=Priority.HIGH,
+                )
+            )
+            tasks.append(
+                Task(
+                    id="t5",
+                    capability="health.check",
+                    depends_on=["t4"],
+                    priority=Priority.MEDIUM,
+                )
+            )
 
         return tasks
 

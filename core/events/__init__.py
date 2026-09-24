@@ -10,10 +10,9 @@ Les anciennes importations continuent de fonctionner :
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from core.bus.memory_bus import InMemoryBus
 from core.ethan_types.event import Event, EventType
@@ -22,9 +21,10 @@ logger = logging.getLogger(__name__)
 
 # ─── Rétrocompatibilité : EventHandler (ABC) ──────────────────────
 
+
 class EventHandler(ABC):
     """Interface abstraite pour les handlers d'événements.
-    
+
     Rétrocompatible avec l'ancienne API.
     Utilisation recommandée : utiliser directement les callbacks du bus.
     """
@@ -36,6 +36,7 @@ class EventHandler(ABC):
 
 
 # ─── Rétrocompatibilité : EventBus (existant) ─────────────────────
+
 
 class EventBus:
     """Bus d'événements central (ancienne API, rétrocompatible).

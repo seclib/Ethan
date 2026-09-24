@@ -1,4 +1,5 @@
 """Debug UI — user-facing diagnosis and fix presentation."""
+
 from interfaces.cli.core import colors as clr
 
 
@@ -24,7 +25,7 @@ class DebugUI:
                 [
                     "",
                     f"  {clr.C.GREEN}✓ Auto-fix available:{clr.C.RESET} {recipe.auto_patch}",
-                    f"  Applying automatically and retrying...",
+                    "  Applying automatically and retrying...",
                 ]
             )
 
@@ -38,11 +39,7 @@ class DebugUI:
         else:
             status = f"{clr.C.RED}✗ Command still failing{clr.C.RESET}"
 
-        return (
-            f""
-            f"  {status}"
-            f"  Attempts: {result.attempt}, Exit code: {result.exit_code}"
-        )
+        return f"  {status}  Attempts: {result.attempt}, Exit code: {result.exit_code}"
 
     @staticmethod
     def show_manual_escalation(recipe) -> str:

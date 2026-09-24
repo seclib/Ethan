@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import asyncio
 
-from mcp import types
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
+
+from mcp import types
 
 
 async def _list_tools(ctx, params) -> types.ListToolsResult:
@@ -35,9 +36,7 @@ async def _call_tool(ctx, params) -> types.CallToolResult:
     if params.name != "echo":
         raise ValueError(f"Unknown tool: {params.name}")
     message = str((params.arguments or {}).get("message", ""))
-    return types.CallToolResult(
-        content=[types.TextContent(type="text", text=message)]
-    )
+    return types.CallToolResult(content=[types.TextContent(type="text", text=message)])
 
 
 server = Server("ethan-echo-test", on_list_tools=_list_tools, on_call_tool=_call_tool)
@@ -45,9 +44,7 @@ server = Server("ethan-echo-test", on_list_tools=_list_tools, on_call_tool=_call
 
 async def serve() -> None:
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream, write_stream, server.create_initialization_options()
-        )
+        await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ if _ROOT not in sys.path:
 def _get_runner(groups, verbose):
     """Lazy import of benchmarks to avoid coupling with tests package."""
     from tests.benchmarks.benchmark_runner import BenchmarkRunner
+
     return BenchmarkRunner(groups=groups, verbose=verbose)
 
 

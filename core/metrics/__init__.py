@@ -7,6 +7,6 @@ Collecte de métriques pour monitoring :
 - System resources
 """
 
-from .telemetry import TelemetryCollector, MetricPoint
+from .telemetry import MetricPoint, TelemetryCollector
 
 __all__ = ["TelemetryCollector", "MetricPoint"]

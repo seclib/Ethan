@@ -16,7 +16,16 @@ class IntentionAnalyzer:
     def __init__(self):
         self._patterns = {
             IntentType.COMMAND: ["!", "executer", "exécuter", "run", "lancer"],
-            IntentType.QUERY: ["?", "quoi", "qui", "où", "quand", "comment", "pourquoi", "explique"],
+            IntentType.QUERY: [
+                "?",
+                "quoi",
+                "qui",
+                "où",
+                "quand",
+                "comment",
+                "pourquoi",
+                "explique",
+            ],
             IntentType.CONVERSATION: ["bonjour", "salut", "aide", "help", "merci"],
             IntentType.TASK: ["fait", "crée", "génère", "déploie", "build", "test"],
         }

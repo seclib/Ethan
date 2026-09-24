@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from core.bus.interface import EventBus
-from core.state.redis_state import RedisLiveState
-from core.state.postgres_state import PostgresPersistentState
 from core.ethan_types.event import Event
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IntegrityReport:
     """Result of system integrity check."""
+
     ok: bool = True
     modules_ok: bool = True
     event_bus_ok: bool = True
@@ -57,11 +58,14 @@ class IntegrityChecker:
 
         # 1. Check event bus
         try:
-            await self.bus.publish("bootstrap.integrity.check", Event(
-                type="bootstrap.integrity.check",
-                source="integrity-checker",
-                payload={},
-            ))
+            await self.bus.publish(
+                "bootstrap.integrity.check",
+                Event(
+                    type="bootstrap.integrity.check",
+                    source="integrity-checker",
+                    payload={},
+                ),
+            )
             report.event_bus_ok = True
         except Exception as e:
             report.event_bus_ok = False
@@ -80,8 +84,9 @@ class IntegrityChecker:
 
         # 3. Check modules — gracefully degrade if registry unavailable
         try:
-            from core.registry.module import ModuleRegistry
             from core.registry.capability import CapabilityRegistry
+            from core.registry.module import ModuleRegistry
+
             cap_registry = CapabilityRegistry()
             registry = ModuleRegistry(self.bus, cap_registry)
             modules = registry.list_all()
@@ -92,7 +97,9 @@ class IntegrityChecker:
             report.issues.append(f"Module check failed: {e}")
 
         report.ok = report.event_bus_ok and report.state_ok and report.modules_ok
-        report.checked_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        report.checked_at = (
+            __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        )
         report.duration_ms = (asyncio.get_event_loop().time() - start) * 1000
 
         logger.info(f"Integrity check completed: ok={report.ok} issues={len(report.issues)}")

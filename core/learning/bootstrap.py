@@ -27,7 +27,9 @@ async def main():
 
     bus = NatsEventBus()
     redis = RedisLiveState(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-    pg = PostgresPersistentState(os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@localhost:5432/ethan"))
+    pg = PostgresPersistentState(
+        os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@localhost:5432/ethan")
+    )
     connect_timeout = float(os.getenv("CONNECT_TIMEOUT", "10"))
     startup_timeout = float(os.getenv("STARTUP_TIMEOUT", "30"))
 

@@ -1,9 +1,7 @@
 """ETHAN think — structured reasoning mode."""
 
-import sys
-import time
 from interfaces.cli.core import colors as clr
-from interfaces.cli.core.loading import StepProgress, Thinker
+from interfaces.cli.core.loading import StepProgress
 from interfaces.cli.core.intent import PromptIntelligence
 
 try:
@@ -19,6 +17,7 @@ try:
             return
         ThinkRunner(task, verbose=verbose, quiet=quiet).run()
 except ImportError:
+
     def cmd_think(args):
         task = " ".join(args)
         ThinkRunner(task).run()
@@ -75,7 +74,7 @@ class ThinkRunner:
         intent = PromptIntelligence.classify(task)
         if intent.kind == "intent":
             target = intent.params.get("target", "task")
-            return [f"Analyze {target}", f"Execute {target}", f"Report status"]
+            return [f"Analyze {target}", f"Execute {target}", "Report status"]
         if intent.kind == "smart_cmd":
             return [f"Run: {task}", "Verify result"]
         return [f"Process: {task}", "Confirm success"]

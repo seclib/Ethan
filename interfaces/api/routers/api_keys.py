@@ -16,12 +16,11 @@ Règle de sécurité (policy « secret once ») :
 Aucune logique métier ici : délégation totale à core/auth/api_keys.py.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-
 from core.auth import Permission
 from core.auth.api_keys import APIKeyManager
+from fastapi import APIRouter, Depends, HTTPException
 from interfaces.api.auth import require_permission
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/v1/api-keys", tags=["api-keys"])
 
@@ -87,7 +86,9 @@ async def create_api_key(
     )
     key_id = result.get("id", "")
     _audit_log(
-        "create", key_id, user,
+        "create",
+        key_id,
+        user,
         name=body.name.strip(),
         scopes=body.scopes,
         expires_at=body.expires_at,
@@ -116,10 +117,7 @@ async def rotate_api_key(
     if not user:
         raise HTTPException(422, "authenticated user required")
     manager = _require_manager()
-    existing = [
-        k for k in await manager.list_keys()
-        if k.get("id") == key_id and k.get("active")
-    ]
+    existing = [k for k in await manager.list_keys() if k.get("id") == key_id and k.get("active")]
     if not existing:
         raise HTTPException(404, "API key not found or already revoked")
     result = await manager.rotate_key(key_id)

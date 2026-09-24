@@ -54,7 +54,6 @@ class UX:
     def show_help(topic: str | None = None) -> None:
         """Display minimal help."""
         from interfaces.cli.core import colors as clr
-        import sys
 
         help_map = {
             None: (
@@ -144,7 +143,11 @@ class UX:
         errors = {
             "unknown_command": lambda ctx: (
                 f"{clr.C.RED}{clr.I.CROSS} Unknown command: '{ctx['input']}'{clr.C.RESET}\n"
-                + (f"  {clr.C.DIM}{clr.I.ARROW} Did you mean? {ctx['suggestion']}{clr.C.RESET}\n" if ctx.get('suggestion') else "")
+                + (
+                    f"  {clr.C.DIM}{clr.I.ARROW} Did you mean? {ctx['suggestion']}{clr.C.RESET}\n"
+                    if ctx.get("suggestion")
+                    else ""
+                )
                 + f"  {clr.C.CYAN}{clr.I.ARROW} Try: ethan --help{clr.C.RESET}"
             ),
             "missing_argument": lambda ctx: (

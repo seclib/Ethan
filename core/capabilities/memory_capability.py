@@ -1,5 +1,13 @@
 """Memory Capability — Ethan OS"""
-from core.capabilities import Capability, CapabilityContext, CapabilityResult, CapabilityStatus, RiskLevel
+
+from core.capabilities import (
+    Capability,
+    CapabilityContext,
+    CapabilityResult,
+    CapabilityStatus,
+    RiskLevel,
+)
+
 
 class MemoryCapability(Capability):
     name = "memory"
@@ -23,7 +31,9 @@ class MemoryCapability(Capability):
             elif action == "search":
                 result = await self.memory_manager.search(kwargs.get("query"), **kwargs)
             else:
-                return CapabilityResult(status=CapabilityStatus.FAILED, error=f"Unknown action: {action}")
+                return CapabilityResult(
+                    status=CapabilityStatus.FAILED, error=f"Unknown action: {action}"
+                )
             return CapabilityResult(status=CapabilityStatus.SUCCESS, output=result)
         except Exception as e:
             return CapabilityResult(status=CapabilityStatus.FAILED, error=str(e))

@@ -17,9 +17,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.llm.client import LLMClient
 from core.llm.registry import LLMProviderRegistry
 from core.llm.selector import LLMSelector
-from core.llm.client import LLMClient
 from core.llm.tracker import CostTracker
 from core.llm.types import ChatMessage, ChatResponse, LLMRequirements, ModelInfo
 

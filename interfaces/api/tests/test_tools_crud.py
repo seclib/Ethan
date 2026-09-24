@@ -16,17 +16,16 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from core.tools.manager import ToolManager
+from core.tools.types import Tool
 from fastapi import HTTPException
-
 from routers.capabilities import (
     CapabilityManagers,
-    set_capability_managers,
     create_tool,
     delete_tool,
     list_tools,
+    set_capability_managers,
 )
-from core.tools.manager import ToolManager
-from core.tools.types import Tool
 
 
 def _install_real_manager() -> ToolManager:

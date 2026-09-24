@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from uuid import uuid4
 
 
 @dataclass
 class Experience:
     """Structured experience extracted from a system event."""
+
     experience_id: str = field(default_factory=lambda: str(uuid4()))
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     event_type: str = ""
@@ -44,6 +45,7 @@ class Experience:
 @dataclass
 class Pattern:
     """Detected pattern from multiple experiences."""
+
     pattern_id: str = field(default_factory=lambda: str(uuid4()))
     pattern_type: str = ""  # failure_repeat | success_repeat | inefficiency
     skill: str = ""
@@ -69,6 +71,7 @@ class Pattern:
 @dataclass
 class RuleProposal:
     """Structured improvement proposal."""
+
     rule_id: str = field(default_factory=lambda: str(uuid4()))
     rule_type: str = ""  # parameter_tuning | capability_enhancement | workflow_optimization
     condition: str = ""
@@ -94,6 +97,7 @@ class RuleProposal:
 @dataclass
 class SelfModel:
     """System self-model — skills and reliability."""
+
     skills: Dict[str, float] = field(default_factory=dict)  # skill -> confidence 0.0-1.0
     reliability: float = 0.0  # 0.0-1.0
     error_rate: float = 0.0  # 0.0-1.0

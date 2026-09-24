@@ -10,9 +10,8 @@ Responsabilités :
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from core.planner.types import Plan, Task, Priority, TaskDAG
+from core.planner.types import Plan, Priority
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +133,7 @@ class PlanOptimizer:
 
         # Reconstruire le DAG
         from core.planner.dag import DAGBuilder
+
         builder = DAGBuilder()
         plan.dag = builder.build(plan.tasks)
 

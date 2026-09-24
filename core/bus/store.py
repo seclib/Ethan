@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StoredEvent:
     """Événement stocké avec métadonnées."""
+
     event: Event
     position: int
     stored_at: datetime
@@ -25,6 +26,7 @@ class StoredEvent:
 @dataclass
 class Checkpoint:
     """Checkpoint pour replay."""
+
     id: str
     subject_pattern: str
     timestamp: datetime
@@ -34,7 +36,7 @@ class Checkpoint:
 
 class EventStore:
     """Stocke les événements pour replay et audit.
-    
+
     Responsabilités :
     - Append-only log
     - Rétention configurable
@@ -58,7 +60,7 @@ class EventStore:
             Position dans le log
         """
         self._position += 1
-        
+
         stored_event = StoredEvent(
             event=event,
             position=self._position,
@@ -110,12 +112,12 @@ class EventStore:
             Événements
         """
         logger.info(f"Replaying events from {start_time} to {end_time or 'now'}")
-        
+
         count = 0
         async for event in self.read(subject_pattern, start_time, end_time):
             count += 1
             yield event
-        
+
         logger.info(f"Replay complete: {count} events")
 
     async def replay_from_checkpoint(self, checkpoint_id: str) -> AsyncIterator[Event]:

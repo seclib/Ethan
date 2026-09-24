@@ -21,14 +21,14 @@ class DuplicateCategory(str, Enum):
     Values are stable strings so reports serialize cleanly to JSON.
     """
 
-    EXACT_DUPLICATE = "exact_duplicate"          # same hash + same name
-    PROBABLE_DUPLICATE = "probable_duplicate"    # same hash, different name
+    EXACT_DUPLICATE = "exact_duplicate"  # same hash + same name
+    PROBABLE_DUPLICATE = "probable_duplicate"  # same hash, different name
     SAME_NAME_DIFFERENT_CONTENT = "same_name_different_content"
-    DIFFERENT_VERSION = "different_version"      # same name/location lineage
+    DIFFERENT_VERSION = "different_version"  # same name/location lineage
     SAME_CONTENT_DIFFERENT_LOCATION = "same_content_different_location"
-    ALREADY_INDEXED = "already_indexed"          # file present + RAG doc exists
-    ORPHAN_DOCUMENT = "orphan_document"          # RAG doc without source file
-    BROKEN_REFERENCE = "broken_reference"        # points to a missing source
+    ALREADY_INDEXED = "already_indexed"  # file present + RAG doc exists
+    ORPHAN_DOCUMENT = "orphan_document"  # RAG doc without source file
+    BROKEN_REFERENCE = "broken_reference"  # points to a missing source
 
 
 class DuplicateAction(str, Enum):
@@ -61,7 +61,7 @@ class ScannedItem:
     name: str
     size: int = 0
     content_type: str = ""
-    content_hash: str = ""                       # SHA-256 (empty if unreadable)
+    content_hash: str = ""  # SHA-256 (empty if unreadable)
     created_at: str = ""
     updated_at: str = ""
     locations: list[str] = field(default_factory=list)  # storage paths / uris
@@ -97,7 +97,7 @@ class DuplicateGroup:
     group_id: str
     category: DuplicateCategory
     items: list[ScannedItem]
-    confidence: float = 1.0                       # 0.0 – 1.0
+    confidence: float = 1.0  # 0.0 – 1.0
     recommended_action: DuplicateAction = DuplicateAction.KEEP_BOTH
 
     def to_dict(self) -> dict[str, Any]:

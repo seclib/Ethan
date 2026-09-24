@@ -1,13 +1,14 @@
 """Self-healing engine — automated fix patchers."""
+
 import os
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class PatchResult:
     """Result of patch application."""
+
     success: bool
     message: str
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from core.ethan_types.sdk.metacognition import ModulePriority
 from core.ethan_types.sdk.learning import SelfModel
+from core.ethan_types.sdk.metacognition import ModulePriority
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,14 @@ class ModulePrioritizer:
             skill_conf = self_model.skills.get(skill_key, 0.5) if self_model else 0.5
             score = base_score * skill_conf * mode_multiplier
 
-            scored.append({
-                "module_id": m.get("id"),
-                "score": round(score, 3),
-                "match": match,
-                "skill": skill_key,
-            })
+            scored.append(
+                {
+                    "module_id": m.get("id"),
+                    "score": round(score, 3),
+                    "match": match,
+                    "skill": skill_key,
+                }
+            )
 
         scored.sort(key=lambda x: x["score"], reverse=True)
 

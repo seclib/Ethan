@@ -10,6 +10,7 @@ from typing import Any
 
 class TaskState(str, Enum):
     """États possibles d'une tâche."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -26,6 +27,7 @@ class Task:
     Une tâche est l'unité d'exécution la plus petite.
     Elle est assignée à une capability spécifique.
     """
+
     id: str = ""
     capability: str = ""  # Nom de la capability à invoquer
     params: dict[str, Any] = field(default_factory=dict)
@@ -48,6 +50,7 @@ class Plan:
     Un plan est produit par le Planner à partir d'un Goal.
     Il contient toutes les tâches nécessaires et leurs dépendances.
     """
+
     id: str = ""
     goal_id: str = ""
     tasks: list[Task] = field(default_factory=list)
@@ -64,6 +67,7 @@ class TaskDAG:
     Utilisé par l'Orchestrator pour déterminer
     l'ordre d'exécution parallèle/séquentiel.
     """
+
     levels: list[list[Task]] = field(default_factory=list)
 
     def add_level(self, tasks: list[Task]) -> None:

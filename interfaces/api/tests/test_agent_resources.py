@@ -11,15 +11,14 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
-from routers import v1
-from interfaces.api.routers.folders import set_folder_manager
 from core.agents import AgentManager
 from core.folders import FolderManager
 from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore
+from fastapi import HTTPException
+from interfaces.api.routers.folders import set_folder_manager
+from routers import v1
 
 
 class _FakeToolManager:
@@ -35,8 +34,10 @@ class _FakeToolManager:
 
 TOOLS = {
     "tool-web": {
-        "id": "tool-web", "name": "web_search",
-        "description": "Recherche web", "provider": "builtin",
+        "id": "tool-web",
+        "name": "web_search",
+        "description": "Recherche web",
+        "provider": "builtin",
     },
 }
 
@@ -47,14 +48,16 @@ def real_services():
     rag = RAGPipeline(store=store)
     knowledge = KnowledgeManager(store=store)
     collections = KnowledgeCollectionManager(store=store, rag=rag)
-    folders = FolderManager(
-        store=store, knowledge=knowledge, collections=collections
-    )
+    folders = FolderManager(store=store, knowledge=knowledge, collections=collections)
     tool_manager = _FakeToolManager(TOOLS)
 
-    v1.set_core_domain_services(v1.CoreDomainServices(
-        agents=AgentManager(store=store), knowledge=knowledge, rag=rag,
-    ))
+    v1.set_core_domain_services(
+        v1.CoreDomainServices(
+            agents=AgentManager(store=store),
+            knowledge=knowledge,
+            rag=rag,
+        )
+    )
     v1.set_knowledge_collections(collections)
     set_folder_manager(folders)
     v1.set_tool_manager(tool_manager)
@@ -68,13 +71,21 @@ def real_services():
 
 # ── (SUITE) ──────────────────────────────────────────────────────────────────
 
+
 def test_create_agent_with_explicit_resource_selection():
     """POST /agents : les ressources sélectionnées sont persistées typées."""
     folder_id = asyncio.run(_create_folder())
-    agent = asyncio.run(v1.create_agent({
-        "name": "Scoped Agent", "provider": "fake",
-        "knowledge_ids": [], "tool_ids": ["tool-web"], "folder_ids": [folder_id],
-    }))
+    agent = asyncio.run(
+        v1.create_agent(
+            {
+                "name": "Scoped Agent",
+                "provider": "fake",
+                "knowledge_ids": [],
+                "tool_ids": ["tool-web"],
+                "folder_ids": [folder_id],
+            }
+        )
+    )
     assert agent["tool_ids"] == ["tool-web"]
     assert agent["folder_ids"] == [folder_id]
     assert agent["knowledge_ids"] == []
@@ -88,21 +99,36 @@ async def _create_folder():
 def test_create_agent_rejects_unknown_resources():
     """Knowledge ou tool inconnu → 422 (validation stricte)."""
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(v1.create_agent({
-            "name": "Bad Knowledge", "knowledge_ids": ["ghost-node"],
-        }))
+        asyncio.run(
+            v1.create_agent(
+                {
+                    "name": "Bad Knowledge",
+                    "knowledge_ids": ["ghost-node"],
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(v1.create_agent({
-            "name": "Bad Tool", "tool_ids": ["ghost-tool"],
-        }))
+        asyncio.run(
+            v1.create_agent(
+                {
+                    "name": "Bad Tool",
+                    "tool_ids": ["ghost-tool"],
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(v1.create_agent({
-            "name": "Bad Folder", "folder_ids": ["ghost-folder"],
-        }))
+        asyncio.run(
+            v1.create_agent(
+                {
+                    "name": "Bad Folder",
+                    "folder_ids": ["ghost-folder"],
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
 
@@ -122,14 +148,23 @@ def test_agent_resources_endpoint_shows_effective_tree():
     asyncio.run(folders.attach_resource(folder["id"], "knowledge", node.id))
     asyncio.run(folders.attach_resource(folder["id"], "collection", col["id"]))
 
-    agent_a = asyncio.run(v1.create_agent({
-        "name": "Folder Agent", "folder_ids": [folder["id"]],
-    }))
-    agent_b = asyncio.run(v1.create_agent({
-        "name": "Explicit Agent",
-        "knowledge_ids": [node.id],
-        "tool_ids": ["tool-web"],
-    }))
+    agent_a = asyncio.run(
+        v1.create_agent(
+            {
+                "name": "Folder Agent",
+                "folder_ids": [folder["id"]],
+            }
+        )
+    )
+    agent_b = asyncio.run(
+        v1.create_agent(
+            {
+                "name": "Explicit Agent",
+                "knowledge_ids": [node.id],
+                "tool_ids": ["tool-web"],
+            }
+        )
+    )
 
     tree_a = asyncio.run(v1.get_agent_resources(agent_a["id"]))
     assert [f["name"] for f in tree_a["folders"]] == ["Recon Kit"]
@@ -157,9 +192,14 @@ def test_agent_resources_endpoint_shows_effective_tree():
 def test_update_agent_resource_fields():
     """PUT /agents/{id} : ajout puis retrait de ressources autorisées."""
     agent = asyncio.run(v1.create_agent({"name": "Editable"}))
-    updated = asyncio.run(v1.update_agent(agent["id"], {
-        "tool_ids": ["tool-web"],
-    }))
+    updated = asyncio.run(
+        v1.update_agent(
+            agent["id"],
+            {
+                "tool_ids": ["tool-web"],
+            },
+        )
+    )
     assert updated["tool_ids"] == ["tool-web"]
 
     cleared = asyncio.run(v1.update_agent(agent["id"], {"tool_ids": []}))

@@ -10,6 +10,7 @@ from typing import Any
 
 class MissionStatus(str, Enum):
     """États possibles d'une mission."""
+
     PENDING = "pending"
     PLANNING = "planning"
     RUNNING = "running"
@@ -21,6 +22,7 @@ class MissionStatus(str, Enum):
 
 class StepStatus(str, Enum):
     """États possibles d'un step."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -32,6 +34,7 @@ class StepStatus(str, Enum):
 
 class MissionVerdict(str, Enum):
     """Verdicts possibles d'une mission."""
+
     SUCCESS = "success"
     FAILURE = "failure"
     PARTIAL = "partial"
@@ -41,6 +44,7 @@ class MissionVerdict(str, Enum):
 @dataclass
 class MissionStep:
     """Étape d'une mission."""
+
     id: str
     mission_id: str
     title: str
@@ -111,6 +115,7 @@ class MissionStep:
 @dataclass
 class Mission:
     """Mission — objectif long avec tâches et progression."""
+
     id: str
     title: str
     description: str = ""

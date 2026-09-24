@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Permission(Enum):
     """Permissions disponibles."""
+
     READ = "read"
     WRITE = "write"
     ADMIN = "admin"
@@ -25,6 +26,7 @@ class Permission(Enum):
 @dataclass
 class Role:
     """Rôle avec permissions associées."""
+
     name: str
     permissions: list[Permission] = field(default_factory=list)
     description: str = ""
@@ -32,7 +34,7 @@ class Role:
 
 class RBACEngine:
     """Moteur de règles RBAC (Role-Based Access Control).
-    
+
     Ce système gère uniquement la définition des rôles et de leurs permissions.
     L'authentification des utilisateurs (JWT, API Keys) est gérée au niveau de l'API Gateway.
     """
@@ -76,12 +78,14 @@ class RBACEngine:
             return False
         return permission in role.permissions
 
-    def has_permissions(self, role_name: str, permissions: list[Permission], require_all: bool = True) -> bool:
+    def has_permissions(
+        self, role_name: str, permissions: list[Permission], require_all: bool = True
+    ) -> bool:
         """Check if a role has multiple permissions."""
         role = self._roles.get(role_name)
         if not role:
             return False
-            
+
         if require_all:
             return all(p in role.permissions for p in permissions)
         return any(p in role.permissions for p in permissions)

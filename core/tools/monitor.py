@@ -24,7 +24,9 @@ class ToolMonitor:
     def __init__(self):
         self._executions: list[dict[str, Any]] = []
 
-    async def record_execution(self, tool: Tool, result: ToolResult, params: dict[str, Any]) -> None:
+    async def record_execution(
+        self, tool: Tool, result: ToolResult, params: dict[str, Any]
+    ) -> None:
         """Enregistre une exécution.
 
         Args:
@@ -81,11 +83,18 @@ class ToolMonitor:
         """
         # Anomalie: temps anormalement long
         if result.duration_ms > tool.avg_duration_ms * 3:
-            logger.warning(f"Anomaly detected: {tool.id} took {result.duration_ms:.1f}ms (avg: {tool.avg_duration_ms:.1f}ms)")
+            logger.warning(
+                "Anomaly detected: %s took %.1fms (avg: %.1fms)",
+                tool.id,
+                result.duration_ms,
+                tool.avg_duration_ms,
+            )
 
         # Anomalie: taux de succès en baisse
         if tool.total_calls >= 10 and tool.success_rate < 0.5:
-            logger.warning(f"Anomaly detected: {tool.id} success rate dropped to {tool.success_rate:.2f}")
+            logger.warning(
+                f"Anomaly detected: {tool.id} success rate dropped to {tool.success_rate:.2f}"
+            )
 
     def get_tool_stats(self, tool_id: str) -> dict[str, Any] | None:
         """Récupère les statistiques d'un outil.
@@ -139,8 +148,7 @@ class ToolMonitor:
         cutoff_str = cutoff.isoformat()
 
         recent = [
-            e for e in self._executions
-            if e["tool_id"] == tool_id and e["timestamp"] >= cutoff_str
+            e for e in self._executions if e["tool_id"] == tool_id and e["timestamp"] >= cutoff_str
         ]
 
         if not recent:

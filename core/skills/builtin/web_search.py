@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from core.skills.types import Skill, SkillStep
 from core.skills.builtin.base import BaseBuiltinSkill
+from core.skills.types import Skill, SkillStep
 
 
 class WebSearchSkill(BaseBuiltinSkill):
     """Skill de recherche web.
-    
+
     Outils utilisés :
     - web_search : Rechercher sur Internet
     - web_scraper : Extraire le contenu

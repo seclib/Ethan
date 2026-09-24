@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 @dataclass
 class Dependency:
     """Dépendance vers une autre capacité."""
+
     name: str
     version: str = "*"
     optional: bool = False
@@ -20,6 +21,7 @@ class Capability:
     Une capabilité est un contrat : le module promet de savoir
     traiter un certain type d'inputs et produire des outputs.
     """
+
     name: str
     version: str = "1.0.0"
     module: str = ""

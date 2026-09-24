@@ -44,7 +44,7 @@ class ModuleManifest:
 
 class CognitiveModule(ABC):
     """Interface for all cognitive modules in Ethan.
-    
+
     Each module:
     - Runs as an independent service
     - Communicates only via NATS
@@ -65,7 +65,7 @@ class CognitiveModule(ABC):
     @abstractmethod
     async def handle_event(self, event: Event) -> Optional[Event]:
         """Process an incoming event and optionally return a response.
-        
+
         Module must be stateless — state lives in Kernel's StateManager.
         """
         ...

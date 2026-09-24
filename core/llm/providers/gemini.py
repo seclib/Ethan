@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.llm.providers.base import LLMProvider
 from core.llm.types import ChatMessage, ChatResponse, ModelInfo
@@ -25,6 +24,7 @@ class GeminiProvider(LLMProvider):
         """Initialise le client."""
         try:
             import google.generativeai as genai
+
             genai.configure(api_key=self._api_key)
             self._client = genai
             logger.info("Gemini provider initialized")
@@ -46,10 +46,12 @@ class GeminiProvider(LLMProvider):
         # Convertir les messages au format Gemini
         gemini_messages = []
         for msg in messages:
-            gemini_messages.append({
-                "role": msg.role,
-                "parts": [msg.content],
-            })
+            gemini_messages.append(
+                {
+                    "role": msg.role,
+                    "parts": [msg.content],
+                }
+            )
 
         model_instance = self._client.GenerativeModel(model or self.default_model)
 
@@ -72,17 +74,25 @@ class GeminiProvider(LLMProvider):
             },
         )
 
-    async def chat_stream(self, messages: list[ChatMessage], model: str | None = None, temperature: float = 0.7, max_tokens: int | None = None):
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ):
         """Streaming chat."""
         if not self._client:
             raise RuntimeError("Gemini provider not initialized")
 
         gemini_messages = []
         for msg in messages:
-            gemini_messages.append({
-                "role": msg.role,
-                "parts": [msg.content],
-            })
+            gemini_messages.append(
+                {
+                    "role": msg.role,
+                    "parts": [msg.content],
+                }
+            )
 
         model_instance = self._client.GenerativeModel(model or self.default_model)
 

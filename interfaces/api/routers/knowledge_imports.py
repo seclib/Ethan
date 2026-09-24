@@ -79,9 +79,7 @@ async def import_knowledge_batch(
     batch = [(f.filename or "unnamed", await _to_bytes(f)) for f in files]
     if not batch:
         raise HTTPException(422, "No files")
-    job_id = _get_import_manager().start_import(
-        _user_id(request), batch, collection_id
-    )
+    job_id = _get_import_manager().start_import(_user_id(request), batch, collection_id)
     return {"job_id": job_id, "collection_id": collection_id, "count": len(batch)}
 
 

@@ -1,7 +1,7 @@
 """ETHAN suggest — smart suggestions."""
+
 from interfaces.cli.registry import register
 from interfaces.cli.core import memory as mem
-from interfaces.cli.core.ux import UX
 
 
 @register("suggest")

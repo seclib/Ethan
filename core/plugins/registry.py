@@ -50,9 +50,7 @@ class PluginRegistry:
         Les enregistrements inconnus du catalogue (plugins custom ou
         historiques) sont conservés tels quels (source=custom).
         """
-        records = {
-            r.get("id"): r for r in await self._store.list(_DOMAIN) if r.get("id")
-        }
+        records = {r.get("id"): r for r in await self._store.list(_DOMAIN) if r.get("id")}
         seen: set[str] = set()
         result: list[dict[str, Any]] = []
 
@@ -401,6 +399,7 @@ class PluginRegistry:
 
 # ── Routage conversation → plugins ─────────────────────────────────────
 
+
 async def resolve_conversation_tools(
     registry: PluginRegistry,
     plugin_ids: list[str],
@@ -449,5 +448,3 @@ def get_plugin_registry() -> PluginRegistry:
 
 
 __all__ = ["PluginRegistry", "set_plugin_registry", "get_plugin_registry"]
-
-

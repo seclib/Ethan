@@ -1,5 +1,7 @@
 """State response model."""
+
 from pydantic import BaseModel
+
 
 class StateResponse(BaseModel):
     mode: str = "idle"

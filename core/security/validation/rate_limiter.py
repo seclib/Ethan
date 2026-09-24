@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from typing import Any
 
 from core.security.types import Action, SecurityContext, ValidationResult
 
@@ -34,9 +33,7 @@ class RateLimiter:
         now = time.time()
 
         # Nettoyer les entrées expirées
-        self._counts[actor_id] = [
-            t for t in self._counts[actor_id] if now - t < self._window
-        ]
+        self._counts[actor_id] = [t for t in self._counts[actor_id] if now - t < self._window]
 
         # Vérifier la limite
         if len(self._counts[actor_id]) >= self._max_actions:

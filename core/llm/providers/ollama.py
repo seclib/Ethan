@@ -6,7 +6,6 @@ Capabilities: LLM, Vision (LLaVA, etc.), Embeddings, no native transcription.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.llm.providers.base import LLMProvider
 from core.llm.types import (
@@ -39,6 +38,7 @@ class OllamaProvider(LLMProvider):
         """Initialise le client."""
         try:
             import httpx
+
             self._client = httpx.AsyncClient(timeout=300.0)
             logger.info(f"Ollama provider initialized ({self._base_url})")
         except ImportError:
@@ -54,6 +54,7 @@ class OllamaProvider(LLMProvider):
         """
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
                 response = await client.get(f"{self._base_url}/api/tags")
                 return response.status_code == 200
@@ -100,7 +101,13 @@ class OllamaProvider(LLMProvider):
             },
         )
 
-    async def chat_stream(self, messages: list[ChatMessage], model: str | None = None, temperature: float = 0.7, max_tokens: int | None = None):
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ):
         """Streaming chat."""
         if not self._client:
             raise RuntimeError("Ollama provider not initialized")
@@ -121,6 +128,7 @@ class OllamaProvider(LLMProvider):
             async for line in response.aiter_lines():
                 if line:
                     import json
+
                     data = json.loads(line)
                     if "message" in data and "content" in data["message"]:
                         yield data["message"]["content"]
@@ -158,18 +166,20 @@ class OllamaProvider(LLMProvider):
             models = []
             for model_data in data.get("models", []):
                 model_name = model_data["name"]
-                models.append(ModelInfo(
-                    id=model_name,
-                    provider=self.name,
-                    name=model_name,
-                    model=model_name,
-                    context_length=4096,  # Ollama ne retourne pas cette info
-                    quality_score=0.80,  # Par défaut
-                    avg_latency_ms=100.0,  # Local = rapide
-                    is_local=True,
-                    is_private=True,
-                    capabilities=["chat", "embedding"],
-                ))
+                models.append(
+                    ModelInfo(
+                        id=model_name,
+                        provider=self.name,
+                        name=model_name,
+                        model=model_name,
+                        context_length=4096,  # Ollama ne retourne pas cette info
+                        quality_score=0.80,  # Par défaut
+                        avg_latency_ms=100.0,  # Local = rapide
+                        is_local=True,
+                        is_private=True,
+                        capabilities=["chat", "embedding"],
+                    )
+                )
 
             return models
         except Exception as e:

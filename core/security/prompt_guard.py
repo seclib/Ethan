@@ -81,8 +81,5 @@ def wrap_data_block(
     parts.append(instruction)
     safe_source = _escape_attr(source)
     safe_kind = _escape_attr(kind)
-    parts.append(
-        f'<data source="{safe_source}" kind="{safe_kind}">\n'
-        f"{content.strip()}\n</data>"
-    )
+    parts.append(f'<data source="{safe_source}" kind="{safe_kind}">\n{content.strip()}\n</data>')
     return "\n\n".join(parts)

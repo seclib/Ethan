@@ -8,10 +8,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from core.auth import Permission
 from core.reminders import ReminderManager
+from fastapi import APIRouter, Depends, HTTPException
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)

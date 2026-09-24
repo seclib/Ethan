@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import List
 
-from core.bus.interface import EventBus
 from core.autonomy.curiosity import CuriosityEngine
 from core.autonomy.environment import EnvironmentAnalyzer
 from core.autonomy.weakness import WeaknessDetector
-from core.state.redis_state import RedisLiveState
+from core.bus.interface import EventBus
 from core.ethan_types.event import Event
 from core.ethan_types.sdk.goals import GoalProposal, GoalScore
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -67,19 +67,23 @@ class AutonomyEngine:
         self_model = await self.redis.get("system:self_model") or {}
 
         # Trigger detectors
-        curiosity_proposals = await self.curiosity.detect_gaps({
-            "all_skills": list(self_model.get("skills", {}).keys()),
-            "skills_tested": ["linux", "docker", "reasoning"],
-            "all_tools": ["shell", "filesystem", "web"],
-            "tools_used": ["shell"],
-        })
+        curiosity_proposals = await self.curiosity.detect_gaps(
+            {
+                "all_skills": list(self_model.get("skills", {}).keys()),
+                "skills_tested": ["linux", "docker", "reasoning"],
+                "all_tools": ["shell", "filesystem", "web"],
+                "tools_used": ["shell"],
+            }
+        )
 
         weakness_proposals = await self.weakness.detect(self_model)
 
-        env_proposals = await self.environment.analyze({
-            "system_load": 0.7,
-            "recent_tool_failures": 0,
-        })
+        env_proposals = await self.environment.analyze(
+            {
+                "system_load": 0.7,
+                "recent_tool_failures": 0,
+            }
+        )
 
         all_proposals = curiosity_proposals + weakness_proposals + env_proposals
         if not all_proposals:
@@ -106,8 +110,11 @@ class AutonomyEngine:
 
     async def _publish(self, scores: List[GoalScore]) -> None:
         for score in scores:
-            await self.bus.publish("goal.proposed", Event(
-                type="goal.proposed",
-                source="autonomy",
-                payload={"score": score.dict()},
-            ))
+            await self.bus.publish(
+                "goal.proposed",
+                Event(
+                    type="goal.proposed",
+                    source="autonomy",
+                    payload={"score": score.dict()},
+                ),
+            )

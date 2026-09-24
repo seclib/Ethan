@@ -24,9 +24,7 @@ from routers import v1
 def domains():
     """Vrai DomainManager (providers Core réels) + wiring v1 pour les agents."""
     store = CoreRecordStore()
-    collections = KnowledgeCollectionManager(
-        store=store, rag=RAGPipeline(store=store)
-    )
+    collections = KnowledgeCollectionManager(store=store, rag=RAGPipeline(store=store))
     manager = DomainManager(
         store=store,
         knowledge=KnowledgeManager(store=store),
@@ -45,16 +43,26 @@ def test_agent_routes_validate_domain_ids(domains):
     osint = asyncio.run(domains.create_domain("OSINT"))
     code = asyncio.run(domains.create_domain("Code"))
 
-    agent = asyncio.run(v1.create_agent({
-        "name": "Recon Agent", "provider": "fake",
-        "domain_ids": [osint["id"], code["id"]],
-    }))
+    agent = asyncio.run(
+        v1.create_agent(
+            {
+                "name": "Recon Agent",
+                "provider": "fake",
+                "domain_ids": [osint["id"], code["id"]],
+            }
+        )
+    )
     assert agent["domain_ids"] == [osint["id"], code["id"]]
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(v1.create_agent({
-            "name": "Bad", "domain_ids": ["ghost"],
-        }))
+        asyncio.run(
+            v1.create_agent(
+                {
+                    "name": "Bad",
+                    "domain_ids": ["ghost"],
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
     updated = asyncio.run(v1.update_agent(agent["id"], {"domain_ids": [osint["id"]]}))
@@ -70,13 +78,17 @@ def test_agent_domain_selection_resolves_via_core(domains):
     collections_manager = v1.get_knowledge_collections()
     collection = asyncio.run(collections_manager.create_collection("Docs"))
     domain = asyncio.run(domains.create_domain("Research"))
-    asyncio.run(domains.attach_resource(
-        domain["id"], "collection", collection["id"]
-    ))
+    asyncio.run(domains.attach_resource(domain["id"], "collection", collection["id"]))
 
-    agent = asyncio.run(v1.create_agent({
-        "name": "Scholar", "provider": "fake", "domain_ids": [domain["id"]],
-    }))
+    agent = asyncio.run(
+        v1.create_agent(
+            {
+                "name": "Scholar",
+                "provider": "fake",
+                "domain_ids": [domain["id"]],
+            }
+        )
+    )
     # L'agent ne stocke que la sélection explicite de domains…
     assert agent["domain_ids"] == [domain["id"]]
     # …et le Core résout les ressources à la demande (many-to-many).

@@ -9,6 +9,7 @@ Vérifie que la chaîne complète fonctionne sans crash :
 Utilise un builtin tool (web_search, auto-registered par ToolRegistry)
 via una skill custom dont le nom de step correspond au nom de l'outil.
 """
+
 import asyncio
 import logging
 
@@ -16,9 +17,9 @@ logging.basicConfig(level=logging.WARNING)
 
 
 async def main():
-    from core.tools.manager import ToolManager
     from core.skills.manager import SkillManager
-    from core.skills.types import Skill, SkillStep, SkillContext, SkillStatus
+    from core.skills.types import Skill, SkillContext, SkillStatus, SkillStep
+    from core.tools.manager import ToolManager
 
     # 1. ToolManager — registry enregistre automatiquement les builtins
     tool_manager = ToolManager()

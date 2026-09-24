@@ -1,4 +1,5 @@
 """ETHAN Plugin: hello-world — example minimal plugin."""
+
 ETHAN_PLUGIN = {
     "name": "hello-world",
     "version": "1.0.0",
@@ -21,6 +22,7 @@ ETHAN_PLUGIN = {
     },
     "subscriptions": {},
 }
+
 
 def cmd_hello(args):
     print(f"Hello, {args[0] if args else 'world'}!")

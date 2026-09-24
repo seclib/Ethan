@@ -1,8 +1,8 @@
 """Executive Module — Gère les goals et coordonne l'exécution."""
 
 from .executive import ExecutiveModule
-from .types import Goal, GoalState, GoalPriority, GoalProgress
 from .goal_manager import ExecutiveGoalManager
+from .types import Goal, GoalPriority, GoalProgress, GoalState
 
 __all__ = [
     "ExecutiveModule",

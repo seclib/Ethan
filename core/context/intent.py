@@ -13,6 +13,7 @@ from typing import Any
 @dataclass
 class Intent:
     """Structure unifiée pour toutes les entrées."""
+
     source: str  # "voice", "text", "api", "automation"
     user_input: str
     context: dict

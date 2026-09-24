@@ -58,7 +58,10 @@ async def main():
             wait = min(wait, max(0.0, startup_deadline - asyncio.get_running_loop().time()))
             logger.warning(
                 "NATS connection failed (%s), retry %s/%s in %ss",
-                exc, attempt, connect_attempts, wait,
+                exc,
+                attempt,
+                connect_attempts,
+                wait,
             )
             await asyncio.sleep(wait)
 
@@ -138,18 +141,20 @@ async def main():
     logger.info("Modules health server listening on :8081")
 
     # ── Wire cognitive modules ───────────────────────────────────────
-    from core.modules.executive.main import ExecutiveModule
-    from core.modules.planner.main import PlannerModule
-    from core.modules.memory.main import MemoryModule
-    from core.modules.reflective.main import ReflectiveModule
     from core.ethan_types.sdk.module import ModuleContext
+    from core.modules.executive.main import ExecutiveModule
+    from core.modules.memory.main import MemoryModule
+    from core.modules.planner.main import PlannerModule
+    from core.modules.reflective.main import ReflectiveModule
 
-    modules.extend([
-        ExecutiveModule(),
-        PlannerModule(),
-        MemoryModule(),
-        ReflectiveModule(),
-    ])
+    modules.extend(
+        [
+            ExecutiveModule(),
+            PlannerModule(),
+            MemoryModule(),
+            ReflectiveModule(),
+        ]
+    )
 
     for mod in modules:
         manifest = mod.get_manifest()
@@ -162,7 +167,9 @@ async def main():
             )
             await asyncio.wait_for(mod.initialize(ctx), timeout=10)
             health_state["module_status"][module_key] = "ready"
-            logger.info("Module registered: %s capabilities=%s", manifest.name, manifest.capabilities)
+            logger.info(
+                "Module registered: %s capabilities=%s", manifest.name, manifest.capabilities
+            )
         except Exception as exc:
             health_state["module_status"][module_key] = f"error: {type(exc).__name__}"
             mod_name = manifest.name

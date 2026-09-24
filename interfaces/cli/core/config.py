@@ -124,8 +124,15 @@ def get(key: str, default=None):
     """
     # Domaines métier → ConfigurationService centralisé
     business_domains = (
-        "providers", "models", "rag", "memory",
-        "agents", "planner", "plugins", "authentication", "runtime",
+        "providers",
+        "models",
+        "rag",
+        "memory",
+        "agents",
+        "planner",
+        "plugins",
+        "authentication",
+        "runtime",
     )
     first = key.split(".")[0]
     if first in business_domains:

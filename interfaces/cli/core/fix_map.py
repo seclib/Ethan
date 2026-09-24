@@ -1,4 +1,5 @@
 """Fix map — known error-to-fix mappings."""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -6,6 +7,7 @@ from typing import Optional
 @dataclass
 class FixRecipe:
     """Recipe for fixing a classified error."""
+
     suggestion: str
     auto_patch: Optional[str] = None
     retry: bool = False

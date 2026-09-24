@@ -53,12 +53,8 @@ class TelegramAdapter(ChannelAdapter):
             )
             await self._dispatch_cb(incoming)
 
-        self._application = (
-            ApplicationBuilder().token(self._token).build()
-        )
-        self._application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, on_message)
-        )
+        self._application = ApplicationBuilder().token(self._token).build()
+        self._application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
         await self._application.initialize()
         await self._application.start()
         logger.info("TelegramAdapter: started")

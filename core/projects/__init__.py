@@ -75,9 +75,7 @@ class ProjectManager:
 
     # ── CRUD ───────────────────────────────────────────────────────────
 
-    async def list_projects(
-        self, user_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_projects(self, user_id: str | None = None) -> list[dict[str, Any]]:
         """Liste les projets visibles par l'utilisateur.
 
         `user_only=True` est imposé en interne quand `user_id` est fourni
@@ -167,10 +165,7 @@ class ProjectManager:
                         g[k] = patch[k]
                 return g
             return project
-        allowed = {
-            k: v for k, v in patch.items()
-            if k in _DEFAULT_FIELDS or k == "is_active"
-        }
+        allowed = {k: v for k, v in patch.items() if k in _DEFAULT_FIELDS or k == "is_active"}
         if allowed.get("name"):
             await self._ensure_unique_name(allowed["name"], exclude=project_id)
         project.update(allowed)
@@ -183,9 +178,7 @@ class ProjectManager:
         )
         return project
 
-    async def delete_project(
-        self, project_id: str, user_id: str | None = None
-    ) -> bool:
+    async def delete_project(self, project_id: str, user_id: str | None = None) -> bool:
         """Suppression du projet (delete CoreRecordStore).
 
         - Le projet "general" est protege (non supprimable).
@@ -208,9 +201,7 @@ class ProjectManager:
 
     # ── Contexte projet (consomme par le ChatPipeline / API) ───────────
 
-    async def resolve_context(
-        self, project_id: str | None
-    ) -> dict[str, Any] | None:
+    async def resolve_context(self, project_id: str | None) -> dict[str, Any] | None:
         """Resout le contexte d'un projet pour l'execution d'un chat.
 
         Retourne
@@ -222,9 +213,7 @@ class ProjectManager:
             return None
         project = await self.get_project(project_id)
         if project is None:
-            logger.warning(
-                "Project %s not found — ignoring project routing", project_id
-            )
+            logger.warning("Project %s not found — ignoring project routing", project_id)
             return None
         return {
             "id": project["id"],
@@ -337,6 +326,7 @@ class ProjectManager:
         Met a jour le record avec le statut final (ready/error).
         """
         from core.rag.extractors import extract_text
+
         try:
             # Extraction de texte (PDF, DOCX) ou decodage UTF-8 (texte brut)
             text = extract_text(contents, filename, mime_type)
@@ -418,9 +408,7 @@ class ProjectManager:
             if project.get("name", "").strip().lower() == name.strip().lower():
                 raise ValueError(f"Project name already exists: {name}")
 
-    async def _publish(
-        self, event_type: EventType, subject: str, payload: dict[str, Any]
-    ) -> None:
+    async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         await self._bus.publish(
@@ -429,6 +417,7 @@ class ProjectManager:
 
 
 # ── Entite virtuelle : projet "general" (fallback, non persise) ──────────
+
 
 def _general_project(user_id: str | None = None) -> dict[str, Any]:
     """Snapshot du projet General (Default) — jamais ecrit en DB.

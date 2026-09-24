@@ -178,7 +178,9 @@ class Thinker:
     def done(self):
         self._spinner.stop()
         dt = time.time() - self._start
-        sys.stdout.write(f"\r  {clr.C.GREEN}{clr.I.CHECK} {self._phase}...{clr.C.RESET}  ({dt:.1f}s)\n")
+        sys.stdout.write(
+            f"\r  {clr.C.GREEN}{clr.I.CHECK} {self._phase}...{clr.C.RESET}  ({dt:.1f}s)\n"
+        )
         sys.stdout.flush()
 
     def cancel(self):

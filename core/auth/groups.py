@@ -6,8 +6,8 @@ sends management actions through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -111,4 +111,6 @@ class GroupManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="group-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="group-manager", payload=payload)
+        )

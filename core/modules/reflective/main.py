@@ -52,8 +52,7 @@ class ReflectiveModule(CognitiveModule):
                 response = await self.handle_event(event)
                 if response:
                     subject = (
-                        msg.reply
-                        or response.type.value
+                        msg.reply or response.type.value
                         if isinstance(response.type, EventType)
                         else msg.reply or str(response.type)
                     )

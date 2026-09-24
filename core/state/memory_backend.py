@@ -27,6 +27,7 @@ class MemoryStateBackend(StateBackend):
 
     async def insert(self, table: str, payload: dict) -> Optional[Any]:
         import uuid
+
         _id = str(uuid.uuid4())
         key = f"{table}:{_id}"
         self._store[key] = payload

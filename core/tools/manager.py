@@ -14,13 +14,12 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from core.tools.registry import ToolRegistry
-from core.tools.selector import ToolSelector
+from core.state.record_store import CoreRecordStore
 from core.tools.executor import ToolExecutor
 from core.tools.monitor import ToolMonitor
-from core.tools.types import Tool, ToolContext, ToolResult
-from core.tools.types import RiskLevel
-from core.state.record_store import CoreRecordStore
+from core.tools.registry import ToolRegistry
+from core.tools.selector import ToolSelector
+from core.tools.types import RiskLevel, Tool, ToolContext, ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +207,9 @@ class ToolManager:
         """
         self.registry.register(tool)
 
-    async def select_and_execute(self, query: str, params: dict[str, Any], context: ToolContext) -> ToolResult:
+    async def select_and_execute(
+        self, query: str, params: dict[str, Any], context: ToolContext
+    ) -> ToolResult:
         """Sélectionne et exécute le meilleur outil.
 
         Args:
@@ -249,7 +250,9 @@ class ToolManager:
 
         return result
 
-    async def execute_by_capability(self, capability: str, params: dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute_by_capability(
+        self, capability: str, params: dict[str, Any], context: ToolContext
+    ) -> ToolResult:
         """Exécute une capability (trouve le meilleur outil).
 
         Args:

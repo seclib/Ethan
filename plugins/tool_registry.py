@@ -9,6 +9,7 @@ from typing import Any
 @dataclass
 class ToolParameter:
     """Paramètre d'un outil."""
+
     name: str
     type: str = "string"  # string, number, boolean, object
     required: bool = False
@@ -19,6 +20,7 @@ class ToolParameter:
 @dataclass
 class ToolDefinition:
     """Définition complète d'un outil."""
+
     name: str
     plugin: str
     description: str
@@ -30,6 +32,7 @@ class ToolDefinition:
 @dataclass
 class ToolResult:
     """Résultat d'exécution d'un outil."""
+
     success: bool
     data: Any = None
     error: str | None = None
@@ -66,8 +69,7 @@ class ToolRegistry:
         """Recherche des outils par nom ou description."""
         q = query.lower()
         return [
-            t for t in self._tools.values()
-            if q in t.name.lower() or q in t.description.lower()
+            t for t in self._tools.values() if q in t.name.lower() or q in t.description.lower()
         ]
 
     def clear(self) -> None:

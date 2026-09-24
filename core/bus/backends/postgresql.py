@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 from core.bus.backends.base import StorageBackend
-from core.bus.store import StoredEvent, Checkpoint
 from core.bus.snapshot import Snapshot
+from core.bus.store import Checkpoint, StoredEvent
 
 logger = logging.getLogger(__name__)
 
 
 class PostgreSQLBackend(StorageBackend):
     """Backend PostgreSQL.
-    
+
     Pour archive et requêtes complexes.
     - SQL puissant
     - Durable
@@ -30,6 +30,7 @@ class PostgreSQLBackend(StorageBackend):
         """Initialise la connexion."""
         try:
             import asyncpg
+
             self._pool = await asyncpg.create_pool(self._connection_string)
             logger.info("PostgreSQL backend initialized")
         except ImportError:
@@ -83,6 +84,7 @@ class PostgreSQLBackend(StorageBackend):
 
             for row in rows:
                 from core.ethan_types.event import Event, EventType
+
                 event = Event(
                     id=row["id"],
                     type=EventType(row["type"]),
@@ -208,9 +210,7 @@ class PostgreSQLBackend(StorageBackend):
             return None
 
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM snapshots ORDER BY created_at DESC LIMIT 1"
-            )
+            row = await conn.fetchrow("SELECT * FROM snapshots ORDER BY created_at DESC LIMIT 1")
 
             if row:
                 return Snapshot(

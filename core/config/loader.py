@@ -16,11 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from core.config.schema import (
-    BusConfig,
     ConfigSchema,
-    RuntimeConfig,
     RuntimeMode,
-    StorageConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +184,7 @@ class ConfigLoader:
         async def _probe():
             try:
                 import nats
+
                 nc = await asyncio.wait_for(
                     nats.connect(
                         "nats://localhost:4222",
@@ -198,7 +196,9 @@ class ConfigLoader:
                 await asyncio.wait_for(nc.close(), timeout=2)
                 return True
             except Exception as exc:
-                logger.debug("NATS mode probe failed; using standalone mode: %s", exc, exc_info=True)
+                logger.debug(
+                    "NATS mode probe failed; using standalone mode: %s", exc, exc_info=True
+                )
                 return False
 
         try:
@@ -207,7 +207,9 @@ class ConfigLoader:
                 logger.info("NATS reachable → distributed mode")
                 return RuntimeMode.DISTRIBUTED
         except Exception as exc:
-            logger.debug("NATS mode detection failed; using standalone mode: %s", exc, exc_info=True)
+            logger.debug(
+                "NATS mode detection failed; using standalone mode: %s", exc, exc_info=True
+            )
 
         logger.info("NATS not reachable → standalone mode")
         return RuntimeMode.STANDALONE

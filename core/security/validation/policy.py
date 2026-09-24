@@ -8,7 +8,6 @@ Production : OPA avec policies/*.rego.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.security.types import Action, SecurityContext, ValidationResult
 

@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from core.planner.types import Plan, Checkpoint
+from core.planner.types import Checkpoint, Plan
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +80,10 @@ class CheckpointManager:
 
         try:
             # Lister les checkpoints pour ce plan
-            pattern = f"checkpoint:checkpoint:{plan_id}:*"
             keys = await self._store.list_namespace("checkpoints")
 
             # Filtrer par plan_id
-            plan_checkpoints = [
-                k for k in keys
-                if k.startswith(f"checkpoint:{plan_id}:")
-            ]
+            plan_checkpoints = [k for k in keys if k.startswith(f"checkpoint:{plan_id}:")]
 
             if not plan_checkpoints:
                 return None
@@ -189,15 +185,17 @@ class CheckpointManager:
             for key in plan_keys:
                 data = await self._store.get("checkpoints", key)
                 if data:
-                    checkpoints.append(Checkpoint(
-                        id=key,
-                        plan_id=data["plan_id"],
-                        timestamp=datetime.fromisoformat(data["timestamp"]),
-                        completed_tasks=data["completed_tasks"],
-                        running_tasks=data["running_tasks"],
-                        pending_tasks=data["pending_tasks"],
-                        metadata=data.get("metadata", {}),
-                    ))
+                    checkpoints.append(
+                        Checkpoint(
+                            id=key,
+                            plan_id=data["plan_id"],
+                            timestamp=datetime.fromisoformat(data["timestamp"]),
+                            completed_tasks=data["completed_tasks"],
+                            running_tasks=data["running_tasks"],
+                            pending_tasks=data["pending_tasks"],
+                            metadata=data.get("metadata", {}),
+                        )
+                    )
 
             return sorted(checkpoints, key=lambda c: c.timestamp, reverse=True)
 

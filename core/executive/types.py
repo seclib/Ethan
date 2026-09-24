@@ -10,6 +10,7 @@ from typing import Any
 
 class GoalState(str, Enum):
     """États d'un goal."""
+
     PENDING = "pending"
     PLANNING = "planning"
     PLANNED = "planned"
@@ -22,6 +23,7 @@ class GoalState(str, Enum):
 
 class GoalPriority(str, Enum):
     """Niveaux de priorité."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -32,6 +34,7 @@ class GoalPriority(str, Enum):
 @dataclass
 class Goal:
     """Objectif à accomplir."""
+
     id: str
     description: str
     priority: GoalPriority = GoalPriority.MEDIUM
@@ -49,6 +52,7 @@ class Goal:
 @dataclass
 class GoalProgress:
     """Progrès d'un goal."""
+
     goal_id: str
     total_tasks: int = 0
     completed_tasks: int = 0

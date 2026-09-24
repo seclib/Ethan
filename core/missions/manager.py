@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -51,7 +51,9 @@ class MissionManager:
             mission.steps.append(self._new_step(mission.id, step_data, index))
         self._refresh_progress(mission)
         await self._persist(mission)
-        await self._publish(EventType.MISSION_CREATED, "mission.created", {"mission": mission.to_dict()})
+        await self._publish(
+            EventType.MISSION_CREATED, "mission.created", {"mission": mission.to_dict()}
+        )
         return mission
 
     async def get(self, mission_id: str) -> Mission | None:
@@ -88,7 +90,9 @@ class MissionManager:
         mission.updated_at = datetime.utcnow()
         self._refresh_progress(mission)
         await self._persist(mission)
-        await self._publish(EventType.MISSION_UPDATED, "mission.updated", {"mission": mission.to_dict()})
+        await self._publish(
+            EventType.MISSION_UPDATED, "mission.updated", {"mission": mission.to_dict()}
+        )
         return mission
 
     async def delete(self, mission_id: str) -> bool:
@@ -117,7 +121,13 @@ class MissionManager:
             if not title:
                 raise ValueError("Mission step title must not be empty")
             step.title = title
-        for field_name in ("description", "success_criterion", "verification_command", "result", "error"):
+        for field_name in (
+            "description",
+            "success_criterion",
+            "verification_command",
+            "result",
+            "error",
+        ):
             if field_name in data:
                 setattr(step, field_name, data[field_name])
         if "depends_on" in data:
@@ -183,7 +193,9 @@ class MissionManager:
         mission.updated_at = datetime.utcnow()
         self._refresh_progress(mission)
         await self._persist(mission)
-        await self._publish(EventType.MISSION_UPDATED, "mission.updated", {"mission": mission.to_dict()})
+        await self._publish(
+            EventType.MISSION_UPDATED, "mission.updated", {"mission": mission.to_dict()}
+        )
 
     @staticmethod
     def _new_step(mission_id: str, data: dict[str, Any], default_order: int) -> MissionStep:
@@ -226,4 +238,6 @@ class MissionManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="mission-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="mission-manager", payload=payload)
+        )

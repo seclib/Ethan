@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict
 
 from core.bus.interface import EventBus
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.event import Event
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ConfigChange:
     """Proposed configuration change."""
+
     change_id: str = ""
     component: str = ""
     old_value: Any = None
@@ -29,9 +29,13 @@ class ConfigChange:
 
     def __post_init__(self):
         if not self.change_id:
-            self.change_id = hashlib.sha256(f"{self.component}:{self.old_value}:{self.new_value}".encode()).hexdigest()[:16]
+            self.change_id = hashlib.sha256(
+                f"{self.component}:{self.old_value}:{self.new_value}".encode()
+            ).hexdigest()[:16]
         if not self.created_at:
-            self.created_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            self.created_at = (
+                __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            )
         if not self.checksum:
             self.checksum = hashlib.sha256(str(self.new_value).encode()).hexdigest()[:16]
 
@@ -57,7 +61,9 @@ class ConfigEvolutionEngine:
         self.redis = redis
         self._changes: Dict[str, ConfigChange] = {}
 
-    async def propose_change(self, component: str, old_value: Any, new_value: Any, reason: str = "") -> ConfigChange:
+    async def propose_change(
+        self, component: str, old_value: Any, new_value: Any, reason: str = ""
+    ) -> ConfigChange:
         """Propose a configuration change (not applied yet)."""
         change = ConfigChange(
             component=component,
@@ -78,10 +84,14 @@ class ConfigEvolutionEngine:
 
         try:
             # Store in Redis for rollback
-            await self.redis.set(f"config:backup:{change.component}", {
-                "old_value": change.old_value,
-                "change_id": change.change_id,
-            }, ttl=86400)
+            await self.redis.set(
+                f"config:backup:{change.component}",
+                {
+                    "old_value": change.old_value,
+                    "change_id": change.change_id,
+                },
+                ttl=86400,
+            )
 
             # Apply change (in real system, update actual config)
             await self.redis.set(f"config:{change.component}", change.new_value)

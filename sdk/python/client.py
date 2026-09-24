@@ -1,9 +1,10 @@
 """Jarvis OS — Python SDK Client"""
 
-import httpx
 from typing import Any
 
-from .models import ChatMessage, ChatResponse, AgentInfo, MemoryEntry
+import httpx
+
+from .models import AgentInfo, ChatResponse, MemoryEntry
 
 
 class JarvisClient:
@@ -93,7 +94,9 @@ class MemoryAPI:
         response.raise_for_status()
         return MemoryEntry(**response.json())
 
-    async def search(self, query: str, namespace: str = "default", limit: int = 10) -> list[MemoryEntry]:
+    async def search(
+        self, query: str, namespace: str = "default", limit: int = 10
+    ) -> list[MemoryEntry]:
         response = await self._client.post(
             "/api/memory/search",
             json={"query": query, "namespace": namespace, "limit": limit},

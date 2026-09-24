@@ -29,6 +29,7 @@ class UpdateCommand:
         for step in steps:
             print(f"  {clr.info(f'⠋ {step}')}")
             import time
+
             time.sleep(0.3)
             print(f"  {clr.success(f'✓ {step}')}")
 

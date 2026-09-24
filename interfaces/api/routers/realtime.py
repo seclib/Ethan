@@ -7,18 +7,18 @@ import json
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-
 from interfaces.api.routers.message import _nats
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["realtime"])
 
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, session_id: str | None = None):
     """WebSocket endpoint bridging client with NATS topics."""
     await websocket.accept()
-    
+
     if not _nats or not _nats.is_connected:
         await websocket.close(code=1011, reason="NATS disconnected")
         return
@@ -27,11 +27,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str | None = None
     # subscribe/unsubscribe per channel via JSON messages:
     #   {"type": "subscribe",   "channel": "ethan.chat.message"}
     #   {"type": "unsubscribe", "channel": "ethan.chat.message"}
-    topics = [
-        "ethan.chat.message",
-        "ethan.agent.execution",
-        "ethan.system.health"
-    ]
+    topics = ["ethan.chat.message", "ethan.agent.execution", "ethan.system.health"]
     active_topics: set[str] = set(topics)
 
     subscriptions = []
@@ -61,17 +57,14 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str | None = None
                         continue
 
                     payload = json.loads(data.decode())
-                    
+
                     # Filter by session_id if required and present
                     if session_id:
                         evt_session = payload.get("metadata", {}).get("session_id")
                         if evt_session and evt_session != session_id:
                             continue
-                            
-                    await websocket.send_json({
-                        "topic": subject,
-                        "payload": payload
-                    })
+
+                    await websocket.send_json({"topic": subject, "payload": payload})
                 except json.JSONDecodeError:
                     pass
                 except Exception as e:
@@ -107,8 +100,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str | None = None
         read_task = asyncio.create_task(read_from_ws())
 
         done, pending = await asyncio.wait(
-            [forward_task, read_task],
-            return_when=asyncio.FIRST_COMPLETED
+            [forward_task, read_task], return_when=asyncio.FIRST_COMPLETED
         )
 
         for task in pending:

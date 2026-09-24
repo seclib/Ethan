@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import AsyncIterator
 
-from core.bus.store import StoredEvent, Checkpoint
 from core.bus.snapshot import Snapshot
+from core.bus.store import Checkpoint, StoredEvent
 
 
 class StorageBackend(ABC):

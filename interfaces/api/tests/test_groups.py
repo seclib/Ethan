@@ -13,10 +13,9 @@ ce fichier valide la logique de domaine de bout en bout.
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
-from routers import domains
 from core.auth.groups import GroupManager
+from fastapi import HTTPException
+from routers import domains
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +28,9 @@ def real_groups():
 
 def test_group_crud_full_cycle():
     """Création → liste → lecture → édition → suppression."""
-    group = asyncio.run(domains.create_group({"name": " platform ", "description": "Équipe plateforme"}))
+    group = asyncio.run(
+        domains.create_group({"name": " platform ", "description": "Équipe plateforme"})
+    )
     assert group["name"] == "platform"
     assert group["members"] == []
     assert group["permissions"] == {}
@@ -40,8 +41,7 @@ def test_group_crud_full_cycle():
     fetched = asyncio.run(domains.get_group(group["id"]))
     assert fetched["name"] == "platform"
 
-    updated = asyncio.run(domains.update_group(
-        group["id"], {"description": "Équipe runtime"}))
+    updated = asyncio.run(domains.update_group(group["id"], {"description": "Équipe runtime"}))
     assert updated["description"] == "Équipe runtime"
     assert updated["name"] == "platform"  # inchangé (non fourni)
 

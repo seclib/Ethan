@@ -23,11 +23,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
 from core.auth import Permission
 from core.llm.model_store import ModelStore
 from core.llm.provider_manager import ProviderManager
+from fastapi import APIRouter, Depends, HTTPException, Query
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
@@ -107,6 +106,7 @@ def _custom_model_payload(card: dict[str, Any]) -> dict[str, Any]:
 
 # ── GET /models ─────────────────────────────────────────────────────────
 
+
 @router.get("")
 async def list_models(
     provider_id: str | None = Query(default=None, description="Filtrer par provider"),
@@ -143,6 +143,7 @@ async def list_models(
 
 # ── GET /models/search ──────────────────────────────────────────────────
 
+
 @router.get("/search")
 async def search_models(q: str = Query(default="", description="Query string")):
     """Recherche dans le catalogue agrégé (discouvert + custom)."""
@@ -173,6 +174,7 @@ async def search_models(q: str = Query(default="", description="Query string")):
 
 # ── GET /models/{id} ────────────────────────────────────────────────────
 
+
 @router.get("/{model_id}")
 async def get_model(model_id: str):
     """Détail d'un modèle (fiche custom ou modèle découvert)."""
@@ -197,8 +199,13 @@ async def get_model(model_id: str):
 
 # ── POST /models ────────────────────────────────────────────────────────
 
-@router.post("", response_model=dict, status_code=201,
-             dependencies=[Depends(require_permission(Permission.PLUGINS))])
+
+@router.post(
+    "",
+    response_model=dict,
+    status_code=201,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def create_model(data: dict[str, Any]):
     """Crée une fiche modèle personnalisée."""
     store = get_store()
@@ -210,6 +217,7 @@ async def create_model(data: dict[str, Any]):
 
 
 # ── PUT /models/{id} ────────────────────────────────────────────────────
+
 
 @router.put("/{model_id}", response_model=dict)
 async def update_model(model_id: str, data: dict[str, Any]):
@@ -223,6 +231,7 @@ async def update_model(model_id: str, data: dict[str, Any]):
 
 # ── DELETE /models/{id} ─────────────────────────────────────────────────
 
+
 @router.delete("/{model_id}")
 async def delete_model(model_id: str):
     """Supprime une fiche modèle personnalisée."""
@@ -234,6 +243,7 @@ async def delete_model(model_id: str):
 
 
 # ── POST /models/{id}/toggle ────────────────────────────────────────────
+
 
 @router.post("/{model_id}/toggle")
 async def toggle_model(model_id: str):

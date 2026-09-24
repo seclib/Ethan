@@ -10,7 +10,6 @@ Responsabilités :
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.planner.types import Task, TaskDAG
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class CyclicDependencyError(Exception):
     """Erreur: cycle détecté dans les dépendances."""
+
     pass
 
 
@@ -68,9 +68,7 @@ class DAGBuilder:
         for task in dag.tasks.values():
             for dep_id in task.depends_on:
                 if dep_id not in dag.tasks:
-                    raise ValueError(
-                        f"Task {task.id} depends on non-existent task {dep_id}"
-                    )
+                    raise ValueError(f"Task {task.id} depends on non-existent task {dep_id}")
 
     def _has_cycles(self, dag: TaskDAG) -> bool:
         """Détecte les cycles (DFS).

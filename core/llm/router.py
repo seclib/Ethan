@@ -7,8 +7,7 @@ Catégories : reasoning, code, fast, local
 from __future__ import annotations
 
 from core.llm.selector import LLMSelector
-from core.llm.types import LLMRequirements, ModelInfo, ScoredModel
-
+from core.llm.types import LLMRequirements, ModelInfo
 
 # Catégories de tâches avec leurs requirements
 TASK_CATEGORIES = {

@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from core.state.redis_state import RedisLiveState
-from core.state.postgres_state import PostgresPersistentState
 from core.ethan_types.sdk.learning import Experience
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +39,22 @@ class ExperienceStore:
         # Simplified — in production use proper queries
         return await self.pg.execute(
             "SELECT * FROM experiences WHERE skill_invoked = $1 ORDER BY timestamp DESC LIMIT $2",
-            skill, limit,
+            skill,
+            limit,
         )
 
     async def count_by_outcome(self, skill: str, outcome: str) -> int:
         """Count experiences by skill and outcome."""
         rows = await self.pg.execute(
             "SELECT COUNT(*) as cnt FROM experiences WHERE skill_invoked = $1 AND outcome = $2",
-            skill, outcome,
+            skill,
+            outcome,
         )
         return rows[0]["cnt"] if rows else 0
 
     async def get_recent(self, limit: int = 1000) -> List[Dict[str, Any]]:
         """Get most recent experiences."""
         return await self.pg.execute(
-            "SELECT * FROM experiences ORDER BY timestamp DESC LIMIT $1", limit,
+            "SELECT * FROM experiences ORDER BY timestamp DESC LIMIT $1",
+            limit,
         )

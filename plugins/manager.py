@@ -30,7 +30,6 @@ ETHAN_PLUGIN_SCHEMA = {
     "description": "string (optional)",
     "author": "string (optional)",
     "license": "string (optional)",
-
     # 1. Capability declarations
     "capabilities": [
         {
@@ -44,7 +43,6 @@ ETHAN_PLUGIN_SCHEMA = {
             "shared": False,
         }
     ],
-
     # 2. CLI commands
     "commands": {
         "command_name": {
@@ -53,22 +51,19 @@ ETHAN_PLUGIN_SCHEMA = {
             "args": [{"name": "...", "type": "str", "help": "..."}],
         }
     },
-
     # 3. Memory hooks
     "memory_hooks": {
-        "on_store": "function_name",     # called before store
-        "on_recall": "function_name",    # called after recall
-        "on_delete": "function_name",    # called before delete
+        "on_store": "function_name",  # called before store
+        "on_recall": "function_name",  # called after recall
+        "on_delete": "function_name",  # called before delete
         "on_semantic_query": "function_name",
     },
-
     # 4. Event subscriptions (NATS)
     "subscriptions": {
         "ethan.intent.user": "handle_intent",
         "ethan.planner.plan.created": "handle_plan",
         "ethan.executor.task.completed": "handle_result",
     },
-
     # 5. Dependencies
     "dependencies": [],
 }

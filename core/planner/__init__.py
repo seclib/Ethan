@@ -1,6 +1,6 @@
 """ETHAN Core — Planner Module"""
 
-from .planner import Planner, Plan, Goal
+from .planner import Goal, Plan, Planner
 
 __version__ = "1.0.0"
 __all__ = ["Planner", "Plan", "Goal"]

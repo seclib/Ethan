@@ -7,6 +7,10 @@ Valide le modèle de provider unifié côté passerelle HTTP :
 - La réponse respecte le schéma ProviderResponse (Pydantic).
 """
 
+# Ruff : les imports suivent l'insertion de ROOT dans sys.path (bootstrap du
+# chemin d'import des tests API) — ils sont donc volontairement tardifs.
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import sys
@@ -18,7 +22,6 @@ if str(ROOT) not in sys.path:
 
 import pytest
 import pytest_asyncio
-
 from core.llm.provider_manager import ProviderManager
 from core.llm.store import ProviderStore
 from interfaces.api.models.provider_schemas import ProviderResponse
@@ -65,7 +68,11 @@ async def test_capabilities_endpoint_canonical(manager):
     result = await get_provider_capabilities("stub-all")
     assert result["provider_id"] == "stub-all"
     assert result["capabilities"] == [
-        "llm", "vision", "embedding", "speech_to_text", "transcription",
+        "llm",
+        "vision",
+        "embedding",
+        "speech_to_text",
+        "transcription",
     ]
     assert result["supports_speech_to_text"] is True
 
@@ -86,7 +93,11 @@ async def test_provider_response_schema_no_secrets(manager):
     payload = resp.model_dump()
     assert payload["has_api_key"] is True
     assert payload["capabilities"] == [
-        "llm", "vision", "embedding", "speech_to_text", "transcription",
+        "llm",
+        "vision",
+        "embedding",
+        "speech_to_text",
+        "transcription",
     ]
     assert "api_key" not in payload
     assert "sk-test-secret-123" not in str(payload)

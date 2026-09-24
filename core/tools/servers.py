@@ -77,9 +77,7 @@ class ToolServerManager:
         """
         public = dict(server)
         auth_config = dict(public.get("auth_config") or {})
-        public["auth_config"] = (
-            {"token_set": True} if auth_config.get("token") else {}
-        )
+        public["auth_config"] = {"token_set": True} if auth_config.get("token") else {}
         metadata = dict(public.get("metadata") or {})
         if "headers" in metadata:
             public_metadata = dict(metadata)
@@ -104,9 +102,7 @@ class ToolServerManager:
             servers = [s for s in servers if s.get("enabled") == enabled]
         return [self._public_server(s) for s in servers]
 
-    async def update(
-        self, server_id: str, data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def update(self, server_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """Update a tool server."""
         server = await self._get_private(server_id)
         if server is None:
@@ -175,9 +171,7 @@ class ToolServerManager:
             # Build headers: en-têtes custom du serveur + Authorization bearer.
             # Les valeurs restent côté Core — jamais renvoyées vers l'UI.
             auth_config = server.get("auth_config") or {}
-            headers: dict[str, str] = dict(
-                server.get("metadata", {}).get("headers") or {}
-            )
+            headers: dict[str, str] = dict(server.get("metadata", {}).get("headers") or {})
             if server.get("auth_type") == "bearer" and auth_config.get("token"):
                 headers["Authorization"] = f"Bearer {auth_config['token']}"
 
@@ -201,14 +195,15 @@ class ToolServerManager:
             # If a registry was provided, register them automatically
             if self._registry is not None:
                 from core.tools.types import Tool
+
                 self._remove_registered_tools(server_id)
                 for spec in tools:
                     # Create Tool object based on spec
                     tool = Tool(
                         id=f"mcp_{server_id}_{spec['name']}",
-                        name=spec['name'],
-                        description=spec['description'],
-                        parameters=spec.get('parameters', {}),
+                        name=spec["name"],
+                        description=spec["description"],
+                        parameters=spec.get("parameters", {}),
                         provider="mcp",
                         category="mcp",
                         is_available=True,
@@ -240,9 +235,7 @@ class ToolServerManager:
             if tool.metadata.get("mcp_server_id") == server_id:
                 self._registry.unregister(tool.id)
 
-    async def _publish(
-        self, event_type: EventType, subject: str, payload: dict[str, Any]
-    ) -> None:
+    async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         await self._bus.publish(

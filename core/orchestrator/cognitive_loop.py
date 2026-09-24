@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CognitiveState:
     """État global du système cognitif."""
+
     session_id: str
     history: List[Dict[str, Any]] = field(default_factory=list)
     memory: Dict[str, Any] = field(default_factory=dict)
@@ -31,6 +32,7 @@ class CognitiveState:
 @dataclass
 class CognitiveResult:
     """Résultat d'un cycle cognitif complet."""
+
     intent: Intent
     plan: Any  # Plan
     observations: List[Any]  # List[Observation]
@@ -69,7 +71,7 @@ class CognitiveLoop:
     def _reason(self, intent: Intent, state: CognitiveState) -> Dict[str, Any]:
         """Reasoning: analyser l'intent et le contexte."""
         logger.info("[Reasoning] Analyzing intent and context")
-        
+
         # Analyse basique: vérifier le contexte et l'historique
         reasoning = {
             "intent_type": intent.source,
@@ -77,12 +79,12 @@ class CognitiveLoop:
             "history_length": len(state.history),
             "memory_keys": list(state.memory.keys()),
         }
-        
+
         # Raisonnement simple basé sur l'historique
         if state.history:
             last_interaction = state.history[-1]
             reasoning["last_success"] = last_interaction.get("success", False)
-        
+
         logger.info(f"[Reasoning] {reasoning}")
         return reasoning
 
@@ -107,7 +109,7 @@ class CognitiveLoop:
     def _update_memory(self, intent: Intent, observations: List[Any], state: CognitiveState):
         """Memory Update: stocker l'interaction en mémoire."""
         logger.info("[Memory] Updating memory")
-        
+
         interaction = {
             "timestamp": datetime.utcnow().isoformat(),
             "intent_source": intent.source,
@@ -123,30 +125,30 @@ class CognitiveLoop:
             ],
             "success": all(obs.success for obs in observations),
         }
-        
+
         state.history.append(interaction)
-        
+
         # Stocker dans la mémoire structurée
         key = f"interaction_{len(state.history)}"
         state.memory[key] = interaction
-        
+
         logger.info(f"[Memory] Stored interaction #{len(state.history)}")
 
     def _reflect(self, intent: Intent, observations: List[Any], state: CognitiveState) -> str:
         """Reflection: analyser le résultat et générer un apprentissage."""
         logger.info("[Reflection] Analyzing outcome")
-        
+
         success = all(obs.success for obs in observations)
-        
+
         if success:
             reflection = f"Successfully processed {intent.source} input: '{intent.user_input[:50]}'"
         else:
             failures = [obs.summary for obs in observations if not obs.success]
             reflection = f"Partial failure processing {intent.source} input: {', '.join(failures)}"
-        
+
         # Ajouter la réflexion à l'historique
         state.reflections.append(reflection)
-        
+
         # Apprentissage: si échec, marquer pour amélioration
         if not success:
             state.memory["last_failure"] = {
@@ -154,7 +156,7 @@ class CognitiveLoop:
                 "source": intent.source,
                 "timestamp": datetime.utcnow().isoformat(),
             }
-        
+
         logger.info(f"[Reflection] {reflection}")
         return reflection
 
@@ -167,32 +169,33 @@ class CognitiveLoop:
     ) -> CognitiveResult:
         """Exécuter le cycle cognitif complet."""
         import time
+
         start = time.monotonic()
-        
+
         state = self._get_state(session_id)
-        
+
         # 1. Perception
         intent = await self._perceive(source, raw_input)
-        
+
         # 2. Reasoning
         reasoning = self._reason(intent, state)
-        
+
         # 3. Planning
         plan = self._plan(intent, reasoning)
-        
+
         # 4. Execution
         observations = await self._execute(plan, context)
-        
+
         # 5. Observation (déjà fait dans execute)
-        
+
         # 6. Memory Update
         self._update_memory(intent, observations, state)
-        
+
         # 7. Reflection
         reflection = self._reflect(intent, observations, state)
-        
+
         duration_ms = (time.monotonic() - start) * 1000
-        
+
         return CognitiveResult(
             intent=intent,
             plan=plan,

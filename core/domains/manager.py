@@ -58,25 +58,17 @@ class DomainManager:
         self._providers: dict[str, DomainResourceProvider] = {}
         self._resource_types: set[str] = set(resource_types or DEFAULT_RESOURCE_TYPES)
         if knowledge is not None:
-            self.add_provider(
-                "knowledge", DomainResourceProvider(knowledge.get, knowledge.list)
-            )
+            self.add_provider("knowledge", DomainResourceProvider(knowledge.get, knowledge.list))
         if collections is not None:
             self.add_provider(
                 "collection",
-                DomainResourceProvider(
-                    collections.get_collection, collections.list_collections
-                ),
+                DomainResourceProvider(collections.get_collection, collections.list_collections),
             )
         if skills is not None:
-            self.add_provider(
-                "skill", DomainResourceProvider(skills.get_skill, skills.list_skills)
-            )
+            self.add_provider("skill", DomainResourceProvider(skills.get_skill, skills.list_skills))
         self._resource_types |= set(self._providers)
 
-    def add_provider(
-        self, resource_type: str, provider: DomainResourceProvider
-    ) -> None:
+    def add_provider(self, resource_type: str, provider: DomainResourceProvider) -> None:
         """Enregistre un type de ressource classable (registre ouvert)."""
         self._providers[resource_type] = provider
         self._resource_types.add(resource_type)
@@ -112,9 +104,7 @@ class DomainManager:
             "updated_at": _utc_now(),
         }
         await self._store.save(_DOMAIN_RECORDS, domain["id"], domain)
-        await self._publish(
-            EventType.DOMAIN_CREATED, "domain.created", {"domain": domain}
-        )
+        await self._publish(EventType.DOMAIN_CREATED, "domain.created", {"domain": domain})
         return domain
 
     async def get_domain(self, domain_id: str) -> dict[str, Any] | None:
@@ -133,9 +123,7 @@ class DomainManager:
         domains = await self._store.list(_DOMAIN_RECORDS)
         if user_id is not None:
             domains = [d for d in domains if d.get("user_id") == user_id]
-        return sorted(
-            domains, key=lambda d: (d.get("order", 0), d.get("name", ""))
-        )
+        return sorted(domains, key=lambda d: (d.get("order", 0), d.get("name", "")))
 
     async def update_domain(
         self,
@@ -171,9 +159,7 @@ class DomainManager:
             domain["metadata"] = dict(metadata)
         domain["updated_at"] = _utc_now()
         await self._store.save(_DOMAIN_RECORDS, domain_id, domain)
-        await self._publish(
-            EventType.DOMAIN_UPDATED, "domain.updated", {"domain": domain}
-        )
+        await self._publish(EventType.DOMAIN_UPDATED, "domain.updated", {"domain": domain})
         return domain
 
     async def delete_domain(self, domain_id: str) -> dict[str, Any] | None:
@@ -213,8 +199,7 @@ class DomainManager:
             raise ValueError(f"Domain {domain_id} not found")
         if resource_type not in self._resource_types:
             raise ValueError(
-                f"Unknown resource type {resource_type!r} "
-                f"(known: {sorted(self._resource_types)})"
+                f"Unknown resource type {resource_type!r} (known: {sorted(self._resource_types)})"
             )
         if not str(resource_id).strip():
             raise ValueError("resource_id must not be empty")
@@ -243,9 +228,7 @@ class DomainManager:
         )
         return membership
 
-    async def detach_resource(
-        self, domain_id: str, resource_type: str, resource_id: str
-    ) -> bool:
+    async def detach_resource(self, domain_id: str, resource_type: str, resource_id: str) -> bool:
         """Détache une ressource d'un domain (la ressource elle-même reste)."""
         membership_id = _membership_id(domain_id, resource_type, resource_id)
         existing = await self._store.get(_DOMAIN_MEMBERSHIPS, membership_id)
@@ -271,9 +254,7 @@ class DomainManager:
         for membership in await self._store.list(_DOMAIN_MEMBERSHIPS):
             if membership.get("domain_id") != domain_id:
                 continue
-            if resource_type is not None and membership.get(
-                "resource_type"
-            ) != resource_type:
+            if resource_type is not None and membership.get("resource_type") != resource_type:
                 continue
             result.append(
                 {
@@ -321,20 +302,15 @@ class DomainManager:
         """Nombre de ressources rattachées (pour l'affichage des listes)."""
         return len(await self.list_resource_ids(domain_id))
 
-    async def list_domains_for_resource(
-        self, resource_type: str, resource_id: str
-    ) -> list[str]:
+    async def list_domains_for_resource(self, resource_type: str, resource_id: str) -> list[str]:
         """Ids des domains auxquels une ressource appartient (index inverse)."""
         return [
             m["domain_id"]
             for m in await self._store.list(_DOMAIN_MEMBERSHIPS)
-            if m.get("resource_type") == resource_type
-            and m.get("resource_id") == resource_id
+            if m.get("resource_type") == resource_type and m.get("resource_id") == resource_id
         ]
 
-    async def list_domains_with_counts(
-        self, user_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    async def list_domains_with_counts(self, user_id: str | None = None) -> list[dict[str, Any]]:
         """Domains enrichis de ``resource_count`` (vue liste WebUI/API)."""
         domains = await self.list_domains(user_id)
         return [
@@ -349,9 +325,7 @@ class DomainManager:
             if domain.get("name", "").strip().lower() == name.strip().lower():
                 raise ValueError(f"Domain name already exists: {name}")
 
-    async def _publish(
-        self, event_type: EventType, subject: str, payload: dict[str, Any]
-    ) -> None:
+    async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         await self._bus.publish(
@@ -372,5 +346,3 @@ __all__ = [
     "DomainManager",
     "DomainResourceProvider",
 ]
-
-

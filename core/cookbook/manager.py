@@ -95,9 +95,7 @@ class CookbookManager:
         detail = self._summarize(manifest)
         # Tags agrégés depuis les prompts installés (métadonnées de galerie).
         tags = {
-            tag
-            for item in manifest["installs"].get("prompt", [])
-            for tag in item.get("tags", [])
+            tag for item in manifest["installs"].get("prompt", []) for tag in item.get("tags", [])
         }
         detail["tags"] = sorted(tags)
         detail["installs"] = manifest["installs"]
@@ -145,13 +143,15 @@ class CookbookManager:
                 created.append(("prompt", rec["id"]))
 
             for item in manifest["installs"].get("skill", []):
-                rec = await self._skills.create_skill({
-                    "name": item.get("name", "recipe-skill"),
-                    "description": item.get("description", ""),
-                    "content": item.get("content", ""),
-                    "version": item.get("version", "1.0.0"),
-                    "metadata": {"cookbook_recipe": recipe_id},
-                })
+                rec = await self._skills.create_skill(
+                    {
+                        "name": item.get("name", "recipe-skill"),
+                        "description": item.get("description", ""),
+                        "content": item.get("content", ""),
+                        "version": item.get("version", "1.0.0"),
+                        "metadata": {"cookbook_recipe": recipe_id},
+                    }
+                )
                 created.append(("skill", rec["id"]))
 
             for item in manifest["installs"].get("automation", []):

@@ -1,4 +1,5 @@
 """ETHAN Planner Module — capability declarations."""
+
 ETHAN_CAPABILITIES = [
     {
         "name": "planner.decompose",

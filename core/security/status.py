@@ -41,8 +41,7 @@ def security_status(
         by_level[key] = by_level.get(key, 0) + 1
         effect = getattr(rule, "effect", None)
         by_effect[effect.value if hasattr(effect, "value") else str(effect)] = (
-            by_effect.get(effect.value if hasattr(effect, "value") else str(effect), 0)
-            + 1
+            by_effect.get(effect.value if hasattr(effect, "value") else str(effect), 0) + 1
         )
         categories.add(getattr(rule, "category", "?"))
 

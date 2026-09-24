@@ -20,7 +20,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from core.bus.interface import EventBus
 from core.ethan_types.event import Event, EventType
 from core.tools.mcp_client import MCP_AVAILABLE
@@ -79,9 +78,7 @@ def test_register_masks_token_in_response_and_event():
         assert SECRET not in json.dumps(server)
         # Event : version publique uniquement (règle repo — pas de secret dans
         # les events).
-        registered = [
-            e for e in bus.events if e.type == EventType.TOOL_SERVER_REGISTERED
-        ]
+        registered = [e for e in bus.events if e.type == EventType.TOOL_SERVER_REGISTERED]
         assert registered, "l'événement d'enregistrement doit être publié"
         assert SECRET not in json.dumps(registered[-1].payload)
         # Le store de configuration dédié conserve le secret (usage interne).
@@ -114,9 +111,7 @@ def test_update_without_token_keeps_secret_and_masks_headers():
         assert raw["metadata"]["headers"]["Authorization"] == "Bearer " + SECRET
 
         # Mise à jour AVEC un nouveau token → remplacé, réponse masquée.
-        updated2 = await manager.update(
-            server["id"], {"auth_config": {"token": "new-token"}}
-        )
+        updated2 = await manager.update(server["id"], {"auth_config": {"token": "new-token"}})
         assert "new-token" not in json.dumps(updated2)
         raw2 = await manager._get_private(server["id"])
         assert raw2["auth_config"]["token"] == "new-token"

@@ -9,7 +9,6 @@ Assure la gouvernance des événements :
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -65,6 +64,7 @@ class EventSchema:
 
     Stocké en mémoire et persistant dans PostgreSQL.
     """
+
     event_type: str
     version: str
     schema: dict[str, Any]  # JSON Schema
@@ -121,9 +121,7 @@ class EventSchemaRegistry:
         if current is None or self._compare_versions(version, current) > 0:
             self._latest_versions[event_type] = version
 
-        logger.debug(
-            "Schema registered: %s v%s", event_type, version
-        )
+        logger.debug("Schema registered: %s v%s", event_type, version)
 
     def register_migration(
         self,
@@ -157,7 +155,9 @@ class EventSchemaRegistry:
 
         logger.debug(
             "Migration registered: %s %s → %s",
-            event_type, from_version, to_version,
+            event_type,
+            from_version,
+            to_version,
         )
 
     # ──────────────────────────────────────────────
@@ -181,7 +181,7 @@ class EventSchemaRegistry:
             latest = self._latest_versions.get(event.type.value)
             if latest and latest != version:
                 try:
-                    migrated = self.migrate(event, latest)
+                    self.migrate(event, latest)
                     schema = self._schemas.get((event.type.value, latest))
                     if schema is None:
                         return [f"No schema found for {event.type.value}"]
@@ -267,9 +267,7 @@ class EventSchemaRegistry:
             return event
 
         # Trouver le chemin de migration
-        migrations = self._find_migration_path(
-            event.type.value, current_version, target_version
-        )
+        migrations = self._find_migration_path(event.type.value, current_version, target_version)
 
         if not migrations:
             raise ValueError(
@@ -284,7 +282,9 @@ class EventSchemaRegistry:
                 payload = migration.apply(payload)
                 logger.debug(
                     "Applied migration: %s %s → %s",
-                    event.type.value, migration.from_version, migration.to_version,
+                    event.type.value,
+                    migration.from_version,
+                    migration.to_version,
                 )
             except Exception as e:
                 raise ValueError(
@@ -379,11 +379,7 @@ class EventSchemaRegistry:
         Returns:
             Liste des versions, triées
         """
-        versions = [
-            version
-            for (e_type, version) in self._schemas
-            if e_type == event_type
-        ]
+        versions = [version for (e_type, version) in self._schemas if e_type == event_type]
         return sorted(versions, key=self._compare_versions_key, reverse=True)
 
     def count(self) -> int:

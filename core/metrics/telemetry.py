@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MetricPoint:
     """Point de métrique."""
+
     name: str
     value: float
     timestamp: float = field(default_factory=time.time)
@@ -49,7 +50,9 @@ class TelemetryCollector:
             self._metrics[name] = []
         self._metrics[name].append(point)
 
-    def record_latency(self, operation: str, duration_ms: float, labels: dict[str, str] = None) -> None:
+    def record_latency(
+        self, operation: str, duration_ms: float, labels: dict[str, str] = None
+    ) -> None:
         """Enregistre une latence."""
         self.record(f"{operation}_latency_ms", duration_ms, labels)
         self.increment(f"{operation}_total", labels)

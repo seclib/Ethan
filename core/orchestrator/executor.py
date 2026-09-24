@@ -1,7 +1,9 @@
 """Executor — Ethan OS"""
+
 import time
-from core.capabilities import Capability, CapabilityContext, CapabilityResult, CapabilityStatus
-from core.orchestrator.registry import CapabilityRegistry
+
+from core.capabilities import CapabilityResult, CapabilityStatus
+
 
 class Executor:
     def __init__(self, registry, timeout=30.0):
@@ -12,7 +14,9 @@ class Executor:
         start = time.monotonic()
         cap = self.registry.get(capability_name)
         if not cap:
-            return CapabilityResult(status=CapabilityStatus.FAILED, error=f"Not found: {capability_name}")
+            return CapabilityResult(
+                status=CapabilityStatus.FAILED, error=f"Not found: {capability_name}"
+            )
         try:
             if not await cap.validate(context):
                 return CapabilityResult(status=CapabilityStatus.FAILED, error="Validation failed")
@@ -23,4 +27,8 @@ class Executor:
             result.duration_ms = (time.monotonic() - start) * 1000
             return result
         except Exception as e:
-            return CapabilityResult(status=CapabilityStatus.FAILED, error=str(e), duration_ms=(time.monotonic() - start) * 1000)
+            return CapabilityResult(
+                status=CapabilityStatus.FAILED,
+                error=str(e),
+                duration_ms=(time.monotonic() - start) * 1000,
+            )

@@ -5,7 +5,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from core.security.types import Action, ActionType, Permission, SecurityContext, TrustLevel, ValidationResult
+from core.security.types import (
+    Action,
+    ActionType,
+    Permission,
+    SecurityContext,
+    TrustLevel,
+    ValidationResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +26,12 @@ class PermissionChecker:
             "llm": {
                 "permissions": [
                     Permission(resource="memory", action="read", scope="user"),
-                    Permission(resource="capability", action="invoke", scope="user", 
-                              conditions={"trust_level": "medium"}),
+                    Permission(
+                        resource="capability",
+                        action="invoke",
+                        scope="user",
+                        conditions={"trust_level": "medium"},
+                    ),
                 ],
                 "trust_level": TrustLevel.LOW,
             },
@@ -72,8 +83,13 @@ class PermissionChecker:
         if not has_permission:
             return ValidationResult(
                 valid=False,
-                reason=f"Permission denied: {required_permission.resource}:{required_permission.action}",
-                violations=[f"missing_permission:{required_permission.resource}:{required_permission.action}"],
+                reason=(
+                    f"Permission denied: {required_permission.resource}:"
+                    f"{required_permission.action}"
+                ),
+                violations=[
+                    f"missing_permission:{required_permission.resource}:{required_permission.action}"
+                ],
             )
 
         return ValidationResult(
@@ -117,7 +133,9 @@ class PermissionChecker:
             scope=action.source,
         )
 
-    def _check_permission(self, role_permissions: list[Permission], required: Permission, context: SecurityContext) -> bool:
+    def _check_permission(
+        self, role_permissions: list[Permission], required: Permission, context: SecurityContext
+    ) -> bool:
         """Vérifie si le rôle a la permission.
 
         Args:
@@ -170,8 +188,13 @@ class PermissionChecker:
             required_level = TrustLevel(conditions["trust_level"])
             if context.trust_level.value != required_level.value:
                 # Vérifier hiérarchie
-                level_order = [TrustLevel.UNTRUSTED, TrustLevel.LOW, TrustLevel.MEDIUM, 
-                              TrustLevel.HIGH, TrustLevel.CRITICAL]
+                level_order = [
+                    TrustLevel.UNTRUSTED,
+                    TrustLevel.LOW,
+                    TrustLevel.MEDIUM,
+                    TrustLevel.HIGH,
+                    TrustLevel.CRITICAL,
+                ]
                 required_idx = level_order.index(required_level)
                 actual_idx = level_order.index(context.trust_level)
                 if actual_idx < required_idx:
@@ -180,6 +203,7 @@ class PermissionChecker:
         # Vérifier time_range
         if "time_range" in conditions:
             from datetime import datetime
+
             now = datetime.utcnow()
             start = datetime.strptime(conditions["time_range"]["start"], "%H:%M").time()
             end = datetime.strptime(conditions["time_range"]["end"], "%H:%M").time()

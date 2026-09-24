@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.orchestrator.context import OrchestratorContext
 
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class RequestRouter:
     """Route les requêtes vers les modules appropriés.
-    
+
     Responsabilités :
     - Analyser la requête
     - Déterminer le module cible

@@ -37,9 +37,7 @@ class PolicyGuard:
     def __init__(
         self,
         engine: PolicyEngine | None = None,
-        approver: (
-            Callable[[PolicyRequest, PolicyDecision], Awaitable[bool]] | None
-        ) = None,
+        approver: (Callable[[PolicyRequest, PolicyDecision], Awaitable[bool]] | None) = None,
     ) -> None:
         self._engine = engine or PolicyEngine()
         self._approver = approver
@@ -64,9 +62,7 @@ class PolicyGuard:
         source: str = "unknown",
     ) -> PolicyDecision:
         """Évalue une action (sans exécution)."""
-        return self._engine.check(
-            category, action, resource, params=params, source=source
-        )
+        return self._engine.check(category, action, resource, params=params, source=source)
 
     # ── Exécution protégée ─────────────────────────────────────────────
 

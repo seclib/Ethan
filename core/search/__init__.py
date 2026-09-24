@@ -117,7 +117,13 @@ class SearchManager:
             return {"query": query, "type": "knowledge", "results": results, "total": len(results)}
         except Exception as exc:
             logger.error(f"Knowledge search failed: {exc}")
-            return {"query": query, "type": "knowledge", "results": [], "total": 0, "error": str(exc)}
+            return {
+                "query": query,
+                "type": "knowledge",
+                "results": [],
+                "total": 0,
+                "error": str(exc),
+            }
 
     async def _search_library(self, query: str, *, limit: int, **kwargs: Any) -> dict[str, Any]:
         """Search knowledge library (collections + RAG documents)."""
@@ -131,13 +137,15 @@ class SearchManager:
                 for col in collections:
                     haystack = f"{col.get('name', '')} {col.get('description', '')}".casefold()
                     if any(t in haystack for t in terms):
-                        results.append({
-                            "id": col.get("id"),
-                            "title": col.get("name", ""),
-                            "description": col.get("description", ""),
-                            "type": "collection",
-                            "document_count": len(col.get("document_ids", [])),
-                        })
+                        results.append(
+                            {
+                                "id": col.get("id"),
+                                "title": col.get("name", ""),
+                                "description": col.get("description", ""),
+                                "type": "collection",
+                                "document_count": len(col.get("document_ids", [])),
+                            }
+                        )
             except Exception as exc:
                 logger.debug(f"Library collection search skipped: {exc}")
 
@@ -147,17 +155,24 @@ class SearchManager:
                 rag_results = await self._rag.retrieve(query, top_k=limit)
                 for item in rag_results:
                     chunk = item.get("chunk", {})
-                    results.append({
-                        "id": chunk.get("id"),
-                        "title": item.get("document_title", ""),
-                        "content": chunk.get("content", ""),
-                        "score": item.get("score", 0),
-                        "type": "rag_chunk",
-                    })
+                    results.append(
+                        {
+                            "id": chunk.get("id"),
+                            "title": item.get("document_title", ""),
+                            "content": chunk.get("content", ""),
+                            "score": item.get("score", 0),
+                            "type": "rag_chunk",
+                        }
+                    )
             except Exception as exc:
                 logger.debug(f"RAG search skipped: {exc}")
 
-        return {"query": query, "type": "library", "results": results[:limit], "total": len(results)}
+        return {
+            "query": query,
+            "type": "library",
+            "results": results[:limit],
+            "total": len(results),
+        }
 
     async def _search_conversation(self, query: str, *, limit: int) -> dict[str, Any]:
         """Search chat history (titles + message content)."""
@@ -179,27 +194,31 @@ class SearchManager:
             for chat in chats:
                 title = chat.get("title", "").casefold()
                 if any(t in title for t in terms):
-                    scored.append({
-                        "id": chat.get("id"),
-                        "title": chat.get("title", ""),
-                        "type": "chat",
-                        "created_at": chat.get("created_at"),
-                        "match_in": "title",
-                    })
+                    scored.append(
+                        {
+                            "id": chat.get("id"),
+                            "title": chat.get("title", ""),
+                            "type": "chat",
+                            "created_at": chat.get("created_at"),
+                            "match_in": "title",
+                        }
+                    )
 
             # Search messages
             messages = await self._chat._store.list("chat-messages")
             for msg in messages:
                 content = msg.get("content", "").casefold()
                 if any(t in content for t in terms):
-                    scored.append({
-                        "id": msg.get("id"),
-                        "title": msg.get("content", "")[:100],
-                        "chat_id": msg.get("chat_id"),
-                        "type": "message",
-                        "created_at": msg.get("created_at"),
-                        "match_in": "content",
-                    })
+                    scored.append(
+                        {
+                            "id": msg.get("id"),
+                            "title": msg.get("content", "")[:100],
+                            "chat_id": msg.get("chat_id"),
+                            "type": "message",
+                            "created_at": msg.get("created_at"),
+                            "match_in": "content",
+                        }
+                    )
 
             scored.sort(key=lambda x: x.get("created_at", ""), reverse=True)
             return {

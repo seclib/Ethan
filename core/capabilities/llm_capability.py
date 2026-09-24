@@ -1,7 +1,12 @@
 """LLM Capability — Ethan OS"""
-from typing import Any
 
-from core.capabilities import Capability, CapabilityContext, CapabilityResult, CapabilityStatus, RiskLevel
+from core.capabilities import (
+    Capability,
+    CapabilityContext,
+    CapabilityResult,
+    CapabilityStatus,
+    RiskLevel,
+)
 
 
 class LLMCapability(Capability):

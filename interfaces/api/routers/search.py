@@ -8,10 +8,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
 from core.auth import Permission
 from core.search import SearchManager
+from fastapi import APIRouter, Depends, HTTPException, Query
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,9 @@ def get_search_manager() -> SearchManager:
 @router.get("", dependencies=[Depends(require_permission(Permission.READ))])
 async def search(
     q: str = Query(..., min_length=1, description="Search query"),
-    type: str = Query("knowledge", description="Search type: web, knowledge, library, conversation"),
+    type: str = Query(
+        "knowledge", description="Search type: web, knowledge, library, conversation"
+    ),
     limit: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
     """Run a search across the specified domain."""
@@ -47,4 +48,5 @@ async def search(
 async def list_search_types() -> dict[str, Any]:
     """List available search types."""
     from core.search import SEARCH_TYPES
+
     return {"types": list(SEARCH_TYPES)}

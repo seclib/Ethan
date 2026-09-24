@@ -11,7 +11,6 @@ Score composite :
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.tools.types import ScoredTool, Tool, ToolContext
 

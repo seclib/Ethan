@@ -4,9 +4,9 @@ Uses cli.core.discovery.CommandRegistry as the single source of truth.
 @register() delegates to the global registry instance.
 dispatch() resolves commands via registry.get().
 """
+
 import importlib.util
 import signal
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -35,20 +35,24 @@ def register(name: str, group: str = "core", description: str = "", usage: str =
         def cmd_status(args):
             ...
     """
+
     def decorator(fn):
         # Register in discovery registry for help/suggest
         existing = registry.get(name)
         if not existing:
-            registry.register(Command(
-                name=name,
-                group=group,
-                description=description or fn.__doc__ or name,
-                usage=usage or f"ethan {name}",
-            ))
+            registry.register(
+                Command(
+                    name=name,
+                    group=group,
+                    description=description or fn.__doc__ or name,
+                    usage=usage or f"ethan {name}",
+                )
+            )
         # Store handler for dispatch in the function itself
         fn._ethan_cmd_name = name
         COMMAND_HANDLERS[name] = fn
         return fn
+
     return decorator
 
 
@@ -92,7 +96,7 @@ def _load_module(path):
         spec.loader.exec_module(mod)
     except Exception:
         return
-    
+
     # Auto-detect functions named cmd_* as command handlers
     for attr_name in dir(mod):
         if attr_name.startswith("cmd_") and not attr_name.startswith("cmd__"):
@@ -103,13 +107,15 @@ def _load_module(path):
                     COMMAND_HANDLERS[cmd_name] = fn
                     # Also register in discovery registry if not already there
                     if registry.get(cmd_name) is None:
-                        registry.register(Command(
-                            name=cmd_name,
-                            group="core",
-                            description=fn.__doc__ or cmd_name,
-                            usage=f"ethan {cmd_name}",
-                        ))
-    
+                        registry.register(
+                            Command(
+                                name=cmd_name,
+                                group="core",
+                                description=fn.__doc__ or cmd_name,
+                                usage=f"ethan {cmd_name}",
+                            )
+                        )
+
     # Plugins may also register via ETHAN_PLUGIN dict
     if hasattr(mod, "ETHAN_PLUGIN"):
         for name, cmd in mod.ETHAN_PLUGIN.get("commands", {}).items():
@@ -165,6 +171,7 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
     fn = _get_handler(cmd)
     if not fn:
         from interfaces.cli.core.ux import UX
+
         suggestion = UX.suggest_command(cmd, [c.name for c in registry.list_commands()])
         if suggestion:
             print(format_error(unknown_command(cmd, f"Did you mean? {suggestion}")))
@@ -176,7 +183,7 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
     if not _debug:
         # Set timeout via SIGALRM (Unix only)
         old_handler = None
-        if timeout > 0 and hasattr(signal, 'SIGALRM'):
+        if timeout > 0 and hasattr(signal, "SIGALRM"):
             old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
             signal.alarm(timeout)
         try:
@@ -184,20 +191,25 @@ def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):
             return result
         except TimeoutError:
             from interfaces.cli.core.errors import EthanError
-            print(format_error(EthanError("SYS-002", "Timeout",
-                                          f"command '{cmd}' exceeded {timeout}s")))
+
+            print(
+                format_error(
+                    EthanError("SYS-002", "Timeout", f"command '{cmd}' exceeded {timeout}s")
+                )
+            )
             return 1
         except SystemExit:
             raise
         except Exception as e:
             from interfaces.cli.core.errors import EthanError
+
             if isinstance(e, EthanError):
                 print(format_error(e))
-                return getattr(e, 'code', 1)
+                return getattr(e, "code", 1)
             print(format_error(EthanError("SYS-999", "Unexpected error", str(e))))
             return 1
         finally:
-            if timeout > 0 and hasattr(signal, 'SIGALRM'):
+            if timeout > 0 and hasattr(signal, "SIGALRM"):
                 signal.alarm(0)
                 if old_handler:
                     signal.signal(signal.SIGALRM, old_handler)

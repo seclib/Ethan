@@ -6,8 +6,8 @@ and sends user actions through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -176,7 +176,16 @@ class ChatStore:
         message = await self.get_message(chat_id, message_id)
         if message is None:
             return None
-        for key in ("content", "status", "done", "model", "files", "tool_calls", "sources", "metadata"):
+        for key in (
+            "content",
+            "status",
+            "done",
+            "model",
+            "files",
+            "tool_calls",
+            "sources",
+            "metadata",
+        ):
             if key in data:
                 message[key] = data[key]
         message["updated_at"] = datetime.utcnow().isoformat()
@@ -236,4 +245,6 @@ class ChatStore:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="chat-store", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="chat-store", payload=payload)
+        )

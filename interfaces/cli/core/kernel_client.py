@@ -6,8 +6,6 @@ Fallback automatique vers le mode standalone si le Kernel est inaccessible.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 from typing import Any
 
@@ -54,7 +52,9 @@ class KernelClient:
         """Ferme le client."""
         await self._client.aclose()
 
-    async def chat(self, text: str, session_id: str = "default", user_id: str = "anonymous") -> dict[str, Any]:
+    async def chat(
+        self, text: str, session_id: str = "default", user_id: str = "anonymous"
+    ) -> dict[str, Any]:
         """Envoie un message au Kernel.
 
         Args:
@@ -80,7 +80,9 @@ class KernelClient:
         response.raise_for_status()
         return response.json()
 
-    async def command(self, command: str, args: list[str] = None, meta: dict[str, Any] = None) -> dict[str, Any]:
+    async def command(
+        self, command: str, args: list[str] = None, meta: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """Exécute une commande via le Kernel.
 
         Args:

@@ -10,6 +10,7 @@ from typing import Any
 
 class PlanState(str, Enum):
     """États d'un plan."""
+
     CREATED = "created"
     PLANNING = "planning"
     READY = "ready"
@@ -22,6 +23,7 @@ class PlanState(str, Enum):
 
 class TaskState(str, Enum):
     """États d'une tâche."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -32,6 +34,7 @@ class TaskState(str, Enum):
 
 class Priority(str, Enum):
     """Niveaux de priorité."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -42,6 +45,7 @@ class Priority(str, Enum):
 @dataclass
 class Goal:
     """Objectif à accomplir."""
+
     id: str
     description: str
     priority: Priority = Priority.MEDIUM
@@ -57,6 +61,7 @@ class Goal:
 @dataclass
 class Task:
     """Tâche atomique."""
+
     id: str
     capability: str
     params: dict[str, Any] = field(default_factory=dict)
@@ -77,6 +82,7 @@ class Task:
 @dataclass
 class TaskDAG:
     """Graphe acyclique de tâches."""
+
     tasks: dict[str, Task] = field(default_factory=dict)
     levels: list[list[str]] = field(default_factory=list)  # Niveaux d'exécution
 
@@ -113,6 +119,7 @@ class TaskDAG:
 @dataclass
 class Plan:
     """Plan d'exécution."""
+
     id: str
     goal_id: str
     state: PlanState = PlanState.CREATED
@@ -170,6 +177,7 @@ class Plan:
 @dataclass
 class Conflict:
     """Conflit entre goals."""
+
     type: str
     goals: list[str]
     description: str
@@ -179,6 +187,7 @@ class Conflict:
 @dataclass
 class Checkpoint:
     """Checkpoint de plan."""
+
     id: str
     plan_id: str
     timestamp: datetime

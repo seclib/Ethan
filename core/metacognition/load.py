@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict
-
-from core.ethan_types.sdk.metacognition import CognitiveMode, COGNITIVE_MODES
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +46,7 @@ class CognitiveLoadManager:
 
     async def recommend_mode(self, load: float) -> str:
         """Suggest a cognitive mode based on load."""
-        depth = await self.adjust_depth(load)
+        await self.adjust_depth(load)
         if load > 0.7:
             return "fast"
         elif load > 0.4:

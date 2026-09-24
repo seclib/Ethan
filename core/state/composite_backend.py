@@ -10,15 +10,15 @@ import logging
 from typing import Any, Optional
 
 from core.state.interface import StateBackend
-from core.state.redis_state import RedisLiveState
 from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
 
 class CompositeStateBackend(StateBackend):
     """Combine Redis (live) et PostgreSQL (persistent) en un seul backend.
-    
+
     Cette classe permet au Kernel de respecter le principe de Clean Architecture
     en dépendant uniquement de l'interface StateBackend.
     """

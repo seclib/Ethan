@@ -44,7 +44,14 @@ CONFIGURATION = "configuration"
 EXTERNAL_TRANSMISSION = "external_transmission"
 
 RESOURCE_CATEGORIES = {
-    FILESYSTEM, SHELL, DOCKER, SYSTEMD, NETWORK, MCP, MEMORY, CONFIGURATION,
+    FILESYSTEM,
+    SHELL,
+    DOCKER,
+    SYSTEMD,
+    NETWORK,
+    MCP,
+    MEMORY,
+    CONFIGURATION,
     EXTERNAL_TRANSMISSION,
 }
 
@@ -74,6 +81,7 @@ _OPERATION_MAP: dict[str, set[str]] = {
 
 class RiskLevel:
     """Niveau de risque d'une capability (aligné sur le Core existant)."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -82,6 +90,7 @@ class RiskLevel:
 
 class CapabilityState:
     """État de vie d'une capability."""
+
     ACTIVE = "active"
     REVOKED = "revoked"
     EXPIRED = "expired"
@@ -90,9 +99,11 @@ class CapabilityState:
 
 # ── Path Security — traversal / symlink / mount escape ───────────────────────
 
+
 @dataclass(frozen=True)
 class PathSecurityError(Exception):
     """Chemin refusé par le résolveur de sécurité."""
+
     resource: str
     reason: str
 
@@ -134,6 +145,7 @@ def resolve_safe_path(resource: str, allowed_roots: list[str]) -> str:
 
 
 # ── Capability granulaire ─────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class Capability:
@@ -237,6 +249,7 @@ class Capability:
 
 # ── Génération d'ID ──────────────────────────────────────────────────────────
 
+
 def capability_id(*parts: str) -> str:
     """Génère un ID de capability déterministe SHA-256."""
     h = hashlib.sha256(":".join(parts).encode()).hexdigest()
@@ -245,9 +258,11 @@ def capability_id(*parts: str) -> str:
 
 # ── Entrée d'audit ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class AuditEntry:
     """Entrée d'audit d'une utilisation de capability."""
+
     capability_id: str
     subject: str
     category: str
@@ -262,6 +277,7 @@ class AuditEntry:
 
 # ── Gestionnaire de capabilities ─────────────────────────────────────────────
 
+
 class CapabilityManager:
     """Gestionnaire central des capabilities.
 
@@ -273,9 +289,7 @@ class CapabilityManager:
     """
 
     def __init__(self, allowed_roots: list[str] | None = None) -> None:
-        self.allowed_roots: list[str] = (
-            allowed_roots or [str(Path.cwd().resolve())]
-        )
+        self.allowed_roots: list[str] = allowed_roots or [str(Path.cwd().resolve())]
         self._capabilities: dict[str, Capability] = {}
         self._audit_log: list[AuditEntry] = []
 
@@ -300,16 +314,12 @@ class CapabilityManager:
             raise ValueError(f"unknown resource category: {category}")
         allowed_ops = _OPERATION_MAP.get(category, set())
         if operation not in allowed_ops and operation != "*":
-            raise ValueError(
-                f"operation '{operation}' not allowed for category '{category}'"
-            )
+            raise ValueError(f"operation '{operation}' not allowed for category '{category}'")
         if scope not in ("self", "shared"):
             raise ValueError(f"invalid scope: {scope}")
 
         cap = Capability(
-            id=capability_id(
-                subject, category, operation, resource, str(ttl_seconds)
-            ),
+            id=capability_id(subject, category, operation, resource, str(ttl_seconds)),
             subject=subject,
             category=category,
             operation=operation,
@@ -323,7 +333,11 @@ class CapabilityManager:
         self._capabilities[cap.id] = cap
         logger.info(
             "Capability granted: %s (%s:%s:%s:%s)",
-            cap.id, subject, category, operation, resource,
+            cap.id,
+            subject,
+            category,
+            operation,
+            resource,
         )
         return cap
 
@@ -336,9 +350,7 @@ class CapabilityManager:
         logger.info("Capability revoked: %s", capability_id)
         return True
 
-    def list_capabilities(
-        self, subject: str | None = None
-    ) -> list[Capability]:
+    def list_capabilities(self, subject: str | None = None) -> list[Capability]:
         """Liste les capabilities actives (non révoquées, non expirées)."""
         now = time.time()
         result = []
@@ -367,9 +379,7 @@ class CapabilityManager:
             (result, reason, matched_capability)
         """
         for cap in self._capabilities.values():
-            if not cap.matches(
-                subject, category, operation, resource, self.allowed_roots
-            ):
+            if not cap.matches(subject, category, operation, resource, self.allowed_roots):
                 continue
             entry = AuditEntry(
                 capability_id=cap.id,

@@ -58,7 +58,9 @@ def cmd_agents(args: list[str]) -> int:
     elif action == "executions" and len(args) == 2:
         _print(_request("GET", f"/v1/agents/{args[1]}/executions"))
     else:
-        print("usage: ethan agents [list|create <name> [capability...]|start|pause|stop|executions <id>]")
+        print(
+            "usage: ethan agents [list|create <name> [capability...]|start|pause|stop|executions <id>]"
+        )
         return 1
     return 0
 
@@ -80,7 +82,9 @@ def cmd_missions(args: list[str]) -> int:
     elif action in {"verify", "approve"} and len(args) == 3:
         _print(_request("POST", f"/v1/missions/{args[1]}/steps/{args[2]}/{action}"))
     else:
-        print("usage: ethan missions [list|create <title>|show <id>|verify <mission> <step>|approve <mission> <step>]")
+        print(
+            "usage: ethan missions [list|create <title>|show <id>|verify <mission> <step>|approve <mission> <step>]"
+        )
         return 1
     return 0
 
@@ -130,6 +134,8 @@ def cmd_documents(args: list[str]) -> int:
     elif action == "context" and len(args) >= 2:
         _print(_request("POST", "/v1/rag/context", {"query": " ".join(args[1:])}))
     else:
-        print("usage: ethan documents [list|ingest <title> <content>|search <query>|context <query>]")
+        print(
+            "usage: ethan documents [list|ingest <title> <content>|search <query>|context <query>]"
+        )
         return 1
     return 0

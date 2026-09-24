@@ -72,8 +72,7 @@ class ExecutiveModule(CognitiveModule):
                     # declared event subject even for fire-and-forget input.
                     # Keep request/reply semantics when a reply inbox exists.
                     subject = (
-                        msg.reply
-                        or response.type.value
+                        msg.reply or response.type.value
                         if isinstance(response.type, EventType)
                         else msg.reply or str(response.type)
                     )

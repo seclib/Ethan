@@ -11,9 +11,8 @@ Configuration (via env vars):
 
 from __future__ import annotations
 
-import os
 import logging
-from typing import Optional
+import os
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -29,7 +28,9 @@ DEFAULT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 # Create limiter instance
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[f"{DEFAULT_REQUESTS} per {DEFAULT_WINDOW} seconds"] if RATE_LIMIT_ENABLED else [],
+    default_limits=[f"{DEFAULT_REQUESTS} per {DEFAULT_WINDOW} seconds"]
+    if RATE_LIMIT_ENABLED
+    else [],
 )
 
 # Specific limits for sensitive endpoints
@@ -48,21 +49,22 @@ async def rate_limit_exceeded_handler(request, exc):
 
     Returns a JSON response with retry information.
     """
-    from fastapi import Response
     import json
+
+    from fastapi import Response
 
     retry_after = getattr(exc, "retry_after", 60) if hasattr(exc, "retry_after") else DEFAULT_WINDOW
 
-    logger.warning(
-        f"Rate limit exceeded for {get_remote_address(request)} on {request.url.path}"
-    )
+    logger.warning(f"Rate limit exceeded for {get_remote_address(request)} on {request.url.path}")
 
     return Response(
-        content=json.dumps({
-            "error": "Rate limit exceeded",
-            "detail": "Too many requests. Please retry after the specified time.",
-            "retry_after": retry_after,
-        }),
+        content=json.dumps(
+            {
+                "error": "Rate limit exceeded",
+                "detail": "Too many requests. Please retry after the specified time.",
+                "retry_after": retry_after,
+            }
+        ),
         status_code=429,
         media_type="application/json",
         headers={"Retry-After": str(retry_after)},

@@ -1,5 +1,5 @@
 """ETHAN weather plugin — example."""
-import json
+
 from urllib.request import urlopen
 
 ETHAN_PLUGIN = {
@@ -11,7 +11,7 @@ ETHAN_PLUGIN = {
     "commands": {
         "weather": {
             "handler": lambda args: cmd_weather(args),
-            "help": "weather <city>  Show weather for a city"
+            "help": "weather <city>  Show weather for a city",
         }
     },
     "dependencies": [],

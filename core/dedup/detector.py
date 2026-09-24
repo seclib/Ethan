@@ -121,17 +121,19 @@ class DuplicateDetector:
             for project in await self._projects.list_projects():
                 pid = project.get("id", "")
                 for doc in await self._projects.list_documents(pid):
-                    items.append(ScannedItem(
-                        id=doc.get("id", ""),
-                        domain=ItemDomain.PROJECT_DOCUMENT,
-                        name=doc.get("title", "") or doc.get("filename", ""),
-                        size=int(doc.get("size") or 0),
-                        content_type=doc.get("content_type", ""),
-                        created_at=doc.get("created_at", ""),
-                        updated_at=doc.get("updated_at", ""),
-                        project_ids=[pid],
-                        metadata=dict(doc.get("metadata") or {}),
-                    ))
+                    items.append(
+                        ScannedItem(
+                            id=doc.get("id", ""),
+                            domain=ItemDomain.PROJECT_DOCUMENT,
+                            name=doc.get("title", "") or doc.get("filename", ""),
+                            size=int(doc.get("size") or 0),
+                            content_type=doc.get("content_type", ""),
+                            created_at=doc.get("created_at", ""),
+                            updated_at=doc.get("updated_at", ""),
+                            project_ids=[pid],
+                            metadata=dict(doc.get("metadata") or {}),
+                        )
+                    )
         except Exception as exc:
             logger.warning("Project scan failed: %s", exc)
         return items
@@ -142,15 +144,17 @@ class DuplicateDetector:
         items: list[ScannedItem] = []
         try:
             for node in await self._knowledge.list():
-                items.append(ScannedItem(
-                    id=node.id,
-                    domain=ItemDomain.KNOWLEDGE_NODE,
-                    name=node.label,
-                    content_type=node.node_type.value,
-                    created_at=node.created_at.isoformat(),
-                    updated_at=node.updated_at.isoformat(),
-                    metadata={"source": node.source, "connections": len(node.connections)},
-                ))
+                items.append(
+                    ScannedItem(
+                        id=node.id,
+                        domain=ItemDomain.KNOWLEDGE_NODE,
+                        name=node.label,
+                        content_type=node.node_type.value,
+                        created_at=node.created_at.isoformat(),
+                        updated_at=node.updated_at.isoformat(),
+                        metadata={"source": node.source, "connections": len(node.connections)},
+                    )
+                )
         except Exception as exc:
             logger.warning("Knowledge scan failed: %s", exc)
         return items
@@ -161,15 +165,17 @@ class DuplicateDetector:
         items: list[ScannedItem] = []
         try:
             for doc in await self._rag.list_documents():
-                items.append(ScannedItem(
-                    id=doc.id,
-                    domain=ItemDomain.RAG_DOCUMENT,
-                    name=doc.title,
-                    created_at=doc.metadata.get("created_at", ""),
-                    updated_at=doc.metadata.get("updated_at", ""),
-                    rag_document_id=doc.id,
-                    metadata={"source": doc.source, "chunks": len(doc.chunks)},
-                ))
+                items.append(
+                    ScannedItem(
+                        id=doc.id,
+                        domain=ItemDomain.RAG_DOCUMENT,
+                        name=doc.title,
+                        created_at=doc.metadata.get("created_at", ""),
+                        updated_at=doc.metadata.get("updated_at", ""),
+                        rag_document_id=doc.id,
+                        metadata={"source": doc.source, "chunks": len(doc.chunks)},
+                    )
+                )
         except Exception as exc:
             logger.warning("RAG scan failed: %s", exc)
         return items
@@ -189,12 +195,14 @@ class DuplicateDetector:
                     by_hash[item.content_hash].append(item)
             for h, hbucket in by_hash.items():
                 if len(hbucket) >= 2:
-                    groups.append(DuplicateGroup(
-                        group_id=f"exact:{name}:{h[:12]}",
-                        category=DuplicateCategory.EXACT_DUPLICATE,
-                        items=hbucket,
-                        confidence=1.0,
-                    ))
+                    groups.append(
+                        DuplicateGroup(
+                            group_id=f"exact:{name}:{h[:12]}",
+                            category=DuplicateCategory.EXACT_DUPLICATE,
+                            items=hbucket,
+                            confidence=1.0,
+                        )
+                    )
         return groups
 
     def _group_by_name(self, files, rag_docs) -> list[DuplicateGroup]:
@@ -211,12 +219,14 @@ class DuplicateDetector:
                 continue
             hashes = {i.content_hash for i in bucket if i.content_hash}
             if len(hashes) > 1:
-                groups.append(DuplicateGroup(
-                    group_id=f"name:{name}",
-                    category=DuplicateCategory.SAME_NAME_DIFFERENT_CONTENT,
-                    items=bucket,
-                    confidence=0.7,
-                ))
+                groups.append(
+                    DuplicateGroup(
+                        group_id=f"name:{name}",
+                        category=DuplicateCategory.SAME_NAME_DIFFERENT_CONTENT,
+                        items=bucket,
+                        confidence=0.7,
+                    )
+                )
         return groups
 
     def _group_same_content_different_location(self, files) -> list[DuplicateGroup]:
@@ -228,12 +238,14 @@ class DuplicateDetector:
         for h, bucket in by_hash.items():
             locations = {loc for item in bucket for loc in item.locations if loc}
             if len(bucket) >= 2 and len(locations) > 1:
-                groups.append(DuplicateGroup(
-                    group_id=f"loc:{h[:12]}",
-                    category=DuplicateCategory.SAME_CONTENT_DIFFERENT_LOCATION,
-                    items=bucket,
-                    confidence=0.9,
-                ))
+                groups.append(
+                    DuplicateGroup(
+                        group_id=f"loc:{h[:12]}",
+                        category=DuplicateCategory.SAME_CONTENT_DIFFERENT_LOCATION,
+                        items=bucket,
+                        confidence=0.9,
+                    )
+                )
         return groups
 
     def _group_already_indexed(self, files, rag_docs) -> list[DuplicateGroup]:
@@ -242,20 +254,24 @@ class DuplicateDetector:
         for f in files:
             if f.name and f.name in rag_names:
                 matching = [r for r in rag_docs if r.name == f.name]
-                groups.append(DuplicateGroup(
-                    group_id=f"indexed:{f.id}",
-                    category=DuplicateCategory.ALREADY_INDEXED,
-                    items=[f, *matching],
-                    confidence=0.8,
-                ))
+                groups.append(
+                    DuplicateGroup(
+                        group_id=f"indexed:{f.id}",
+                        category=DuplicateCategory.ALREADY_INDEXED,
+                        items=[f, *matching],
+                        confidence=0.8,
+                    )
+                )
         return groups
 
     @staticmethod
     def _find_orphans(rag_docs, files) -> list[ScannedItem]:
         file_names = {f.name for f in files if f.name}
-        return [r for r in rag_docs
-                if r.name and r.name not in file_names
-                and r.domain == ItemDomain.RAG_DOCUMENT]
+        return [
+            r
+            for r in rag_docs
+            if r.name and r.name not in file_names and r.domain == ItemDomain.RAG_DOCUMENT
+        ]
 
     async def _find_broken_references(self) -> list[ScannedItem]:
         broken: list[ScannedItem] = []
@@ -265,13 +281,15 @@ class DuplicateDetector:
             for project in await self._projects.list_projects():
                 for doc in await self._projects.list_documents(project.get("id", "")):
                     if doc.get("status") == "missing_source" or doc.get("broken"):
-                        broken.append(ScannedItem(
-                            id=doc.get("id", ""),
-                            domain=ItemDomain.PROJECT_DOCUMENT,
-                            name=doc.get("title", ""),
-                            project_ids=[project.get("id", "")],
-                            metadata={"broken": True},
-                        ))
+                        broken.append(
+                            ScannedItem(
+                                id=doc.get("id", ""),
+                                domain=ItemDomain.PROJECT_DOCUMENT,
+                                name=doc.get("title", ""),
+                                project_ids=[project.get("id", "")],
+                                metadata={"broken": True},
+                            )
+                        )
         except Exception as exc:
             logger.warning("Broken-reference scan failed: %s", exc)
         return broken

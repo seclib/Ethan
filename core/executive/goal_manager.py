@@ -13,8 +13,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from core.executive.types import Goal, GoalState, GoalProgress, GoalPriority
-from core.ethan_types.event import Event, EventType
+from core.ethan_types.event import EventType
+from core.executive.types import Goal, GoalPriority, GoalProgress, GoalState
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,9 @@ class ExecutiveGoalManager:
         progress.completed_tasks = completed_tasks
         progress.total_tasks = total_tasks
         progress.current_task = current_task
-        progress.progress_percent = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+        progress.progress_percent = (
+            (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+        )
 
     async def cancel_goal(self, goal_id: str, reason: str = "") -> None:
         """Annule un goal.
@@ -225,6 +227,7 @@ class ExecutiveGoalManager:
             Liste de goals actifs
         """
         return [
-            g for g in self._goals.values()
+            g
+            for g in self._goals.values()
             if g.state in [GoalState.PENDING, GoalState.PLANNING, GoalState.EXECUTING]
         ]

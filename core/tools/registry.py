@@ -24,6 +24,7 @@ class ToolRegistry:
         """Enregistre les outils natifs."""
         try:
             from core.tools.builtin import get_builtin_tools
+
             for tool in get_builtin_tools():
                 self.register(tool)
         except ImportError as e:
@@ -126,9 +127,11 @@ class ToolRegistry:
 
         for tool in self._tools.values():
             # Recherche dans le nom, description, tags
-            if (query_lower in tool.name.lower() or
-                query_lower in tool.description.lower() or
-                any(query_lower in tag.lower() for tag in tool.tags)):
+            if (
+                query_lower in tool.name.lower()
+                or query_lower in tool.description.lower()
+                or any(query_lower in tag.lower() for tag in tool.tags)
+            ):
                 results.append(tool)
 
         return results

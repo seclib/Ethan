@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
 from typing import Any
 
 from core.security.types import (
@@ -17,7 +16,6 @@ from core.security.types import (
     Identity,
     SecurityContext,
     TrustLevel,
-    ValidationResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,13 +35,13 @@ class SecurityGateway:
 
     async def initialize(self) -> None:
         """Initialise les composants de sécurité."""
+        from core.security.audit import AuditLogger
         from core.security.validation import (
-            SignatureValidator,
             PermissionChecker,
             PolicyEngine,
             RateLimiter,
+            SignatureValidator,
         )
-        from core.security.audit import AuditLogger
 
         self._validators = [
             SignatureValidator(),
@@ -56,7 +54,9 @@ class SecurityGateway:
 
         logger.info("Security Gateway initialized")
 
-    async def execute(self, action_type: str, params: dict[str, Any], source: str = "llm") -> ActionResult:
+    async def execute(
+        self, action_type: str, params: dict[str, Any], source: str = "llm"
+    ) -> ActionResult:
         """Point d'entrée pour exécuter une action.
 
         Args:
@@ -100,7 +100,9 @@ class SecurityGateway:
 
         return result
 
-    async def _validate(self, action: Action, context: SecurityContext) -> tuple[bool, ActionResult]:
+    async def _validate(
+        self, action: Action, context: SecurityContext
+    ) -> tuple[bool, ActionResult]:
         """Valide une action via la chaîne de validation.
 
         Args:
@@ -121,7 +123,9 @@ class SecurityGateway:
 
             if not result.valid:
                 violations.extend(result.violations)
-                logger.warning(f"Validation failed: {validator.__class__.__name__}: {result.reason}")
+                logger.warning(
+                    f"Validation failed: {validator.__class__.__name__}: {result.reason}"
+                )
 
                 return False, ActionResult(
                     action_id=action.id,

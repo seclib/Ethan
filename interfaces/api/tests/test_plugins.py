@@ -16,11 +16,10 @@ Pas de delete/update côté Core : le WebUI ne doit pas les exposer non plus.
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
-from routers import v1
-from core.state.webui_store import CoreWebUIStore
 from core.state.record_store import CoreRecordStore
+from core.state.webui_store import CoreWebUIStore
+from fastapi import HTTPException
+from routers import v1
 
 
 @pytest.fixture(autouse=True)

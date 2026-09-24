@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -75,14 +75,18 @@ class AutomationManager:
                 rule[key] = data[key]
         rule["updated_at"] = datetime.utcnow().isoformat()
         await self._store.save(self._DOMAIN, rule_id, rule)
-        await self._publish(EventType.AUTOMATION_UPDATED, "automation.updated", {"rule_id": rule_id})
+        await self._publish(
+            EventType.AUTOMATION_UPDATED, "automation.updated", {"rule_id": rule_id}
+        )
         return rule
 
     async def delete(self, rule_id: str) -> bool:
         """Delete an automation rule."""
         existed = await self._store.delete(self._DOMAIN, rule_id)
         if existed:
-            await self._publish(EventType.AUTOMATION_DELETED, "automation.deleted", {"rule_id": rule_id})
+            await self._publish(
+                EventType.AUTOMATION_DELETED, "automation.deleted", {"rule_id": rule_id}
+            )
         return existed
 
     async def trigger(self, rule_id: str) -> dict[str, Any] | None:
@@ -103,4 +107,6 @@ class AutomationManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="automation-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="automation-manager", payload=payload)
+        )

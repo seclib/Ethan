@@ -10,29 +10,32 @@ from typing import Any
 
 class TrustLevel(str, Enum):
     """Niveaux de confiance."""
-    UNTRUSTED = "untrusted"      # 0.0-0.3: LLM externe
-    LOW = "low"                  # 0.3-0.5: Plugin non vérifié
-    MEDIUM = "medium"            # 0.5-0.7: Utilisateur
-    HIGH = "high"                # 0.7-0.9: Admin, Système
-    CRITICAL = "critical"        # 0.9-1.0: Root, Kernel
+
+    UNTRUSTED = "untrusted"  # 0.0-0.3: LLM externe
+    LOW = "low"  # 0.3-0.5: Plugin non vérifié
+    MEDIUM = "medium"  # 0.5-0.7: Utilisateur
+    HIGH = "high"  # 0.7-0.9: Admin, Système
+    CRITICAL = "critical"  # 0.9-1.0: Root, Kernel
 
 
 class ActionType(str, Enum):
     """Types d'actions."""
-    COMMAND = "command"              # Exécution de commande
-    CAPABILITY = "capability"        # Invocation de capability
-    FILE_READ = "file_read"          # Lecture de fichier
-    FILE_WRITE = "file_write"        # Écriture de fichier
-    NETWORK = "network"              # Accès réseau
-    MEMORY_READ = "memory_read"      # Lecture mémoire
-    MEMORY_WRITE = "memory_write"    # Écriture mémoire
-    PLUGIN_INSTALL = "plugin_install" # Installation plugin
+
+    COMMAND = "command"  # Exécution de commande
+    CAPABILITY = "capability"  # Invocation de capability
+    FILE_READ = "file_read"  # Lecture de fichier
+    FILE_WRITE = "file_write"  # Écriture de fichier
+    NETWORK = "network"  # Accès réseau
+    MEMORY_READ = "memory_read"  # Lecture mémoire
+    MEMORY_WRITE = "memory_write"  # Écriture mémoire
+    PLUGIN_INSTALL = "plugin_install"  # Installation plugin
     CONFIG_CHANGE = "config_change"  # Modification config
 
 
 @dataclass
 class Action:
     """Action à valider."""
+
     id: str
     type: ActionType
     source: str  # "llm", "user", "system", "plugin"
@@ -46,6 +49,7 @@ class Action:
 @dataclass
 class Identity:
     """Identité d'un acteur."""
+
     id: str
     type: str  # "llm", "user", "system", "plugin"
     name: str
@@ -56,6 +60,7 @@ class Identity:
 @dataclass
 class SecurityContext:
     """Contexte de sécurité."""
+
     identity: Identity
     trust_level: TrustLevel
     session_id: str
@@ -69,15 +74,17 @@ class SecurityContext:
 @dataclass
 class Permission:
     """Permission."""
-    resource: str      # "file", "network", "command", "capability"
-    action: str        # "read", "write", "execute", "delete"
-    scope: str         # "user", "system", "plugin"
+
+    resource: str  # "file", "network", "command", "capability"
+    action: str  # "read", "write", "execute", "delete"
+    scope: str  # "user", "system", "plugin"
     conditions: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class Role:
     """Rôle."""
+
     name: str
     permissions: list[Permission]
     trust_level: TrustLevel
@@ -86,6 +93,7 @@ class Role:
 @dataclass
 class ValidationResult:
     """Résultat de validation."""
+
     valid: bool
     reason: str = ""
     identity: Identity | None = None
@@ -98,6 +106,7 @@ class ValidationResult:
 @dataclass
 class ActionResult:
     """Résultat d'exécution."""
+
     action_id: str
     valid: bool
     status: str  # "executed", "rejected", "failed"
@@ -112,6 +121,7 @@ class ActionResult:
 @dataclass
 class AuditEntry:
     """Entrée d'audit."""
+
     id: str
     timestamp: datetime
     action_id: str

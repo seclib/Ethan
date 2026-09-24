@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from core.bus.interface import EventBus
-from core.state.redis_state import RedisLiveState
-from core.ethan_types.sdk.autonomy import CycleState
 from core.ethan_types.event import Event, EventType
+from core.ethan_types.sdk.autonomy import CycleState
+from core.state.redis_state import RedisLiveState
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,9 @@ class AutonomyLoopController:
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in results:
-                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                if isinstance(result, BaseException) and not isinstance(
+                    result, asyncio.CancelledError
+                ):
                     logger.error(
                         "Autonomy cycle task failed during shutdown",
                         exc_info=(type(result), result, result.__traceback__),
@@ -100,13 +102,18 @@ class AutonomyLoopController:
 
         self.state.state = "running"
         self.state.cycle_count += 1
-        self.state.last_cycle_start = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        self.state.last_cycle_start = (
+            __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        )
 
-        await self.bus.publish(EventType.AUTONOMY_CYCLE_STARTED, Event(
-            type=EventType.AUTONOMY_CYCLE_STARTED,
-            source="autonomy-loop",
-            payload={"cycle": self.state.cycle_count},
-        ))
+        await self.bus.publish(
+            EventType.AUTONOMY_CYCLE_STARTED,
+            Event(
+                type=EventType.AUTONOMY_CYCLE_STARTED,
+                source="autonomy-loop",
+                payload={"cycle": self.state.cycle_count},
+            ),
+        )
 
         try:
             task = asyncio.create_task(
@@ -116,7 +123,9 @@ class AutonomyLoopController:
             self._cycle_tasks.add(task)
             task.add_done_callback(self._cycle_done)
         finally:
-            self.state.last_cycle_end = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            self.state.last_cycle_end = (
+                __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            )
             self._cycle_times.append(start)
             if len(self._cycle_times) > 100:
                 self._cycle_times.pop(0)
@@ -157,27 +166,36 @@ class AutonomyLoopController:
         await self._execute_goal(goal_id)
 
         # 3. LEARN — laisser le LearningEngine traiter les résultats
-        await self.bus.publish(EventType.TASK_EXECUTED, Event(
-            type=EventType.TASK_EXECUTED,
-            source="autonomy-loop",
-            payload={"goal_id": goal_id},
-        ))
+        await self.bus.publish(
+            EventType.TASK_EXECUTED,
+            Event(
+                type=EventType.TASK_EXECUTED,
+                source="autonomy-loop",
+                payload={"goal_id": goal_id},
+            ),
+        )
 
         # 4. REFLECT — attendre reflection
         # (géré par module-reflective)
 
         # 5. REPLAN — générer ou mettre à jour goals
-        await self.bus.publish(EventType.NEW_GOAL_CREATED, Event(
-            type=EventType.NEW_GOAL_CREATED,
-            source="autonomy-loop",
-            payload={"cycle": self.state.cycle_count},
-        ))
+        await self.bus.publish(
+            EventType.NEW_GOAL_CREATED,
+            Event(
+                type=EventType.NEW_GOAL_CREATED,
+                source="autonomy-loop",
+                payload={"cycle": self.state.cycle_count},
+            ),
+        )
 
-        await self.bus.publish(EventType.AUTONOMY_CYCLE_COMPLETED, Event(
-            type=EventType.AUTONOMY_CYCLE_COMPLETED,
-            source="autonomy-loop",
-            payload={"cycle": self.state.cycle_count, "goal_id": goal_id},
-        ))
+        await self.bus.publish(
+            EventType.AUTONOMY_CYCLE_COMPLETED,
+            Event(
+                type=EventType.AUTONOMY_CYCLE_COMPLETED,
+                source="autonomy-loop",
+                payload={"cycle": self.state.cycle_count, "goal_id": goal_id},
+            ),
+        )
 
         logger.info(f"Autonomy cycle {self.state.cycle_count} completed")
 
@@ -186,13 +204,16 @@ class AutonomyLoopController:
         # In production: use priority queue, self-model, context
         # Simplified: return trigger goal if present
         # Compatible avec Event (payload) et Event (sdk/data)
-        data = getattr(trigger_event, 'payload', None) or getattr(trigger_event, 'data', None) or {}
+        data = getattr(trigger_event, "payload", None) or getattr(trigger_event, "data", None) or {}
         return data.get("goal_id")
 
     async def _execute_goal(self, goal_id: str) -> None:
         """Request goal execution via Kernel."""
-        await self.bus.publish("intent.user", Event(
-            type="intent.user",
-            source="autonomy-loop",
-            payload={"goal_id": goal_id, "autonomous": True},
-        ))
+        await self.bus.publish(
+            "intent.user",
+            Event(
+                type="intent.user",
+                source="autonomy-loop",
+                payload={"goal_id": goal_id, "autonomous": True},
+            ),
+        )

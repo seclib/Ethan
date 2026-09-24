@@ -19,16 +19,13 @@ import asyncio
 import base64
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-
-from core.auth import Permission
-from interfaces.api.auth import require_permission
 from core.llm.provider_manager import ProviderManager
 from core.llm.types import TranscriptionRequest, VisionImage, VisionRequest
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from interfaces.api.models.provider_schemas import (
     ProviderCreate,
-    ProviderUpdate,
     ProviderResponse,
+    ProviderUpdate,
     TestConnectionResult,
 )
 
@@ -59,6 +56,7 @@ def get_manager() -> ProviderManager:
 
 # ── GET /providers ─────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=list[ProviderResponse])
 async def list_providers():
     """Liste tous les providers enregistrés avec leur état."""
@@ -68,6 +66,7 @@ async def list_providers():
 
 
 # ── GET /providers/{id} ────────────────────────────────────────────────────
+
 
 @router.get("/{provider_id}", response_model=ProviderResponse)
 async def get_provider(provider_id: str):
@@ -85,6 +84,7 @@ async def get_provider(provider_id: str):
 
 
 # ── POST /providers ────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=ProviderResponse, status_code=201)
 async def create_provider(data: ProviderCreate):
@@ -117,6 +117,7 @@ async def create_provider(data: ProviderCreate):
 
 
 # ── PUT /providers/{id} ────────────────────────────────────────────────────
+
 
 @router.put("/{provider_id}", response_model=ProviderResponse)
 async def update_provider(provider_id: str, data: ProviderUpdate):
@@ -157,7 +158,10 @@ async def update_provider(provider_id: str, data: ProviderUpdate):
         # Ré-instancier / ré-enregistrer si activé
         if config.get("enabled", False):
             from core.llm.provider_factory import create_provider_from_config
-            provider = create_provider_from_config({**config, "name": provider_id, "api_key": api_key or ""})
+
+            provider = create_provider_from_config(
+                {**config, "name": provider_id, "api_key": api_key or ""}
+            )
             await manager._register(provider, provider_id)
             await provider.initialize()
         else:
@@ -173,6 +177,7 @@ async def update_provider(provider_id: str, data: ProviderUpdate):
 
 
 # ── DELETE /providers/{id} ─────────────────────────────────────────────────
+
 
 @router.delete("/{provider_id}")
 async def delete_provider(provider_id: str):
@@ -192,6 +197,7 @@ async def delete_provider(provider_id: str):
 
 
 # ── GET /providers/{id}/models ─────────────────────────────────────────────
+
 
 @router.get("/{provider_id}/models", response_model=list[dict])
 async def list_provider_models(provider_id: str):
@@ -221,6 +227,7 @@ async def list_provider_models(provider_id: str):
 
 # ── POST /providers/{id}/test ──────────────────────────────────────────────
 
+
 @router.post("/{provider_id}/test", response_model=TestConnectionResult)
 async def test_provider_connection(provider_id: str):
     """Teste la connexion à un provider (vrai healthcheck)."""
@@ -243,6 +250,7 @@ async def test_provider_connection(provider_id: str):
 
 # ── PUT /providers/{id}/default ────────────────────────────────────────────
 
+
 @router.put("/{provider_id}/default", response_model=ProviderResponse)
 async def set_default_provider(provider_id: str):
     """Définit le provider par défaut."""
@@ -259,6 +267,7 @@ async def set_default_provider(provider_id: str):
 
 
 # ── GET /providers/{id}/capabilities ──────────────────────────────────────
+
 
 @router.get("/{provider_id}/capabilities")
 async def get_provider_capabilities(provider_id: str):
@@ -277,6 +286,7 @@ async def get_provider_capabilities(provider_id: str):
 
 
 # ── POST /providers/vision ────────────────────────────────────────────────
+
 
 @router.post("/vision")
 async def vision_analyze(
@@ -305,9 +315,7 @@ async def vision_analyze(
             prompt=prompt,
             model=model,
         )
-        result = await manager.vision_analyze(
-            request, provider_name=provider_id
-        )
+        result = await manager.vision_analyze(request, provider_name=provider_id)
         return {
             "content": result.content,
             "model": result.model,
@@ -324,6 +332,7 @@ async def vision_analyze(
 
 
 # ── POST /providers/transcribe ────────────────────────────────────────────
+
 
 @router.post("/transcribe")
 async def transcribe_audio(
@@ -348,9 +357,7 @@ async def transcribe_audio(
             model=model,
             language=language,
         )
-        result = await manager.transcribe(
-            request, provider_name=provider_id
-        )
+        result = await manager.transcribe(request, provider_name=provider_id)
         return {
             "text": result.text,
             "model": result.model,

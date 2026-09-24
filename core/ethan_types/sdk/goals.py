@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from uuid import uuid4
-
 
 # ── Goal Types ──────────────────────────────────────────
 
@@ -25,15 +24,17 @@ GOAL_TYPES = [
 
 # ── Schemas ─────────────────────────────────────────────
 
+
 @dataclass
 class GoalProposal:
     """Proposed goal from autonomous generation."""
+
     proposal_id: str = field(default_factory=lambda: str(uuid4()))
     goal_type: str = IMPROVEMENT_GOAL
     title: str = ""
     description: str = ""
     target_domain: str = ""  # skill or module to improve
-    priority: float = 0.5   # 0.0-1.0
+    priority: float = 0.5  # 0.0-1.0
     estimated_effort: str = "medium"  # low | medium | high
     expected_benefit: str = ""
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -59,6 +60,7 @@ class GoalProposal:
 @dataclass
 class GoalScore:
     """Scoring result for a proposed goal."""
+
     proposal_id: str = ""
     score: float = 0.0
     priority_rank: int = 0

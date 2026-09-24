@@ -7,6 +7,7 @@ submodules could be consolidated.
 Usage:
     python scripts/audit_legacy_dupes.py
 """
+
 from __future__ import annotations
 
 import pathlib

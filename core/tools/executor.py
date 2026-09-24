@@ -29,9 +29,7 @@ class ToolExecutor:
         # None = comportement historique (aucune évaluation).
         self._policy_enforcer = policy_enforcer
 
-    async def execute(
-        self, tool: Tool, params: dict[str, Any], context: ToolContext
-    ) -> ToolResult:
+    async def execute(self, tool: Tool, params: dict[str, Any], context: ToolContext) -> ToolResult:
         """Exécute un outil.
 
         Args:
@@ -53,9 +51,7 @@ class ToolExecutor:
                 from core.security.integration import ToolRejectedError
 
                 if isinstance(e, ToolRejectedError):
-                    logger.warning(
-                        "Tool %s rejected by security policy: %s", tool.id, e.reason
-                    )
+                    logger.warning("Tool %s rejected by security policy: %s", tool.id, e.reason)
                     return ToolResult(
                         status="rejected",
                         error=e.reason,
@@ -64,9 +60,7 @@ class ToolExecutor:
                     )
                 # Erreur d'infrastructure de sécurité : fail-closed (on ne
                 # contourne jamais la sécurité même en cas de panne).
-                logger.error(
-                    "Tool %s security check failed (%s) -> rejected", tool.id, e
-                )
+                logger.error("Tool %s security check failed (%s) -> rejected", tool.id, e)
                 return ToolResult(
                     status="rejected",
                     error="Security check unavailable (fail-closed).",

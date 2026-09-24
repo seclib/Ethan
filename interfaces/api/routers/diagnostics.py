@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
 from core.auth import Permission
 from core.diagnostics import SystemDiagnostics, SystemMetrics
+from fastapi import APIRouter, Depends, HTTPException, Query
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)

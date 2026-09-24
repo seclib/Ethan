@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from core.skills.types import Skill, SkillStep
 from core.skills.builtin.base import BaseBuiltinSkill
+from core.skills.types import Skill, SkillStep
 
 
 class EmailReaderSkill(BaseBuiltinSkill):
     """Skill de lecture d'emails.
-    
+
     Outils utilisés :
     - email_client : Se connecter à la boîte mail
     - email_fetcher : Récupérer les emails

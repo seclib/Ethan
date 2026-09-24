@@ -9,6 +9,7 @@ from typing import Any
 @dataclass
 class ChatMessage:
     """Message de聊天 standardisé pour les appels LLM."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     name: str | None = None
@@ -19,6 +20,7 @@ class ChatMessage:
 @dataclass
 class ChatResponse:
     """Réponse de chat standardisée."""
+
     content: str
     model: str
     provider: str
@@ -33,6 +35,7 @@ class Message:
 
     Représente un message complet avec son contexte de session.
     """
+
     id: str = ""
     session_id: str = ""
     role: str = "user"

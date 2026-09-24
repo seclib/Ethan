@@ -13,14 +13,14 @@ import signal
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
 class ResourceLimits:
     """Limites de ressources pour un plugin."""
+
     max_memory_mb: int = 512
     max_cpu_percent: float = 50.0
     max_execution_time_s: int = 30
@@ -48,6 +48,7 @@ class PermissionSet:
     def allows(self, action: str, resource: str) -> bool:
         """Vérifie si l'action est autorisée sur la ressource."""
         import fnmatch
+
         for perm_action, perm_resource in self._permissions:
             if fnmatch.fnmatch(action, perm_action) and fnmatch.fnmatch(resource, perm_resource):
                 return True
@@ -59,6 +60,7 @@ class PermissionSet:
 
 class SecurityError(Exception):
     """Exception levée en cas de violation de sécurité."""
+
     pass
 
 
@@ -89,21 +91,23 @@ class PluginSandbox:
         """
         import builtins
         import resource
-        
+
         # Sauvegarde des builtins originaux
         original_eval = builtins.eval
         original_exec = builtins.exec
         original_open = builtins.open
-        
+
         # Sauvegarde des limites de ressources originales
         try:
             soft_as, hard_as = resource.getrlimit(resource.RLIMIT_AS)
             soft_nofile, hard_nofile = resource.getrlimit(resource.RLIMIT_NOFILE)
-            
+
             # Application des nouvelles limites
             mem_bytes = self.resource_limits.max_memory_mb * 1024 * 1024
             resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, hard_as))
-            resource.setrlimit(resource.RLIMIT_NOFILE, (self.resource_limits.max_file_descriptors, hard_nofile))
+            resource.setrlimit(
+                resource.RLIMIT_NOFILE, (self.resource_limits.max_file_descriptors, hard_nofile)
+            )
         except (ValueError, OSError):
             pass
 
@@ -122,7 +126,7 @@ class PluginSandbox:
             builtins.eval = original_eval
             builtins.exec = original_exec
             builtins.open = original_open
-            
+
             # Restauration des limites
             try:
                 resource.setrlimit(resource.RLIMIT_AS, (soft_as, hard_as))
@@ -200,9 +204,7 @@ class PluginSandbox:
             return result
 
         except subprocess.TimeoutExpired:
-            raise SecurityError(
-                f"Plugin dépassé le timeout de {timeout}s — processus tué"
-            )
+            raise SecurityError(f"Plugin dépassé le timeout de {timeout}s — processus tué")
         finally:
             # Nettoyage du fichier temporaire
             try:
@@ -217,7 +219,6 @@ class PluginSandbox:
         Appliquée AVANT l'exécution du code dans le processus enfant.
         """
         import resource
-        import os
 
         # Limite mémoire
         try:

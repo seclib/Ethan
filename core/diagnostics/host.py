@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import shutil
-from typing import Any
 
 from .system import CheckResult, Status
 
@@ -29,7 +28,7 @@ _WARN_MEM_PCT = 90.0
 
 
 def _gb(num_bytes: float) -> str:
-    return f"{num_bytes / (1024 ** 3):.1f} Go"
+    return f"{num_bytes / (1024**3):.1f} Go"
 
 
 def check_host_resources() -> list[CheckResult]:
@@ -46,7 +45,8 @@ def _check_cpu() -> list[CheckResult]:
     if psutil is None:
         return [
             CheckResult(
-                "cpu", Status.UNAVAILABLE,
+                "cpu",
+                Status.UNAVAILABLE,
                 "psutil non installé — métriques CPU indisponibles",
             )
         ]
@@ -62,7 +62,9 @@ def _check_cpu() -> list[CheckResult]:
             metadata["freq_mhz"] = round(freq.current or 0)
         return [
             CheckResult(
-                "cpu", Status.OK, f"{cores} cœurs logiques",
+                "cpu",
+                Status.OK,
+                f"{cores} cœurs logiques",
                 metadata=metadata,
             )
         ]
@@ -74,7 +76,8 @@ def _check_memory() -> list[CheckResult]:
     if psutil is None:
         return [
             CheckResult(
-                "memory", Status.UNAVAILABLE,
+                "memory",
+                Status.UNAVAILABLE,
                 "psutil non installé — métriques RAM indisponibles",
             )
         ]
@@ -83,29 +86,30 @@ def _check_memory() -> list[CheckResult]:
         swap = psutil.swap_memory()
         pct = mem.percent
         metadata = {
-            "total_gb": round(mem.total / (1024 ** 3), 1),
-            "used_gb": round((mem.total - mem.available) / (1024 ** 3), 1),
+            "total_gb": round(mem.total / (1024**3), 1),
+            "used_gb": round((mem.total - mem.available) / (1024**3), 1),
             "percent": round(pct, 1),
             "swap_percent": round(swap.percent, 1),
         }
         if pct >= _WARN_MEM_PCT:
             return [
                 CheckResult(
-                    "memory", Status.WARNING,
+                    "memory",
+                    Status.WARNING,
                     f"RAM à {pct:.0f}% ({_gb(mem.available)} disponibles)",
                     metadata=metadata,
                 )
             ]
         return [
             CheckResult(
-                "memory", Status.OK,
+                "memory",
+                Status.OK,
                 f"{_gb(mem.used)} / {_gb(mem.total)} utilisés ({pct:.0f}%)",
                 metadata=metadata,
             )
         ]
     except Exception as exc:  # noqa: BLE001
         return [CheckResult("memory", Status.ERROR, f"Métriques RAM échouées : {exc}")]
-
 
 
 def _check_disk() -> list[CheckResult]:
@@ -120,38 +124,51 @@ def _check_disk() -> list[CheckResult]:
     for name, path in targets:
         try:
             usage = shutil.disk_usage(path)
-            free_gb = usage.free / (1024 ** 3)
+            free_gb = usage.free / (1024**3)
             pct = usage.used / usage.total * 100 if usage.total else 0
             metadata = {
                 "path": path,
-                "total_gb": round(usage.total / (1024 ** 3), 1),
+                "total_gb": round(usage.total / (1024**3), 1),
                 "used_percent": round(pct, 1),
                 "free_gb": round(free_gb, 1),
             }
             if free_gb < _MIN_DISK_GB:
-                checks.append(CheckResult(
-                    name, Status.ERROR,
-                    f"Espace critique : {free_gb:.1f} Go libres sur {path} "
-                    f"(minimum {_MIN_DISK_GB:.0f} Go)",
-                    metadata=metadata,
-                ))
+                checks.append(
+                    CheckResult(
+                        name,
+                        Status.ERROR,
+                        f"Espace critique : {free_gb:.1f} Go libres sur {path} "
+                        f"(minimum {_MIN_DISK_GB:.0f} Go)",
+                        metadata=metadata,
+                    )
+                )
             elif pct >= _WARN_DISK_PCT:
-                checks.append(CheckResult(
-                    name, Status.WARNING,
-                    f"Disque à {pct:.0f}% ({free_gb:.1f} Go libres)",
-                    metadata=metadata,
-                ))
+                checks.append(
+                    CheckResult(
+                        name,
+                        Status.WARNING,
+                        f"Disque à {pct:.0f}% ({free_gb:.1f} Go libres)",
+                        metadata=metadata,
+                    )
+                )
             else:
-                checks.append(CheckResult(
-                    name, Status.OK,
-                    f"{free_gb:.1f} Go libres sur {path} ({pct:.0f}% utilisés)",
-                    metadata=metadata,
-                ))
+                checks.append(
+                    CheckResult(
+                        name,
+                        Status.OK,
+                        f"{free_gb:.1f} Go libres sur {path} ({pct:.0f}% utilisés)",
+                        metadata=metadata,
+                    )
+                )
         except Exception as exc:  # noqa: BLE001
-            checks.append(CheckResult(
-                name, Status.ERROR, f"Métriques disque échouées : {exc}",
-                detail=path,
-            ))
+            checks.append(
+                CheckResult(
+                    name,
+                    Status.ERROR,
+                    f"Métriques disque échouées : {exc}",
+                    detail=path,
+                )
+            )
     return checks
 
 
@@ -161,9 +178,9 @@ def _check_gpu() -> list[CheckResult]:
     if pynvml is None:
         return [
             CheckResult(
-                "gpu", Status.UNAVAILABLE,
-                "nvidia-ml-py non installé — métriques GPU indisponibles "
-                "(normal sans GPU NVIDIA)",
+                "gpu",
+                Status.UNAVAILABLE,
+                "nvidia-ml-py non installé — métriques GPU indisponibles (normal sans GPU NVIDIA)",
             )
         ]
     try:
@@ -173,7 +190,8 @@ def _check_gpu() -> list[CheckResult]:
             if count == 0:
                 return [
                     CheckResult(
-                        "gpu", Status.UNAVAILABLE,
+                        "gpu",
+                        Status.UNAVAILABLE,
                         "Aucun GPU NVIDIA détecté sur cette machine",
                     )
                 ]
@@ -185,24 +203,25 @@ def _check_gpu() -> list[CheckResult]:
                 name = name.decode() if isinstance(name, bytes) else str(name)
                 mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
                 util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                temp = pynvml.nvmlDeviceGetTemperature(
-                    handle, pynvml.NVML_TEMPERATURE_GPU
-                )
+                temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
                 used_pct = mem.used / mem.total * 100 if mem.total else 0
                 if used_pct >= 95 or temp >= 85:
                     worst = Status.WARNING
-                gpus.append({
-                    "index": i,
-                    "name": name,
-                    "vram_total_gb": round(mem.total / (1024 ** 3), 1),
-                    "vram_used_gb": round(mem.used / (1024 ** 3), 1),
-                    "vram_percent": round(used_pct, 1),
-                    "util_percent": round(util.gpu, 1),
-                    "temp_c": temp,
-                })
+                gpus.append(
+                    {
+                        "index": i,
+                        "name": name,
+                        "vram_total_gb": round(mem.total / (1024**3), 1),
+                        "vram_used_gb": round(mem.used / (1024**3), 1),
+                        "vram_percent": round(used_pct, 1),
+                        "util_percent": round(util.gpu, 1),
+                        "temp_c": temp,
+                    }
+                )
             return [
                 CheckResult(
-                    "gpu", worst,
+                    "gpu",
+                    worst,
                     f"{count} GPU NVIDIA : "
                     + "; ".join(
                         f"{g['name']} (VRAM {g['vram_used_gb']}/"
@@ -217,7 +236,8 @@ def _check_gpu() -> list[CheckResult]:
     except pynvml.NVMLError as exc:
         return [
             CheckResult(
-                "gpu", Status.UNAVAILABLE,
+                "gpu",
+                Status.UNAVAILABLE,
                 f"NVML indisponible (pas de driver NVIDIA ?) : {exc}",
             )
         ]

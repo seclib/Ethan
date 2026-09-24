@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import logging
 
-from core.telemetry.logger import JSONFormatter as StructuredFormatter
-from core.telemetry.logger import TextFormatter as PlainFormatter
 from core.telemetry.logger import setup_logging as _setup_logging
 
 

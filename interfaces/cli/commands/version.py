@@ -1,4 +1,5 @@
 """ETHAN version command."""
+
 from interfaces.cli.registry import register
 
 

@@ -60,9 +60,7 @@ async def get_domain_index(resource_type: str):
 @router.get("/by-resource/{resource_type}/{resource_id}")
 async def list_domains_of_resource(resource_type: str, resource_id: str):
     """Domains contenant une ressource (multi-membership possible)."""
-    return await get_domain_manager().list_domains_for_resource(
-        resource_type, resource_id
-    )
+    return await get_domain_manager().list_domains_for_resource(resource_type, resource_id)
 
 
 # ── CRUD domains ────────────────────────────────────────────────────────────
@@ -150,9 +148,7 @@ async def attach_resource(domain_id: str, data: dict[str, Any]):
 )
 async def detach_resource(domain_id: str, resource_type: str, resource_id: str):
     """Détache une ressource d'un domain (la ressource reste intacte)."""
-    detached = await get_domain_manager().detach_resource(
-        domain_id, resource_type, resource_id
-    )
+    detached = await get_domain_manager().detach_resource(domain_id, resource_type, resource_id)
     if not detached:
         raise HTTPException(404, "Resource not attached to this domain")
     return {

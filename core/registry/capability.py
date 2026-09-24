@@ -10,7 +10,6 @@ Registry capable de :
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.modules.capability import Capability
 
@@ -19,11 +18,13 @@ logger = logging.getLogger(__name__)
 
 class CapabilityConflictError(Exception):
     """Une capacité en conflit avec une existante a été détectée."""
+
     pass
 
 
 class CapabilityDependencyError(Exception):
     """Une dépendance entre capacités est manquante."""
+
     pass
 
 
@@ -69,7 +70,9 @@ class CapabilityRegistry:
 
         logger.debug(
             "Capability registered: %s v%s by %s",
-            capability.name, capability.version, module_name,
+            capability.name,
+            capability.version,
+            module_name,
         )
 
     def unregister(self, capability_name: str) -> bool:
@@ -101,7 +104,9 @@ class CapabilityRegistry:
         capability_names = self._module_capabilities.pop(module_name, [])
         for cap_name in capability_names:
             self._capabilities.pop(cap_name, None)
-        logger.debug("Module unregistered: %s (%d capabilities)", module_name, len(capability_names))
+        logger.debug(
+            "Module unregistered: %s (%d capabilities)", module_name, len(capability_names)
+        )
 
     # ──────────────────────────────────────────────
     # Resolution
@@ -128,11 +133,7 @@ class CapabilityRegistry:
             Liste des capacités du module
         """
         cap_names = self._module_capabilities.get(module_name, [])
-        return [
-            self._capabilities[name]
-            for name in cap_names
-            if name in self._capabilities
-        ]
+        return [self._capabilities[name] for name in cap_names if name in self._capabilities]
 
     def resolve(self, name: str, version: str | None = None) -> list[Capability]:
         """Résout une capacité par nom et version optionnelle.

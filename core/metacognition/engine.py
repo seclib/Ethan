@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
 
 from core.bus.interface import EventBus
+from core.ethan_types.event import Event
+from core.ethan_types.sdk.learning import SelfModel
+from core.ethan_types.sdk.metacognition import (
+    CognitiveMode,
+)
 from core.metacognition.load import CognitiveLoadManager
 from core.metacognition.prioritizer import ModulePrioritizer
 from core.metacognition.strategy import DecisionStrategySelector
 from core.metacognition.trace import ThoughtTraceAnalyzer
 from core.state.redis_state import RedisLiveState
-from core.ethan_types.event import Event
-from core.ethan_types.sdk.metacognition import CognitiveMode, DecisionStrategy, ModulePriority, ThoughtTrace
-from core.ethan_types.sdk.learning import SelfModel
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +95,15 @@ class MetaCognitionEngine:
         priority = await self.prioritizer.rank(modules, task_type, self_model, strategy.mode)
 
         # Publish outputs using string literals to avoid Pylance issues
-        await self.bus.publish("meta.strategy_selected", Event(
-            type="meta.strategy_selected",
-            source="metacognition",
-            payload={"strategy": strategy.dict(), "task_type": task_type},
-            metadata=event.metadata or {},
-        ))
+        await self.bus.publish(
+            "meta.strategy_selected",
+            Event(
+                type="meta.strategy_selected",
+                source="metacognition",
+                payload={"strategy": strategy.dict(), "task_type": task_type},
+                metadata=event.metadata or {},
+            ),
+        )
 
         mode_changed = strategy.mode != self.current_mode.mode
         if mode_changed:
@@ -108,23 +112,32 @@ class MetaCognitionEngine:
                 depth=depth,
                 reasoning=strategy.reasoning,
             )
-            await self.bus.publish("meta.mode_changed", Event(
-                type="meta.mode_changed",
+            await self.bus.publish(
+                "meta.mode_changed",
+                Event(
+                    type="meta.mode_changed",
+                    source="metacognition",
+                    payload={"mode": self.current_mode.dict()},
+                    metadata=event.metadata or {},
+                ),
+            )
+
+        await self.bus.publish(
+            "meta.priority_updated",
+            Event(
+                type="meta.priority_updated",
                 source="metacognition",
-                payload={"mode": self.current_mode.dict()},
+                payload={"priority": priority.dict()},
                 metadata=event.metadata or {},
-            ))
+            ),
+        )
 
-        await self.bus.publish("meta.priority_updated", Event(
-            type="meta.priority_updated",
-            source="metacognition",
-            payload={"priority": priority.dict()},
-            metadata=event.metadata or {},
-        ))
-
-        await self.bus.publish("meta.depth_adjusted", Event(
-            type="meta.depth_adjusted",
-            source="metacognition",
-            payload={"depth": depth, "load": load},
-            metadata=event.metadata or {},
-        ))
+        await self.bus.publish(
+            "meta.depth_adjusted",
+            Event(
+                type="meta.depth_adjusted",
+                source="metacognition",
+                payload={"depth": depth, "load": load},
+                metadata=event.metadata or {},
+            ),
+        )

@@ -7,9 +7,9 @@ Le Core orchestre via :
 - Registry : découvre les Capabilities
 """
 
-from .planner import Planner
 from .executor import Executor
 from .observer import Observer
+from .planner import Planner
 from .registry import CapabilityRegistry
 
 __all__ = ["Planner", "Executor", "Observer", "CapabilityRegistry"]

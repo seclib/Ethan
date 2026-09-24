@@ -11,12 +11,12 @@ Architecture :
 - SkillComposer : Composition de skills
 """
 
-from .types import Skill, SkillStep, SkillContext, SkillResult, SkillStatus
-from .registry import SkillRegistry
-from .manager import SkillManager
-from .executor import SkillExecutor
-from .selector import SkillSelector
 from .composer import SkillComposer
+from .executor import SkillExecutor
+from .manager import SkillManager
+from .registry import SkillRegistry
+from .selector import SkillSelector
+from .types import Skill, SkillContext, SkillResult, SkillStatus, SkillStep
 
 __all__ = [
     "Skill",

@@ -10,7 +10,7 @@ from typing import Any
 @dataclass
 class OrchestratorContext:
     """Contexte global de l'orchestrateur.
-    
+
     Contient toutes les références aux modules et l'état courant.
     """
 

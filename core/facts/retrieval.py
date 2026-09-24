@@ -10,8 +10,8 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from core.facts.types import DecayPolicy, Fact, FactStatus
 from core.facts.store import FactStore
+from core.facts.types import DecayPolicy, Fact, FactStatus
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,9 @@ class MemoryRetrieval:
             relevance = _bm25_to_relevance(fsr.score)
             recency = _recency_factor(fsr.fact, ref)
             total = fsr.fact.importance * recency * relevance * fsr.fact.confidence
-            scored.append(ScoredFact(fact=fsr.fact, score=total, relevance=relevance, recency=recency))
+            scored.append(
+                ScoredFact(fact=fsr.fact, score=total, relevance=relevance, recency=recency)
+            )
         scored.sort(key=lambda s: -s.score)
         return scored[:k]
 

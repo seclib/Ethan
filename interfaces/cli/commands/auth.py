@@ -5,6 +5,7 @@ Usage:
     ethan auth list                  List existing users
     ethan auth reset-password <user> Reset a user's password
 """
+
 import os
 import asyncio
 import asyncpg
@@ -74,19 +75,20 @@ def cmd_create_admin(args):
     async def _create():
         conn = await asyncio.wait_for(asyncpg.connect(_get_db_url()), timeout=5.0)
         try:
-            existing = await conn.fetchrow(
-                "SELECT id FROM users WHERE username = $1", username
-            )
+            existing = await conn.fetchrow("SELECT id FROM users WHERE username = $1", username)
             if existing:
                 print(f"Error: User '{username}' already exists.")
                 return 1
             await conn.execute(
                 "INSERT INTO users (username, password_hash, roles, is_active) VALUES ($1, $2, $3, $4)",
-                username, password_hash, ["admin"], True,
+                username,
+                password_hash,
+                ["admin"],
+                True,
             )
             print(f"\n✓ Admin user '{username}' created successfully.")
-            print(f"  Role: admin")
-            print(f"  Login at: http://localhost:3001")
+            print("  Role: admin")
+            print("  Login at: http://localhost:3001")
             return 0
         finally:
             await conn.close()
@@ -100,6 +102,7 @@ def cmd_create_admin(args):
 
 def cmd_list_users(args):
     """List existing users."""
+
     async def _list():
         conn = await asyncio.wait_for(asyncpg.connect(_get_db_url()), timeout=5.0)
         try:
@@ -131,6 +134,7 @@ def cmd_list_users(args):
 def cmd_reset_password(args):
     """Reset a user's password."""
     import getpass
+
     if not args:
         print("Usage: ethan auth reset-password <username>")
         return 1
@@ -156,7 +160,8 @@ def cmd_reset_password(args):
         try:
             result = await conn.execute(
                 "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE username = $2",
-                password_hash, username,
+                password_hash,
+                username,
             )
             if result == "UPDATE 0":
                 print(f"Error: User '{username}' not found.")
@@ -187,6 +192,10 @@ def cmd_auth(args):
         return cmd_reset_password(args[1:])
     else:
         suggestion = UX.suggest_command(sub, KNOWN_AUTH_SUBS)
-        msg = f"Did you mean? {suggestion}" if suggestion else "usage: ethan auth [create-admin|list|reset-password <user>]"
+        msg = (
+            f"Did you mean? {suggestion}"
+            if suggestion
+            else "usage: ethan auth [create-admin|list|reset-password <user>]"
+        )
         print(f"Unknown subcommand: {sub}\n  {msg}")
         return 1

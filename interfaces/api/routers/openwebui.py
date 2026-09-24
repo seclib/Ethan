@@ -25,10 +25,9 @@ import time
 import uuid
 from typing import Any
 
+from core.llm.types import ChatMessage, LLMRequirements
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
-
-from core.llm.types import ChatMessage, LLMRequirements
 from interfaces.api.auth import (
     create_access_token,
     verify_token_string,
@@ -129,8 +128,13 @@ def _to_chat_messages(messages: list[dict[str, Any]]) -> list[ChatMessage]:
     return out
 
 
-def _openai_chunk(request_id: str, created: int, model: str,
-                  delta: dict[str, Any], finish_reason: str | None = None) -> str:
+def _openai_chunk(
+    request_id: str,
+    created: int,
+    model: str,
+    delta: dict[str, Any],
+    finish_reason: str | None = None,
+) -> str:
     """Serialize one OpenAI-compatible SSE chunk string."""
     payload = {
         "id": request_id,
@@ -154,8 +158,9 @@ async def _echo_stream(content: str, model: str):
     yield "data: [DONE]\n\n"
 
 
-def _openai_non_stream_response(model: str, content: str,
-                                 request_id: str | None = None) -> JSONResponse:
+def _openai_non_stream_response(
+    model: str, content: str, request_id: str | None = None
+) -> JSONResponse:
     request_id = request_id or f"chatcmpl-{uuid.uuid4().hex[:12]}"
     payload = {
         "id": request_id,

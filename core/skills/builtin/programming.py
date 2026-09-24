@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from core.skills.types import Skill, SkillStep
 from core.skills.builtin.base import BaseBuiltinSkill
+from core.skills.types import Skill, SkillStep
 
 
 class ProgrammingSkill(BaseBuiltinSkill):
     """Skill de programmation.
-    
+
     Outils utilisés :
     - code_writer : Écrire du code
     - code_reviewer : Revoir du code

@@ -6,8 +6,8 @@ events and sends CRUD actions through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -71,7 +71,15 @@ class CalendarManager:
         event = await self.get(event_id)
         if event is None:
             return None
-        for key in ("title", "description", "start_time", "end_time", "all_day", "reminders", "metadata"):
+        for key in (
+            "title",
+            "description",
+            "start_time",
+            "end_time",
+            "all_day",
+            "reminders",
+            "metadata",
+        ):
             if key in data:
                 event[key] = data[key]
         event["updated_at"] = datetime.utcnow().isoformat()
@@ -85,4 +93,6 @@ class CalendarManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="calendar-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="calendar-manager", payload=payload)
+        )

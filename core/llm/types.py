@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any
 
 
 class TaskType(str, Enum):
     """Types de tâches LLM."""
+
     CHAT = "chat"
     CODE = "code"
     EMBEDDING = "embedding"
@@ -81,6 +80,7 @@ class ProviderCapability(str, Enum):
 @dataclass
 class LLMRequirements:
     """Besoins pour la sélection d'un modèle."""
+
     task_type: str = "chat"
     max_cost: float | None = None
     max_latency_ms: float | None = None
@@ -95,6 +95,7 @@ class LLMRequirements:
 @dataclass
 class ModelInfo:
     """Informations sur un modèle LLM."""
+
     id: str
     provider: str
     name: str
@@ -113,6 +114,7 @@ class ModelInfo:
 @dataclass
 class ScoredModel:
     """Modèle avec son score."""
+
     model: ModelInfo
     score: float
     reasoning: str = ""
@@ -121,6 +123,7 @@ class ScoredModel:
 @dataclass
 class ChatMessage:
     """Message de chat standardisé."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     name: str | None = None
@@ -131,6 +134,7 @@ class ChatMessage:
 @dataclass
 class ChatResponse:
     """Réponse de chat standardisée."""
+
     content: str
     model: str
     provider: str
@@ -141,6 +145,7 @@ class ChatResponse:
 @dataclass
 class UsageStats:
     """Statistiques d'utilisation."""
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -158,6 +163,7 @@ class VisionImage:
     Supports either a base64 payload or a URL. Providers that only accept
     one form should raise NotImplementedError for the other.
     """
+
     data: str  # base64-encoded bytes OR URL
     mime_type: str = "image/png"
     is_url: bool = False
@@ -166,6 +172,7 @@ class VisionImage:
 @dataclass
 class VisionRequest:
     """Request to analyze an image with a vision-capable model."""
+
     images: list[VisionImage]
     prompt: str = "Describe this image in detail."
     model: str | None = None
@@ -175,6 +182,7 @@ class VisionRequest:
 @dataclass
 class VisionResponse:
     """Response from a vision analysis."""
+
     content: str
     model: str
     provider: str
@@ -187,6 +195,7 @@ class VisionResponse:
 @dataclass
 class TranscriptionRequest:
     """Request to transcribe audio to text."""
+
     audio_data: bytes
     mime_type: str = "audio/wav"
     model: str | None = None
@@ -196,6 +205,7 @@ class TranscriptionRequest:
 @dataclass
 class TranscriptionResponse:
     """Response from audio transcription."""
+
     text: str
     model: str
     provider: str

@@ -10,6 +10,7 @@ from typing import Any
 
 class SkillStatus(str, Enum):
     """Statut d'une skill."""
+
     AVAILABLE = "available"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -20,6 +21,7 @@ class SkillStatus(str, Enum):
 @dataclass
 class SkillStep:
     """Étape d'une skill."""
+
     id: str
     name: str
     description: str
@@ -33,6 +35,7 @@ class SkillStep:
 @dataclass
 class Skill:
     """Skill avec toutes ses métadonnées."""
+
     id: str
     name: str
     description: str
@@ -55,6 +58,7 @@ class Skill:
 @dataclass
 class SkillContext:
     """Contexte d'exécution d'une skill."""
+
     skill_id: str
     user_id: str = "default"
     session_id: str = "default"
@@ -68,6 +72,7 @@ class SkillContext:
 @dataclass
 class SkillResult:
     """Résultat d'exécution d'une skill."""
+
     skill_id: str
     status: SkillStatus
     output: Any = None

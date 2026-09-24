@@ -6,8 +6,8 @@ and sends messages through the API.
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -72,7 +72,9 @@ class ChannelStore:
                 channel[key] = data[key]
         channel["updated_at"] = datetime.utcnow().isoformat()
         await self._store.save(self._DOMAIN, channel_id, channel)
-        await self._publish(EventType.CHANNEL_UPDATED, "channel.updated", {"channel_id": channel_id})
+        await self._publish(
+            EventType.CHANNEL_UPDATED, "channel.updated", {"channel_id": channel_id}
+        )
         return channel
 
     async def delete_channel(self, channel_id: str) -> bool:
@@ -82,7 +84,9 @@ class ChannelStore:
             if message.get("channel_id") == channel_id:
                 await self._store.delete(self._MESSAGES_DOMAIN, message["id"])
         if existed:
-            await self._publish(EventType.CHANNEL_DELETED, "channel.deleted", {"channel_id": channel_id})
+            await self._publish(
+                EventType.CHANNEL_DELETED, "channel.deleted", {"channel_id": channel_id}
+            )
         return existed
 
     async def add_message(
@@ -116,4 +120,6 @@ class ChannelStore:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="channel-store", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="channel-store", payload=payload)
+        )

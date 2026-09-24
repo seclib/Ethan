@@ -16,7 +16,7 @@ d'historique résumé — il n'existe qu'UN SEUL moteur de compaction (Core).
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from core.chat.modes import CompactionStrategy
@@ -81,8 +81,16 @@ class CompactionResult:
 
 # Marqueurs prioritaires — le résumé cite ces éléments en clair (§16).
 _PRIORITY_MARKERS = (
-    "[Instructions système]", "[Mode", "[Exigences", "[Décision", "[Fichier",
-    "[Erreur", "[Outil", "[Action en attente", "[Tâche", "[Correctif",
+    "[Instructions système]",
+    "[Mode",
+    "[Exigences",
+    "[Décision",
+    "[Fichier",
+    "[Erreur",
+    "[Outil",
+    "[Action en attente",
+    "[Tâche",
+    "[Correctif",
 )
 
 
@@ -102,7 +110,9 @@ class AutoCompactManager:
 
     @staticmethod
     def thresholds(strategy: CompactionStrategy | str) -> CompactionThresholds:
-        strategy_value = strategy.value if isinstance(strategy, CompactionStrategy) else str(strategy)
+        strategy_value = (
+            strategy.value if isinstance(strategy, CompactionStrategy) else str(strategy)
+        )
         try:
             return STRATEGY_THRESHOLDS[CompactionStrategy(strategy_value).value]
         except ValueError:
@@ -144,7 +154,7 @@ class AutoCompactManager:
         """Messages anciens à résumer (les récents + prioritaires restent)."""
         if len(history) <= th.keep_recent:
             return []
-        candidates = history[:-th.keep_recent]
+        candidates = history[: -th.keep_recent]
         target = max(1, int(len(candidates) * th.summarize_fraction))
         return candidates[:target]
 
@@ -192,8 +202,7 @@ class AutoCompactManager:
         ]
 
         transcript = "\n".join(
-            f"[{m.get('role', '?')}] {str(m.get('content') or '')[:1500]}"
-            for m in to_summarize
+            f"[{m.get('role', '?')}] {str(m.get('content') or '')[:1500]}" for m in to_summarize
         )
         summary_instruction = (
             "Résume fidèlement la conversation suivante pour libérer du contexte. "
@@ -234,10 +243,13 @@ class AutoCompactManager:
         summarized_message = {
             "role": "system",
             "content": summary,
-            "metadata": {"compacted": True, "strategy": result.strategy,
-                         "summarized": len(to_summarize)},
+            "metadata": {
+                "compacted": True,
+                "strategy": result.strategy,
+                "summarized": len(to_summarize),
+            },
         }
-        kept_recent = history[-th.keep_recent:]
+        kept_recent = history[-th.keep_recent :]
         new_history = [summarized_message, *kept_recent]
 
         result.compacted = True

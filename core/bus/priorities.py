@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from enum import IntEnum
-from typing import Any
 
 from core.ethan_types.event import Event
 
@@ -14,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 class Priority(IntEnum):
     """Niveaux de priorité des événements."""
+
     CRITICAL = 4  # Erreurs système, sécurité
-    HIGH = 3      # Goals, tasks, LLM calls
-    NORMAL = 2    # Messages, interactions
-    LOW = 1       # Logs, métriques, analytics
+    HIGH = 3  # Goals, tasks, LLM calls
+    NORMAL = 2  # Messages, interactions
+    LOW = 1  # Logs, métriques, analytics
 
 
 class PriorityQueue:

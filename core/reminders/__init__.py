@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["ReminderManager"]
 
+# `timezone` est aussi le nom du paramètre public de `ReminderManager.create()` :
+# dans ce scope, il ombre l'import `datetime.timezone`. On fige donc l'objet
+# tzinfo ici pour que `datetime.now(...)` reste correct.
+_UTC = timezone.utc
+
 _DOMAIN = "reminders"
 
 
@@ -78,8 +83,8 @@ class ReminderManager:
             "last_fired_at": None,
             "fire_count": 0,
             "metadata": dict(metadata or {}),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(_UTC).isoformat(),
+            "updated_at": datetime.now(_UTC).isoformat(),
         }
         await self._store.save(_DOMAIN, reminder["id"], reminder)
 
@@ -109,7 +114,7 @@ class ReminderManager:
         for key in ("title", "message", "schedule", "fire_at", "timezone", "enabled", "metadata"):
             if key in data:
                 reminder[key] = data[key]
-        reminder["updated_at"] = datetime.utcnow().isoformat()
+        reminder["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await self._store.save(_DOMAIN, reminder_id, reminder)
 
@@ -119,7 +124,9 @@ class ReminderManager:
             if reminder.get("enabled"):
                 await self._schedule_reminder(reminder)
 
-        await self._publish(EventType.SCHEDULE_TRIGGER, "reminder.updated", {"reminder_id": reminder_id})
+        await self._publish(
+            EventType.SCHEDULE_TRIGGER, "reminder.updated", {"reminder_id": reminder_id}
+        )
         return reminder
 
     async def delete(self, reminder_id: str) -> bool:
@@ -128,7 +135,9 @@ class ReminderManager:
         if existed and self._scheduler is not None:
             await self._scheduler.cancel(f"reminder-{reminder_id}")
         if existed:
-            await self._publish(EventType.SCHEDULE_TRIGGER, "reminder.deleted", {"reminder_id": reminder_id})
+            await self._publish(
+                EventType.SCHEDULE_TRIGGER, "reminder.deleted", {"reminder_id": reminder_id}
+            )
         return existed
 
     async def enable(self, reminder_id: str) -> dict[str, Any] | None:
@@ -144,13 +153,17 @@ class ReminderManager:
         reminder = await self.get(reminder_id)
         if reminder is None:
             return None
-        reminder["last_fired_at"] = datetime.utcnow().isoformat()
+        reminder["last_fired_at"] = datetime.now(timezone.utc).isoformat()
         reminder["fire_count"] = reminder.get("fire_count", 0) + 1
         await self._store.save(_DOMAIN, reminder_id, reminder)
         await self._publish(
             EventType.SCHEDULE_TRIGGER,
             "reminder.fired",
-            {"reminder_id": reminder_id, "title": reminder["title"], "message": reminder.get("message", "")},
+            {
+                "reminder_id": reminder_id,
+                "title": reminder["title"],
+                "message": reminder.get("message", ""),
+            },
         )
         return reminder
 
@@ -159,7 +172,11 @@ class ReminderManager:
         if self._scheduler is None:
             return
         name = f"reminder-{reminder['id']}"
-        payload = {"reminder_id": reminder["id"], "title": reminder["title"], "message": reminder.get("message", "")}
+        payload = {
+            "reminder_id": reminder["id"],
+            "title": reminder["title"],
+            "message": reminder.get("message", ""),
+        }
         if reminder.get("schedule"):
             await self._scheduler.schedule_cron(
                 name=name,
@@ -183,4 +200,6 @@ class ReminderManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="reminder-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="reminder-manager", payload=payload)
+        )

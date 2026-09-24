@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class SkillManager:
     """Orchestrateur principal des skills.
-    
+
     Responsabilités :
     - Gestion du cycle de vie des skills
     - Coordination avec le Tool Manager

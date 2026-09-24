@@ -6,15 +6,12 @@ or custom user-defined functions.
 
 from __future__ import annotations
 
-from typing import Any
-from datetime import datetime
-
-from core.tools.types import Tool, RiskLevel
+from core.tools.types import RiskLevel, Tool
 
 
 def get_builtin_tools() -> list[Tool]:
     """Return the list of built-in tools available natively."""
-    
+
     return [
         Tool(
             id="builtin_web_search",
@@ -22,19 +19,14 @@ def get_builtin_tools() -> list[Tool]:
             description="Perform a web search to find current information on a topic.",
             parameters={
                 "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query."
-                    }
-                },
-                "required": ["query"]
+                "properties": {"query": {"type": "string", "description": "The search query."}},
+                "required": ["query"],
             },
             version="1.0.0",
             category="search",
             capabilities=["search", "web"],
             risk_level=RiskLevel.LOW,
-            provider="builtin"
+            provider="builtin",
         ),
         Tool(
             id="builtin_current_time",
@@ -45,15 +37,18 @@ def get_builtin_tools() -> list[Tool]:
                 "properties": {
                     "timezone": {
                         "type": "string",
-                        "description": "Optional timezone (e.g. 'UTC', 'Europe/Paris'). Defaults to system local time."
+                        "description": (
+                            "Optional timezone (e.g. 'UTC', 'Europe/Paris'). "
+                            "Defaults to system local time."
+                        ),
                     }
-                }
+                },
             },
             version="1.0.0",
             category="utility",
             capabilities=["time", "system"],
             risk_level=RiskLevel.LOW,
-            provider="builtin"
+            provider="builtin",
         ),
         Tool(
             id="builtin_image_generation",
@@ -64,16 +59,16 @@ def get_builtin_tools() -> list[Tool]:
                 "properties": {
                     "prompt": {
                         "type": "string",
-                        "description": "Detailed description of the image to generate."
+                        "description": "Detailed description of the image to generate.",
                     }
                 },
-                "required": ["prompt"]
+                "required": ["prompt"],
             },
             version="1.0.0",
             category="media",
             capabilities=["image_generation"],
             risk_level=RiskLevel.LOW,
-            provider="builtin"
+            provider="builtin",
         ),
         Tool(
             id="builtin_code_interpreter",
@@ -82,18 +77,15 @@ def get_builtin_tools() -> list[Tool]:
             parameters={
                 "type": "object",
                 "properties": {
-                    "code": {
-                        "type": "string",
-                        "description": "The Python code to execute."
-                    }
+                    "code": {"type": "string", "description": "The Python code to execute."}
                 },
-                "required": ["code"]
+                "required": ["code"],
             },
             version="1.0.0",
             category="code",
             capabilities=["execution", "python"],
             risk_level=RiskLevel.HIGH,
             sandbox_required=True,
-            provider="builtin"
-        )
+            provider="builtin",
+        ),
     ]

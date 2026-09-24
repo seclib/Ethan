@@ -17,7 +17,6 @@ from typing import Any, Dict, List
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
-
 from openjarvis.core import open_browser
 
 CONFIG_DIR = Path.home() / ".openjarvis" / "connectors"
@@ -45,30 +44,21 @@ def _load_creds(filename: str) -> Dict[str, str]:
 
 
 _google = _load_creds("google.json")
-GOOGLE_CLIENT_ID = (
-    os.environ.get("OPENJARVIS_GOOGLE_CLIENT_ID", "") or _google["client_id"]
-)
+GOOGLE_CLIENT_ID = os.environ.get("OPENJARVIS_GOOGLE_CLIENT_ID", "") or _google["client_id"]
 GOOGLE_CLIENT_SECRET = (
-    os.environ.get("OPENJARVIS_GOOGLE_CLIENT_SECRET", "")
-    or _google["client_secret"]
+    os.environ.get("OPENJARVIS_GOOGLE_CLIENT_SECRET", "") or _google["client_secret"]
 )
 
 _strava = _load_creds("strava.json")
-STRAVA_CLIENT_ID = (
-    os.environ.get("OPENJARVIS_STRAVA_CLIENT_ID", "") or _strava["client_id"]
-)
+STRAVA_CLIENT_ID = os.environ.get("OPENJARVIS_STRAVA_CLIENT_ID", "") or _strava["client_id"]
 STRAVA_CLIENT_SECRET = (
-    os.environ.get("OPENJARVIS_STRAVA_CLIENT_SECRET", "")
-    or _strava["client_secret"]
+    os.environ.get("OPENJARVIS_STRAVA_CLIENT_SECRET", "") or _strava["client_secret"]
 )
 
 _spotify = _load_creds("spotify.json")
-SPOTIFY_CLIENT_ID = (
-    os.environ.get("OPENJARVIS_SPOTIFY_CLIENT_ID", "") or _spotify["client_id"]
-)
+SPOTIFY_CLIENT_ID = os.environ.get("OPENJARVIS_SPOTIFY_CLIENT_ID", "") or _spotify["client_id"]
 SPOTIFY_CLIENT_SECRET = (
-    os.environ.get("OPENJARVIS_SPOTIFY_CLIENT_SECRET", "")
-    or _spotify["client_secret"]
+    os.environ.get("OPENJARVIS_SPOTIFY_CLIENT_SECRET", "") or _spotify["client_secret"]
 )
 
 # ── Generic OAuth helpers ────────────────────────────────────────────────────
@@ -88,8 +78,7 @@ def _wait_for_code(port: int = CALLBACK_PORT, timeout: int = 120) -> str:
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
                 self.wfile.write(
-                    b"<html><body><h2>Success!</h2>"
-                    b"<p>You can close this tab.</p></body></html>"
+                    b"<html><body><h2>Success!</h2><p>You can close this tab.</p></body></html>"
                 )
             else:
                 error.append(params.get("error", ["unknown"])[0])
@@ -126,23 +115,24 @@ def _save(path: Path, data: Dict[str, Any]) -> None:
 def do_google() -> None:
     print("\n=== Google OAuth (Drive, Calendar, Contacts, Gmail, Tasks) ===")
     scopes = [
-        "openid", "email", "profile",
+        "openid",
+        "email",
+        "profile",
         "https://www.googleapis.com/auth/drive.readonly",
         "https://www.googleapis.com/auth/calendar.readonly",
         "https://www.googleapis.com/auth/contacts.readonly",
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/tasks.readonly",
     ]
-    url = (
-        "https://accounts.google.com/o/oauth2/v2/auth?"
-        + urlencode({
+    url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(
+        {
             "client_id": GOOGLE_CLIENT_ID,
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
             "scope": " ".join(scopes),
             "access_type": "offline",
             "prompt": "consent",
-        })
+        }
     )
     print("  Opening browser...")
     open_browser(url)
@@ -183,14 +173,13 @@ def do_google() -> None:
 
 def do_strava() -> None:
     print("\n=== Strava OAuth ===")
-    url = (
-        "https://www.strava.com/oauth/authorize?"
-        + urlencode({
+    url = "https://www.strava.com/oauth/authorize?" + urlencode(
+        {
             "client_id": STRAVA_CLIENT_ID,
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
             "scope": "activity:read_all",
-        })
+        }
     )
     print("  Opening browser...")
     open_browser(url)
@@ -232,12 +221,23 @@ def _make_self_signed_cert() -> tuple[str, str]:
     cert_path = str(cert_dir / "cert.pem")
     subprocess.run(
         [
-            "openssl", "req", "-x509", "-newkey", "rsa:2048",
-            "-keyout", key_path, "-out", cert_path,
-            "-days", "1", "-nodes",
-            "-subj", "/CN=localhost",
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            key_path,
+            "-out",
+            cert_path,
+            "-days",
+            "1",
+            "-nodes",
+            "-subj",
+            "/CN=localhost",
         ],
-        capture_output=True, check=True,
+        capture_output=True,
+        check=True,
     )
     return cert_path, key_path
 
@@ -260,8 +260,7 @@ def _wait_for_code_https(port: int = 8888, timeout: int = 120) -> str:
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
                 self.wfile.write(
-                    b"<html><body><h2>Success!</h2>"
-                    b"<p>You can close this tab.</p></body></html>"
+                    b"<html><body><h2>Success!</h2><p>You can close this tab.</p></body></html>"
                 )
             else:
                 error.append(params.get("error", ["unknown"])[0])
@@ -294,23 +293,21 @@ def do_spotify() -> None:
     print("\n=== Spotify OAuth ===")
     spotify_port = 8888
     spotify_redirect = f"http://127.0.0.1:{spotify_port}/callback"
-    url = (
-        "https://accounts.spotify.com/authorize?"
-        + urlencode({
+    url = "https://accounts.spotify.com/authorize?" + urlencode(
+        {
             "client_id": SPOTIFY_CLIENT_ID,
             "redirect_uri": spotify_redirect,
             "response_type": "code",
             "scope": "user-read-recently-played",
-        })
+        }
     )
     print("  Opening browser...")
     open_browser(url)
     code = _wait_for_code(port=spotify_port)
 
     import base64
-    auth_header = base64.b64encode(
-        f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()
-    ).decode()
+
+    auth_header = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
 
     resp = httpx.post(
         "https://accounts.spotify.com/api/token",
@@ -338,9 +335,7 @@ def do_spotify() -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run OAuth flows for OpenJarvis connectors"
-    )
+    parser = argparse.ArgumentParser(description="Run OAuth flows for OpenJarvis connectors")
     parser.add_argument("--google", action="store_true", help="Only Google")
     parser.add_argument("--strava", action="store_true", help="Only Strava")
     parser.add_argument("--spotify", action="store_true", help="Only Spotify")

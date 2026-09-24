@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import logging
-import os
 from uuid import uuid4
 
-import json
-from fastapi import APIRouter, HTTPException, Response
-from nats.aio.client import Client as NatsClient
-
-from interfaces.api.models.requests import MessageRequest, MessageResponse, IntentRequest
 from core.ethan_types.event import Event, EventType
+from fastapi import APIRouter, HTTPException, Response
+from interfaces.api.models.requests import IntentRequest, MessageRequest, MessageResponse
+from nats.aio.client import Client as NatsClient
 
 logger = logging.getLogger(__name__)
 

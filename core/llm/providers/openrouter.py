@@ -51,13 +51,13 @@ class OpenRouterProvider(LLMProvider):
         """Initialise le client OpenRouter."""
         try:
             from openai import AsyncOpenAI
-            
+
             headers = {}
             if self._site_url:
                 headers["HTTP-Referer"] = self._site_url
             if self._site_name:
                 headers["X-Title"] = self._site_name
-                
+
             self._client = AsyncOpenAI(
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,
@@ -134,7 +134,10 @@ class OpenRouterProvider(LLMProvider):
                 yield chunk.choices[0].delta.content
 
     async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
-        """Generate embeddings. (OpenRouter does not support native embeddings currently but forwards them)."""
+        """Generate embeddings.
+
+        OpenRouter does not support native embeddings currently, but forwards them.
+        """
         if not self._client:
             raise RuntimeError("OpenRouter provider not initialized")
 
@@ -157,11 +160,16 @@ class OpenRouterProvider(LLMProvider):
                     ModelInfo(
                         id=f"openrouter_{m.id}",
                         provider=self.name,
-                        name=m.name if hasattr(m, 'name') else m.id,
+                        name=m.name if hasattr(m, "name") else m.id,
                         model=m.id,
-                        context_length=m.context_length if hasattr(m, 'context_length') else 4096,
+                        context_length=m.context_length if hasattr(m, "context_length") else 4096,
                         is_local=False,
-                        pricing={"prompt": getattr(m, "pricing", {}).get("prompt", "0.0"), "completion": getattr(m, "pricing", {}).get("completion", "0.0")} if hasattr(m, "pricing") else None
+                        pricing={
+                            "prompt": getattr(m, "pricing", {}).get("prompt", "0.0"),
+                            "completion": getattr(m, "pricing", {}).get("completion", "0.0"),
+                        }
+                        if hasattr(m, "pricing")
+                        else None,
                     )
                 )
             return models

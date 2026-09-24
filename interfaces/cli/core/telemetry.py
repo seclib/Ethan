@@ -9,12 +9,12 @@ import os
 import time
 import threading
 from dataclasses import dataclass, field
-from typing import Callable
 
 
 @dataclass
 class TelemetrySnapshot:
     """Point-in-time snapshot of CLI telemetry."""
+
     cold_start_ms: float = 0.0
     discovery_ms: float = 0.0
     dispatch_ms: float = 0.0
@@ -108,6 +108,7 @@ class CLITelemetry:
         """Return current RSS in MB (cross-platform)."""
         try:
             import psutil
+
             return psutil.Process().memory_info().rss / (1024 * 1024)
         except ImportError:
             # Fallback: read /proc/self/status (Linux)

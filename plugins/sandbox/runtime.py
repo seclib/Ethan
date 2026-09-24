@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ class PluginRuntime:
         """Démarre le runtime des plugins."""
         logger.info("◆ ETHAN Plugin Runtime")
         logger.info("  Initializing plugin sandbox...")
-        
+
         self.running = True
         logger.info("  ✓ Plugin runtime ready")
         logger.info("  Listening for plugin requests...")
@@ -49,12 +48,11 @@ class PluginRuntime:
 def main():
     """Point d'entrée principal."""
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     runtime = PluginRuntime()
-    
+
     try:
         asyncio.run(runtime.start())
     except KeyboardInterrupt:

@@ -62,25 +62,17 @@ class FolderManager:
         # ressources classées passe toujours par les providers.
         self._collections: Any | None = collections
         if knowledge is not None:
-            self.add_provider(
-                "knowledge", FolderResourceProvider(knowledge.get, knowledge.list)
-            )
+            self.add_provider("knowledge", FolderResourceProvider(knowledge.get, knowledge.list))
         if collections is not None:
             self.add_provider(
                 "collection",
-                FolderResourceProvider(
-                    collections.get_collection, collections.list_collections
-                ),
+                FolderResourceProvider(collections.get_collection, collections.list_collections),
             )
         if skills is not None:
-            self.add_provider(
-                "skill", FolderResourceProvider(skills.get_skill, skills.list_skills)
-            )
+            self.add_provider("skill", FolderResourceProvider(skills.get_skill, skills.list_skills))
         self._resource_types |= set(self._providers)
 
-    def add_provider(
-        self, resource_type: str, provider: FolderResourceProvider
-    ) -> None:
+    def add_provider(self, resource_type: str, provider: FolderResourceProvider) -> None:
         """Enregistre un type de ressource classable (registre ouvert)."""
         self._providers[resource_type] = provider
         self._resource_types.add(resource_type)
@@ -132,9 +124,7 @@ class FolderManager:
             "updated_at": _utc_now(),
         }
         await self._store.save(_DOMAIN_FOLDERS, folder["id"], folder)
-        await self._publish(
-            EventType.FOLDER_CREATED, "folder.created", {"folder": folder}
-        )
+        await self._publish(EventType.FOLDER_CREATED, "folder.created", {"folder": folder})
         return folder
 
     async def get_folder(self, folder_id: str) -> dict[str, Any] | None:
@@ -145,9 +135,7 @@ class FolderManager:
         folders = await self._store.list(_DOMAIN_FOLDERS)
         if user_id is not None:
             folders = [f for f in folders if f.get("user_id") == user_id]
-        return sorted(
-            folders, key=lambda f: (f.get("order", 0), f.get("name", ""))
-        )
+        return sorted(folders, key=lambda f: (f.get("order", 0), f.get("name", "")))
 
     async def rename_folder(self, folder_id: str, name: str) -> dict[str, Any] | None:
         """Renomme un dossier (le nom reste librement modifiable)."""
@@ -196,14 +184,10 @@ class FolderManager:
             folder["metadata"] = dict(metadata)
         folder["updated_at"] = _utc_now()
         await self._store.save(_DOMAIN_FOLDERS, folder_id, folder)
-        await self._publish(
-            EventType.FOLDER_UPDATED, "folder.updated", {"folder": folder}
-        )
+        await self._publish(EventType.FOLDER_UPDATED, "folder.updated", {"folder": folder})
         return folder
 
-    async def move_folder(
-        self, folder_id: str, new_parent_id: str | None
-    ) -> dict[str, Any] | None:
+    async def move_folder(self, folder_id: str, new_parent_id: str | None) -> dict[str, Any] | None:
         """Déplace un dossier (re-parentage avec détection de cycles)."""
         return await self.update_folder(folder_id, parent_id=new_parent_id)
 
@@ -256,9 +240,7 @@ class FolderManager:
         folders = await self.list_folders(user_id)
         if collection_id is not None:
             by_id = {f["id"]: f for f in folders}
-            keep: set[str] = {
-                f["id"] for f in folders if f.get("collection_id") == collection_id
-            }
+            keep: set[str] = {f["id"] for f in folders if f.get("collection_id") == collection_id}
             for fid in list(keep):
                 cursor = by_id[fid]
                 while (
@@ -344,9 +326,7 @@ class FolderManager:
         )
         return membership
 
-    async def detach_resource(
-        self, folder_id: str, resource_type: str, resource_id: str
-    ) -> bool:
+    async def detach_resource(self, folder_id: str, resource_type: str, resource_id: str) -> bool:
         """Retire une ressource d'un dossier (la ressource n'est pas supprimée)."""
         await self._require_folder(folder_id)
         deleted = await self._store.delete(
@@ -383,8 +363,7 @@ class FolderManager:
         current = {
             m["folder_id"]
             for m in await self._store.list(_DOMAIN_MEMBERSHIPS)
-            if m.get("resource_type") == resource_type
-            and m.get("resource_id") == resource_id
+            if m.get("resource_type") == resource_type and m.get("resource_id") == resource_id
         }
         for folder_id in current - set(target_ids):
             await self.detach_resource(folder_id, resource_type, resource_id)
@@ -519,9 +498,7 @@ class FolderManager:
                 attached += 1
             except ValueError as exc:
                 errors.append(f"{resource_type}:{resource_id}: {exc}")
-        return self._operation_report(
-            "copy", attached, 0, skipped, errors, target_id=target_id
-        )
+        return self._operation_report("copy", attached, 0, skipped, errors, target_id=target_id)
 
     async def move_resources_to_folder(
         self, items: list[dict[str, str]], target_id: str
@@ -556,9 +533,7 @@ class FolderManager:
                 moved += 1
             except ValueError as exc:
                 errors.append(f"{resource_type}:{resource_id}: {exc}")
-        return self._operation_report(
-            "move", 0, moved, skipped, errors, target_id=target_id
-        )
+        return self._operation_report("move", 0, moved, skipped, errors, target_id=target_id)
 
     async def folder_to_collection(
         self,
@@ -685,9 +660,7 @@ class FolderManager:
         """Ressources d'un type classées dans **aucun** dossier (état par défaut)."""
         provider = self._providers.get(resource_type)
         if provider is None:
-            raise ValueError(
-                f"No provider registered for resource type: {resource_type!r}"
-            )
+            raise ValueError(f"No provider registered for resource type: {resource_type!r}")
         tagged = {
             m.get("resource_id")
             for m in await self._store.list(_DOMAIN_MEMBERSHIPS)
@@ -700,9 +673,7 @@ class FolderManager:
                 untagged.append(data)
         return untagged
 
-    async def folder_index(
-        self, resource_type: str | None = None
-    ) -> dict[str, list[str]]:
+    async def folder_index(self, resource_type: str | None = None) -> dict[str, list[str]]:
         """Index batch ressource → dossiers (pour filtrer les listes de
         ressources par dossier côté interfaces).
 
@@ -713,14 +684,9 @@ class FolderManager:
             raise ValueError(f"Unknown resource type: {resource_type!r}")
         index: dict[str, list[str]] = {}
         for membership in await self._store.list(_DOMAIN_MEMBERSHIPS):
-            if (
-                resource_type is not None
-                and membership.get("resource_type") != resource_type
-            ):
+            if resource_type is not None and membership.get("resource_type") != resource_type:
                 continue
-            index.setdefault(membership["resource_id"], []).append(
-                membership["folder_id"]
-            )
+            index.setdefault(membership["resource_id"], []).append(membership["folder_id"])
         return index
 
     # ── Helpers ──────────────────────────────────────────────────────────
@@ -763,9 +729,7 @@ class FolderManager:
         await self._require_folder(parent_id)
         descendants = await self._descendant_ids(folder_id)
         if parent_id in descendants:
-            raise ValueError(
-                f"Cannot move folder {folder_id} under its own descendant {parent_id}"
-            )
+            raise ValueError(f"Cannot move folder {folder_id} under its own descendant {parent_id}")
 
     async def _descendant_ids(self, folder_id: str) -> set[str]:
         by_parent: dict[str | None, list[str]] = {}
@@ -781,9 +745,7 @@ class FolderManager:
             frontier.extend(by_parent.get(current, []))
         return descendants
 
-    async def _publish(
-        self, event_type: EventType, subject: str, payload: dict[str, Any]
-    ) -> None:
+    async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         await self._bus.publish(
@@ -809,7 +771,9 @@ class FolderManager:
         if user_id and item.get("user_id") != user_id:
             raise PermissionError("Not allowed to restore this item")
 
-        original = {k: v for k, v in item.items() if k not in ("deleted_at", "deleted_by", "deleted")}
+        original = {
+            k: v for k, v in item.items() if k not in ("deleted_at", "deleted_by", "deleted")
+        }
         if item["type"] == "folder":
             await self._store.save("folders", original["id"], original)
         else:

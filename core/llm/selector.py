@@ -12,7 +12,6 @@ Score composite sur 6 critères :
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.llm.types import LLMRequirements, ModelInfo, ScoredModel
 
@@ -22,7 +21,9 @@ logger = logging.getLogger(__name__)
 class LLMSelector:
     """Sélectionne le meilleur modèle LLM."""
 
-    def select(self, requirements: LLMRequirements, available_models: list[ModelInfo]) -> list[ScoredModel]:
+    def select(
+        self, requirements: LLMRequirements, available_models: list[ModelInfo]
+    ) -> list[ScoredModel]:
         """Sélectionne le meilleur modèle.
 
         Args:
@@ -50,7 +51,9 @@ class LLMSelector:
         # Retourner le top 3
         return scored[:3]
 
-    def _filter_by_requirements(self, models: list[ModelInfo], req: LLMRequirements) -> list[ModelInfo]:
+    def _filter_by_requirements(
+        self, models: list[ModelInfo], req: LLMRequirements
+    ) -> list[ModelInfo]:
         """Filtre les modèles selon les requirements.
 
         Args:

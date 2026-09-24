@@ -9,12 +9,10 @@ vide, validation du paramètre q (422), module non initialisé (503 — régress
 du bug « tuple (dict, 503) » sérialisé en 200).
 """
 
+import pytest
+from core.audit import AuditStore
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-import pytest
-
-from core.audit import AuditStore
 from interfaces.api.routers import internal as internal_router
 
 
@@ -24,21 +22,30 @@ def client(tmp_path, monkeypatch):
     store = AuditStore(pg_conn=None, jsonl_path=tmp_path / "audit.jsonl")
     # Journalisation réelle d'entrées hétérogènes.
     store.log(
-        category="security", decision="allowed",
-        action="auth.login.success", actor="alice",
-        source="webui", details={"ip": "10.0.0.5"},
+        category="security",
+        decision="allowed",
+        action="auth.login.success",
+        actor="alice",
+        source="webui",
+        details={"ip": "10.0.0.5"},
         correlation_id="corr-1",
     )
     store.log(
-        category="security", decision="denied",
-        action="auth.login.failed", actor="mallory",
-        source="webui", details={"reason": "bad password"},
+        category="security",
+        decision="denied",
+        action="auth.login.failed",
+        actor="mallory",
+        source="webui",
+        details={"reason": "bad password"},
         correlation_id="corr-2",
     )
     store.log(
-        category="system", decision="auto",
-        action="config.updated", actor="root",
-        source="runtime", details={"section": "providers"},
+        category="system",
+        decision="auto",
+        action="config.updated",
+        actor="root",
+        source="runtime",
+        details={"section": "providers"},
     )
     monkeypatch.setattr(internal_router, "_audit", store)
 
@@ -59,8 +66,15 @@ def test_search_by_action(client):
     assert entries[1]["action"] == "auth.login.success"
     # Forme to_dict complète.
     assert set(entries[0]) >= {
-        "id", "timestamp", "category", "decision", "action",
-        "actor", "source", "details", "correlation_id",
+        "id",
+        "timestamp",
+        "category",
+        "decision",
+        "action",
+        "actor",
+        "source",
+        "details",
+        "correlation_id",
     }
     assert entries[0]["category"] == "security"
     assert entries[0]["decision"] == "denied"
@@ -90,9 +104,7 @@ def test_search_requires_q(client):
     # q manquant → 422.
     assert client.get("/internal/audit/search").status_code == 422
     # q vide (min_length=1) → 422.
-    assert client.get(
-        "/internal/audit/search", params={"q": ""}
-    ).status_code == 422
+    assert client.get("/internal/audit/search", params={"q": ""}).status_code == 422
 
 
 def test_search_module_not_initialized(monkeypatch):

@@ -1,4 +1,5 @@
 """ETHAN structured logging."""
+
 import json
 import os
 from datetime import datetime
@@ -35,13 +36,15 @@ def _save(entries):
 
 def log(command, status, latency_ms, error=None):
     entries = _load()
-    entries.append({
-        "ts": datetime.now().isoformat(timespec="milliseconds"),
-        "command": command[:160],
-        "status": status,
-        "latency_ms": latency_ms,
-        "error": (error or "")[:200],
-    })
+    entries.append(
+        {
+            "ts": datetime.now().isoformat(timespec="milliseconds"),
+            "command": command[:160],
+            "status": status,
+            "latency_ms": latency_ms,
+            "error": (error or "")[:200],
+        }
+    )
     _save(entries)
 
 

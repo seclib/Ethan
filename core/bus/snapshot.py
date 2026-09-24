@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Snapshot:
     """Snapshot de l'état du système."""
+
     id: str
     position: int
     state: dict[str, Any]
@@ -23,7 +24,7 @@ class Snapshot:
 
 class SnapshotManager:
     """Gère les snapshots pour replay rapide.
-    
+
     Responsabilités :
     - Création de snapshots
     - Récupération du dernier snapshot

@@ -12,15 +12,12 @@ Si le démarrage échoue, affiche un diagnostic détaillé expliquant pourquoi.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
-import sys
 import time
 from typing import Any
 
 from interfaces.cli.core import colors as clr
 from interfaces.cli.core.diagnostic import BootDiagnostic
-from interfaces.cli.core.errors import EthanError, error
 from interfaces.cli.registry import register
 
 
@@ -45,23 +42,32 @@ def cmd_up(args: list[str]) -> int:
 
     if not report.all_passed:
         if json_mode:
-            print(json.dumps({
-                "status": "failed",
-                "reason": "prerequisites_not_met",
-                "checks": [
-                    {"name": c.name, "passed": c.passed, "detail": c.detail, "fix": c.fix}
-                    for c in report.checks
-                ],
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "reason": "prerequisites_not_met",
+                        "checks": [
+                            {"name": c.name, "passed": c.passed, "detail": c.detail, "fix": c.fix}
+                            for c in report.checks
+                        ],
+                    },
+                    indent=2,
+                )
+            )
             return 3
 
         print(diag.explain_failure())
         print(f"\n  {clr.C.RED}✗ ETHAN ne peut pas démarrer.{clr.C.RESET}")
-        print(f"  {clr.C.DIM}Corrigez les problèmes ci-dessus puis relancez : ethan up{clr.C.RESET}\n")
+        print(
+            f"  {clr.C.DIM}Corrigez les problèmes ci-dessus puis relancez : ethan up{clr.C.RESET}\n"
+        )
         return 3
 
     if not json_mode:
-        print(f"  {clr.C.GREEN}✓{clr.C.RESET} Tous les prérequis sont satisfaits ({report.passed_count}/{report.total_count})\n")
+        print(
+            f"  {clr.C.GREEN}✓{clr.C.RESET} Tous les prérequis sont satisfaits ({report.passed_count}/{report.total_count})\n"
+        )
 
     # ── Build compose args ────────────────────────────────────────
     compose_files = ["docker-compose.yml"]
@@ -84,11 +90,16 @@ def cmd_up(args: list[str]) -> int:
         )
         if pull_result.returncode != 0:
             if json_mode:
-                print(json.dumps({
-                    "status": "failed",
-                    "reason": "docker_pull_failed",
-                    "stderr": pull_result.stderr,
-                }, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "status": "failed",
+                            "reason": "docker_pull_failed",
+                            "stderr": pull_result.stderr,
+                        },
+                        indent=2,
+                    )
+                )
                 return 1
             print(f"  {clr.C.RED}✗ Échec du téléchargement des images{clr.C.RESET}")
             print(f"  {clr.C.DIM}{pull_result.stderr}{clr.C.RESET}\n")
@@ -106,11 +117,16 @@ def cmd_up(args: list[str]) -> int:
 
     if up_result.returncode != 0:
         if json_mode:
-            print(json.dumps({
-                "status": "failed",
-                "reason": "docker_up_failed",
-                "stderr": up_result.stderr,
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "reason": "docker_up_failed",
+                        "stderr": up_result.stderr,
+                    },
+                    indent=2,
+                )
+            )
             return 1
 
         print(f"  {clr.C.RED}✗ Échec du démarrage des services{clr.C.RESET}")
@@ -130,10 +146,15 @@ def cmd_up(args: list[str]) -> int:
 
     if not ready:
         if json_mode:
-            print(json.dumps({
-                "status": "partial",
-                "reason": "services_not_ready",
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "status": "partial",
+                        "reason": "services_not_ready",
+                    },
+                    indent=2,
+                )
+            )
             return 4
 
         print(f"  {clr.C.YELLOW}⚠ Certains services ne sont pas prêts{clr.C.RESET}")
@@ -141,10 +162,15 @@ def cmd_up(args: list[str]) -> int:
         return 4
 
     if json_mode:
-        print(json.dumps({
-            "status": "ok",
-            "services": _get_service_status(compose_cmd),
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "services": _get_service_status(compose_cmd),
+                },
+                indent=2,
+            )
+        )
         return 0
 
     print(f"  {clr.C.GREEN}✓ ETHAN est démarré !{clr.C.RESET}")
@@ -159,7 +185,9 @@ def _wait_for_services(compose_cmd: list[str], timeout: int = 60, json_mode: boo
     while time.time() - start < timeout:
         result = subprocess.run(
             compose_cmd + ["ps", "--format", "json"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             try:
@@ -176,7 +204,9 @@ def _get_service_status(compose_cmd: list[str]) -> list[dict[str, Any]]:
     """Récupère le statut des services."""
     result = subprocess.run(
         compose_cmd + ["ps", "--format", "json"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True,
+        text=True,
+        timeout=10,
     )
     if result.returncode == 0:
         try:

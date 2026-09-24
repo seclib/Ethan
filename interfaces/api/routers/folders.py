@@ -41,15 +41,11 @@ def _not_found(exc: ValueError) -> HTTPException:
 
 
 @router.get("/tree")
-async def list_folders_tree(
-    user_id: str | None = None, collection_id: str | None = None
-):
+async def list_folders_tree(user_id: str | None = None, collection_id: str | None = None):
     """Arborescence des dossiers ; ``collection_id`` restreint la vue aux
     dossiers associés à cette collection (ancêtres conservés pour le fil
     d'Ariane)."""
-    return await get_folder_manager().list_tree(
-        user_id=user_id, collection_id=collection_id
-    )
+    return await get_folder_manager().list_tree(user_id=user_id, collection_id=collection_id)
 
 
 @router.get("/untagged")
@@ -75,9 +71,7 @@ async def get_folder_index(resource_type: str | None = None):
 async def list_folders_of_resource(resource_type: str, resource_id: str):
     """Dossiers contenant une ressource (multi-membership possible)."""
     try:
-        return await get_folder_manager().list_resource_folders(
-            resource_type, resource_id
-        )
+        return await get_folder_manager().list_resource_folders(resource_type, resource_id)
     except ValueError as exc:
         raise _not_found(exc) from exc
 
@@ -232,7 +226,12 @@ async def update_folder(folder_id: str, data: dict[str, Any]):
     """Mise à jour partielle : rename, description, icône, ordre, parent."""
     kwargs: dict[str, Any] = {}
     for key in (
-        "name", "description", "icon", "order", "parent_id", "collection_id",
+        "name",
+        "description",
+        "icon",
+        "order",
+        "parent_id",
+        "collection_id",
         "metadata",
     ):
         if key in data:
@@ -253,9 +252,7 @@ async def update_folder(folder_id: str, data: dict[str, Any]):
 async def move_folder(folder_id: str, data: dict[str, Any]):
     """Re-parente un dossier (``parent_id: null`` → racine, cycles rejetés)."""
     try:
-        folder = await get_folder_manager().move_folder(
-            folder_id, data.get("parent_id")
-        )
+        folder = await get_folder_manager().move_folder(folder_id, data.get("parent_id"))
     except ValueError as exc:
         raise _not_found(exc) from exc
     if folder is None:
@@ -282,9 +279,7 @@ async def delete_folder(folder_id: str):
 async def list_folder_resources(folder_id: str, resource_type: str | None = None):
     """Ressources réellement classées dans un dossier (résolues via Core)."""
     try:
-        return await get_folder_manager().list_folder_resources(
-            folder_id, resource_type
-        )
+        return await get_folder_manager().list_folder_resources(folder_id, resource_type)
     except ValueError as exc:
         raise _not_found(exc) from exc
 
@@ -310,9 +305,7 @@ async def attach_resource(folder_id: str, data: dict[str, Any]):
 async def detach_resource(folder_id: str, resource_type: str, resource_id: str):
     """Retire une ressource d'un dossier (sans supprimer la ressource)."""
     try:
-        deleted = await get_folder_manager().detach_resource(
-            folder_id, resource_type, resource_id
-        )
+        deleted = await get_folder_manager().detach_resource(folder_id, resource_type, resource_id)
     except ValueError as exc:
         raise _not_found(exc) from exc
     if not deleted:

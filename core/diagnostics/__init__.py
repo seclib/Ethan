@@ -21,4 +21,3 @@ from .system import (
 )
 
 __all__ = ["CheckResult", "Status", "SystemDiagnostics", "SystemMetrics"]
-

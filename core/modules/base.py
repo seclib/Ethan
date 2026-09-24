@@ -20,6 +20,7 @@ from core.ethan_types.event import Event
 
 class ModuleState(str, Enum):
     """États possibles d'un module."""
+
     CREATED = "created"
     INITIALIZING = "initializing"
     READY = "ready"
@@ -33,6 +34,7 @@ class ModuleState(str, Enum):
 @dataclass
 class ModuleContext:
     """Contexte d'exécution fourni à chaque module au démarrage."""
+
     name: str
     bus: EventBus
     config: dict[str, Any] = field(default_factory=dict)

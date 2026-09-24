@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-
 from core.mailbox.manager import EmailNotConfigured
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/v1/email", tags=["email"])
 

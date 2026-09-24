@@ -103,6 +103,7 @@ def _format_traceback(tb) -> str:
 
 # ── Common error constructors ──────────────────────────
 
+
 def api_unreachable() -> EthanError:
     return EthanError(
         "SYS-001",
@@ -117,7 +118,7 @@ def capability_not_found(name: str) -> EthanError:
         "CAP-001",
         f"Capability not found: {name}",
         "the requested capability is not installed",
-        f"try: ethan plugin list",
+        "try: ethan plugin list",
     )
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from core.skills.registry import SkillRegistry
 from core.skills.types import Skill, SkillContext
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SkillSelector:
     """Sélectionne la meilleure skill pour un contexte.
-    
+
     Responsabilités :
     - Scoring des skills
     - Filtrage par contraintes
@@ -114,7 +113,9 @@ class SkillSelector:
         reasoning = ", ".join(reasons) if reasons else "default"
         return score, reasoning
 
-    def recommend_next(self, completed_skill_id: str, context: SkillContext) -> list[tuple[Skill, float, str]]:
+    def recommend_next(
+        self, completed_skill_id: str, context: SkillContext
+    ) -> list[tuple[Skill, float, str]]:
         """Recommande des skills suivants.
 
         Args:

@@ -1,4 +1,5 @@
 """ETHAN memory — history management."""
+
 from interfaces.cli.registry import register
 from interfaces.cli.core import memory as mem
 from interfaces.cli.core.ux import UX
@@ -19,6 +20,10 @@ def cmd_memory(args):
             print("  " + e["text"] + "  x" + str(e["count"]))
     else:
         suggestion = UX.suggest_command(args[0], KNOWN_MEMORY_SUBS)
-        msg = f"Did you mean? {suggestion}" if suggestion else "usage: ethan memory [recent|frequent] [N]"
+        msg = (
+            f"Did you mean? {suggestion}"
+            if suggestion
+            else "usage: ethan memory [recent|frequent] [N]"
+        )
         print(f"Unknown subcommand: {args[0]}\n  {msg}")
     return 0

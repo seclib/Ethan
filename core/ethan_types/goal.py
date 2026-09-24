@@ -10,6 +10,7 @@ from typing import Any
 
 class GoalState(str, Enum):
     """États possibles d'un goal."""
+
     PENDING = "pending"
     ACTIVE = "active"
     IN_PROGRESS = "in_progress"
@@ -21,6 +22,7 @@ class GoalState(str, Enum):
 
 class GoalPriority(str, Enum):
     """Niveaux de priorité d'un goal."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -35,6 +37,7 @@ class Goal:
     Il est créé par l'Executive, décomposé par le Planner,
     et suivi par le Goal Manager.
     """
+
     id: str = ""
     title: str = ""
     description: str = ""

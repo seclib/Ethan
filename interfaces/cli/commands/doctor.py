@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.request
 
 from interfaces.cli.core import colors as clr
@@ -88,10 +87,14 @@ def _run(*, json_mode: bool, token: str | None) -> int:
     print(clr.section("Doctor  ◇  System Check"))
     print()
     print(f"  {clr.C.RED}✗ API ETHAN injoignable ({_api_url()}){clr.C.RESET}")
-    print(f"    {clr.C.DIM}Le diagnostic complet (providers, RAG, MCP…) nécessite"
-          f" le Core.{clr.C.RESET}")
-    print(f"    {clr.C.DIM}Astuce : ETHAN_TOKEN=<jwt> ethan doctor pour"
-          f" l'authentification.{clr.C.RESET}")
+    print(
+        f"    {clr.C.DIM}Le diagnostic complet (providers, RAG, MCP…) nécessite"
+        f" le Core.{clr.C.RESET}"
+    )
+    print(
+        f"    {clr.C.DIM}Astuce : ETHAN_TOKEN=<jwt> ethan doctor pour"
+        f" l'authentification.{clr.C.RESET}"
+    )
     print()
     print(f"  {clr.C.BOLD}Prérequis système (BootDiagnostic) :{clr.C.RESET}")
     print()
@@ -106,16 +109,20 @@ def _run(*, json_mode: bool, token: str | None) -> int:
             print(f"      {clr.C.DIM}↳ {check.fix}{clr.C.RESET}")
     print()
     if report_boot.all_passed:
-        print(clr.success(
-            f"Prérequis OK ({report_boot.passed_count}/"
-            f"{report_boot.total_count}) — l'API ETHAN devrait démarrer :"
-            " ./ethan up"
-        ))
+        print(
+            clr.success(
+                f"Prérequis OK ({report_boot.passed_count}/"
+                f"{report_boot.total_count}) — l'API ETHAN devrait démarrer :"
+                " ./ethan up"
+            )
+        )
     else:
-        print(clr.error(
-            f"{len(report_boot.failures)} problème(s) de prérequis —"
-            " corrigez-les puis relancez ./ethan up"
-        ))
+        print(
+            clr.error(
+                f"{len(report_boot.failures)} problème(s) de prérequis —"
+                " corrigez-les puis relancez ./ethan up"
+            )
+        )
     print()
     return 1
 
@@ -127,27 +134,32 @@ def _render_api_report(report: dict) -> None:
     summary = report.get("summary", {})
     status = summary.get("status", "unknown")
     color = {"healthy": clr.C.GREEN, "degraded": clr.C.YELLOW}.get(status, clr.C.RED)
-    print(f"  {clr.C.BOLD}État global :{clr.C.RESET} {color}{status.upper()}"
-          f"{clr.C.RESET}  {clr.C.DIM}({summary.get('total', '?')} composants)"
-          f"{clr.C.RESET}")
+    print(
+        f"  {clr.C.BOLD}État global :{clr.C.RESET} {color}{status.upper()}"
+        f"{clr.C.RESET}  {clr.C.DIM}({summary.get('total', '?')} composants)"
+        f"{clr.C.RESET}"
+    )
     print()
 
     components = report.get("components", {})
     for name in sorted(components):
         comp = components[name]
-        color, icon = STATUS_ICONS.get(comp.get("status", "unavailable"),
-                                       (clr.C.DIM, "○"))
+        color, icon = STATUS_ICONS.get(comp.get("status", "unavailable"), (clr.C.DIM, "○"))
         duration = comp.get("duration_ms")
         dur_str = f"  {clr.C.DIM}({duration:.0f} ms){clr.C.RESET}" if duration else ""
-        print(f"  {color}{icon}{clr.C.RESET} {comp.get('component', name):<14}"
-              f" {comp.get('message', '')}{dur_str}")
+        print(
+            f"  {color}{icon}{clr.C.RESET} {comp.get('component', name):<14}"
+            f" {comp.get('message', '')}{dur_str}"
+        )
         detail = comp.get("detail")
         if detail:
             print(f"      {clr.C.DIM}→ {detail}{clr.C.RESET}")
         for provider in (comp.get("metadata") or {}).get("providers", []):
             state = provider.get("state", "unavailable")
             pcolor, picon = STATUS_ICONS.get(state, (clr.C.DIM, "○"))
-            print(f"      {pcolor}{picon}{clr.C.RESET} provider "
-                  f"{provider.get('name')}: {state}"
-                  + (f" — {provider.get('status')}" if provider.get("status") else ""))
+            print(
+                f"      {pcolor}{picon}{clr.C.RESET} provider "
+                f"{provider.get('name')}: {state}"
+                + (f" — {provider.get('status')}" if provider.get("status") else "")
+            )
     print()

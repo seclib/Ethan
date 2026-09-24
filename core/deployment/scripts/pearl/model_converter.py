@@ -26,9 +26,7 @@ from typing import Any
 import torch
 from safetensors.torch import load_file, save_file
 
-NON_MINING_RE = re.compile(
-    r"(self_attn\.(q_proj|k_proj|v_proj|qkv_proj)|mlp\.down_proj)\.weight$"
-)
+NON_MINING_RE = re.compile(r"(self_attn\.(q_proj|k_proj|v_proj|qkv_proj)|mlp\.down_proj)\.weight$")
 IGNORED_TEXT_RE = re.compile(
     r"(^|\.)(embed_tokens|embed_tokens_per_layer|lm_head|norm|layernorm|layer_norm)"
     r"\.weight$"
@@ -79,9 +77,7 @@ def quantize_channelwise(
     q_chunks: list[torch.Tensor] = []
     scale_chunks: list[torch.Tensor] = []
     for start in range(0, rows, chunk_rows):
-        chunk = weight[start : start + chunk_rows].to(
-            device=device, dtype=torch.float32
-        )
+        chunk = weight[start : start + chunk_rows].to(device=device, dtype=torch.float32)
         scale = chunk.abs().amax(dim=1, keepdim=True) / float(max_val)
         scale = torch.where(scale == 0, torch.ones_like(scale), scale)
         quantized = torch.round(chunk / scale).clamp(-max_val, max_val).to(torch.int8)
@@ -220,9 +216,7 @@ def patch_processor_metadata(output_dir: Path) -> None:
         return
     config = json.loads(config_path.read_text())
     architectures = config.get("architectures") or []
-    is_gemma4 = any(
-        isinstance(item, str) and "Gemma4" in item for item in architectures
-    )
+    is_gemma4 = any(isinstance(item, str) and "Gemma4" in item for item in architectures)
     if not is_gemma4:
         return
 
@@ -349,10 +343,7 @@ def main() -> None:
         chunk_rows=args.chunk_rows,
         dry_run=args.dry_run,
     )
-    print(
-        "total: "
-        f"copied={stats.copied} mining={stats.mining} non_mining={stats.non_mining}"
-    )
+    print(f"total: copied={stats.copied} mining={stats.mining} non_mining={stats.non_mining}")
     if args.dry_run:
         print("dry run only; no checkpoint was written")
 

@@ -104,13 +104,15 @@ class EmailManager:
                             uid = m.group(1).decode()
                 msg = email.message_from_bytes(header_bytes)
                 from_addr = parseaddr(self._decode(msg.get("From", "")))
-                messages.append({
-                    "uid": uid,
-                    "from": from_addr[1],
-                    "from_name": from_addr[0],
-                    "subject": self._decode(msg.get("Subject", "")),
-                    "date": self._iso_date(msg),
-                })
+                messages.append(
+                    {
+                        "uid": uid,
+                        "from": from_addr[1],
+                        "from_name": from_addr[0],
+                        "subject": self._decode(msg.get("Subject", "")),
+                        "date": self._iso_date(msg),
+                    }
+                )
         finally:
             try:
                 client.logout()

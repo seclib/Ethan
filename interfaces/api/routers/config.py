@@ -16,11 +16,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.config import DOMAINS, ConfigurationService, config_to_json_schema
 from fastapi import APIRouter, HTTPException
-
-from core.auth import Permission
-from interfaces.api.auth import require_permission
-from core.config import ConfigurationService, DOMAINS, config_to_json_schema
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +46,7 @@ def get_service() -> ConfigurationService:
 
 # ── GET /config ─────────────────────────────────────────────────────────────
 
+
 @router.get("")
 async def get_config():
     """Retourne la configuration complète (fusionnée)."""
@@ -58,6 +56,7 @@ async def get_config():
 
 # ── GET /config/schema ──────────────────────────────────────────────────────
 
+
 @router.get("/schema")
 async def get_config_schema():
     """Retourne le JSON Schema complet de la configuration (auto-généré)."""
@@ -65,6 +64,7 @@ async def get_config_schema():
 
 
 # ── GET /config/schema/{domain} ─────────────────────────────────────────────
+
 
 @router.get("/schema/{domain}")
 async def get_domain_schema(domain: str):
@@ -81,6 +81,7 @@ async def get_domain_schema(domain: str):
 
 # ── GET /config/{domain} ────────────────────────────────────────────────────
 
+
 @router.get("/{domain}")
 async def get_domain(domain: str):
     """Retourne la configuration d'un domaine."""
@@ -91,6 +92,7 @@ async def get_domain(domain: str):
 
 
 # ── PUT /config/{domain} ────────────────────────────────────────────────────
+
 
 @router.put("/{domain}")
 async def set_domain(domain: str, data: dict[str, Any]):
@@ -105,6 +107,7 @@ async def set_domain(domain: str, data: dict[str, Any]):
 
 
 # ── PATCH /config/{domain} ──────────────────────────────────────────────────
+
 
 @router.patch("/{domain}")
 async def patch_domain(domain: str, data: dict[str, Any]):
@@ -123,6 +126,7 @@ async def patch_domain(domain: str, data: dict[str, Any]):
 
 # ── DELETE /config/{domain}/{key} ───────────────────────────────────────────
 
+
 @router.delete("/{domain}/{key}")
 async def delete_key(domain: str, key: str):
     """Supprime une clé de configuration dans un domaine."""
@@ -138,6 +142,7 @@ async def delete_key(domain: str, key: str):
 
 # ── POST /config/import ─────────────────────────────────────────────────────
 
+
 @router.post("/import")
 async def import_config(data: dict[str, Any]):
     """Importe une configuration (remplace les domaines fournis)."""
@@ -152,6 +157,7 @@ async def import_config(data: dict[str, Any]):
 
 # ── GET /config/export ──────────────────────────────────────────────────────
 
+
 @router.get("/export")
 async def export_config():
     """Exporte la configuration complète."""
@@ -160,6 +166,7 @@ async def export_config():
 
 
 # ── GET /config/validate ────────────────────────────────────────────────────
+
 
 @router.get("/validate")
 async def validate_config(key: str | None = None):
@@ -171,6 +178,7 @@ async def validate_config(key: str | None = None):
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Fusionne récursivement override dans base."""
     import copy
+
     result = copy.deepcopy(base)
     for k, v in override.items():
         if k in result and isinstance(result[k], dict) and isinstance(v, dict):

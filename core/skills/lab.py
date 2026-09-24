@@ -137,7 +137,10 @@ class SkillLab:
 
         try:
             success, output, error = await self._run_in_docker(
-                skill_code, skill_name, test_input, requirements or [],
+                skill_code,
+                skill_name,
+                test_input,
+                requirements or [],
             )
             result.status = LabStatus.PASSED if success else LabStatus.FAILED
             result.passed = success
@@ -157,7 +160,10 @@ class SkillLab:
 
         logger.info(
             "SkillLab: %s → %s (passed=%s, duration=%.0fms)",
-            skill_name, result.status.value, result.passed, result.duration_ms,
+            skill_name,
+            result.status.value,
+            result.passed,
+            result.duration_ms,
         )
 
         return result
@@ -190,14 +196,22 @@ class SkillLab:
                 setup_cmd = f"pip install {deps} && "
 
             cmd = [
-                "docker", "run", "--rm",
-                "--name", container_name,
-                "--network", "none",  # Pas d'accès réseau
-                "--memory", "256m",  # Limite mémoire
-                "--cpus", "0.5",  # Limite CPU
-                "-v", f"{temp_path}:/tmp/skill.py:ro",
+                "docker",
+                "run",
+                "--rm",
+                "--name",
+                container_name,
+                "--network",
+                "none",  # Pas d'accès réseau
+                "--memory",
+                "256m",  # Limite mémoire
+                "--cpus",
+                "0.5",  # Limite CPU
+                "-v",
+                f"{temp_path}:/tmp/skill.py:ro",
                 self._image,
-                "sh", "-c",
+                "sh",
+                "-c",
                 f"{setup_cmd}python /tmp/skill.py",
             ]
 
@@ -209,9 +223,7 @@ class SkillLab:
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=self._timeout
-                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self._timeout)
                 output = stdout.decode("utf-8", errors="replace").strip()
                 error = stderr.decode("utf-8", errors="replace").strip()
                 success = proc.returncode == 0
@@ -221,7 +233,9 @@ class SkillLab:
                 # Nettoyer le conteneur en timeout
                 try:
                     kill_proc = await asyncio.create_subprocess_exec(
-                        "docker", "kill", container_name,
+                        "docker",
+                        "kill",
+                        container_name,
                         stdout=asyncio.subprocess.DEVNULL,
                         stderr=asyncio.subprocess.DEVNULL,
                     )
@@ -269,26 +283,32 @@ class SkillLab:
                 required = ["name", "version", "api_version"]
                 missing = [r for r in required if r not in manifest]
                 if missing:
-                    checks.append({
-                        "check": "required_fields",
-                        "passed": False,
-                        "detail": f"Missing: {', '.join(missing)}",
-                    })
+                    checks.append(
+                        {
+                            "check": "required_fields",
+                            "passed": False,
+                            "detail": f"Missing: {', '.join(missing)}",
+                        }
+                    )
                 else:
                     checks.append({"check": "required_fields", "passed": True})
 
                 # Vérifier la compatibilité API
                 if manifest.get("api_version") != "2":
-                    checks.append({
-                        "check": "api_version",
-                        "passed": False,
-                        "detail": f"Expected '2', got '{manifest.get('api_version')}'",
-                    })
+                    checks.append(
+                        {
+                            "check": "api_version",
+                            "passed": False,
+                            "detail": f"Expected '2', got '{manifest.get('api_version')}'",
+                        }
+                    )
 
             except json.JSONDecodeError as e:
                 checks.append({"check": "manifest", "passed": False, "detail": str(e)})
         else:
-            checks.append({"check": "manifest", "passed": False, "detail": "manifest.json not found"})
+            checks.append(
+                {"check": "manifest", "passed": False, "detail": "manifest.json not found"}
+            )
 
         # Vérifier plugin.py
         plugin_py = plugin_path / "plugin.py"
@@ -300,7 +320,9 @@ class SkillLab:
         # Vérifier requirements.txt
         req_txt = plugin_path / "requirements.txt"
         if req_txt.exists():
-            checks.append({"check": "requirements", "passed": True, "detail": "requirements.txt found"})
+            checks.append(
+                {"check": "requirements", "passed": True, "detail": "requirements.txt found"}
+            )
 
         # Déterminer le résultat
         all_passed = all(c["passed"] for c in checks)
@@ -318,8 +340,10 @@ class SkillLab:
 
         logger.info(
             "SkillLab: validate %s → %s (%d/%d checks passed)",
-            skill_name, result.status.value,
-            sum(1 for c in checks if c["passed"]), len(checks),
+            skill_name,
+            result.status.value,
+            sum(1 for c in checks if c["passed"]),
+            len(checks),
         )
 
         return result
@@ -333,10 +357,7 @@ class SkillLab:
     def list_results(self, skill_name: str | None = None) -> list[LabResult]:
         """Liste tous les résultats de test."""
         if skill_name:
-            return [
-                r for r in self._results.values()
-                if r.skill_name == skill_name
-            ]
+            return [r for r in self._results.values() if r.skill_name == skill_name]
         return list(self._results.values())
 
     def clear_results(self) -> None:

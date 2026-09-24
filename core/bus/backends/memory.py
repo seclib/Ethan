@@ -7,15 +7,15 @@ from datetime import datetime
 from typing import AsyncIterator
 
 from core.bus.backends.base import StorageBackend
-from core.bus.store import StoredEvent, Checkpoint
 from core.bus.snapshot import Snapshot
+from core.bus.store import Checkpoint, StoredEvent
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryBackend(StorageBackend):
     """Backend de stockage en mémoire.
-    
+
     Pour tests et développement.
     Pas de persistance (données perdues au redémarrage).
     """
@@ -79,7 +79,7 @@ class MemoryBackend(StorageBackend):
     async def get_snapshot_at_position(self, position: int) -> Snapshot | None:
         """Récupère le snapshot le plus proche d'une position."""
         closest = None
-        min_diff = float('inf')
+        min_diff = float("inf")
         for snapshot in self._snapshots.values():
             diff = abs(snapshot.position - position)
             if diff < min_diff:

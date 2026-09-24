@@ -1,4 +1,5 @@
 """Error classifier — categorize failures into known patterns."""
+
 import re
 from dataclasses import dataclass
 
@@ -6,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class ErrorClassification:
     """Result of error classification."""
+
     code: str
     severity: str
     healable: bool

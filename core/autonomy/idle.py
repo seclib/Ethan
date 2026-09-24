@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict
 
 from core.bus.interface import EventBus
 from core.ethan_types.event import Event
-from core.ethan_types.sdk.autonomy import CycleState
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +60,18 @@ class IdleStateIntelligence:
         while self._running:
             await asyncio.sleep(5)
             last_event = self._get_last_event_time()
-            if last_event and (asyncio.get_event_loop().time() - last_event) > self.IDLE_THRESHOLD_SECONDS:
-                await self.bus.publish("idle.detected", Event(
-                    type="idle.detected",
-                    source="idle-intelligence",
-                    payload={"idle_seconds": int(asyncio.get_event_loop().time() - last_event)},
-                ))
+            if (
+                last_event
+                and (asyncio.get_event_loop().time() - last_event) > self.IDLE_THRESHOLD_SECONDS
+            ):
+                await self.bus.publish(
+                    "idle.detected",
+                    Event(
+                        type="idle.detected",
+                        source="idle-intelligence",
+                        payload={"idle_seconds": int(asyncio.get_event_loop().time() - last_event)},
+                    ),
+                )
                 logger.info("Idle state detected")
 
     def _get_last_event_time(self) -> float:

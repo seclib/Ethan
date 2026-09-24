@@ -6,7 +6,6 @@ entrants vers le handler central d'Ethan.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -64,7 +63,8 @@ class MessagingGateway:
         """Dispatche un message entrant vers le handler central."""
         logger.debug(
             "MessagingGateway: message from %s/%s: %s",
-            message.platform.value, message.user_id,
+            message.platform.value,
+            message.user_id,
             message.text[:100],
         )
         if self._message_handler is not None:
@@ -73,7 +73,8 @@ class MessagingGateway:
             except Exception as e:
                 logger.error(
                     "MessagingGateway: handler error for %s: %s",
-                    message.session_key, e,
+                    message.session_key,
+                    e,
                 )
         else:
             logger.warning("MessagingGateway: no message handler registered")
@@ -86,6 +87,7 @@ class MessagingGateway:
                 continue
             try:
                 from interfaces.channels.base import MessageTarget, Platform
+
                 target = MessageTarget(
                     platform=Platform(name),
                     user_id="__broadcast__",

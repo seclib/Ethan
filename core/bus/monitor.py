@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Coroutine
+from typing import Any
 from uuid import uuid4
 
 from core.ethan_types.event import Event
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MetricQuery:
     """Requête de métrique."""
+
     name: str
     type: str  # "counter", "histogram", "gauge"
     tags: dict[str, str] = field(default_factory=dict)
@@ -24,6 +25,7 @@ class MetricQuery:
 @dataclass
 class Dashboard:
     """Dashboard de monitoring."""
+
     id: str
     name: str
     queries: list[MetricQuery]
@@ -32,7 +34,7 @@ class Dashboard:
 
 class EventMonitor:
     """Monitor temps réel de l'Event Bus.
-    
+
     Responsabilités :
     - Collecte de métriques (throughput, latency, errors)
     - Dashboards
@@ -58,10 +60,13 @@ class EventMonitor:
             latency_ms: Latence de publication
         """
         # Compteur
-        self._metrics.increment("eventbus.published", tags={
-            "type": event.type.value,
-            "source": event.source,
-        })
+        self._metrics.increment(
+            "eventbus.published",
+            tags={
+                "type": event.type.value,
+                "source": event.source,
+            },
+        )
 
         # Latence
         self._metrics.histogram("eventbus.publish.latency", latency_ms)
@@ -79,19 +84,25 @@ class EventMonitor:
             success: Succès ou échec
         """
         # Compteur
-        self._metrics.increment("eventbus.consumed", tags={
-            "type": event.type.value,
-            "success": str(success),
-        })
+        self._metrics.increment(
+            "eventbus.consumed",
+            tags={
+                "type": event.type.value,
+                "success": str(success),
+            },
+        )
 
         # Latence
         self._metrics.histogram("eventbus.consume.latency", latency_ms)
 
         # Erreur
         if not success:
-            self._metrics.increment("eventbus.errors", tags={
-                "type": event.type.value,
-            })
+            self._metrics.increment(
+                "eventbus.errors",
+                tags={
+                    "type": event.type.value,
+                },
+            )
 
             # Alerte
             if self._alerting:
@@ -133,10 +144,13 @@ class EventMonitor:
             event: Événement
             attempt: Numéro de tentative
         """
-        self._metrics.increment("eventbus.retries", tags={
-            "type": event.type.value,
-            "attempt": str(attempt),
-        })
+        self._metrics.increment(
+            "eventbus.retries",
+            tags={
+                "type": event.type.value,
+                "attempt": str(attempt),
+            },
+        )
 
     def create_dashboard(self, name: str, queries: list[MetricQuery]) -> Dashboard:
         """Crée un dashboard.

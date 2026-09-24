@@ -135,7 +135,7 @@ class EventType(str, Enum):
     KNOWLEDGE_UPDATED = "ethan.knowledge.updated"
     KNOWLEDGE_DELETED = "ethan.knowledge.deleted"
 
-        # Folders (organisation transverse des ressources, Core-owned)
+    # Folders (organisation transverse des ressources, Core-owned)
     FOLDER_CREATED = "ethan.folder.created"
     FOLDER_UPDATED = "ethan.folder.updated"
     FOLDER_DELETED = "ethan.folder.deleted"
@@ -212,7 +212,6 @@ class EventType(str, Enum):
     SECURITY_AUDIT = "ethan.security.audit"
 
 
-
 @dataclass
 class Event:
     """Événement système — unité fondamentale de communication.
@@ -240,7 +239,7 @@ class Event:
         if self.data and not self.payload:
             self.payload = self.data
         # Clear the `data` field — canonical access is via `payload`
-        object.__setattr__(self, 'data', self.payload)
+        object.__setattr__(self, "data", self.payload)
         # Normalize type: accept plain strings
         if isinstance(self.type, str) and not isinstance(self.type, EventType):
             try:
@@ -264,7 +263,9 @@ class Event:
             "id": self.id,
             "type": self.type.value if hasattr(self.type, "value") else str(self.type),
             "source": self.source,
-            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
+            "timestamp": self.timestamp.isoformat()
+            if isinstance(self.timestamp, datetime)
+            else self.timestamp,
             "payload": self.payload,
             "data": self.payload,  # backward compat for SDK consumers
             "metadata": self.metadata,
@@ -275,6 +276,7 @@ class Event:
     def to_json(self) -> bytes:
         """Convert to JSON bytes for NATS."""
         import json
+
         return json.dumps(self.to_dict()).encode()
 
     @classmethod
@@ -296,4 +298,5 @@ class Event:
     def from_json(cls, raw_bytes: bytes) -> "Event":
         """Deserialize from JSON bytes."""
         import json
+
         return cls.from_dict(json.loads(raw_bytes))

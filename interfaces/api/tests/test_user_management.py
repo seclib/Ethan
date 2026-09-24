@@ -11,9 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-
 from interfaces.api.routers import security as security_router
-
 
 # ── Pool / conn factices ──────────────────────────────────────────────────
 
@@ -25,14 +23,13 @@ class FakeConn:
         self._store = store
 
     async def fetchrow(self, sql: str, *args):
-        if sql.startswith(
-            "SELECT id, roles, is_active FROM users"
-        ) or sql.startswith("SELECT id, username, roles, is_active FROM users"):
+        if sql.startswith("SELECT id, roles, is_active FROM users") or sql.startswith(
+            "SELECT id, username, roles, is_active FROM users"
+        ):
             rec = self._store.get(args[0])
             if rec is None:
                 return None
-            row = {"id": rec["id"], "roles": list(rec["roles"]),
-                   "is_active": rec["is_active"]}
+            row = {"id": rec["id"], "roles": list(rec["roles"]), "is_active": rec["is_active"]}
             if "username" in sql:
                 row["username"] = args[0]
             return row
@@ -45,20 +42,27 @@ class FakeConn:
             # roles, puis is_active, puis password_hash.
             pos = 0
             if "roles = $" in sql:
-                rec["roles"] = list(args[pos]); pos += 1
+                rec["roles"] = list(args[pos])
+                pos += 1
             if "is_active = $" in sql:
-                rec["is_active"] = args[pos]; pos += 1
+                rec["is_active"] = args[pos]
+                pos += 1
             if "password_hash = $" in sql:
-                rec["password_hash"] = args[pos]; pos += 1
-            return {"id": rec["id"], "username": username, "roles": list(rec["roles"]),
-                    "is_active": rec["is_active"], "totp_enabled": rec["totp_enabled"],
-                    "updated_at": "now"}
+                rec["password_hash"] = args[pos]
+                pos += 1
+            return {
+                "id": rec["id"],
+                "username": username,
+                "roles": list(rec["roles"]),
+                "is_active": rec["is_active"],
+                "totp_enabled": rec["totp_enabled"],
+                "updated_at": "now",
+            }
         return None
 
     async def fetchval(self, sql: str, *args):
         if "count(*)" in sql and "ANY(roles)" in sql:
-            return sum(1 for r in self._store.values()
-                       if "admin" in r["roles"] and r["is_active"])
+            return sum(1 for r in self._store.values() if "admin" in r["roles"] and r["is_active"])
         return None
 
     async def execute(self, sql: str, *args):
@@ -84,18 +88,32 @@ class FakePool:
 def make_store():
     """Deux admins actifs + un user : permet de tester « dernier admin »."""
     return {
-        "root": {"id": 1, "roles": ["admin"], "is_active": True,
-                 "totp_enabled": False, "password_hash": "x"},
-        "admin2": {"id": 2, "roles": ["admin"], "is_active": True,
-                   "totp_enabled": False, "password_hash": "x"},
-        "bob": {"id": 3, "roles": ["user"], "is_active": True,
-                "totp_enabled": False, "password_hash": "x"},
+        "root": {
+            "id": 1,
+            "roles": ["admin"],
+            "is_active": True,
+            "totp_enabled": False,
+            "password_hash": "x",
+        },
+        "admin2": {
+            "id": 2,
+            "roles": ["admin"],
+            "is_active": True,
+            "totp_enabled": False,
+            "password_hash": "x",
+        },
+        "bob": {
+            "id": 3,
+            "roles": ["user"],
+            "is_active": True,
+            "totp_enabled": False,
+            "password_hash": "x",
+        },
     }
 
 
 def admin_request(sub="root", role="admin"):
-    return SimpleNamespace(state=SimpleNamespace(
-        token_payload={"sub": sub, "role": role}))
+    return SimpleNamespace(state=SimpleNamespace(token_payload={"sub": sub, "role": role}))
 
 
 @pytest.fixture(autouse=True)
@@ -113,24 +131,24 @@ def fake_pool(monkeypatch):
 
 def test_update_role_success():
     store = security_router._store_ref
-    res = asyncio.run(security_router.update_user(
-        admin_request(), "bob", {"role": "admin"}))
+    res = asyncio.run(security_router.update_user(admin_request(), "bob", {"role": "admin"}))
     assert res["roles"] == ["admin"]
     assert store["bob"]["roles"] == ["admin"]
 
 
 def test_update_password_hashes():
     import bcrypt
+
     store = security_router._store_ref
-    asyncio.run(security_router.update_user(
-        admin_request(), "bob", {"password": "newsecret"}))
+    asyncio.run(security_router.update_user(admin_request(), "bob", {"password": "newsecret"}))
     assert bcrypt.checkpw(b"newsecret", store["bob"]["password_hash"].encode())
 
 
 def test_update_self_role_forbidden():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(sub="root"), "root", {"role": "user"}))
+        asyncio.run(
+            security_router.update_user(admin_request(sub="root"), "root", {"role": "user"})
+        )
     assert exc.value.status_code == 403
 
 
@@ -142,35 +160,32 @@ def test_update_demote_last_admin_conflict():
     # action (403) prime pour root lui-même — défense en profondeur.
     store.pop("admin2")
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(sub="ghost"), "root", {"role": "user"}))
+        asyncio.run(
+            security_router.update_user(admin_request(sub="ghost"), "root", {"role": "user"})
+        )
     assert exc.value.status_code == 409
 
 
 def test_update_demote_with_second_admin_ok():
-    res = asyncio.run(security_router.update_user(
-        admin_request(), "admin2", {"role": "user"}))
+    res = asyncio.run(security_router.update_user(admin_request(), "admin2", {"role": "user"}))
     assert res["roles"] == ["user"]
 
 
 def test_update_unknown_user_404():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(), "ghost", {"role": "user"}))
+        asyncio.run(security_router.update_user(admin_request(), "ghost", {"role": "user"}))
     assert exc.value.status_code == 404
 
 
 def test_update_invalid_role_422():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(), "bob", {"role": "superadmin"}))
+        asyncio.run(security_router.update_user(admin_request(), "bob", {"role": "superadmin"}))
     assert exc.value.status_code == 422
 
 
 def test_update_short_password_422():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(), "bob", {"password": "abc"}))
+        asyncio.run(security_router.update_user(admin_request(), "bob", {"password": "abc"}))
     assert exc.value.status_code == 422
 
 
@@ -182,8 +197,11 @@ def test_update_empty_payload_422():
 
 def test_update_requires_admin():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.update_user(
-            admin_request(sub="bob", role="user"), "admin2", {"role": "user"}))
+        asyncio.run(
+            security_router.update_user(
+                admin_request(sub="bob", role="user"), "admin2", {"role": "user"}
+            )
+        )
     assert exc.value.status_code == 403
 
 
@@ -199,8 +217,7 @@ def test_delete_success():
 
 def test_delete_self_forbidden():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.delete_user(
-            admin_request(sub="root"), "root"))
+        asyncio.run(security_router.delete_user(admin_request(sub="root"), "root"))
     assert exc.value.status_code == 403
 
 
@@ -230,6 +247,5 @@ def test_delete_unknown_user_404():
 
 def test_delete_requires_admin():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(security_router.delete_user(
-            admin_request(sub="bob", role="user"), "admin2"))
+        asyncio.run(security_router.delete_user(admin_request(sub="bob", role="user"), "admin2"))
     assert exc.value.status_code == 403

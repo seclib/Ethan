@@ -67,7 +67,7 @@ class PostgresPersistentState(PersistentState):
     async def insert(self, table: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Insert a row and return the full record."""
         columns = ", ".join(payload.keys())
-        placeholders = ", ".join(f"${i+1}" for i in range(len(payload)))
+        placeholders = ", ".join(f"${i + 1}" for i in range(len(payload)))
         query = f"""
             INSERT INTO {table} ({columns})
             VALUES ({placeholders})
@@ -76,11 +76,9 @@ class PostgresPersistentState(PersistentState):
         rows = await self.execute(query, *payload.values())
         return rows[0] if rows else {}
 
-    async def update(
-        self, table: str, where: Dict[str, Any], data: Dict[str, Any]
-    ) -> None:
+    async def update(self, table: str, where: Dict[str, Any], data: Dict[str, Any]) -> None:
         """Update rows matching where clause."""
-        set_clause = ", ".join(f"{k} = ${i+1}" for i, k in enumerate(data.keys()))
+        set_clause = ", ".join(f"{k} = ${i + 1}" for i, k in enumerate(data.keys()))
         where_clause = " AND ".join(
             f"{k} = ${len(data) + i + 1}" for i, k in enumerate(where.keys())
         )
@@ -89,15 +87,16 @@ class PostgresPersistentState(PersistentState):
 
     # ── Convenience methods ───────────────────────────────
 
-    async def create_goal(
-        self, user_id: str, intent: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def create_goal(self, user_id: str, intent: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new goal and return it."""
-        return await self.insert("goals", {
-            "user_id": user_id,
-            "intent": intent,
-            "status": "pending",
-        })
+        return await self.insert(
+            "goals",
+            {
+                "user_id": user_id,
+                "intent": intent,
+                "status": "pending",
+            },
+        )
 
     async def update_goal_status(self, goal_id: str, status: str) -> None:
         """Update goal status."""
@@ -109,8 +108,11 @@ class PostgresPersistentState(PersistentState):
 
     async def insert_outbox(self, topic: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Insert an event into the outbox."""
-        return await self.insert("events_outbox", {
-            "topic": topic,
-            "payload": payload,
-            "status": "pending",
-        })
+        return await self.insert(
+            "events_outbox",
+            {
+                "topic": topic,
+                "payload": payload,
+                "status": "pending",
+            },
+        )

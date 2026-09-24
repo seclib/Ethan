@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class Orchestrator:
     """Orchestrateur principal d'ETHAN.
-    
+
     Responsabilités :
     - Initialiser tous les modules
     - Coordonner les flux cognitifs

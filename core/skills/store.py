@@ -23,8 +23,8 @@ missing fields fall back to ``kind="prompt"`` / empty steps.
 
 from __future__ import annotations
 
-from copy import deepcopy
 import logging
+from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
@@ -39,9 +39,20 @@ SKILL_KINDS = ("prompt", "pipeline")
 
 #: Fields of a skill record a client may write.
 _SKILL_FIELDS = (
-    "name", "description", "content", "version", "status", "is_active",
-    "tags", "meta", "kind", "steps", "required_tools", "valves",
-    "author", "is_builtin",
+    "name",
+    "description",
+    "content",
+    "version",
+    "status",
+    "is_active",
+    "tags",
+    "meta",
+    "kind",
+    "steps",
+    "required_tools",
+    "valves",
+    "author",
+    "is_builtin",
 )
 
 
@@ -97,8 +108,7 @@ class SkillStore:
         if tag is not None:
             lowered = tag.lower()
             skills = [
-                s for s in skills
-                if any(lowered in str(t).lower() for t in s.get("tags", []))
+                s for s in skills if any(lowered in str(t).lower() for t in s.get("tags", []))
             ]
         return skills
 
@@ -114,25 +124,27 @@ class SkillStore:
             raise ValueError(f"kind invalide : {kind!r} (choix : {', '.join(SKILL_KINDS)})")
         skill_id = str(uuid4())
         now = _utc_now()
-        record = _normalize({
-            "id": skill_id,
-            "name": data.get("name", "unnamed"),
-            "description": data.get("description", ""),
-            "content": data.get("content", ""),
-            "version": data.get("version", "1.0.0"),
-            "status": "active",
-            "is_active": bool(data.get("is_active", True)),
-            "tags": list(data.get("tags", data.get("meta", {}).get("tags", []))),
-            "meta": dict(data.get("meta", {})),
-            "kind": kind,
-            "steps": list(data.get("steps", [])),
-            "required_tools": list(data.get("required_tools", [])),
-            "valves": dict(data.get("valves", {})),
-            "author": data.get("author", "user"),
-            "is_builtin": bool(data.get("is_builtin", False)),
-            "created_at": now,
-            "updated_at": now,
-        })
+        record = _normalize(
+            {
+                "id": skill_id,
+                "name": data.get("name", "unnamed"),
+                "description": data.get("description", ""),
+                "content": data.get("content", ""),
+                "version": data.get("version", "1.0.0"),
+                "status": "active",
+                "is_active": bool(data.get("is_active", True)),
+                "tags": list(data.get("tags", data.get("meta", {}).get("tags", []))),
+                "meta": dict(data.get("meta", {})),
+                "kind": kind,
+                "steps": list(data.get("steps", [])),
+                "required_tools": list(data.get("required_tools", [])),
+                "valves": dict(data.get("valves", {})),
+                "author": data.get("author", "user"),
+                "is_builtin": bool(data.get("is_builtin", False)),
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
         await self._store.save(_DOMAIN_SKILLS, skill_id, record)
         return deepcopy(record)
 
@@ -176,7 +188,8 @@ class SkillStore:
         q_lower = q.lower()
         skills = await self.list_skills()
         return [
-            s for s in skills
+            s
+            for s in skills
             if q_lower in s.get("name", "").lower()
             or q_lower in s.get("description", "").lower()
             or any(q_lower in str(tag).lower() for tag in s.get("tags", []))
@@ -208,7 +221,16 @@ class SkillStore:
             else:
                 patch = {
                     key: spec[key]
-                    for key in ("name", "description", "content", "version", "tags", "kind", "steps", "required_tools")
+                    for key in (
+                        "name",
+                        "description",
+                        "content",
+                        "version",
+                        "tags",
+                        "kind",
+                        "steps",
+                        "required_tools",
+                    )
                     if key in spec
                 }
                 patch["is_builtin"] = True
@@ -239,9 +261,7 @@ class SkillStore:
         """Exporte toutes les skills (records complets, normalisés)."""
         return await self.list_skills()
 
-    async def import_skills(
-        self, records: list[dict[str, Any]] | dict[str, Any]
-    ) -> dict[str, Any]:
+    async def import_skills(self, records: list[dict[str, Any]] | dict[str, Any]) -> dict[str, Any]:
         """Importe des skills exportées — nouvelles ids, never overwrite.
 
         Accepte une liste de records ou un export complet
@@ -256,11 +276,7 @@ class SkillStore:
             if not isinstance(raw, dict) or not str(raw.get("name", "")).strip():
                 skipped += 1
                 continue
-            payload = {
-                key: raw[key]
-                for key in _SKILL_FIELDS
-                if key in raw and key != "is_builtin"
-            }
+            payload = {key: raw[key] for key in _SKILL_FIELDS if key in raw and key != "is_builtin"}
             try:
                 await self.create_skill(payload)
                 imported += 1

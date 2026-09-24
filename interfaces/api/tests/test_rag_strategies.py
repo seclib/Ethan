@@ -11,13 +11,12 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
-from routers import v1
 from core.knowledge import KnowledgeCollectionManager
 from core.rag import RAGPipeline
 from core.rag.embeddings import RAGEmbeddings
 from core.state import CoreRecordStore
+from fastapi import HTTPException
+from routers import v1
 
 
 class _FakeEmbedClient:
@@ -64,16 +63,27 @@ def test_list_strategies_route_exposes_real_catalog():
 
 def test_create_collection_with_retrieval_strategy_route():
     """POST /knowledge/collections : stratégie par collection persistée."""
-    col = asyncio.run(v1.create_collection({
-        "name": "Docs", "user_id": "alice", "retrieval_strategy": "hybrid",
-    }))
+    col = asyncio.run(
+        v1.create_collection(
+            {
+                "name": "Docs",
+                "user_id": "alice",
+                "retrieval_strategy": "hybrid",
+            }
+        )
+    )
     assert col["retrieval_strategy"] == "hybrid"
 
     # Stratégie inconnue → 422 (jamais silencieusement acceptée)
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(v1.create_collection({
-            "name": "Ghost", "retrieval_strategy": "rerank",
-        }))
+        asyncio.run(
+            v1.create_collection(
+                {
+                    "name": "Ghost",
+                    "retrieval_strategy": "rerank",
+                }
+            )
+        )
     assert exc.value.status_code == 422
 
     # Mise à jour : stratégie valide appliquée, inconnue refusée
@@ -109,14 +119,14 @@ def test_collection_retrieve_uses_effective_strategy():
     collection (semantic) plutôt que la globale (keyword)."""
     collections = v1.get_knowledge_collections()
     doc = asyncio.run(collections._rag.ingest("postgresql", title="BDD"))
-    col = asyncio.run(collections.create_collection(
-        "Docs", user_id="alice", retrieval_strategy="semantic"
-    ))
+    col = asyncio.run(
+        collections.create_collection("Docs", user_id="alice", retrieval_strategy="semantic")
+    )
     asyncio.run(collections.add_document(col["id"], doc.id))
     asyncio.run(v1.update_rag_config({"strategy": "keyword"}))
 
     # Requête sans recouvrement lexical : seule la voie sémantique trouve.
-    results = asyncio.run(v1.retrieve_collection(
-        {"query": "administration base de donnees"}, col["id"]
-    ))
+    results = asyncio.run(
+        v1.retrieve_collection({"query": "administration base de donnees"}, col["id"])
+    )
     assert results and results[0]["chunk"]["document_id"] == doc.id

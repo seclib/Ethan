@@ -46,8 +46,9 @@ class DeepResearchEngine:
             return response
         if isinstance(response, dict):
             msg = response.get("message") or {}
-            return str(msg.get("content") if isinstance(msg, dict) else msg
-                       or response.get("content", ""))
+            return str(
+                msg.get("content") if isinstance(msg, dict) else msg or response.get("content", "")
+            )
         content = getattr(response, "content", None)
         if content:
             return str(content)
@@ -71,6 +72,7 @@ class DeepResearchEngine:
     @staticmethod
     def _make_context() -> Any:
         from core.tools.types import ToolContext
+
         try:
             return ToolContext(user_id="deep-research")
         except TypeError:
@@ -90,11 +92,13 @@ class DeepResearchEngine:
             if isinstance(item, str):
                 out.append({"title": item[:120], "snippet": item, "url": ""})
             elif isinstance(item, dict):
-                out.append({
-                    "title": str(item.get("title", ""))[:200],
-                    "snippet": str(item.get("snippet", item.get("content", "")))[:600],
-                    "url": str(item.get("url", item.get("link", ""))),
-                })
+                out.append(
+                    {
+                        "title": str(item.get("title", ""))[:200],
+                        "snippet": str(item.get("snippet", item.get("content", "")))[:600],
+                        "url": str(item.get("url", item.get("link", ""))),
+                    }
+                )
         return out
 
     # ── Public pipeline ──────────────────────────────────────────────────
@@ -126,10 +130,13 @@ class DeepResearchEngine:
                 break
 
         # 3. Synthèse sourcée
-        corpus = "\n\n".join(
-            f"[{i + 1}] {s['title']}\n{s['snippet']}"
-            for i, s in enumerate(list(all_sources.values())[: self._max_sources])
-        ) or "(aucune source trouvée)"
+        corpus = (
+            "\n\n".join(
+                f"[{i + 1}] {s['title']}\n{s['snippet']}"
+                for i, s in enumerate(list(all_sources.values())[: self._max_sources])
+            )
+            or "(aucune source trouvée)"
+        )
         report = await self._chat(
             "Tu es un analyste de recherche. Rédige un rapport structuré en markdown "
             "qui répond à la question en citant les sources sous la forme [n]. "

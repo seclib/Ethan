@@ -12,11 +12,10 @@ création — jamais stocké, jamais renvoyé, jamais journalisé.
 import hashlib
 
 import pytest
-from fastapi import HTTPException
-
-from core.auth.api_keys import APIKeyManager
 from core.audit.store import AuditStore
+from core.auth.api_keys import APIKeyManager
 from core.state.record_store import CoreRecordStore
+from fastapi import HTTPException
 from routers.api_keys import (
     CreateKeyRequest,
     configure_api_keys,
@@ -24,7 +23,6 @@ from routers.api_keys import (
     list_api_keys,
     revoke_api_key,
 )
-from core.audit.types import AuditCategory, AuditDecision
 
 
 @pytest.fixture()
@@ -86,7 +84,8 @@ async def test_list_route_strips_secrets(api_keys_env):
 async def test_validate_ok_then_revoked(api_keys_env):
     manager, _ = api_keys_env
     created = await create_api_key(
-        CreateKeyRequest(name="svc", scopes=["read", "write"]), user="admin",
+        CreateKeyRequest(name="svc", scopes=["read", "write"]),
+        user="admin",
     )
 
     validated = await manager.validate_key(created["key"])
@@ -120,7 +119,9 @@ async def test_expiration_is_enforced_by_core(api_keys_env):
     manager, _ = api_keys_env
     # Création AVEC expiration déjà passée (ISO-8601).
     created = await manager.create_key(
-        user_id="admin", name="expiring", expires_at="2000-01-01T00:00:00+00:00",
+        user_id="admin",
+        name="expiring",
+        expires_at="2000-01-01T00:00:00+00:00",
     )
     # La validation échoue : le Core a rejeté l'expiration passée.
     assert await manager.validate_key(created["key"]) is None
@@ -135,7 +136,9 @@ async def test_rotation_preserves_expiration(api_keys_env):
     """La rotation recrée avec les MÊMES métadonnées (incl. expiration)."""
     manager, _ = api_keys_env
     created = await manager.create_key(
-        user_id="admin", name="rotate-test", scopes=["read"],
+        user_id="admin",
+        name="rotate-test",
+        scopes=["read"],
         expires_at="2099-12-31T00:00:00+00:00",
     )
     rotated = await manager.rotate_key(created["id"])
@@ -144,14 +147,12 @@ async def test_rotation_preserves_expiration(api_keys_env):
     assert rotated["scopes"] == ["read"]
 
 
-
-
-
 @pytest.mark.asyncio
 async def test_sensitive_actions_are_audited_without_secret(api_keys_env):
     manager, audit = api_keys_env
     created = await create_api_key(
-        CreateKeyRequest(name="audited", scopes=["read"]), user="admin",
+        CreateKeyRequest(name="audited", scopes=["read"]),
+        user="admin",
     )
     await revoke_api_key(created["id"], user="admin")
 

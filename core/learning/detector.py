@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-from core.ethan_types.sdk.learning import Experience, Pattern
+from core.ethan_types.sdk.learning import Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +45,16 @@ class PatternDetector:
         patterns = []
         for skill, stats in skill_stats.items():
             if stats["fails"] >= self.threshold:
-                patterns.append(Pattern(
-                    pattern_type="failure_repeat",
-                    skill=skill,
-                    frequency=stats["fails"],
-                    avg_duration_ms=sum(stats["durations"]) / len(stats["durations"]),
-                    success_rate=0.0,
-                    details={"fail_count": stats["fails"], "total": stats["total"]},
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="failure_repeat",
+                        skill=skill,
+                        frequency=stats["fails"],
+                        avg_duration_ms=sum(stats["durations"]) / len(stats["durations"]),
+                        success_rate=0.0,
+                        details={"fail_count": stats["fails"], "total": stats["total"]},
+                    )
+                )
         return patterns
 
     async def _detect_success_streaks(self, experiences: List[Dict[str, Any]]) -> List[Pattern]:
@@ -72,14 +74,16 @@ class PatternDetector:
             if stats["total"] >= self.threshold:
                 rate = stats["success"] / stats["total"]
                 if rate >= 0.8:
-                    patterns.append(Pattern(
-                        pattern_type="success_repeat",
-                        skill=skill,
-                        frequency=stats["success"],
-                        avg_duration_ms=sum(stats["durations"]) / len(stats["durations"]),
-                        success_rate=rate,
-                        details={"success_count": stats["success"], "total": stats["total"]},
-                    ))
+                    patterns.append(
+                        Pattern(
+                            pattern_type="success_repeat",
+                            skill=skill,
+                            frequency=stats["success"],
+                            avg_duration_ms=sum(stats["durations"]) / len(stats["durations"]),
+                            success_rate=rate,
+                            details={"success_count": stats["success"], "total": stats["total"]},
+                        )
+                    )
         return patterns
 
     async def _detect_inefficiencies(self, experiences: List[Dict[str, Any]]) -> List[Pattern]:
@@ -97,12 +101,14 @@ class PatternDetector:
                 continue
             avg = sum(stats["durations"]) / len(stats["durations"])
             if avg > 5000:  # > 5 seconds
-                patterns.append(Pattern(
-                    pattern_type="inefficiency",
-                    skill=skill,
-                    frequency=len(stats["durations"]),
-                    avg_duration_ms=avg,
-                    success_rate=0.0,
-                    details={"avg_ms": avg, "count": len(stats["durations"])},
-                ))
+                patterns.append(
+                    Pattern(
+                        pattern_type="inefficiency",
+                        skill=skill,
+                        frequency=len(stats["durations"]),
+                        avg_duration_ms=avg,
+                        success_rate=0.0,
+                        details={"avg_ms": avg, "count": len(stats["durations"])},
+                    )
+                )
         return patterns

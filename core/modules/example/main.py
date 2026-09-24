@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 import nats
 from nats.aio.msg import Msg
 
-from core.ethan_types.event import Event, EventType
+from core.ethan_types.event import Event
 from core.ethan_types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
 from core.telemetry.logger import setup_logging
 
@@ -75,7 +75,8 @@ class ExampleModule(CognitiveModule):
         await asyncio.sleep(0.1)
 
         return Event(
-            type=event.type.replace("module.", "module.").replace("reasoning", "reasoning") + ".done",
+            type=event.type.replace("module.", "module.").replace("reasoning", "reasoning")
+            + ".done",
             source=self.module_id,
             data={
                 "processed": True,

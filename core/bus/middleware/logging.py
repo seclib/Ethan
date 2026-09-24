@@ -17,7 +17,9 @@ class LoggingMiddleware:
     def __init__(self, log_level: int = logging.DEBUG):
         self._log_level = log_level
 
-    async def process(self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
+    async def process(
+        self, event: Event, next_handler: Callable[[Event], Coroutine[Any, Any, None]]
+    ) -> None:
         """Traite un événement.
 
         Args:

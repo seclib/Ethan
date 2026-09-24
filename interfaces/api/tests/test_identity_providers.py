@@ -1,4 +1,6 @@
-"""Tests réels Identity Providers — SCIM / LDAP / OAuth (routes /v1/scim/*, /v1/ldap/*, /v1/oauth/*).
+"""Tests réels Identity Providers — SCIM / LDAP / OAuth.
+
+Routes couvertes : /v1/scim/*, /v1/ldap/*, /v1/oauth/*.
 
 Utilise les VRAIS managers du Core (SCIMManager, LDAPManager, OAuthManager,
 core/auth/{scim,ldap,oauth}.py) sur un CoreRecordStore en mémoire : aucune
@@ -11,7 +13,6 @@ secret vide préserve la valeur stockée par le Core (write-only).
 """
 
 import pytest
-
 from core.auth.ldap import LDAPManager
 from core.auth.oauth import OAuthManager
 from core.auth.scim import SCIMManager
@@ -130,9 +131,7 @@ async def test_ldap_config_secret_never_returned(core_managers):
 
 @pytest.mark.asyncio
 async def test_ldap_empty_secret_preserves_existing(core_managers):
-    await configure_ldap(
-        {"server_url": "ldap://a", "bind_dn": "cn=a", "bind_password": "keep-me"}
-    )
+    await configure_ldap({"server_url": "ldap://a", "bind_dn": "cn=a", "bind_password": "keep-me"})
     config = await configure_ldap({"server_url": "ldap://b", "bind_dn": "cn=b"})
     assert config["bind_password_set"] is True
     stored = await core_managers.ldap.get_config()
@@ -181,9 +180,7 @@ async def test_oauth_register_requires_name(core_managers):
 async def test_oauth_disable(core_managers):
     from fastapi import HTTPException
 
-    await register_oauth_provider(
-        {"name": "google", "client_id": "g", "client_secret": "s"}
-    )
+    await register_oauth_provider({"name": "google", "client_id": "g", "client_secret": "s"})
     disabled = await disable_oauth_provider("google")
     assert disabled["enabled"] is False
     assert "client_secret" not in disabled
