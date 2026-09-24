@@ -224,7 +224,7 @@ Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) 
 | P1-SEC-01 | Redis requirepass | ✅ Configuré | S1 |
 | P1-SEC-03 | Rate limiting API | ✅ Configuré (100 req/min) | S1 |
 | P1-SEC-04 | Security headers WebUI | ✅ Corrigé | S1 |
-| P1-ARCH-01 | Doublons registry | ⚠ En cours — validator migré vers le Core (shim legacy) ; `plugins/tool_registry`/`versioning` sans importeur externe → RFC dédiée | S3 |
+| P1-ARCH-01 | Doublons registry | ⚠ Partiel — **CLI fusionné** (`plugin.py` unique, `plugin_cmd`/`plugins` supprimés, dispatch `discover` activé — Commit 5820a527) ; **Folders/Domains** : helpers mutualisés (`core/attachments.py`), écart fail-closed documenté ci-dessous ; restent `plugins/tool_registry`/`versioning` sans importeur (RFC) | S3 |
 | P1-ARCH-03 | Manifest plugins | ✅ Manifest Core (`core/plugins/types.py`) | S2 |
 | P1-CORE-01 | Timeouts bootstrap | ✅ Retry/backoff + `CONNECT_TIMEOUT` + `DEPENDENCY_STARTUP_TIMEOUT` | S3 |
 | P1-CORE-02 | Circuit breaker | ✅ `core/safety/circuit_breaker.py` + watchdog systemd | S3 |
@@ -236,6 +236,24 @@ Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) 
 ---
 
 ## 3. Commandes de Vérification
+
+### 3.1 Phase 4 — dette Folders vs Domains (état après mutualisation)
+
+`core/folders/manager.py` et `core/domains/manager.py` étaient des
+jumeaux structurels (copier-coller). Après la mutualisation des helpers
+identiques dans `core/attachments.py` (provider, clé de membership,
+normalisation de record, horodatage, sentinelle UNSET), **deux écarts
+comportementaux assumés restent** — décision produit requise (RFC) :
+
+| Point | FolderManager | DomainManager |
+|---|---|---|
+| Existence de la ressource à l'attach | **fail-closed** : résolu via provider, rejet si absente | non vérifié (relation possible « fantôme », purgée en lecture par auto-pruning) |
+| Events | `FOLDER_*` | `DOMAIN_*` |
+
+Recommandation : aligner `DomainManager` sur le fail-closed des dossiers
+(même garantie « jamais de relation fantôme ») dans la RFC de fusion des
+politiques — sans changer les APIs publiques.
+
 
 ```bash
 # Test ports

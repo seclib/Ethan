@@ -4,6 +4,13 @@ import logging
 from typing import Any
 from uuid import uuid4
 
+from core.attachments import (
+    UNSET,
+    ResourceProvider,
+    membership_key,
+    normalize_record,
+    utc_now,
+)
 from core.bus.interface import EventBus
 from core.ethan_types.event import Event, EventType
 from core.state.record_store import CoreRecordStore
@@ -16,27 +23,12 @@ _DOMAIN_MEMBERSHIPS = "folder-memberships"
 # Registre des types de ressources classables (ouvert : voir add_provider).
 DEFAULT_RESOURCE_TYPES = ("knowledge", "collection", "skill")
 
-# Sentinelle interne : distingue « champ non fourni » de « valeur None ».
-_UNSET = object()
+# Sentinelle partagée (core/attachments) : « champ non fourni » ≠ None.
+_UNSET = UNSET
 
 
-class FolderResourceProvider:
-    """Adapte un manager Core au protocole de résolution des ressources.
-
-    ``getter``/``lister`` sont des callables asynchrones du manager
-    propriétaire (ex. ``SkillStore.get_skill`` / ``SkillStore.list_skills``).
-    Le provider ne duplique rien : il ne fait que lire à la demande.
-    """
-
-    def __init__(self, getter: Any, lister: Any) -> None:
-        self._getter = getter
-        self._lister = lister
-
-    async def get(self, resource_id: str) -> Any:
-        return await self._getter(resource_id)
-
-    async def list_all(self) -> list[Any]:
-        return list(await self._lister())
+# Provider partagé (core/attachments) — nom public conservé en compat.
+FolderResourceProvider = ResourceProvider
 
 
 class FolderManager:
@@ -877,25 +869,11 @@ class FolderManager:
         return archive
 
 
-def _membership_id(folder_id: str, resource_type: str, resource_id: str) -> str:
-    return f"{folder_id}:{resource_type}:{resource_id}"
-
-
-def _to_dict(record: Any) -> dict[str, Any] | None:
-    """Normalise un record Core (dict ou objet avec ``to_dict``)."""
-    if record is None:
-        return None
-    if isinstance(record, dict):
-        return record
-    if hasattr(record, "to_dict"):
-        return record.to_dict()
-    return None
-
-
-def _utc_now() -> str:
-    from datetime import datetime, timezone
-
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+# Helpers partagés (core/attachments) — noms locaux conservés en compat
+# des call sites et des tests existants.
+_membership_id = membership_key
+_to_dict = normalize_record
+_utc_now = utc_now
 
 
 __all__ = ["FolderManager", "FolderResourceProvider", "DEFAULT_RESOURCE_TYPES"]
