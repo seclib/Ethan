@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 # ── Re-exports from authoritative modules ─────────────────────────────────
-
 from core.llm.providers.base import LLMProvider
 from core.llm.types import (
     ChatMessage,
@@ -26,10 +25,10 @@ from core.llm.types import (
 # ── Provider Manager (système centralisé — authoritative) ────────────────
 
 try:
+    from core.llm.provider_factory import create_default_providers, create_provider_from_config
     from core.llm.provider_manager import ProviderManager
-    from core.llm.provider_factory import create_provider_from_config, create_default_providers
-    from core.llm.store import ProviderStore
     from core.llm.registry import LLMProviderRegistry
+    from core.llm.store import ProviderStore
 
     __all__ = [
         # Types
@@ -65,6 +64,5 @@ except ImportError:  # pragma: no cover - partial environment
 # ── Legacy compatibility aliases (deprecated) ─────────────────────────────
 # These will be removed in a future release. Use ProviderManager directly.
 
-from core.llm.registry import LLMProviderRegistry as _LLMProviderRegistry
-
-ProviderRegistry = _LLMProviderRegistry  # type: ignore[assignment]
+# L'alias déprécié `ProviderRegistry` a été retiré (Phase 4 — zéro usage
+# vérifié) ; la source de vérité est `LLMProviderRegistry` (core.llm.registry).
