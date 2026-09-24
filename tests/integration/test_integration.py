@@ -5,6 +5,16 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+
+# Héritage openjarvis : ce package n'existe plus dans ETHAN (socle Phase 3/4
+# remplacé par core/). Symboles AgentContext/AgentResult/Conversation/ToolCall
+# absents de l'architecture actuelle — migration vers core/ à traiter via RFC.
+# Skip plutôt que suppression : les 18 tests restent consultables et re-migrables.
+pytest.importorskip(
+    "openjarvis",
+    reason="package openjarvis retiré — test hérité Phase 3/4 à migrer vers core/ (RFC)",
+)
+
 from openjarvis.agents._stubs import AgentContext, AgentResult
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import AgentRegistry, RouterPolicyRegistry, ToolRegistry
