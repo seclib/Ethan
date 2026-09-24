@@ -9,6 +9,7 @@ Elles interrogent ce registre.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,9 +17,23 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _module_exposes(module_name: str, *names: str) -> bool:
+    """Indique si un module est importable ET expose tous les `names`.
+
+    Remplace les imports « test de disponibilité » dont le nom importé n'était
+    jamais utilisé (F401) par une vérification explicite et sans ambiguïté.
+    """
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        return False
+    return all(hasattr(module, name) for name in names)
+
+
 @dataclass
 class CapabilityInfo:
     """Information sur une capacité découverte."""
+
     name: str
     description: str
     available: bool
@@ -59,9 +74,7 @@ class CapabilityRegistry:
 
     def to_dict(self) -> dict[str, Any]:
         """Sérialise le registre en dict."""
-        return {
-            name: info.to_dict() for name, info in self._capabilities.items()
-        }
+        return {name: info.to_dict() for name, info in self._capabilities.items()}
 
     # ── Découverte automatique ──────────────────────────────────────────
 
@@ -109,7 +122,9 @@ class CapabilityRegistry:
     def _discover_providers(self) -> None:
         """Découvre les providers LLM."""
         try:
-            from core.llm.provider_manager import ProviderManager
+            if not _module_exposes("core.llm.provider_manager", "ProviderManager"):
+                raise ImportError("core.llm.provider_manager.ProviderManager")
+
             # ProviderManager nécessite une initialisation
             # On vérifie simplement que le module est disponible
             self._capabilities["providers"] = CapabilityInfo(
@@ -130,7 +145,9 @@ class CapabilityRegistry:
     def _discover_models(self) -> None:
         """Découvre les modèles disponibles."""
         try:
-            from core.llm.provider_manager import ProviderManager
+            if not _module_exposes("core.llm.provider_manager", "ProviderManager"):
+                raise ImportError("core.llm.provider_manager.ProviderManager")
+
             self._capabilities["models"] = CapabilityInfo(
                 name="models",
                 description="AI model registry and status",
@@ -149,10 +166,14 @@ class CapabilityRegistry:
     def _discover_rag(self) -> None:
         """Découvre le module RAG."""
         try:
-            from core.rag import RAGIngestion, RAGRetrieval, RAGContext
+            if not _module_exposes("core.rag", "RAGContext", "RAGIngestion", "RAGRetrieval"):
+                raise ImportError("core.rag components")
+
             self._capabilities["rag"] = CapabilityInfo(
                 name="rag",
-                description="Retrieval Augmented Generation (ingestion, embeddings, retrieval, context)",
+                description=(
+                    "Retrieval Augmented Generation (ingestion, embeddings, retrieval, context)"
+                ),
                 available=True,
                 source="core",
                 details={
@@ -171,7 +192,9 @@ class CapabilityRegistry:
     def _discover_memory(self) -> None:
         """Découvre le module Memory."""
         try:
-            from core.memory import MemoryManager
+            if not _module_exposes("core.memory", "MemoryManager"):
+                raise ImportError("core.memory.MemoryManager")
+
             self._capabilities["memory"] = CapabilityInfo(
                 name="memory",
                 description="Long-term cognitive memory (facts, events, search)",
@@ -190,7 +213,9 @@ class CapabilityRegistry:
     def _discover_planner(self) -> None:
         """Découvre le module Planner."""
         try:
-            from core.planner import Planner
+            if not _module_exposes("core.planner", "Planner"):
+                raise ImportError("core.planner.Planner")
+
             self._capabilities["planner"] = CapabilityInfo(
                 name="planner",
                 description="Task orchestration DAG (planning, decomposition, optimization)",
@@ -209,7 +234,9 @@ class CapabilityRegistry:
     def _discover_goals(self) -> None:
         """Découvre le module Goals."""
         try:
-            from core.goals import GoalManager
+            if not _module_exposes("core.goals", "GoalManager"):
+                raise ImportError("core.goals.GoalManager")
+
             self._capabilities["goals"] = CapabilityInfo(
                 name="goals",
                 description="Cognitive goal management (create, track, complete)",
@@ -228,7 +255,9 @@ class CapabilityRegistry:
     def _discover_missions(self) -> None:
         """Découvre le module Missions."""
         try:
-            from core.missions import MissionManager
+            if not _module_exposes("core.missions", "MissionManager"):
+                raise ImportError("core.missions.MissionManager")
+
             self._capabilities["missions"] = CapabilityInfo(
                 name="missions",
                 description="Long-term objectives with tasks and progression",
@@ -247,7 +276,9 @@ class CapabilityRegistry:
     def _discover_agents(self) -> None:
         """Découvre le module Agents."""
         try:
-            from core.agents import AgentManager
+            if not _module_exposes("core.agents", "AgentManager"):
+                raise ImportError("core.agents.AgentManager")
+
             self._capabilities["agents"] = CapabilityInfo(
                 name="agents",
                 description="Autonomous agent lifecycle (deploy, monitor, control)",
@@ -266,7 +297,9 @@ class CapabilityRegistry:
     def _discover_skills(self) -> None:
         """Découvre le module Skills."""
         try:
-            from core.skills import SkillManager
+            if not _module_exposes("core.skills", "SkillManager"):
+                raise ImportError("core.skills.SkillManager")
+
             self._capabilities["skills"] = CapabilityInfo(
                 name="skills",
                 description="Cognitive skills registry and execution",
@@ -285,7 +318,9 @@ class CapabilityRegistry:
     def _discover_plugins(self) -> None:
         """Découvre le module Plugins."""
         try:
-            from plugins.manager import PluginManager
+            if not _module_exposes("plugins.manager", "PluginManager"):
+                raise ImportError("plugins.manager.PluginManager")
+
             self._capabilities["plugins"] = CapabilityInfo(
                 name="plugins",
                 description="Plugin marketplace and management",
