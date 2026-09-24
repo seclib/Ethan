@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : 🟡 **Partiel** — les helpers strictement identiques ont été mutualisés dans `core/attachments.py` (`ResourceProvider`, `membership_key`, `normalize_record`, `utc_now`, `UNSET`) sans modifier les APIs publiques ; la divergence de politique subsiste (folders *fail-closed* / domains *permissif*) et est documentée dans `docs/hardening.md` §3.1. Arbitrage produit attendu (DEF-03), vague V6.
 **Contexte** : Deux mécanismes coexistent dans le Core et le WebUI :
 
 - `core/folders/FolderManager` → `/v1/folders` → page `/folders` : **arborescence libre** de

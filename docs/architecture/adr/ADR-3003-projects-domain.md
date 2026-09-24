@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : ✅ **Implémenté** — `core/projects/` porte `ProjectManager` (instructions, agent/provider/model par défaut, associations par identifiants, documents via le pipeline RAG unique, événements) et `interfaces/api/routers/projects.py` est une passerelle mince (`/v1/projects`, `/default`, `/{id}/context`, `/{id}/documents`). Statut documentaire à requalifier.
 **Contexte** : Le score d'expérience workspace (AnythingLLM / Odysseus / Open WebUI) exige un
 concept de « Projet » regroupant conversations, connaissances et agents. Aucun domaine
 `Project` n'existe dans le Core — le WebUI ne peut pas l'inventer (AGENTS.md).

@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : 🟡 **Partiel** — `tests/cli/ethan/regression/test_api_contracts.py` + `APIResponseValidator` existent et couvrent un sous-ensemble ; la généralisation (snapshot OpenAPI + un contrat par domaine) est planifiée en vague V1 (`ARCHITECTURE-CIBLE.md` §9.2, G-06). Conventions de contrat formalisées au §7.1 du même document.
 **Contexte** : La consolidation active du dépôt a déjà cassé des contrats (ex. providers/models),
 et le WebUI consomme une surface `/v1/*` large sans garde-fou formel. Le risque de régression
 silencieuse entre Core et WebUI est élevé.

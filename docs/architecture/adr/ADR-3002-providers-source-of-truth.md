@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : ✅ **Implémenté** — plus aucun `_DEFAULT_PROVIDERS` dans `core/` ni `interfaces/` ; `core/llm/provider_manager.py` est bien la seule source de vérité (providers, models, test, default). Statut documentaire à requalifier en « Accepté / Implémenté » (`ARCHITECTURE-CIBLE.md` §3.1).
 **Contexte** : Le WebUI (ort de Settings) et certains fallbacks affichent des providers
 « par défaut » définis statiquement dans `core/state/webui_store.py` (`_DEFAULT_PROVIDERS` :
 openai, anthropic, huggingface, pinecone…), alors que la source réelle est

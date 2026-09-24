@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : ❌ **Non implémenté** — `core/config/store.py` lit/écrit encore la table `ethan_config`, et `CoreWebUIStore` subsiste et reste injecté dans `v1.py` / `interfaces/api/main.py`. Cible et plan : `ARCHITECTURE-CIBLE.md` §4.3 (G-01, G-02) et vague V2.
 **Contexte** : Trois mécanismes de persistance coexistent dans le Core —
 `core/config/store.py` (ConfigStore, table `ethan_config`), `core/state/webui_store.py`
 (WebUIStore, records settings/providers), et `core/state/record_store.py` (CoreRecordStore,

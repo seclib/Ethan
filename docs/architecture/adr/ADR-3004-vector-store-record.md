@@ -2,6 +2,7 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
+**État audité (2026-09-24)** : ❌ **Non tranché** — `core/memory/chromadb_backend.py` **et** `core/memory/qdrant_backend.py` coexistent avec `core/rag/vector_store.py`. Recommandation CTO : converger vers `pgvector` (déjà dans la stack PostgreSQL) — `ARCHITECTURE-CIBLE.md` §9.2 (DEF-02), vague V4.
 **Contexte** : Deux chemins de persistance vectorielle coexistent : `core/memory`
 (`chromadb_backend`, `qdrant_backend`) et `core/rag/vector_store`. Risque de double écriture
 et de divergences d'index entre la mémoire et le RAG.
