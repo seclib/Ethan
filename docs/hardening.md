@@ -234,7 +234,7 @@ Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) 
 | P1-UI-01 | Auth WebUI | ✅ `(auth)/login` + middleware + JWT API (`auth_middleware`) | S6 |
 | P1-PKG-01 | Code source sous un chemin ignoré | ✅ Corrigé — `core/security/data/` (anti-exfiltration) était exclu par le pattern `data/` du `.gitignore` : `core.agents.executor` était inimportable sur clone vierge (voir §3.2) | S3 |
 | P1-CI-03 | Tests trackés cassés sur clone vierge | ✅ Corrigé — import invalide dans `tests/cli/ethan/regression/test_api_contracts.py` + RÈGLE 1 import-linter (`core.capabilities.registry → plugins.manager`) (voir §3.2) | S4 |
-| P2-ORPH-01 | Modules orphelins inimportables | ✅ Corrigé — 3 `bootstrap.py` (`EventBus as NatsEventBus`) et 2 modules `core/orchestrator` (`core.orchestration` → `core.orchestrator`) ; reste `example_usage.py` (`SafetyValidator` disparu) (voir §3.2) | S5 |
+| P2-ORPH-01 | Modules orphelins inimportables | ✅ Corrigé — 3 `bootstrap.py` (`EventBus as NatsEventBus`), 2 modules `core/orchestrator` (`core.orchestration` → `core.orchestrator`), puis `example_usage.py` réécrit sur l'API sécurité réelle (vague V1, `e648454b`) (voir §3.2) | S5 + V1 |
 
 ---
 
@@ -272,18 +272,26 @@ propre, sans travail local non commité), car plusieurs anomalies étaient
 | `RÈGLE 1 — Core kernel indépendant` BROKEN : `core.capabilities.registry → plugins.manager` | Imports statiques « test de disponibilité » jamais utilisés | `_module_exposes()` (`importlib` + `hasattr`) : découverte identique, plus aucune dépendance statique `core → plugins` |
 | 5 modules inimportables (P2-ORPH-01a/b) : 3 `bootstrap.py` + `core/orchestrator/cognitive_loop.py`, `example_usage.py` | Imports de noms disparus : `NatsEventBus` (absent de `core.bus.nats_bus`) et `core.orchestration` (renommé `core.orchestrator`) | Alias `EventBus as NatsEventBus` (idiome déjà en place dans `core/ethan_bootstrap.py`) et import depuis `core.orchestrator` — 5 fichiers, 1 ligne chacun ; `tests/core/test_cognitive_loop.py` collecte à nouveau ses 15 tests |
 
-**Dette restante** (aucun de ces points n'est chargé par
-`core/ethan_bootstrap.py`, `core/main.py` ni `python -m core.modules`) :
+**Dette résorbée par la vague V1 (G-08, 2026-09-24)** :
 
-| ID | Fichiers | Symptôme | Correctif recommandé |
-|---|---|---|---|
-| P2-ORPH-01c | `core/orchestrator/example_usage.py` | Une fois l'import corrigé, reste `from core.safety import SafetyValidator` : la classe n'existe plus (`core.safety` expose `SafetyContext`, `DefaultSafetyChecker.check_permission`, `DefaultRoleRegistry`) | Fichier d'exemple sans importeur : le réécrire sur l'API actuelle ou le retirer |
-| P2-PKG-02 | `tests/test_web_search.py` (tracké) | Importe `core.knowledge.web_search`, module non committé → erreur de collecte | Committer le module (`web_search.py`, `web_inspiration.py`, `web_research_service.py`) ou retirer le test |
+| ID | Fichiers | Correctif (commit) |
+|---|---|---|
+| P2-ORPH-01c | `core/orchestrator/example_usage.py` | Réécrit sur l'API réelle (`DefaultRoleRegistry` + `DefaultSafetyChecker.check_permission` awaité) — `e648454b` |
+| P2-PKG-02 | `tests/test_web_search.py` | Modules committés (`web_search.py`, `web_inspiration.py`, `web_research_service.py`) — `64c9b546` ; fermeture complétée par `core/network/` (dépendance manquante de `web_search`, jamais trackée) — `92d0c396` |
+| (nouveau, scan V1) | `core/security/validation/__init__.py` | Import mort `ContentFilter` retiré (module jamais existé au dépôt, 0 usage) — `9fe0f638` ; le paquet s'importe à nouveau |
 
-**État mesuré sur clone propre** (commit `676403a3`) : `lint-imports` **5 kept /
-0 broken**, `ast.parse` OK sur tout le dépôt, **1 seul module inimportable**
-(`core/orchestrator/example_usage.py`, P2-ORPH-01c — fichier d'exemple sans
-importeur).
+**État mesuré sur clone propre — vague V1** (commit `9fe0f638`) :
+`lint-imports` **5 kept / 0 broken** ; collecte pytest **0 erreur**
+(1093 tests, `tests/test_web_search.py` inclus) ; sous-ensemble CI
+(`test_imports/audit/facts/loading`) **26/26** ; scan d'importabilité :
+**aucun gap dans la fermeture du code tracké** — les échecs résiduels
+sont du legacy préexistant hors CI (`ethan.client` dans
+`interfaces/cli/{startup,ui/prompts}.py`, scripts `openjarvis`, `torch`
+optionnel, artefacts d'ordre d'import du scanner) ; suite complète sur
+clone propre : **46 échecs préexistants**, identiques au baseline
+`b9be3e47` (A/B : 0 régression V1, +17 tests V1) — paires code+tests
+CLI/knowledge en WIP, hors périmètre CI ; CI globale **rouge de façon
+préexistante** sur le job Ruff (voir `ARCHITECTURE-CIBLE.md` G-09).
 
 
 ```bash

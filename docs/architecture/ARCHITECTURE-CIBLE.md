@@ -274,9 +274,10 @@ ne pas recréer.
 | **G-03** | `core/memory/{chromadb_backend,qdrant_backend}.py` + `core/rag/vector_store.py` coexistent | Risque de double écriture d'index | ADR-3004 : trancher le backend de vecteurs unique |
 | **G-04** | `interfaces/api/routers/v1.py` : 2031 lignes, 96 routes | Maintenabilité, revues difficiles (pas de logique métier en cause) | ADR-3008 : découpage par domaine, sans changer les URLs |
 | **G-05** | ADR-3005 : divergence `FolderManager` (fail-closed) / `DomainManager` (permissif) | Relations « fantômes » possibles côté domains | RFC produit → aligner Domain sur fail-closed (`docs/hardening.md` §3.1) |
-| **G-06** | Contrats API non généralisés (ADR-3006) | Régressions silencieuses côté WebUI | Étendre `test_api_contracts` + snapshot OpenAPI par domaine |
+| **G-06** | Contrats API non généralisés (ADR-3006) | Régressions silencieuses côté WebUI | ✅ **Traité (V1)** — `tests/test_api_contract_p0.py` : 6 contrats figés (92 routes P0, RBAC 401 sans token sauf `/health*`, zéro doublon nouveau, couverture OpenAPI, santé publique, plafond `response_model`) |
 | **G-07** | 31 documents d'architecture, plusieurs propositions non tranchées | Décisions ambiguës, doublons de débat | §0 de ce document (hiérarchie) + requalification des ADR |
-| **G-08** | `docs/hardening.md` : `example_usage.py` (`SafetyValidator` disparu) et `tests/test_web_search.py` (module non committé) | Bruit CI sur clone vierge | Traités hors architecture (nettoyage documenté) |
+| **G-08** | `docs/hardening.md` : `example_usage.py` (`SafetyValidator` disparu) et `tests/test_web_search.py` (module non committé) | Bruit CI sur clone vierge | ✅ **Traité (V1)** — `64c9b546` modules web + `92d0c396` `core/network` committés, `e648454b` exemple safety réécrit, `9fe0f638` import mort `ContentFilter` retiré |
+| **G-09** | Ruff structurellement rouge : 1130 erreurs `ruff check` + 432 fichiers à reformater → job « Lint & Static Analysis » de la CI en échec depuis 3 pushes (jobs aval jamais exécutés) | CI rouge permanente masque tests/builds | RFC dédiée : pinner la version de ruff, `ruff check --fix` + `ruff format` sur branche gelée (gros diff, conflit WIP à éviter) — décision produit requise |
 
 ---
 
@@ -452,15 +453,15 @@ Redis (cache)                          ✅      inchangé (jamais source de vér
 | **G-03** vecteurs | ADR-3004 : choisir (recommandation : **`pgvector`** via `core_domain_records`/table dédiée, déjà dans la stack) puis migrer l'index | Moyen/élevé : réindexation | Conserver l'index existant en lecture seule pendant la bascule ; double lecture comparée avant bascule |
 | **G-04** `v1.py` | ADR-3008 : extraire par domaine dans `routers/`, **URLs inchangées** ; tests de contrat avant/après | Faible (refactoring pur) | `git revert` du commit de découpage (aucun changement de comportement attendu) |
 | **G-05** Folders/Domains | RFC produit → aligner `DomainManager` sur fail-closed | Faible techniquement, **visible produit** | Conserver le comportement permissif derrière un réglage si refus client |
-| **G-06** contrats API | Généraliser `APIResponseValidator` + snapshot OpenAPI par domaine | Faible | Tests ajoutés uniquement (aucun impact runtime) |
+| **G-06** contrats API | ✅ fait (V1) : `tests/test_api_contract_p0.py` fige la surface P0 (snapshot de routes + invariants) ; généralisation domaine par domaine à poursuivre | Faible | Tests ajoutés uniquement (aucun impact runtime) |
 | **G-07** docs | Appliquer §0 (hiérarchie) ; marquer les propositions comme historiques | Nul | Réversible (simple en-tête) |
-| **G-08** code mort / tests | `example_usage.py` : réécrire sur l'API `core.safety` actuelle ou retirer ; `tests/test_web_search.py` : committer le module ou retirer le test | Faible | Commit isolé |
+| **G-08** code mort / tests | ✅ fait (V1) : `example_usage.py` réécrit (`e648454b`) ; modules web + `core/network` committés (`64c9b546`, `92d0c396`) ; import mort `ContentFilter` retiré (`9fe0f638`) | Faible | Commit isolé |
 
 ### 9.3 Séquencement recommandé
 
 | Vague | Contenu | Prérequis | Critère de sortie |
 |---|---|---|---|
-| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | CI verte sur clone vierge, `lint-imports` 0 broken |
+| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | ✅ **Atteint hors G-09** : clone vierge à `9fe0f638` → `lint-imports` 5 kept/0 broken, collecte 0 erreur (1093 tests), sous-ensemble CI 26/26, suite locale 1368 verte ; CI globale encore rouge à cause de G-09 (ruff, préexistant — voir §4) |
 | **V2 — Unifier la persistance** | G-01 (ADR-3001), G-02 discipline | V1 | Une seule source config ; `CoreWebUIStore` sans nouvel usage |
 | **V3 — Unifier Conversations** | ADR-3007 (modèle unique, `/v1/conversations` + alias) | V2 | Un seul modèle de conversation, E2E chat vert |
 | **V4 — Décider les vecteurs** | ADR-3004 (mesures puis bascule) | V2 | Un seul backend d'index, réindexation validée |
@@ -525,6 +526,7 @@ make -n bootstrap              # séquence preflight → pull → up → wait �
 | Date | Version | Changement |
 |---|---|---|
 | 2026-09-24 | 1.0 | Création : audit `676403a3`, architecture cible, requalification des ADR, écarts G-01..G-08, décisions D-00..D-07, vagues V1..V6 |
+| 2026-09-24 | 1.1 | Vague V1 exécutée : G-08 clos (`64c9b546`, `92d0c396`, `e648454b`, `9fe0f638`), G-06 contrat P0 livré (`cfe60b31`+`a0844b2f`, 6 tests), G-09 identifié (ruff/CI rouge préexistant) |
 
 ### C. Documents de référence
 
