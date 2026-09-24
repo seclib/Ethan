@@ -1,7 +1,8 @@
 """API contract tests — validate API response schemas."""
+
 import pytest
 
-from tests.cli/ethan.api_validator import APIResponseValidator
+from tests.cli.ethan.api_validator import APIResponseValidator
 
 
 @pytest.fixture
