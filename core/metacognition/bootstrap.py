@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from core.bus.nats_bus import NatsEventBus
+from core.bus.nats_bus import EventBus as NatsEventBus
 from core.metacognition.engine import MetaCognitionEngine
 from core.metacognition.load import CognitiveLoadManager
 from core.metacognition.prioritizer import ModulePrioritizer

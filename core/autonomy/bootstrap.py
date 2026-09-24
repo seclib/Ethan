@@ -16,7 +16,7 @@ from core.autonomy.healing import SelfHealingSystem
 from core.autonomy.idle import IdleStateIntelligence
 from core.autonomy.scheduler import PriorityScheduler
 from core.autonomy.weakness import WeaknessDetector
-from core.bus.nats_bus import NatsEventBus
+from core.bus.nats_bus import EventBus as NatsEventBus
 from core.state.redis_state import RedisLiveState
 from core.telemetry.logger import setup_logging
 

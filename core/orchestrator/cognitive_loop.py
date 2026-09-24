@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.context.intent import Intent, IntentRouter
-from core.orchestration import Executor, Observer, Planner
+from core.orchestrator import Executor, Observer, Planner
 from core.orchestrator.registry import CapabilityRegistry
 
 logger = logging.getLogger(__name__)

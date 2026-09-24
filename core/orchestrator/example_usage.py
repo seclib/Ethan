@@ -2,7 +2,7 @@
 
 from core.capabilities import CapabilityContext, CapabilityStatus
 from core.context.intent import Intent
-from core.orchestration import CapabilityRegistry, Executor, Observer, Planner
+from core.orchestrator import CapabilityRegistry, Executor, Observer, Planner
 from core.safety import SafetyValidator
 
 
