@@ -44,9 +44,21 @@ cp .env.example .env
 ```
 
 ### 3. Lancer le boot
+
 ```bash
-./ethan up
+./ethan up          # préflight + pull des images + build + démarrage
 ```
+
+Ou, en une seule commande (séquence complète : préflight → pull → démarrage →
+attente de disponibilité → statut) :
+
+```bash
+make bootstrap
+```
+
+`make bootstrap` enchaîne : `./ethan preflight`, `./ethan pull-images`,
+`./ethan up --skip-preflight --skip-pull`, `./ethan wait-for-services`,
+puis `./ethan status`.
 
 ## Procédure de boot détaillée
 
@@ -261,12 +273,14 @@ La migration `deploy/postgres/migrations/003_create_users_table.sql` crée un co
 
 ### Instance de développement actuelle
 
-Le mot de passe du compte `admin` a été réinitialisé le 2026-08-24 :
+Le mot de passe du compte `admin` a été réinitialisé le 2026-08-24. Sa valeur
+n'est **volontairement pas** consignée ici (règle *no secrets in repository*,
+voir `docs/hardening.md`) : elle vit dans `.env`, Vault ou Docker secrets.
 
 | Champ | Valeur |
 |---|---|
 | Utilisateur | `admin` |
-| Mot de passe | `admin123` |
+| Mot de passe | hors dépôt (`.env` / Vault / Docker secrets) |
 
 ### Réinitialiser le mot de passe admin
 

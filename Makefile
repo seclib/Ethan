@@ -1,4 +1,4 @@
-.PHONY: help install dev build up down logs test lint clean
+.PHONY: help install dev build up down logs test lint clean shell bootstrap doctor preflight pull-images wait-for-services status ci
 
 help:
 	@echo "Ethan Cognitive OS — Makefile"
@@ -13,7 +13,10 @@ help:
 	@echo "  make test       Run tests"
 	@echo "  make lint       Run linter (ruff)"
 	@echo "  make clean      Remove __pycache__ and .pyc files"
-	@echo "  make bootstrap  Full boot sequence (doctor + up + wait + status)"
+	@echo "  make bootstrap  Séquence de boot complète (preflight → pull → up → wait → status)"
+	@echo "  make doctor     Diagnostiquer l'installation"
+	@echo "  make preflight  Vérifier les prérequis système"
+	@echo "  make pull-images Pré-télécharger les images Docker"
 
 install:
 	pip install -e ".[server,dev]"
@@ -47,9 +50,25 @@ shell:
 	docker compose exec kernel python
 
 bootstrap:
+	./ethan preflight
+	./ethan pull-images
+	./ethan up --skip-preflight --skip-pull
+	./ethan wait-for-services
+	./ethan status
+
+doctor:
 	./ethan doctor
-	./ethan up
-	scripts/cmd-wait-for-services.sh
+
+preflight:
+	./ethan preflight
+
+pull-images:
+	./ethan pull-images
+
+wait-for-services:
+	./ethan wait-for-services
+
+status:
 	./ethan status
 
 ci: lint test
