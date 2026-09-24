@@ -2,7 +2,8 @@
 # ETHAN — Kernel (moteur cognitif central)
 # Hérite de ethan/python-base. Aucune réinstallation de dépendances.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM ethan/python-base:latest
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
 
 # ── Code du kernel et de ses dépendances ────────────────────────────────
 # Copier le package complet évite qu'une couche de base périmée ne réinjecte

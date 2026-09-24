@@ -194,6 +194,7 @@ jobs:
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            BASE_IMAGE=${{ env.IMAGE_PREFIX }}/python-base:latest
 
   # ============================================================================
   # 5. INTEGRATION TESTS (Docker Compose)
@@ -220,7 +221,7 @@ jobs:
         run: |
           docker compose \
             -f docker-compose.yml \
-            up -d nats redis postgres prometheus
+            up -d nats redis postgres
           # Attendre que les services soient healthy
           timeout 90 bash -c 'until docker compose ps | grep -E "(nats|redis|postgres)" | grep -v "unhealthy" | grep "healthy"; do sleep 3; done'
 

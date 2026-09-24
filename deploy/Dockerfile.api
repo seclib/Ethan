@@ -6,7 +6,8 @@
 #   docker build -f deploy/Dockerfile.python-base -t ethan/python-base:latest .
 #   docker build -f deploy/Dockerfile.api          -t ethan/api:latest .
 # ─────────────────────────────────────────────────────────────────────────────
-FROM ethan/python-base:latest
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
 
 # ── Code de l'API et des contrats partagés ───────────────────────────────────
 # Le code core est recopié ici pour ne pas dépendre d'un cache de base ancien.

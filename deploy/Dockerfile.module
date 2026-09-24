@@ -2,7 +2,8 @@
 # ETHAN — Modules (exécution des capacités cognitives)
 # Hérite de ethan/python-base. Aucune réinstallation de dépendances.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM ethan/python-base:latest
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
 
 # ── Code spécifique aux modules ──────────────────────────────────────────
 COPY plugins/ /app/plugins/
