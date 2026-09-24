@@ -47,7 +47,7 @@ jobs:
           cache: pip
 
       - name: Install lint tools
-        run: pip install ruff import-linter
+        run: pip install ruff==0.15.1 import-linter==2.13
 
       - name: Ruff — style & format check
         run: ruff check core/ interfaces/ plugins/ sdk/
