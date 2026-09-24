@@ -229,9 +229,12 @@ Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) 
 | P1-CORE-01 | Timeouts bootstrap | ✅ Retry/backoff + `CONNECT_TIMEOUT` + `DEPENDENCY_STARTUP_TIMEOUT` | S3 |
 | P1-CORE-02 | Circuit breaker | ✅ `core/safety/circuit_breaker.py` + watchdog systemd | S3 |
 | P1-CI-01 | Pipeline CI/CD | ✅ `.github/workflows/ci.yml` (lint, test, build, integration, security, release) | S4 |
-| P1-CI-02 | Tests insuffisants | ✅ Renforcé (1506 tests : boot, watchdog, doctor, validator) | S4 |
+| P1-CI-02 | Tests insuffisants | ✅ Renforcé (1542 tests : boot, watchdog, doctor, validator, attachments) | S4 |
 | P1-PLUGIN-01 | Validator non intégré | ✅ Capacité migrée `core/plugins/validator.py`, intégrée à `install_custom` (rejet 422) ; CLI `plugin_cmd` importe le Core (dispatch unifié `plugin.py`/`plugin_cmd.py` = RFC Phase 4) | S2 |
 | P1-UI-01 | Auth WebUI | ✅ `(auth)/login` + middleware + JWT API (`auth_middleware`) | S6 |
+| P1-PKG-01 | Code source sous un chemin ignoré | ✅ Corrigé — `core/security/data/` (anti-exfiltration) était exclu par le pattern `data/` du `.gitignore` : `core.agents.executor` était inimportable sur clone vierge (voir §3.2) | S3 |
+| P1-CI-03 | Tests trackés cassés sur clone vierge | ✅ Corrigé — import invalide dans `tests/cli/ethan/regression/test_api_contracts.py` + RÈGLE 1 import-linter (`core.capabilities.registry → plugins.manager`) (voir §3.2) | S4 |
+| P2-ORPH-01 | Modules orphelins inimportables | ⚠ Documenté, non corrigé — 3 `bootstrap.py` (`NatsEventBus`) et 2 modules `core/orchestrator` (`core.orchestration`) ; zones en réécriture, aucun importeur en production (voir §3.2) | S5 |
 
 ---
 
@@ -253,6 +256,34 @@ comportementaux assumés restent** — décision produit requise (RFC) :
 Recommandation : aligner `DomainManager` sur le fail-closed des dossiers
 (même garantie « jamais de relation fantôme ») dans la RFC de fusion des
 politiques — sans changer les APIs publiques.
+
+### 3.2 Phase 4/5 — dette de packaging et modules orphelins (état 2026-09-24)
+
+Vérification systématique effectuée dans un **worktree git détaché** (checkout
+propre, sans travail local non commité), car plusieurs anomalies étaient
+**masquées en local** par des fichiers présents mais non committés.
+
+**Corrigé dans cette passe :**
+
+| Anomalie | Cause racine | Correctif |
+|---|---|---|
+| `ModuleNotFoundError: core.security.data` → `core.agents.executor` inimportable, 4 modules de tests non collectés | `core/security/data/` était exclu par le pattern `data/` (`.gitignore` l.158) alors que `prompt_guard.py` et `integration.py` l'importent | Exception d'ignorabilité `!core/security/data/` + `!core/security/data/**` (même recette que `interfaces/api/models/`) et committion des 3 modules |
+| `lint-imports` en `SyntaxError` | `tests/cli/ethan/regression/test_api_contracts.py` était tracké avec `from tests.cli/ethan.api_validator import ...` (slash) | Point au lieu du slash + newline final |
+| `RÈGLE 1 — Core kernel indépendant` BROKEN : `core.capabilities.registry → plugins.manager` | Imports statiques « test de disponibilité » jamais utilisés | `_module_exposes()` (`importlib` + `hasattr`) : découverte identique, plus aucune dépendance statique `core → plugins` |
+
+**Dette documentée, correction volontairement différée** (fichiers en cours de
+réécriture non commitée ; aucun de ces modules n'est chargé par
+`core/ethan_bootstrap.py`, `core/main.py` ni `python -m core.modules`) :
+
+| ID | Fichiers | Symptôme | Correctif recommandé |
+|---|---|---|---|
+| P2-ORPH-01a | `core/autonomy/bootstrap.py`, `core/learning/bootstrap.py`, `core/metacognition/bootstrap.py` | `ImportError: cannot import name 'NatsEventBus' from 'core.bus.nats_bus'` | `from core.bus.nats_bus import EventBus as NatsEventBus` (idiome déjà utilisé par `core/ethan_bootstrap.py` et `core/modules/__main__.py`) |
+| P2-ORPH-01b | `core/orchestrator/cognitive_loop.py`, `core/orchestrator/example_usage.py` | `ModuleNotFoundError: No module named 'core.orchestration'` → `tests/core/test_cognitive_loop.py` ne collecte pas | `from core.orchestrator import Executor, Observer, Planner` (`core/orchestrator/__init__.py` les exporte déjà) |
+| P2-PKG-02 | `tests/test_web_search.py` (tracké) | Importe `core.knowledge.web_search`, module non committé → erreur de collecte | Committer le module (`web_search.py`, `web_inspiration.py`, `web_research_service.py`) ou retirer le test |
+
+**État mesuré sur clone propre** (commit `899365c2`) : `lint-imports` **5 kept /
+0 broken**, `ast.parse` OK sur tout le dépôt, 5 modules inimportables (exactement
+les 3 lignes P2 ci-dessus).
 
 
 ```bash
