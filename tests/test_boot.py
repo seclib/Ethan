@@ -112,9 +112,7 @@ class TestBoot:
         if not services:
             pytest.skip("stack down — aucun service docker compose actif")
         if len(services) < 6:
-            pytest.skip(
-                f"stack partielle ({len(services)} services) — boot complet non monté"
-            )
+            pytest.skip(f"stack partielle ({len(services)} services) — boot complet non monté")
 
         # Check each service status
         for svc in services:
