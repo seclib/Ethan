@@ -2,10 +2,8 @@
 
 import sys
 import time
-from datetime import datetime
 
 from interfaces.cli.core import colors as clr
-from interfaces.cli.core.errors import format_error, api_unreachable, timeout, EthanError
 from interfaces.cli.core import memory as mem
 from interfaces.cli.core.logging import log as logs_log
 from interfaces.cli.core.client import send, alive
@@ -18,6 +16,7 @@ try:
     def cmd_chat(args):
         return show_chat(args)
 except ImportError:
+
     def cmd_chat(args):
         return show_chat(args)
 
@@ -30,7 +29,9 @@ def show_chat(args):
         session_id = mem.new_session()
     if not alive():
         print()
-        print(clr.error("API unreachable", "ethan daemon may be stopped", "try: ethan daemon start"))
+        print(
+            clr.error("API unreachable", "ethan daemon may be stopped", "try: ethan daemon start")
+        )
         return 1
 
     info = mem.get_session_info(session_id)
@@ -118,7 +119,7 @@ def show_chat(args):
         # Send to API with typing indicator
         try:
             start = time.time()
-            response_text = send_with_typing(msg, session_id)
+            send_with_typing(msg, session_id)
             latency = int((time.time() - start) * 1000)
             logs_log("chat:" + msg[:60], "ok", latency)
         except ValueError as e:
@@ -127,7 +128,11 @@ def show_chat(args):
             continue
         except ConnectionError as e:
             logs_log("chat:" + msg[:60], "error", 0, str(e))
-            print(clr.error("API unreachable", "ethan daemon may be stopped", "try: ethan daemon start"))
+            print(
+                clr.error(
+                    "API unreachable", "ethan daemon may be stopped", "try: ethan daemon start"
+                )
+            )
             continue
         except Exception as e:
             logs_log("chat:" + msg[:60], "error", 0, str(e))
@@ -143,7 +148,9 @@ def show_chat(args):
                 showed_memory_hint = True
 
         # Proactive suggestions
-        suggestions = PromptIntelligence.suggest_next(history=[], current=PromptIntelligence.classify(msg))
+        suggestions = PromptIntelligence.suggest_next(
+            history=[], current=PromptIntelligence.classify(msg)
+        )
         if suggestions:
             print()
             print(clr.section("What next?"))
@@ -201,12 +208,16 @@ def show_session_info(session_id: str):
     info = mem.get_session_info(session_id)
     print()
     print(clr.section(f"Session  ◇  {info['short_id']}"))
-    print(clr.definition_list({
-        "Created": info["created_at"],
-        "Last active": info["last_activity"],
-        "Messages": str(info["message_count"]),
-        "Context": f"{info['context_tokens']} / {info['context_max']} tokens ({info['context_pct']}%)",
-    }))
+    print(
+        clr.definition_list(
+            {
+                "Created": info["created_at"],
+                "Last active": info["last_activity"],
+                "Messages": str(info["message_count"]),
+                "Context": f"{info['context_tokens']} / {info['context_max']} tokens ({info['context_pct']}%)",
+            }
+        )
+    )
     print()
 
 
@@ -217,12 +228,16 @@ def show_context_info(session_id: str):
     print()
     print(clr.section(f"Context  ◇  {session_id[:8]}"))
     mem_count = len(mem.get_history(session_id, limit=1000))
-    print(clr.definition_list({
-        "Memory": f"{mem_count} previous interactions",
-        "Tokens": f"{used} used / {max_tokens} max",
-        "Status": status,
-        "Reset": "/reset",
-    }))
+    print(
+        clr.definition_list(
+            {
+                "Memory": f"{mem_count} previous interactions",
+                "Tokens": f"{used} used / {max_tokens} max",
+                "Status": status,
+                "Reset": "/reset",
+            }
+        )
+    )
     print()
 
 

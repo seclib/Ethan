@@ -2,6 +2,10 @@
 
 import os
 
+# Import au niveau module : le seam réseau doit rester patchable
+# (`mock.patch("cli.core.first_run.alive")`) par les tests et les appelants.
+from interfaces.cli.core.client import alive
+
 FIRST_RUN_MARKER = os.path.expanduser("~/.ethan/.installed")
 
 
@@ -17,6 +21,7 @@ def mark_installed():
 
 def show_welcome():
     from interfaces.cli.core import colors as clr
+
     print()
     print(clr.section("ETHAN is ready"))
     print()
@@ -33,7 +38,6 @@ def show_welcome():
 
 def show_system_check():
     from interfaces.cli.core import colors as clr
-    from interfaces.cli.core.client import alive
 
     print()
     print(clr.section("Checking system..."))

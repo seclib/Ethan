@@ -14,7 +14,6 @@ This command reads real data from:
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import time
@@ -64,7 +63,9 @@ def _get_docker_info() -> dict[str, Any]:
     try:
         subprocess.run(
             ["docker", "info"],
-            capture_output=True, timeout=5, check=True,
+            capture_output=True,
+            timeout=5,
+            check=True,
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         result["error"] = "Docker daemon not available"
@@ -76,11 +77,20 @@ def _get_docker_info() -> dict[str, Any]:
     # Get container list
     try:
         output = subprocess.run(
-            ["docker", "ps", "-a", "--filter", "name=ethan",
-             "--format", "{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"],
-            capture_output=True, text=True, timeout=10,
+            [
+                "docker",
+                "ps",
+                "-a",
+                "--filter",
+                "name=ethan",
+                "--format",
+                "{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-        lines = [l for l in output.stdout.strip().split("\n") if l.strip()]
+        lines = [ln for ln in output.stdout.strip().split("\n") if ln.strip()]
 
         for line in lines:
             parts = line.split("\t")
@@ -102,22 +112,31 @@ def _get_docker_info() -> dict[str, Any]:
             # Extract port
             port = ports.split("->")[0].split(":")[-1] if ports else "—"
 
-            result["services"].append({
-                "name": name.replace("ethan-", ""),
-                "container": name,
-                "status": "running" if "Up" in status else "exited",
-                "health": health,
-                "port": port,
-                "image": image.split("/")[-1] if "/" in image else image,
-            })
+            result["services"].append(
+                {
+                    "name": name.replace("ethan-", ""),
+                    "container": name,
+                    "status": "running" if "Up" in status else "exited",
+                    "health": health,
+                    "port": port,
+                    "image": image.split("/")[-1] if "/" in image else image,
+                }
+            )
 
         # Runtime info from docker stats (first ethan container)
         if result["services"]:
             try:
                 stats = subprocess.run(
-                    ["docker", "stats", "--no-stream", "--format",
-                     "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"],
-                    capture_output=True, text=True, timeout=5,
+                    [
+                        "docker",
+                        "stats",
+                        "--no-stream",
+                        "--format",
+                        "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 for stat_line in stats.stdout.strip().split("\n"):
                     if "ethan" in stat_line.lower():
@@ -129,9 +148,9 @@ def _get_docker_info() -> dict[str, Any]:
             except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
                 pass
 
-        result["runtime"]["state"] = "running" if any(
-            s["status"] == "running" for s in result["services"]
-        ) else "stopped"
+        result["runtime"]["state"] = (
+            "running" if any(s["status"] == "running" for s in result["services"]) else "stopped"
+        )
 
     except subprocess.TimeoutExpired:
         result["error"] = "Docker command timed out"
@@ -152,7 +171,9 @@ def _render_status(*, json_mode: bool = False) -> None:
     # ── Terminal output ──────────────────────────────────────────
     if info.get("error"):
         print(f"\n  {clr.C.RED}✗ {info['error']}{clr.C.RESET}")
-        print(f"  {clr.C.CYAN}→{clr.C.RESET} Make sure Docker is running: sudo systemctl start docker")
+        print(
+            f"  {clr.C.CYAN}→{clr.C.RESET} Make sure Docker is running: sudo systemctl start docker"
+        )
         return
 
     runtime = info["runtime"]
@@ -161,7 +182,9 @@ def _render_status(*, json_mode: bool = False) -> None:
     # Header
     state_color = clr.C.GREEN if runtime["state"] == "running" else clr.C.RED
     print()
-    print(f"  {clr.C.BOLD}ETHAN Status{clr.C.RESET}  {state_color}◇ {runtime['state'].upper()}{clr.C.RESET}")
+    print(
+        f"  {clr.C.BOLD}ETHAN Status{clr.C.RESET}  {state_color}◇ {runtime['state'].upper()}{clr.C.RESET}"
+    )
     print()
 
     # Runtime
@@ -178,7 +201,7 @@ def _render_status(*, json_mode: bool = False) -> None:
     else:
         # Header
         print(f"    {'SERVICE':<18} {'STATUS':<10} {'HEALTH':<12} {'PORT':<8}")
-        print(f"    {'─'*18} {'─'*10} {'─'*12} {'─'*8}")
+        print(f"    {'─' * 18} {'─' * 10} {'─' * 12} {'─' * 8}")
 
         for svc in services:
             status_icon = (
@@ -187,8 +210,10 @@ def _render_status(*, json_mode: bool = False) -> None:
                 else f"{clr.C.RED}○{clr.C.RESET}"
             )
             health_color = (
-                clr.C.GREEN if svc["health"] == "healthy"
-                else clr.C.RED if svc["health"] in ("unhealthy", "exited")
+                clr.C.GREEN
+                if svc["health"] == "healthy"
+                else clr.C.RED
+                if svc["health"] in ("unhealthy", "exited")
                 else clr.C.YELLOW
             )
             print(

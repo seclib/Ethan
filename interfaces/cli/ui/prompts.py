@@ -4,7 +4,8 @@ Format: ◆ ethan ◇ chat ▸
 """
 
 from typing import Optional
-from ethan.ui.colors import Colors, Icons
+
+from interfaces.cli.core.colors import C as Colors, I as Icons
 
 
 def get_prompt(session_id: Optional[str] = None) -> str:

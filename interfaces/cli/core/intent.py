@@ -19,9 +19,17 @@ KNOWN_COMMANDS = ["chat", "run", "status", "logs", "plugin", "shell", "help", "d
 # Intent patterns: (regex, intent_type, extractor)
 INTENT_PATTERNS = [
     (r"^(fix|repair|debug)\s+(\w+)$", "fix", lambda m: {"target": m.group(2)}),
-    (r"^(check|health|diagnose)\s+(\w+)(?:\s+(\w+))?$", "check", lambda m: {"target": m.group(2), "aspect": m.group(3) or ""}),
+    (
+        r"^(check|health|diagnose)\s+(\w+)(?:\s+(\w+))?$",
+        "check",
+        lambda m: {"target": m.group(2), "aspect": m.group(3) or ""},
+    ),
     (r"^(run|execute|exec)\s+(.+)$", "run", lambda m: {"cmd": m.group(2)}),
-    (r"^(deploy)\s+(\w+)(?:\s+to\s+(\w+))?$", "deploy", lambda m: {"target": m.group(2), "env": m.group(3) or ""}),
+    (
+        r"^(deploy)\s+(\w+)(?:\s+to\s+(\w+))?$",
+        "deploy",
+        lambda m: {"target": m.group(2), "env": m.group(3) or ""},
+    ),
     (r"^(logs|log)\s*(?:for\s+(\w+))?$", "logs", lambda m: {"service": m.group(2) or ""}),
     (r"^(status|state|info)$", "status", lambda m: {}),
     (r"^(help|--help|-h)$", "help", lambda m: {}),
@@ -71,7 +79,12 @@ class PromptIntelligence:
 
         # 2. Smart command (shorthand)
         if first in FUZZY_MAP:
-            return PromptIntent("smart_cmd", 0.95, {"cmd": FUZZY_MAP[first], "args": text[len(first):].strip()}, text)
+            return PromptIntent(
+                "smart_cmd",
+                0.95,
+                {"cmd": FUZZY_MAP[first], "args": text[len(first) :].strip()},
+                text,
+            )
 
         # 3. Intent patterns
         for pattern, kind, extractor in INTENT_PATTERNS:
@@ -86,6 +99,11 @@ class PromptIntelligence:
     def suggest_next(history: list[str], current: PromptIntent) -> list[str]:
         """Suggest next actions based on history and current intent."""
         suggestions = []
+        # `classify()` renvoie "command" dès qu'un mot-clé est connu : les
+        # branches "smart_cmd"/"status" testées ici étaient donc INATTEIGNABLES
+        # (la fonctionnalité « What next? » ne s'affichait jamais après `logs`
+        # ou `status`). On raisonne sur la commande réellement détectée.
+        command = str(current.params.get("cmd", "")).split(" ", 1)[0].strip().lower()
         if current.kind == "intent":
             if current.params.get("target") == "docker":
                 suggestions = ["check docker stats", "deploy app", "run tests"]
@@ -93,9 +111,9 @@ class PromptIntelligence:
                 suggestions = ["check api health", "run api tests", "restart api"]
             else:
                 suggestions = ["run tests", "check status", "show logs"]
-        elif current.kind == "smart_cmd" and current.params.get("cmd") == "logs":
+        elif command in ("logs", "log"):
             suggestions = ["logs --follow", "status", "run tests"]
-        elif current.kind == "status":
+        elif command in ("status", "state", "info"):
             suggestions = ["run tests", "deploy staging", "show logs"]
         return suggestions[:3]
 

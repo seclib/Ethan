@@ -5,10 +5,8 @@ No manual Docker Compose commands. No configuration hunting.
 """
 
 import time
-import sys
-from typing import Optional
 
-from ethan.client import RuntimeClient, RuntimeError
+from interfaces.cli.client import RuntimeClient
 from interfaces.cli.core import colors as clr
 
 
@@ -35,8 +33,9 @@ def startup_and_chat(
     except RuntimeError:
         services = []
 
-    core_running = any(s.get("name") == "ethan-core" and s.get("state") == "running"
-                       for s in services)
+    core_running = any(
+        s.get("name") == "ethan-core" and s.get("state") == "running" for s in services
+    )
 
     if not core_running:
         print(f"  {clr.info('Starting services...')}")
@@ -76,8 +75,8 @@ def startup_and_chat(
             pass
 
     # Start REPL
-    from ethan.repl import REPL
-    repl = REPL(runtime, config, session_id)
-    repl.run()
+    from interfaces.cli.repl import repl_loop
+
+    repl_loop()
 
     return 0

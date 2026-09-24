@@ -4,6 +4,7 @@ Uses subprocess.Popen for safe daemonisation (no os.fork() + threads).
 Uses fcntl.flock() for atomic PID file locking.
 Includes watchdog heartbeat and cache size limit.
 """
+
 import json
 import os
 import signal
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+from urllib.request import Request, urlopen
 
 API = os.environ.get("ETHAN_API", "http://localhost:8000")
 CACHE_DIR = os.path.expanduser("~/.ethan")
@@ -42,10 +44,31 @@ def _cache_read():
         return None
 
 
+def _fetch_state():
+    """Fetch live state from the ETHAN API.
+
+    Implémentation canonique : `daemon_loop` (sous-processus) la réutilise via
+    `interfaces.cli.core.daemon`, et `urlopen` reste un seam patchable au
+    niveau `cli.core.daemon`.
+    """
+    try:
+        req = Request(f"{API}/state", headers={"Accept": "application/json"})
+        with urlopen(req, timeout=5) as r:
+            if getattr(r, "status", 200) != 200:
+                _log(f"API returned status {getattr(r, 'status', '?')}")
+                return None
+            return json.loads(r.read())
+    except Exception as e:
+        # Best effort : le daemon ne doit jamais mourir sur une panne réseau.
+        _log(f"fetch error: {e}")
+        return None
+
+
 def _pid_acquire():
     """Atomically acquire PID lock using fcntl.flock()."""
     try:
         import fcntl
+
         lock_fd = os.open(PID_LOCK_FILE, os.O_RDWR | os.O_CREAT | os.O_TRUNC, 0o644)
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         os.write(lock_fd, str(os.getpid()).encode())
@@ -58,6 +81,7 @@ def _pid_release(lock_fd):
     """Release PID lock."""
     try:
         import fcntl
+
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         os.close(lock_fd)
         try:
@@ -115,6 +139,7 @@ def _daemon_is_healthy():
 def cmd_start(args):
     """Start daemon as subprocess."""
     import argparse
+
     parser = argparse.ArgumentParser(prog="ethan daemon start")
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL)
     ns = parser.parse_args(args)

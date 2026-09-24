@@ -34,8 +34,14 @@ class Streamer:
         self._phase = 0
         self._lock = threading.Lock()
 
-    def start(self, hint: str = "Thinking..."):
-        """Begin stream. Shows initial line."""
+    def start(self, hint: str | None = None):
+        """Begin stream.
+
+        Args:
+            hint: texte initial optionnel. Omis, le flux démarre vide : le
+                spinner est le seul indicateur visuel et `text` ne contient
+                alors que ce qui a réellement été streamé.
+        """
         with self._lock:
             self._start_time = time.time()
             self._cancelled = False
@@ -44,7 +50,8 @@ class Streamer:
             self._last_len = 0
             self._stop_event.clear()
         self._start_spinner()
-        self.write(hint)
+        if hint:
+            self.write(hint)
 
     def _render(self, text: str):
         """Thread-safe render: clear previous, write new, update length.
@@ -78,7 +85,9 @@ class Streamer:
             self._cancelled = True
             sys.stdout.write("\r" + " " * self._last_len + "\r")
             sys.stdout.flush()
-            sys.stdout.write(f"{clr.C.PURPLE}{clr.I.DOT} ethan{clr.C.RESET}  {clr.C.YELLOW}Cancelled{clr.C.RESET}\n")
+            sys.stdout.write(
+                f"{clr.C.PURPLE}{clr.I.DOT} ethan{clr.C.RESET}  {clr.C.YELLOW}Cancelled{clr.C.RESET}\n"  # noqa: E501
+            )
             sys.stdout.flush()
             self.text += " [cancelled]"
 
@@ -91,7 +100,9 @@ class Streamer:
             sys.stdout.write(f"{clr.C.RED}{clr.I.CROSS} Streaming failed{clr.C.RESET}\n")
             sys.stdout.write(f"  {clr.C.DIM}{text}{clr.C.RESET}\n")
             sys.stdout.flush()
-            sys.stdout.write(f"  {clr.C.CYAN}{clr.I.ARROW} Falling back to batch result{clr.C.RESET}\n")
+            sys.stdout.write(
+                f"  {clr.C.CYAN}{clr.I.ARROW} Falling back to batch result{clr.C.RESET}\n"
+            )
             sys.stdout.flush()
 
     def _start_spinner(self):

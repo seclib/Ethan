@@ -10,43 +10,47 @@ Usage:
     print(prompt("idle"), end="")
 """
 
-import sys
 
 # ── Color Constants ────────────────────────────────────
 
+
 class C:
     """ANSI color codes (16-color terminal safe)."""
-    RESET   = "\033[0m"
-    BOLD    = "\033[1m"
-    DIM     = "\033[2m"
-    BLUE    = "\033[38;5;39m"
-    CYAN    = "\033[38;5;44m"
-    GREEN   = "\033[38;5;42m"
-    YELLOW  = "\033[38;5;220m"
-    RED     = "\033[38;5;196m"
-    PURPLE  = "\033[38;5;135m"
-    WHITE   = "\033[38;5;255m"
+
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    BLUE = "\033[38;5;39m"
+    CYAN = "\033[38;5;44m"
+    GREEN = "\033[38;5;42m"
+    YELLOW = "\033[38;5;220m"
+    RED = "\033[38;5;196m"
+    PURPLE = "\033[38;5;135m"
+    WHITE = "\033[38;5;255m"
 
 
 # ── Icon Constants ─────────────────────────────────────
 
-class I:
+
+class I:  # noqa: E742 — identité visuelle ETHAN (I = Icons), utilisée partout
     """Unicode icons for CLI output."""
-    CHECK   = "\u2713"    # ✓
-    CROSS   = "\u2717"    # ✗
-    WARN    = "\u26a0"    # ⚠
-    INFO    = "\u2139"    # ℹ
-    ARROW   = "\u2192"    # →
-    WRAP    = "\u21b3"    # ↳
-    SECTION = "\u25c6"    # ◆
+
+    CHECK = "\u2713"  # ✓
+    CROSS = "\u2717"  # ✗
+    WARN = "\u26a0"  # ⚠
+    INFO = "\u2139"  # ℹ
+    ARROW = "\u2192"  # →
+    WRAP = "\u21b3"  # ↳
+    SECTION = "\u25c6"  # ◆
     SPINNER = ["\u25d0", "\u25d3", "\u25d1", "\u25d2"]  # ◐◓◑◒
-    TIMER   = "\u23f1"    # ⏱
-    DOT     = "\u25cf"    # ●
-    CIRCL   = "\u25cb"    # ○
-    INPUT   = "\u25b8"    # ▸
+    TIMER = "\u23f1"  # ⏱
+    DOT = "\u25cf"  # ●
+    CIRCL = "\u25cb"  # ○
+    INPUT = "\u25b8"  # ▸
 
 
 # ── Formatter Functions ────────────────────────────────
+
 
 def section(title: str, subtitle: str = "") -> str:
     """Blue section header with optional subtitle."""
@@ -146,6 +150,7 @@ def progress_bar(current: int, total: int, width: int = 8) -> str:
 
 # ── Convenience ────────────────────────────────────────
 
+
 def print_section(title: str) -> None:
     """Print a section header."""
     print()
@@ -159,6 +164,7 @@ def print_error(title: str, context: str | None = None, suggestion: str | None =
 
 
 # ── Extended Output Formatting (OUTPUT_FORMATTING.md) ──
+
 
 def subheader(text: str) -> str:
     """Bold sub-header."""
@@ -221,9 +227,7 @@ def numbered_list(items: list[str], start: int = 1) -> str:
 def definition_list(pairs: dict[str, str]) -> str:
     """Key: value definition list."""
     max_key = max(len(k) for k in pairs) if pairs else 0
-    return "\n".join(
-        f"  {k.ljust(max_key)}:  {v}" for k, v in pairs.items()
-    )
+    return "\n".join(f"  {k.ljust(max_key)}:  {v}" for k, v in pairs.items())
 
 
 def timing(duration: float, timestamp: str = "") -> str:
@@ -253,8 +257,10 @@ def progress(current: int, total: int, width: int = 12, label: str = "") -> str:
 
 # ── Style facade (legacy API compatibility) ─────────────
 
+
 class style:
     """Facade regroupant les formatters pour l'API legacy `style.section()` etc."""
+
     section = staticmethod(section)
     success = staticmethod(success)
     error = staticmethod(error)

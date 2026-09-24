@@ -1,4 +1,5 @@
 """ETHAN HTTP client."""
+
 import json
 import os
 import time
@@ -35,8 +36,23 @@ class APICircuitBreaker:
     def record_success(self) -> None:
         self.failures = 0
 
+    def reset(self) -> None:
+        """Réarme explicitement le disjoncteur."""
+        self.failures = 0
+        self.last_failure = 0.0
+
 
 _circuit_breaker = APICircuitBreaker()
+
+
+def reset_circuit_breaker() -> None:
+    """Réarme le disjoncteur global.
+
+    État global : sans réarmement explicite, un pic d'échecs réseau laisse le
+    disjoncteur ouvert pour tout le reste du processus (et donc d'un test à
+    l'autre dans une session pytest).
+    """
+    _circuit_breaker.reset()
 
 
 def _validate_input(msg: str) -> None:
@@ -97,6 +113,11 @@ def send(msg, session_id=None) -> tuple[str, int]:
                     time.sleep(2**attempt)  # exponential backoff: 1s, 2s
                     continue
             break
+        except (ValueError, TypeError):
+            # Erreur de validation côté client (message vide, trop gros...) :
+            # ce n'est PAS une panne du backend, elle ne doit donc pas
+            # déclencher le disjoncteur.
+            raise
         except Exception:
             _circuit_breaker.record_failure()
             raise
