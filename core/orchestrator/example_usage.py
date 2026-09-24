@@ -3,7 +3,14 @@
 from core.capabilities import CapabilityContext, CapabilityStatus
 from core.context.intent import Intent
 from core.orchestrator import CapabilityRegistry, Executor, Observer, Planner
-from core.safety import SafetyValidator
+from core.safety import (
+    DefaultRoleRegistry,
+    DefaultSafetyChecker,
+    Effect,
+    Permission,
+    Role,
+    SafetyContext,
+)
 
 
 async def main():
@@ -29,15 +36,21 @@ async def main():
     # Normaliser via IntentRouter (ADR-1003)
     intent = await router.parse("text", user_input)
 
-    # Validation Safety
-    from core.safety import SafetyContext
-    safety_ctx = SafetyContext(
-        user_id="user_123",
-        session_id="sess_abc",
-        trace_id="trace_xyz",
-        permissions=["read", "write"],
+    # Validation Safety (API actuelle : RoleRegistry + DefaultSafetyChecker)
+    registry = DefaultRoleRegistry()
+    registry.register_role(
+        Role(
+            name="operator",
+            permissions=[
+                Permission(
+                    resource="orchestration", action="execute", effect=Effect.ALLOW
+                )
+            ],
+        )
     )
-    if not safety.validate(safety_ctx):
+    safety = DefaultSafetyChecker(registry)
+    safety_ctx = SafetyContext(user_id="user_123", roles=["operator"])
+    if not await safety.check_permission(safety_ctx, "orchestration", "execute"):
         raise Exception("Safety validation failed")
 
     # Contexte d'exécution
