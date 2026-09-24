@@ -165,6 +165,10 @@ uploads/
 # (schémas Pydantic requis par les routeurs API) — ne pas ignorer.
 !interfaces/api/models/
 !interfaces/api/models/**
+# Exception : core/security/data/ est du code source Python
+# (anti-exfiltration importé par prompt_guard/integration) — ne pas ignorer.
+!core/security/data/
+!core/security/data/**
 
 # Jarvis OS specific
 *.jarvis-env
