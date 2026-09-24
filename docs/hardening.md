@@ -224,14 +224,14 @@ Résultat : `./ethan doctor` → « Tout est opérationnel (71 PASS, 0 WARNING) 
 | P1-SEC-01 | Redis requirepass | ✅ Configuré | S1 |
 | P1-SEC-03 | Rate limiting API | ✅ Configuré (100 req/min) | S1 |
 | P1-SEC-04 | Security headers WebUI | ✅ Corrigé | S1 |
-| P1-ARCH-01 | Doublons registry | ❌ À faire | S3 |
-| P1-ARCH-03 | Manifest plugins | ❌ À faire | S2 |
-| P1-CORE-01 | Timeouts bootstrap | ❌ À faire | S3 |
-| P1-CORE-02 | Circuit breaker | ❌ À faire | S3 |
-| P1-CI-01 | Pipeline CI/CD | ❌ À faire | S4 |
-| P1-CI-02 | Tests insuffisants | ❌ À faire | S4 |
-| P1-PLUGIN-01 | Validator non intégré | ❌ À faire | S2 |
-| P1-UI-01 | Auth WebUI | ❌ À faire | S6 |
+| P1-ARCH-01 | Doublons registry | ⚠ En cours — validator migré vers le Core (shim legacy) ; `plugins/tool_registry`/`versioning` sans importeur externe → RFC dédiée | S3 |
+| P1-ARCH-03 | Manifest plugins | ✅ Manifest Core (`core/plugins/types.py`) | S2 |
+| P1-CORE-01 | Timeouts bootstrap | ✅ Retry/backoff + `CONNECT_TIMEOUT` + `DEPENDENCY_STARTUP_TIMEOUT` | S3 |
+| P1-CORE-02 | Circuit breaker | ✅ `core/safety/circuit_breaker.py` + watchdog systemd | S3 |
+| P1-CI-01 | Pipeline CI/CD | ✅ `.github/workflows/ci.yml` (lint, test, build, integration, security, release) | S4 |
+| P1-CI-02 | Tests insuffisants | ✅ Renforcé (1506 tests : boot, watchdog, doctor, validator) | S4 |
+| P1-PLUGIN-01 | Validator non intégré | ✅ Capacité migrée `core/plugins/validator.py`, intégrée à `install_custom` (rejet 422) ; CLI `plugin_cmd` importe le Core (dispatch unifié `plugin.py`/`plugin_cmd.py` = RFC Phase 4) | S2 |
+| P1-UI-01 | Auth WebUI | ✅ `(auth)/login` + middleware + JWT API (`auth_middleware`) | S6 |
 
 ---
 

@@ -22,6 +22,7 @@ from core.state.record_store import CoreRecordStore
 
 from .catalog import BUILTIN_PLUGINS, catalogue_categories, find_manifest
 from .types import STATUS_ACTIVE, STATUS_AVAILABLE, STATUS_INACTIVE, PluginManifest
+from .validator import PluginValidator
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,11 @@ class PluginRegistry:
             "permissions": [],
             "installed_at": _now(),
         }
+        # Validation intégrée (P1-PLUGIN-01) : un record invalide (name
+        # vide, id mal formaté) ne doit jamais entrer dans le domaine.
+        validation = PluginValidator().validate_manifest(record)
+        if not validation.valid:
+            raise ValueError(f"Invalid plugin: {validation.error}")
         await self._store.save(_DOMAIN, custom_id, record)
         return deepcopy(record)
 

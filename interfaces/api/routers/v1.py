@@ -1869,11 +1869,15 @@ async def get_plugin_capabilities(plugin_id: str):
 async def install_plugin(data: dict[str, Any]):
     """Compatibilité : installe par id catalogue, sinon enregistre un custom."""
     plugin_id = data.get("id")
-    if plugin_id:
-        installed = await _plugins().install(str(plugin_id))
-        if installed is not None:
-            return installed
-    return await _plugins().install_custom(str(data.get("name", "Unknown Plugin")))
+    try:
+        if plugin_id:
+            installed = await _plugins().install(str(plugin_id))
+            if installed is not None:
+                return installed
+        return await _plugins().install_custom(str(data.get("name", "Unknown Plugin")))
+    except ValueError as exc:
+        # Validation Core du manifest (PluginValidator) rejetée.
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.post("/plugins/{plugin_id}/install")

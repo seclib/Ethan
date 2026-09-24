@@ -4,10 +4,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from core.plugins.validator import PluginValidator
 from interfaces.cli.core import colors as clr
 from interfaces.cli.registry import register
 from plugins.loader import PluginLoader
-from plugins.validator import PluginValidator
 
 
 @register(

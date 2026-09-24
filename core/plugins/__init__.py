@@ -13,13 +13,14 @@ from .registry import (
     set_plugin_registry,
 )
 from .types import (
-    PluginAuthentication,
-    PluginConfigurationField,
-    PluginManifest,
     STATUS_ACTIVE,
     STATUS_AVAILABLE,
     STATUS_INACTIVE,
+    PluginAuthentication,
+    PluginConfigurationField,
+    PluginManifest,
 )
+from .validator import PluginValidator, ValidationResult
 
 __all__ = [
     "BUILTIN_PLUGINS",
@@ -27,6 +28,8 @@ __all__ = [
     "PluginConfigurationField",
     "PluginManifest",
     "PluginRegistry",
+    "PluginValidator",
+    "ValidationResult",
     "STATUS_ACTIVE",
     "STATUS_AVAILABLE",
     "STATUS_INACTIVE",
