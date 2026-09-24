@@ -173,9 +173,7 @@ class TestLoadSkillDirectorySourcePromotion:
 
         skill_dir = tmp_path / "imported-skill"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: imported-skill\ndescription: x\n---\nBody"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: imported-skill\ndescription: x\n---\nBody")
         (skill_dir / ".source").write_text(
             'source = "hermes:apple-notes"\n'
             'commit = "abc123"\n'
@@ -195,9 +193,7 @@ class TestLoadSkillDirectorySourcePromotion:
 
         skill_dir = tmp_path / "user-skill"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: user-skill\ndescription: x\n---\nBody"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: user-skill\ndescription: x\n---\nBody")
         manifest = load_skill_directory(skill_dir)
         oj = manifest.metadata.get("openjarvis", {})
         assert "source" not in oj

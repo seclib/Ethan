@@ -94,12 +94,14 @@ def test_chat_pipeline_injects_memory_facts():
         chat_store = ChatStore(store=store)
 
         # Créer un fait mémoire
-        await webui_store.create_fact({
-            "subject": "l'utilisateur",
-            "predicate": "préfère",
-            "object": "Python",
-            "category": "preference",
-        })
+        await webui_store.create_fact(
+            {
+                "subject": "l'utilisateur",
+                "predicate": "préfère",
+                "object": "Python",
+                "category": "preference",
+            }
+        )
 
         pipeline = ChatPipeline(chat_store=chat_store, memory_store=webui_store)
 

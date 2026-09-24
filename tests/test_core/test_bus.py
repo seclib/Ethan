@@ -1,10 +1,9 @@
 """Tests du EventBus (InMemoryBus)."""
 
 import asyncio
-import pytest
 
+import pytest
 from core.bus.memory_bus import InMemoryBus
-from core.bus.interface import Subscription
 from core.ethan_types.event import Event, EventType
 
 
@@ -69,7 +68,9 @@ class TestInMemoryBus:
         asyncio.run(bus.subscribe("ethan.module.*", handler))
 
         asyncio.run(bus.publish("ethan.module.planner", Event(type=EventType.PLANNER_PLAN_CREATED)))
-        asyncio.run(bus.publish("ethan.module.executive", Event(type=EventType.EXECUTIVE_GOAL_CREATED)))
+        asyncio.run(
+            bus.publish("ethan.module.executive", Event(type=EventType.EXECUTIVE_GOAL_CREATED))
+        )
         asyncio.run(bus.publish("ethan.other.thing", Event(type=EventType.SYSTEM_BOOT)))
 
         assert len(received) == 2

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import httpx
-
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._openai_compat import _OpenAICompatibleEngine
 from openjarvis.engine.ollama import OllamaEngine
@@ -102,9 +101,7 @@ class TestOpenAICompatToolCalls:
             return httpx.Response(
                 200,
                 json={
-                    "choices": [
-                        {"message": {"content": "ok"}, "finish_reason": "stop"}
-                    ],
+                    "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
                     "usage": {},
                     "model": "test",
                 },

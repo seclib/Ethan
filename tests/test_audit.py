@@ -1,11 +1,10 @@
 """Tests basiques pour le module Audit."""
 
-import pytest
 import tempfile
-import json
 from pathlib import Path
 
-from core.audit import AuditStore, AuditCategory, AuditDecision
+import pytest
+from core.audit import AuditCategory, AuditDecision, AuditStore
 
 
 @pytest.fixture

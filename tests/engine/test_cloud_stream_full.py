@@ -7,7 +7,6 @@ from typing import Any, List
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.types import Message, Role, ToolCall
 from openjarvis.engine._stubs import StreamChunk
 
@@ -395,9 +394,7 @@ def test_prepare_anthropic_messages_tool_calls():
             role=Role.ASSISTANT,
             content="Let me check.",
             tool_calls=[
-                ToolCall(
-                    id="call_1", name="get_weather", arguments='{"city": "Berlin"}'
-                ),
+                ToolCall(id="call_1", name="get_weather", arguments='{"city": "Berlin"}'),
             ],
         ),
     ]

@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -17,9 +16,7 @@ class TestConfigSet:
         config_file = tmp_path / "config.toml"
         env = {"OPENJARVIS_CONFIG": str(config_file)}
         with mock.patch.dict(os.environ, env):
-            result = CliRunner().invoke(
-                cli, ["config", "set", "engine.default", "vllm"]
-            )
+            result = CliRunner().invoke(cli, ["config", "set", "engine.default", "vllm"])
         assert result.exit_code == 0
         assert config_file.exists()
         content = config_file.read_text()
@@ -46,15 +43,11 @@ class TestConfigSet:
         """config set preserves other keys in the file."""
         config_file = tmp_path / "config.toml"
         config_file.write_text(
-            '[engine]\ndefault = "ollama"\n\n'
-            "[intelligence]\n"
-            'default_model = "qwen2.5:3b"\n'
+            '[engine]\ndefault = "ollama"\n\n[intelligence]\ndefault_model = "qwen2.5:3b"\n'
         )
         env = {"OPENJARVIS_CONFIG": str(config_file)}
         with mock.patch.dict(os.environ, env):
-            result = CliRunner().invoke(
-                cli, ["config", "set", "engine.default", "vllm"]
-            )
+            result = CliRunner().invoke(cli, ["config", "set", "engine.default", "vllm"])
         assert result.exit_code == 0
         content = config_file.read_text()
         assert "vllm" in content
@@ -115,9 +108,7 @@ class TestConfigSet:
         config_file.write_text("")
         env = {"OPENJARVIS_CONFIG": str(config_file)}
         with mock.patch.dict(os.environ, env):
-            result = CliRunner().invoke(
-                cli, ["config", "set", "intelligence.max_tokens", "2048"]
-            )
+            result = CliRunner().invoke(cli, ["config", "set", "intelligence.max_tokens", "2048"])
         assert result.exit_code == 0
         content = config_file.read_text()
         assert "2048" in content
@@ -128,9 +119,7 @@ class TestConfigSet:
         config_file.write_text("")
         env = {"OPENJARVIS_CONFIG": str(config_file)}
         with mock.patch.dict(os.environ, env):
-            result = CliRunner().invoke(
-                cli, ["config", "set", "intelligence.temperature", "0.9"]
-            )
+            result = CliRunner().invoke(cli, ["config", "set", "intelligence.temperature", "0.9"])
         assert result.exit_code == 0
         content = config_file.read_text()
         assert "0.9" in content
@@ -146,9 +135,7 @@ class TestConfigSet:
         config_file.write_text("")
         env = {"OPENJARVIS_CONFIG": str(config_file)}
         with mock.patch.dict(os.environ, env):
-            result = CliRunner().invoke(
-                cli, ["config", "set", "engine.default", "vllm"]
-            )
+            result = CliRunner().invoke(cli, ["config", "set", "engine.default", "vllm"])
         assert result.exit_code == 0
         assert "Set" in result.output
         assert "engine.default" in result.output

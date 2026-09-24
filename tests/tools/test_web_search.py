@@ -118,9 +118,7 @@ class TestWebSearchTool:
     def test_execute_duckduckgo_fallback_format(self, monkeypatch):
         """DuckDuckGo fallback returns properly formatted results."""
         mock_tavily_module = MagicMock()
-        mock_tavily_module.TavilyClient.side_effect = ImportError(
-            "No module named 'tavily'"
-        )
+        mock_tavily_module.TavilyClient.side_effect = ImportError("No module named 'tavily'")
         monkeypatch.setitem(sys.modules, "tavily", mock_tavily_module)
 
         mock_ddgs = MagicMock()
@@ -170,9 +168,7 @@ class TestWebSearchTool:
 
         tool = WebSearchTool(api_key="test-key", max_results=3)
         tool.execute(query="test", max_results=7)
-        mock_client.search.assert_called_once_with(
-            "test", max_results=7, search_depth="advanced"
-        )
+        mock_client.search.assert_called_once_with("test", max_results=7, search_depth="advanced")
 
     def test_to_openai_function(self):
         tool = WebSearchTool(api_key="test-key")
@@ -332,9 +328,7 @@ class TestUrlDetection:
         assert WebSearchTool._is_url("") is False
 
     def test_extract_url_from_text(self):
-        url = WebSearchTool._extract_url(
-            "Summarize this: https://example.com/page please"
-        )
+        url = WebSearchTool._extract_url("Summarize this: https://example.com/page please")
         assert url == "https://example.com/page"
 
     def test_extract_url_none_when_absent(self):
@@ -345,9 +339,7 @@ class TestUrlDetection:
         assert url == "https://example.com/page"
 
     def test_extract_url_from_complex_text(self):
-        url = WebSearchTool._extract_url(
-            "Read https://arxiv.org/abs/2310.03714 and summarize"
-        )
+        url = WebSearchTool._extract_url("Read https://arxiv.org/abs/2310.03714 and summarize")
         assert url == "https://arxiv.org/abs/2310.03714"
 
 

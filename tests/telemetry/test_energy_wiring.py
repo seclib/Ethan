@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.config import JarvisConfig
 from openjarvis.core.events import EventBus, EventType
@@ -481,9 +480,7 @@ class TestInstrumentedEngineEnergy:
 
         assert result["content"] == "Test response"
         # Verify energy data is in the telemetry record
-        tel_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        tel_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         assert len(tel_events) == 1
         rec = tel_events[0].data["record"]
         assert rec.energy_joules == pytest.approx(42.5)

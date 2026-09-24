@@ -1,4 +1,5 @@
 """Integration tests for timeout scenarios."""
+
 from __future__ import annotations
 
 import time
@@ -11,8 +12,9 @@ class TestClientTimeout:
     """Timeout handling in HTTP client operations."""
 
     def test_send_timeout(self) -> None:
-        from cli.core.client import send
         from urllib.error import URLError
+
+        from cli.core.client import send
 
         def _timeout(*_args, **_kwargs):
             raise URLError("timed out")
@@ -22,8 +24,9 @@ class TestClientTimeout:
                 send("Hello")
 
     def test_alive_timeout(self) -> None:
-        from cli.core.client import alive
         from urllib.error import URLError
+
+        from cli.core.client import alive
 
         def _timeout(*_args, **_kwargs):
             raise URLError("timed out")
@@ -32,8 +35,9 @@ class TestClientTimeout:
             assert alive() is False
 
     def test_get_state_timeout(self) -> None:
-        from cli.core.client import get_state
         from urllib.error import URLError
+
+        from cli.core.client import get_state
 
         def _timeout(*_args, **_kwargs):
             raise URLError("timed out")
@@ -46,8 +50,9 @@ class TestDaemonTimeout:
     """Timeout handling in daemon state fetching."""
 
     def test_fetch_state_timeout(self) -> None:
-        from cli.core.daemon import _fetch_state
         from urllib.error import URLError
+
+        from cli.core.daemon import _fetch_state
 
         def _timeout(*_args, **_kwargs):
             raise URLError("timed out")
@@ -71,14 +76,16 @@ class TestTimeoutErrorFormatting:
     """Timeout error formatting tests."""
 
     def test_timeout_error_constructor(self) -> None:
-        from cli.core.errors import timeout, EthanError
+        from cli.core.errors import EthanError, timeout
+
         err = timeout(10)
         assert isinstance(err, EthanError)
         assert err.code == "SYS-002"
         assert "10s" in err.title or "10" in err.title
 
     def test_timeout_error_format(self) -> None:
-        from cli.core.errors import timeout, format_error
+        from cli.core.errors import format_error, timeout
+
         err = timeout(30)
         result = format_error(err)
         assert "SYS-002" in result
@@ -86,6 +93,7 @@ class TestTimeoutErrorFormatting:
 
     def test_configurable_timeout(self) -> None:
         from cli.core.config import get
+
         timeout_val = get("api.timeout")
         assert timeout_val == 10
 
@@ -95,6 +103,7 @@ class TestStreamingTimeout:
 
     def test_streaming_no_block(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start()
         streamer.write("fast response")

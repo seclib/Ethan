@@ -7,7 +7,6 @@ from typing import List
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.connectors.retriever import ColBERTReranker, Reranker, TwoStageRetriever
 from openjarvis.connectors.store import KnowledgeStore
 from openjarvis.tools.storage._stubs import RetrievalResult

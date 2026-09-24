@@ -11,9 +11,7 @@ from unittest.mock import MagicMock
 from openjarvis.learning.spec_search.diagnose.types import DiagnosticTool
 
 
-def _make_tool(
-    name: str = "test_tool", return_value: str = "tool result"
-) -> DiagnosticTool:
+def _make_tool(name: str = "test_tool", return_value: str = "tool result") -> DiagnosticTool:
     """Create a minimal diagnostic tool for testing."""
     return DiagnosticTool(
         name=name,
@@ -72,9 +70,7 @@ class TestTeacherAgentNoTools:
         )
 
         engine = MagicMock()
-        engine.generate.return_value = _make_engine_response(
-            content="Done", cost_usd=0.05
-        )
+        engine.generate.return_value = _make_engine_response(content="Done", cost_usd=0.05)
 
         agent = TeacherAgent(
             engine=engine,

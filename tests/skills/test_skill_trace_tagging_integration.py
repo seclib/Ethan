@@ -50,9 +50,7 @@ class TestSkillTraceTaggingEndToEnd:
         # Build a ToolExecutor that knows about the SkillTool, with the bus
         tool_executor = ToolExecutor([skill_tool], bus=bus)
         # Invoke through the executor (this is what the agent would do)
-        tool_executor.execute(
-            ToolCall(id="t1", name="skill_research-skill", arguments="{}")
-        )
+        tool_executor.execute(ToolCall(id="t1", name="skill_research-skill", arguments="{}"))
 
         # Now the published TOOL_CALL_END event should carry the metadata
         assert captured_metadata.get("skill") == "research-skill"
@@ -174,9 +172,7 @@ class TestEventMetadataIsJsonSafe:
 
         # And the internal _taint key must NOT be present (it would have
         # been the offender if json.dumps had failed)
-        assert "_taint" not in captured, (
-            f"_taint key leaked into event metadata: {captured!r}"
-        )
+        assert "_taint" not in captured, f"_taint key leaked into event metadata: {captured!r}"
 
     def test_skill_metadata_still_present_after_filtering(self):
         """The JSON-safe filter must NOT drop legitimate skill metadata."""

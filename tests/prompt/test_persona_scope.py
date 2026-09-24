@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from openjarvis.core.config import MemoryFilesConfig
 from openjarvis.prompt.builder import SystemPromptBuilder
 

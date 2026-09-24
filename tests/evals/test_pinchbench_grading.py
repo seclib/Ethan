@@ -93,9 +93,7 @@ def grade(transcript, workspace_path):
 
 class TestParseJudgeResponse:
     def test_json_code_block(self):
-        raw = (
-            '```json\n{"scores": {"quality": 0.8}, "total": 0.8, "notes": "good"}\n```'
-        )
+        raw = '```json\n{"scores": {"quality": 0.8}, "total": 0.8, "notes": "good"}\n```'
         parsed = _parse_judge_response(raw)
         assert parsed["total"] == 0.8
         assert parsed["scores"]["quality"] == 0.8
@@ -148,14 +146,10 @@ class TestGradeRouter:
     def test_routes_automated(self, tmp_path):
         code = 'def grade(t, w): return {"ok": 1.0}'
         record = _make_record(grading_type="automated", automated_checks=code)
-        result = grade_pinchbench_task(
-            record=record, transcript=[], workspace_path=str(tmp_path)
-        )
+        result = grade_pinchbench_task(record=record, transcript=[], workspace_path=str(tmp_path))
         assert result["score"] == 1.0
 
     def test_unknown_type(self, tmp_path):
         record = _make_record(grading_type="unknown")
-        result = grade_pinchbench_task(
-            record=record, transcript=[], workspace_path=str(tmp_path)
-        )
+        result = grade_pinchbench_task(record=record, transcript=[], workspace_path=str(tmp_path))
         assert result["score"] == 0.0

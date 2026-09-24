@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.registry import CompressionRegistry
 from openjarvis.core.types import Message, Role
 
@@ -40,9 +39,7 @@ def test_rule_based_strips_tool_boilerplate():
     compressor = RuleBasedPrecompression()
     long_snippet = "x" * 5000
     tool_output = (
-        '{"results": [{"title": "Result 1",'
-        f' "snippet": "A very long snippet {long_snippet}"'
-        "}]}"
+        f'{{"results": [{{"title": "Result 1", "snippet": "A very long snippet {long_snippet}"}}]}}'
     )
     msgs = [
         Message(role=Role.ASSISTANT, content="Let me search."),

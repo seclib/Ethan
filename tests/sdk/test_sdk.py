@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import openjarvis
+import pytest
 from openjarvis.core.config import JarvisConfig
 from openjarvis.sdk import Jarvis, MemoryHandle
 

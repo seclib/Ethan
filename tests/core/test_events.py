@@ -7,10 +7,9 @@ Migration vers l'architecture reconstruite :
 """
 
 import asyncio
-
-import pytest
 from datetime import datetime
 
+import pytest
 from core.events import Event, EventBus, EventHandler, EventType
 
 
@@ -251,4 +250,3 @@ class TestEventTypes:
     def test_event_type_is_string(self):
         """Test that EventType is a string enum."""
         assert isinstance(EventType.SYSTEM_BOOT, str)
-

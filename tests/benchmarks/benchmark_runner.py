@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import json
-import time
-import math
-import shlex
-import subprocess
 import platform
-from dataclasses import dataclass, field, asdict
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
-
 
 BENCH_DIR = Path(__file__).parent
 RESULTS_DIR = BENCH_DIR / "results"
@@ -24,6 +19,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 @dataclass
 class BenchmarkMetric:
     """A single metric measurement."""
+
     name: str
     value: float
     unit: str
@@ -42,6 +38,7 @@ class BenchmarkMetric:
 @dataclass
 class BenchmarkResult:
     """Result of a single benchmark run."""
+
     group: str
     name: str
     metrics: list[BenchmarkMetric] = field(default_factory=list)
@@ -49,8 +46,14 @@ class BenchmarkResult:
     errors: int = 0
     duration_ms: float = 0.0
 
-    def add_metric(self, name: str, value: float, unit: str = "ms",
-                   warn: float | None = None, fail: float | None = None) -> None:
+    def add_metric(
+        self,
+        name: str,
+        value: float,
+        unit: str = "ms",
+        warn: float | None = None,
+        fail: float | None = None,
+    ) -> None:
         self.metrics.append(BenchmarkMetric(name, value, unit, warn, fail))
 
     @property
@@ -76,6 +79,7 @@ class BenchmarkResult:
 @dataclass
 class BenchmarkReport:
     """Complete benchmark report."""
+
     timestamp: str = ""
     commit: str = ""
     branch: str = ""
@@ -100,8 +104,7 @@ class BenchmarkReport:
     def _get_git_commit() -> str:
         try:
             result = subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"],
-                capture_output=True, text=True, timeout=5
+                ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=5
             )
             return result.stdout.strip() or "unknown"
         except Exception:
@@ -112,7 +115,9 @@ class BenchmarkReport:
         try:
             result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             return result.stdout.strip() or "unknown"
         except Exception:
@@ -176,36 +181,38 @@ class BenchmarkReport:
         path = Path(path)
 
         lines = [
-            f"# ETHAN CLI Benchmark Report",
-            f"",
+            "# ETHAN CLI Benchmark Report",
+            "",
             f"**Date:** {self.timestamp}",
             f"**Commit:** {self.commit}",
             f"**Branch:** {self.branch}",
             f"**Python:** {self.python_version}",
             f"**Platform:** {self.platform}",
-            f"",
-            f"## Summary",
-            f"",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "",
+            "## Summary",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Overall Score | {self.overall_score:.1f}/100 |",
             f"| Total Duration | {self.total_duration_ms:.1f} ms |",
             f"| Benchmarks Run | {len(self.results)} |",
             f"| Failures | {self.total_failures} |",
             f"| Warnings | {self.total_warnings} |",
-            f"",
+            "",
         ]
 
         for result in self.results:
-            lines.extend([
-                f"## {result.group}: {result.name}",
-                f"",
-                f"Score: {result.score:.1f}/100 | Samples: {result.samples} | "
-                f"Duration: {result.duration_ms:.1f}ms",
-                f"",
-                f"| Metric | Value | Status |",
-                f"|--------|-------|--------|",
-            ])
+            lines.extend(
+                [
+                    f"## {result.group}: {result.name}",
+                    "",
+                    f"Score: {result.score:.1f}/100 | Samples: {result.samples} | "
+                    f"Duration: {result.duration_ms:.1f}ms",
+                    "",
+                    "| Metric | Value | Status |",
+                    "|--------|-------|--------|",
+                ]
+            )
             for m in result.metrics:
                 status_icon = {"PASS": "✓", "WARN": "⚠", "FAIL": "✗"}.get(m.status, "?")
                 value_str = f"{m.value:.1f} {m.unit}" if m.value else f"{m.value} {m.unit}"
@@ -261,18 +268,23 @@ class BenchmarkRunner:
 
         if group == "cold":
             from .cold_start import ColdStartBenchmark
+
             results = ColdStartBenchmark().run()
         elif group == "commands":
             from .commands import CommandsBenchmark
+
             results = CommandsBenchmark().run()
         elif group == "api":
             from .api_latency import APILatencyBenchmark
+
             results = APILatencyBenchmark().run()
         elif group == "daemon":
             from .daemon import DaemonBenchmark
+
             results = DaemonBenchmark().run()
         elif group == "streaming":
             from .streaming import StreamingBenchmark
+
             results = StreamingBenchmark().run()
         else:
             return
@@ -284,15 +296,17 @@ class BenchmarkRunner:
         r = self.report
 
         print()
-        print(f"\033[38;5;39m◆\033[0m  Benchmark Report")
+        print("\033[38;5;39m◆\033[0m  Benchmark Report")
         print(f"  Commit: {r.commit}  |  Branch: {r.branch}")
         print(f"  Python: {r.python_version.split()[0]}")
         print(f"  Platform: {r.platform}")
         print()
-        print(f"  \033[38;5;44mScore: {r.overall_score:.0f}/100\033[0m"
-              f"  |  Duration: {r.total_duration_ms:.0f}ms"
-              f"  |  Failures: {r.total_failures}"
-              f"  |  Warnings: {r.total_warnings}")
+        print(
+            f"  \033[38;5;44mScore: {r.overall_score:.0f}/100\033[0m"
+            f"  |  Duration: {r.total_duration_ms:.0f}ms"
+            f"  |  Failures: {r.total_failures}"
+            f"  |  Warnings: {r.total_warnings}"
+        )
         print()
 
         for result in r.results:
@@ -302,9 +316,11 @@ class BenchmarkRunner:
             print(status_line)
 
             for m in result.metrics:
-                status_icon = {"PASS": "\033[38;5;42m✓\033[0m",
-                               "WARN": "\033[38;5;220m⚠\033[0m",
-                               "FAIL": "\033[38;5;196m✗\033[0m"}.get(m.status, "?")
+                status_icon = {
+                    "PASS": "\033[38;5;42m✓\033[0m",
+                    "WARN": "\033[38;5;220m⚠\033[0m",
+                    "FAIL": "\033[38;5;196m✗\033[0m",
+                }.get(m.status, "?")
                 val = f"{m.value:.1f} {m.unit}" if m.value else f"{m.value} {m.unit}"
                 print(f"    {status_icon} {m.name}: {val}")
             print()

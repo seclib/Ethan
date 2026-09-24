@@ -15,21 +15,18 @@ import io
 import zipfile
 
 import pytest
-
 from core.rag.extractors import extract_text
 from core.rag.pipeline import RAGPipeline
 from core.rag.vector_store import InMemoryVectorStore, create_vector_store
 from core.state import CoreRecordStore
 
-
 # ── Extracteurs PDF / DOCX ───────────────────────────────────────────────────
+
 
 def _docx_bytes(paragraphs: list[str]) -> bytes:
     """Construit un DOCX minimal (OOXML) avec les paragraphes donnés."""
     W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-    body = "".join(
-        f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in paragraphs
-    )
+    body = "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in paragraphs)
     xml = f'<w:document xmlns:w="{W}"><w:body>{body}</w:body></w:document>'
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as archive:
@@ -53,10 +50,10 @@ def test_extract_docx_invalid_archive():
 
 
 def test_extract_text_passthrough_and_dispatch():
-    """Les fichiers texte ne passent pas par l'extraction ; le dispatch
-    se fait aussi sur le content_type."""
-    assert extract_text(b"plain text", filename="notes.txt") == ""
-    assert extract_text(b"plain text", content_type="text/plain") == ""
+    """Les fichiers texte sont décodés UTF-8 sans extraction binaire ; le
+    dispatch binaire (PDF/DOCX) se fait aussi sur le content_type."""
+    assert extract_text(b"plain text", filename="notes.txt") == "plain text"
+    assert extract_text(b"plain text", content_type="text/plain") == "plain text"
     # Dispatch DOCX par content_type même sans extension
     raw = _docx_bytes(["Par content-type"])
     assert "Par content-type" in extract_text(
@@ -72,6 +69,7 @@ def test_extract_pdf_unsupported_raises():
 
 
 # ── Vector store pluggable ───────────────────────────────────────────────────
+
 
 def test_vector_store_factory_memory_and_errors():
     """La fabrique retourne memory par défaut et échoue proprement sinon."""
@@ -103,7 +101,9 @@ def test_inmemory_vector_store_search_filter_delete():
         hits = await store.search([1.0, 0.0], top_k=5)
         assert [cid for cid, _ in hits] == ["c2"]
 
+
 # ── Pipeline : configuration, persistance, scoping, purge ───────────────────
+
 
 def _pipeline() -> RAGPipeline:
     return RAGPipeline(store=CoreRecordStore())
@@ -154,6 +154,7 @@ def test_pipeline_rejects_invalid_config():
 
     asyncio.run(scenario())
 
+
 def test_pipeline_document_scoping_and_persistence():
     """retrieve(document_ids=…) restreint la recherche ; les documents
     persistent et la suppression purge catalogue + index."""
@@ -184,4 +185,3 @@ def test_pipeline_document_scoping_and_persistence():
         assert all(c.chunk.document_id != d1.id for c in remaining)
 
     asyncio.run(scenario())
-

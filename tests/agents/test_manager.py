@@ -118,12 +118,8 @@ class TestChannelBindings:
 
     def test_list_bindings(self, manager):
         agent = manager.create_agent(name="slacker", agent_type="simple")
-        manager.bind_channel(
-            agent["id"], channel_type="slack", config={"channel": "#a"}
-        )
-        manager.bind_channel(
-            agent["id"], channel_type="telegram", config={"chat_id": "123"}
-        )
+        manager.bind_channel(agent["id"], channel_type="slack", config={"channel": "#a"})
+        manager.bind_channel(agent["id"], channel_type="telegram", config={"chat_id": "123"})
         bindings = manager.list_channel_bindings(agent["id"])
         assert len(bindings) == 2
 
@@ -268,9 +264,7 @@ class TestMessageQueue:
                 "latency": 4.5,
             },
         ]
-        manager.store_agent_response(
-            agent["id"], "Here is what I found", tool_calls=tool_calls
-        )
+        manager.store_agent_response(agent["id"], "Here is what I found", tool_calls=tool_calls)
         messages = manager.list_messages(agent["id"])
         assert len(messages) == 1
         assert messages[0]["content"] == "Here is what I found"

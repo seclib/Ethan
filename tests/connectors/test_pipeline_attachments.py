@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from openjarvis.connectors._stubs import Attachment, Document
 from openjarvis.connectors.attachment_store import AttachmentStore
 from openjarvis.connectors.pipeline import IngestionPipeline
@@ -62,9 +61,7 @@ def pipeline(store: KnowledgeStore, att_store: AttachmentStore) -> IngestionPipe
 # ---------------------------------------------------------------------------
 
 
-def test_plain_text_attachment_indexed(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_plain_text_attachment_indexed(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """Ingesting a doc with a text/plain attachment indexes the attachment text."""
     att_text = b"Deep learning quarterly report: model accuracy improved by 15%."
     att = Attachment(
@@ -102,9 +99,7 @@ def test_plain_text_attachment_indexed(
 # ---------------------------------------------------------------------------
 
 
-def test_attachment_blob_stored(
-    pipeline: IngestionPipeline, att_store: AttachmentStore
-) -> None:
+def test_attachment_blob_stored(pipeline: IngestionPipeline, att_store: AttachmentStore) -> None:
     """The raw bytes of an attachment are persisted in the AttachmentStore."""
     att_content = b"Confidential: merger details enclosed."
     att = Attachment(
@@ -141,9 +136,7 @@ def test_attachment_blob_stored(
 # ---------------------------------------------------------------------------
 
 
-def test_no_attachments_no_regression(
-    store: KnowledgeStore, att_store: AttachmentStore
-) -> None:
+def test_no_attachments_no_regression(store: KnowledgeStore, att_store: AttachmentStore) -> None:
     """Pipeline with attachment_store handles docs without attachments correctly."""
     pipeline = IngestionPipeline(store, attachment_store=att_store)
 

@@ -79,22 +79,24 @@ def _build_executor(provider, *, skills=None):
         domain_manager=domains,
     )
     return executor, domains, collections, rag
+
+
 def test_executor_injects_domain_skills_and_collections():
     """Les skills et collections rattachés aux domains de l'agent sont injectés."""
 
     async def scenario():
         provider = _FakeProvider()
-        skill_store = _FakeSkillStore({
-            "skill-osint": {
-                "id": "skill-osint",
-                "name": "OSINT Basics",
-                "content": "Toujours sourcer les infos avant analyse.",
-                "is_active": True,
-            },
-        })
-        executor, domains, collections, rag = _build_executor(
-            provider, skills=skill_store
+        skill_store = _FakeSkillStore(
+            {
+                "skill-osint": {
+                    "id": "skill-osint",
+                    "name": "OSINT Basics",
+                    "content": "Toujours sourcer les infos avant analyse.",
+                    "is_active": True,
+                },
+            }
         )
+        executor, domains, collections, rag = _build_executor(provider, skills=skill_store)
 
         # Domain réel + ressources réellement rattachées (membership Core).
         domain = await domains.create_domain("OSINT", user_id="alice")
@@ -122,6 +124,7 @@ def test_executor_injects_domain_skills_and_collections():
         assert "Recon passive" in system
 
     asyncio.run(scenario())
+
 
 def test_executor_merges_agent_and_domain_collections_without_duplicates():
     """Les collections agent + domain fusionnent, dédupliquées, sans conflit."""
@@ -162,20 +165,22 @@ def test_executor_skill_id_override_beats_domain_skills():
 
     async def scenario():
         provider = _FakeProvider()
-        skill_store = _FakeSkillStore({
-            "skill-a": {
-                "id": "skill-a",
-                "name": "A",
-                "content": "Contenu A",
-                "is_active": True,
-            },
-            "skill-b": {
-                "id": "skill-b",
-                "name": "B",
-                "content": "Contenu B",
-                "is_active": True,
-            },
-        })
+        skill_store = _FakeSkillStore(
+            {
+                "skill-a": {
+                    "id": "skill-a",
+                    "name": "A",
+                    "content": "Contenu A",
+                    "is_active": True,
+                },
+                "skill-b": {
+                    "id": "skill-b",
+                    "name": "B",
+                    "content": "Contenu B",
+                    "is_active": True,
+                },
+            }
+        )
         executor, domains, _c, _s = _build_executor(provider, skills=skill_store)
 
         domain = await domains.create_domain("Forensic", user_id="alice")
@@ -205,9 +210,7 @@ def test_executor_ignores_ghost_domain_gracefully():
         executor, domains, _c, _s = _build_executor(provider)
 
         domain = await domains.create_domain("Ephemeral", user_id="alice")
-        agent = Agent(
-            id="a4", name="Ghost Agent", provider="fake", domain_ids=[domain["id"]]
-        )
+        agent = Agent(id="a4", name="Ghost Agent", provider="fake", domain_ids=[domain["id"]])
         await domains.delete_domain(domain["id"])
 
         result = await executor(agent, "Tâche")

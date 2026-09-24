@@ -8,9 +8,8 @@ import sys
 from pathlib import Path
 from unittest import mock
 
-from click.testing import CliRunner
-
 import openjarvis
+from click.testing import CliRunner
 from openjarvis.cli import cli, main
 
 
@@ -30,12 +29,8 @@ class TestMainEntryPoint:
             mock.patch("openjarvis.cli.cli") as cli_mock,
         ):
             main()
-        stdout_mock.reconfigure.assert_called_once_with(
-            encoding="utf-8", errors="replace"
-        )
-        stderr_mock.reconfigure.assert_called_once_with(
-            encoding="utf-8", errors="replace"
-        )
+        stdout_mock.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+        stderr_mock.reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
         cli_mock.assert_called_once()
 
     def test_non_windows_does_not_reconfigure(self) -> None:
@@ -130,9 +125,7 @@ class TestCLI:
             mock.patch("openjarvis.cli.init_cmd.DEFAULT_CONFIG_PATH", config_path),
             mock.patch("openjarvis.cli.init_cmd.PrivacyScanner"),
         ):
-            result = CliRunner().invoke(
-                cli, ["init", "--engine", "ollama", "--no-download"]
-            )
+            result = CliRunner().invoke(cli, ["init", "--engine", "ollama", "--no-download"])
         assert result.exit_code == 0
         assert config_path.exists()
         content = config_path.read_text()
@@ -156,9 +149,7 @@ class TestStartupResilience:
             "assert not leaked, leaked; "
             "print('numpy-free')"
         )
-        result = subprocess.run(
-            [sys.executable, "-c", code], capture_output=True, text=True
-        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
         assert result.returncode == 0, (
             "importing openjarvis.cli pulled in numpy (a broken numpy would then "
             f"crash `jarvis serve`):\nstdout={result.stdout}\nstderr={result.stderr}"

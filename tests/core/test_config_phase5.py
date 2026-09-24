@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.config import JarvisConfig, load_config
 from openjarvis.core.registry import BenchmarkRegistry
 

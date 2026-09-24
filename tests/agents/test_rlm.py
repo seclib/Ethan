@@ -237,9 +237,7 @@ class TestRLMSubLMCalls:
         # Third call: root LM gets REPL output, returns final (no code)
         engine.generate.side_effect = [
             {
-                "content": (
-                    "```python\nresult = llm_query('What is 2+2?')\nFINAL(result)\n```"
-                ),
+                "content": ("```python\nresult = llm_query('What is 2+2?')\nFINAL(result)\n```"),
                 "usage": {
                     "prompt_tokens": 5,
                     "completion_tokens": 10,
@@ -368,9 +366,7 @@ class TestRLMSubLMWithTools:
         engine.generate.side_effect = [
             # Root LM: code that calls llm_query
             {
-                "content": (
-                    "```python\nresult = llm_query('Calculate 2+2')\nFINAL(result)\n```"
-                ),
+                "content": ("```python\nresult = llm_query('Calculate 2+2')\nFINAL(result)\n```"),
                 "usage": {
                     "prompt_tokens": 5,
                     "completion_tokens": 10,
@@ -441,8 +437,7 @@ class TestRLMDirectToolBridge:
         assert result.content == "read ok"
         assert any(tr.tool_name == "file_read" for tr in result.tool_results)
         assert any(
-            tr.tool_name == "rlm_repl" and "members" in tr.content
-            for tr in result.tool_results
+            tr.tool_name == "rlm_repl" and "members" in tr.content for tr in result.tool_results
         )
 
     def test_root_repl_can_use_bounded_read_helper(self):
@@ -451,10 +446,7 @@ class TestRLMDirectToolBridge:
         engine.generate.side_effect = [
             {
                 "content": (
-                    "```python\n"
-                    'snippet = read_file("long.txt", max_lines=2)\n'
-                    "FINAL(snippet)\n"
-                    "```"
+                    '```python\nsnippet = read_file("long.txt", max_lines=2)\nFINAL(snippet)\n```'
                 ),
                 "usage": {
                     "prompt_tokens": 5,
@@ -476,10 +468,7 @@ class TestRLMDirectToolBridge:
         engine.generate.side_effect = [
             {
                 "content": (
-                    "```python\n"
-                    'snippet = read_file_chunk("long.txt", 2, 4)\n'
-                    "FINAL(snippet)\n"
-                    "```"
+                    '```python\nsnippet = read_file_chunk("long.txt", 2, 4)\nFINAL(snippet)\n```'
                 ),
                 "usage": {
                     "prompt_tokens": 5,

@@ -31,8 +31,7 @@ def _create_fake_notes_db(db_path: Path) -> None:
     """)
     content = gzip.compress(b"Test note about meetings")
     conn.execute(
-        "INSERT INTO ZICCLOUDSYNCINGOBJECT VALUES "
-        "(1, NULL, 'Test Note', 694310400.0, 'n1', 1)"
+        "INSERT INTO ZICCLOUDSYNCINGOBJECT VALUES (1, NULL, 'Test Note', 694310400.0, 'n1', 1)"
     )
     conn.execute("INSERT INTO ZICNOTEDATA VALUES (1, ?, 1)", (content,))
     conn.commit()
@@ -57,9 +56,7 @@ def _create_fake_imessage_db(db_path: Path) -> None:
     conn.execute("INSERT INTO handle VALUES (1, '+15551234567')")
     conn.execute("INSERT INTO chat VALUES (1, '+15551234567', 'Test Chat')")
     conn.execute("INSERT INTO chat_message_join VALUES (1, 1)")
-    conn.execute(
-        "INSERT INTO message VALUES (1, 'Hello from test', 1, 694310400000000000, 0)"
-    )
+    conn.execute("INSERT INTO message VALUES (1, 'Hello from test', 1, 694310400000000000, 0)")
     conn.commit()
     conn.close()
 

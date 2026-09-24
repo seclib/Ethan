@@ -1,16 +1,16 @@
 """Tests — Capability Pipeline (ADR-1006)"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from core.capabilities import CapabilityContext, CapabilityResult, CapabilityStatus
 from core.orchestrator.executor import Executor
 from core.orchestrator.pipeline import (
     CapabilityPipeline,
-    SequentialStep,
-    ParallelStep,
     ConditionalStep,
+    ParallelStep,
     RetryStep,
+    SequentialStep,
 )
 from core.orchestrator.registry import CapabilityRegistry
 
@@ -71,7 +71,7 @@ class TestCapabilityPipeline:
     def test_then_adds_sequential_step(self, pipeline):
         """Test adding sequential step."""
         pipeline.then("test_cap", arg1="value1")
-        
+
         assert len(pipeline.steps) == 1
         assert isinstance(pipeline.steps[0], SequentialStep)
         assert pipeline.steps[0].capability == "test_cap"
@@ -85,7 +85,7 @@ class TestCapabilityPipeline:
     def test_parallel_adds_parallel_step(self, pipeline):
         """Test adding parallel steps."""
         pipeline.parallel("cap1", "cap2", "cap3")
-        
+
         assert len(pipeline.steps) == 1
         assert isinstance(pipeline.steps[0], ParallelStep)
         assert pipeline.steps[0].capabilities == ["cap1", "cap2", "cap3"]
@@ -94,9 +94,9 @@ class TestCapabilityPipeline:
         """Test adding conditional branch."""
         true_branch = CapabilityPipeline(pipeline.executor)
         false_branch = CapabilityPipeline(pipeline.executor)
-        
+
         pipeline.branch("condition", true_branch, false_branch)
-        
+
         assert len(pipeline.steps) == 1
         assert isinstance(pipeline.steps[0], ConditionalStep)
         assert pipeline.steps[0].condition == "condition"
@@ -106,9 +106,9 @@ class TestCapabilityPipeline:
     def test_branch_without_false_branch(self, pipeline):
         """Test conditional branch with only true branch."""
         true_branch = CapabilityPipeline(pipeline.executor)
-        
+
         pipeline.branch("condition", true_branch)
-        
+
         assert len(pipeline.steps) == 1
         assert isinstance(pipeline.steps[0], ConditionalStep)
         assert pipeline.steps[0].false_branch is not None
@@ -117,7 +117,7 @@ class TestCapabilityPipeline:
         """Test retry wrapper."""
         pipeline.then("cap1")
         pipeline.retry(max_attempts=5)
-        
+
         assert len(pipeline.steps) == 1
         assert isinstance(pipeline.steps[0], RetryStep)
         assert pipeline.steps[0].max_attempts == 5
@@ -133,15 +133,17 @@ class TestPipelineExecution:
     """Tests for pipeline execution."""
 
     @pytest.mark.asyncio
-    async def test_execute_sequential(self, pipeline, mock_executor, sample_context, success_result):
+    async def test_execute_sequential(
+        self, pipeline, mock_executor, sample_context, success_result
+    ):
         """Test sequential execution."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         pipeline.then("cap1", arg1="val1")
         pipeline.then("cap2", arg2="val2")
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 2
         assert mock_executor.run.call_count == 2
         mock_executor.run.assert_any_call("cap1", sample_context, arg1="val1")
@@ -151,50 +153,54 @@ class TestPipelineExecution:
     async def test_execute_parallel(self, pipeline, mock_executor, sample_context, success_result):
         """Test parallel execution."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         pipeline.parallel("cap1", "cap2", "cap3")
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 3
         assert mock_executor.run.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_execute_conditional_true(self, pipeline, mock_executor, sample_context, success_result):
+    async def test_execute_conditional_true(
+        self, pipeline, mock_executor, sample_context, success_result
+    ):
         """Test conditional execution - true branch."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         true_branch = CapabilityPipeline(mock_executor)
         true_branch.then("true_cap")
         false_branch = CapabilityPipeline(mock_executor)
         false_branch.then("false_cap")
-        
+
         # Set condition in metadata to trigger true branch
         sample_context.metadata["condition"] = True
-        
+
         pipeline.branch("condition", true_branch, false_branch)
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         # Should execute true branch only
         assert len(results) == 1
         mock_executor.run.assert_called_once_with("true_cap", sample_context)
 
     @pytest.mark.asyncio
-    async def test_execute_conditional_false(self, pipeline, mock_executor, sample_context, success_result):
+    async def test_execute_conditional_false(
+        self, pipeline, mock_executor, sample_context, success_result
+    ):
         """Test conditional execution - false branch."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         true_branch = CapabilityPipeline(mock_executor)
         true_branch.then("true_cap")
         false_branch = CapabilityPipeline(mock_executor)
         false_branch.then("false_cap")
-        
+
         # Condition not in metadata - should execute false branch
         pipeline.branch("condition", true_branch, false_branch)
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         # Should execute false branch only
         assert len(results) == 1
         mock_executor.run.assert_called_once_with("false_cap", sample_context)
@@ -205,11 +211,11 @@ class TestPipelineExecution:
     ):
         """Test retry - success on first attempt."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         pipeline.then("cap1").retry(max_attempts=3)
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 1
         assert mock_executor.run.call_count == 1
 
@@ -219,40 +225,42 @@ class TestPipelineExecution:
     ):
         """Test retry - success after failures."""
         # Fail twice, then succeed
-        mock_executor.run = AsyncMock(
-            side_effect=[failed_result, failed_result, success_result]
-        )
-        
+        mock_executor.run = AsyncMock(side_effect=[failed_result, failed_result, success_result])
+
         pipeline.then("cap1").retry(max_attempts=3)
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 1
         assert mock_executor.run.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_execute_retry_exhausted(self, pipeline, mock_executor, sample_context, failed_result):
+    async def test_execute_retry_exhausted(
+        self, pipeline, mock_executor, sample_context, failed_result
+    ):
         """Test retry - all attempts fail."""
         mock_executor.run = AsyncMock(return_value=failed_result)
-        
+
         pipeline.then("cap1").retry(max_attempts=2)
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 1
         assert mock_executor.run.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_execute_mixed_steps(self, pipeline, mock_executor, sample_context, success_result):
+    async def test_execute_mixed_steps(
+        self, pipeline, mock_executor, sample_context, success_result
+    ):
         """Test mixed sequential and parallel steps."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         pipeline.then("cap1")
         pipeline.parallel("cap2", "cap3")
         pipeline.then("cap4")
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         assert len(results) == 4  # 1 + 2 + 1
         assert mock_executor.run.call_count == 4
 
@@ -264,35 +272,30 @@ class TestPipelineIntegration:
     async def test_complex_workflow(self, mock_executor, sample_context, success_result):
         """Test complex workflow with multiple step types."""
         mock_executor.run = AsyncMock(return_value=success_result)
-        
+
         pipeline = CapabilityPipeline(mock_executor)
-        
+
         # Build complex workflow
         pipeline.then("validate", data="test")
         pipeline.parallel("check_auth", "check_quota")
-        
+
         # Conditional branch
         true_branch = CapabilityPipeline(mock_executor)
         true_branch.then("process_premium")
         false_branch = CapabilityPipeline(mock_executor)
         false_branch.then("process_standard")
         pipeline.branch("is_premium", true_branch, false_branch)
-        
+
         pipeline.then("finalize")
-        
+
         results = await pipeline.execute(sample_context)
-        
+
         # Should execute: validate, check_auth, check_quota, process_standard (false), finalize
         assert len(results) == 5
 
     def test_pipeline_chaining(self, pipeline):
         """Test fluent API chaining."""
-        result = (
-            pipeline.then("cap1")
-            .then("cap2")
-            .parallel("cap3", "cap4")
-            .then("cap5")
-        )
-        
+        result = pipeline.then("cap1").then("cap2").parallel("cap3", "cap4").then("cap5")
+
         assert result is pipeline
         assert len(pipeline.steps) == 4

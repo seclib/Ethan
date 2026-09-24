@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.mining import Sidecar
 
@@ -38,10 +37,7 @@ def test_mine_models_lists_validated_and_planned_models() -> None:
 def test_pearl_base_model_lookup_uses_public_pearl_ai_artifacts():
     from openjarvis.mining._models import pearl_variant_for_base_model
 
-    assert (
-        pearl_variant_for_base_model("google/gemma-4-31B-it")
-        == "pearl-ai/Gemma-4-31B-it-pearl"
-    )
+    assert pearl_variant_for_base_model("google/gemma-4-31B-it") == "pearl-ai/Gemma-4-31B-it-pearl"
     assert pearl_variant_for_base_model("Qwen/Qwen3.5-9B") is None
     assert pearl_variant_for_base_model("google/gemma-4-E4B-it") is None
 
@@ -343,9 +339,7 @@ def test_mine_status_reports_sidecar_and_metrics(tmp_path: Path, monkeypatch) ->
     assert "3" in result.output
 
 
-def test_mine_stop_terminates_pids_and_removes_sidecar(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_mine_stop_terminates_pids_and_removes_sidecar(tmp_path: Path, monkeypatch) -> None:
     sidecar_path = tmp_path / "mining.json"
     Sidecar.write(
         sidecar_path,
@@ -395,9 +389,7 @@ def test_mine_status_no_session(tmp_path: Path, monkeypatch) -> None:
     assert "No active mining session" in result.output
 
 
-def test_mine_validate_model_blocks_planned_without_allow(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_mine_validate_model_blocks_planned_without_allow(tmp_path: Path, monkeypatch) -> None:
     sidecar_path = tmp_path / "mining.json"
     model = "pearl-ai/Gemma-4-31B-it-pearl"
     Sidecar.write(
@@ -528,9 +520,7 @@ def test_mine_validate_model_writes_json_artifact(tmp_path: Path, monkeypatch) -
     }
 
 
-def test_mine_validate_model_falls_back_to_vllm_metrics(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_mine_validate_model_falls_back_to_vllm_metrics(tmp_path: Path, monkeypatch) -> None:
     sidecar_path = tmp_path / "mining.json"
     model = "pearl-ai/Llama-3.3-70B-Instruct-pearl"
     Sidecar.write(

@@ -39,9 +39,7 @@ class TestBuildSystemPrompt:
         assert "FINAL_ANSWER:" in prompt
 
     def test_includes_guide_sections(self):
-        prompt = build_system_prompt(
-            ["calculator", "think", "code_interpreter", "web_search"]
-        )
+        prompt = build_system_prompt(["calculator", "think", "code_interpreter", "web_search"])
         assert "MATH PROBLEMS:" in prompt
         assert "CODING TASKS:" in prompt
         assert "REASONING/LOGIC:" in prompt

@@ -118,6 +118,7 @@ def scim_manager():
 
 # ── ChatStore ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_chat_store_create_and_get(chat_store):
     chat = await chat_store.create_chat("Test Chat", user_id="user-1")
@@ -158,9 +159,7 @@ async def test_chat_store_add_and_list_messages(chat_store):
 @pytest.mark.asyncio
 async def test_chat_store_update_and_delete(chat_store):
     chat = await chat_store.create_chat("Test Chat")
-    updated = await chat_store.update_chat(
-        chat["id"], {"title": "Updated", "pinned": True}
-    )
+    updated = await chat_store.update_chat(chat["id"], {"title": "Updated", "pinned": True})
     assert updated["title"] == "Updated"
     assert updated["pinned"] is True
 
@@ -176,6 +175,7 @@ async def test_chat_store_share(chat_store):
 
 
 # ── FileStore ──────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_file_store_register_and_get(file_store):
@@ -200,6 +200,7 @@ async def test_file_store_list_and_delete(file_store):
 
 
 # ── UserManager ────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_user_manager_create_and_get(user_manager):
@@ -234,6 +235,7 @@ async def test_user_manager_update_and_delete(user_manager):
 
 # ── GroupManager ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_group_manager_create_and_members(group_manager):
     group = await group_manager.create("admins", "Admin group")
@@ -251,6 +253,7 @@ async def test_group_manager_create_and_members(group_manager):
 
 # ── ChannelStore ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_channel_store_create_and_messages(channel_store):
     channel = await channel_store.create_channel("general", user_id="user-1")
@@ -267,11 +270,10 @@ async def test_channel_store_create_and_messages(channel_store):
 
 # ── NoteStore ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_note_store_create_and_search(note_store):
-    note = await note_store.create(
-        "My Note", "This is a test note", user_id="user-1", pinned=True
-    )
+    note = await note_store.create("My Note", "This is a test note", user_id="user-1", pinned=True)
     assert note["title"] == "My Note"
     assert note["pinned"] is True
 
@@ -281,6 +283,7 @@ async def test_note_store_create_and_search(note_store):
 
 
 # ── AutomationManager ──────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_automation_manager_create_and_trigger(automation_manager):
@@ -298,6 +301,7 @@ async def test_automation_manager_create_and_trigger(automation_manager):
 
 # ── CalendarManager ────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_calendar_manager_create_and_list(calendar_manager):
     event = await calendar_manager.create("Team Meeting", "2026-08-12T09:00:00Z")
@@ -308,6 +312,7 @@ async def test_calendar_manager_create_and_list(calendar_manager):
 
 
 # ── ToolServerManager ──────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_tool_server_manager_register_and_list(tool_server_manager):
@@ -321,11 +326,10 @@ async def test_tool_server_manager_register_and_list(tool_server_manager):
 
 # ── ToolManager ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_tool_manager_create_custom_tool_and_pipeline(tool_manager):
-    tool = await tool_manager.create_tool(
-        "greet", "Say hello", {"name": {"type": "string"}}
-    )
+    tool = await tool_manager.create_tool("greet", "Say hello", {"name": {"type": "string"}})
     assert tool.name == "greet"
     assert tool.provider == "custom"
 
@@ -337,6 +341,7 @@ async def test_tool_manager_create_custom_tool_and_pipeline(tool_manager):
 
 
 # ── TTSEngine ──────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_tts_engine_configure_and_get(tts_engine):
@@ -350,6 +355,7 @@ async def test_tts_engine_configure_and_get(tts_engine):
 
 # ── ImageGenerator ─────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_image_generator_configure_and_get(image_generator):
     config = await image_generator.configure("openai", model="dall-e-3")
@@ -361,6 +367,7 @@ async def test_image_generator_configure_and_get(image_generator):
 
 
 # ── EvaluationManager ──────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_evaluation_manager_create_and_add_result(evaluation_manager):
@@ -375,11 +382,17 @@ async def test_evaluation_manager_create_and_add_result(evaluation_manager):
 
 # ── AnalyticsManager ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_analytics_manager_record_and_summary(analytics_manager):
     await analytics_manager.record_event(
-        "llm_call", user_id="user-1", provider="openai", model="gpt-4",
-        tokens_in=100, tokens_out=50, cost=0.005,
+        "llm_call",
+        user_id="user-1",
+        provider="openai",
+        model="gpt-4",
+        tokens_in=100,
+        tokens_out=50,
+        cost=0.005,
     )
     summary = await analytics_manager.get_usage_summary(user_id="user-1")
     assert summary["total_tokens"] == 150
@@ -388,10 +401,13 @@ async def test_analytics_manager_record_and_summary(analytics_manager):
 
 # ── OAuthManager ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_oauth_manager_register_and_list(oauth_manager):
     provider = await oauth_manager.register_provider(
-        "google", "client-id", "secret",
+        "google",
+        "client-id",
+        "secret",
         "https://accounts.google.com/o/oauth2/auth",
         "https://oauth2.googleapis.com/token",
         "https://openidconnect.googleapis.com/v1/userinfo",
@@ -404,6 +420,7 @@ async def test_oauth_manager_register_and_list(oauth_manager):
 
 
 # ── LDAPManager ────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_ldap_manager_configure_and_get(ldap_manager):
@@ -422,6 +439,7 @@ async def test_ldap_manager_configure_and_get(ldap_manager):
 
 # ── APIKeyManager ──────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_api_key_manager_create_and_validate(api_key_manager):
     result = await api_key_manager.create_key("user-1", "My Key")
@@ -437,6 +455,7 @@ async def test_api_key_manager_create_and_validate(api_key_manager):
 
 
 # ── SCIMManager ────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_scim_manager_configure_and_get(scim_manager):

@@ -9,9 +9,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.agents.errors import RetryableError
 from openjarvis.core.events import EventType
+
 from tests.agents.scenario_harness import ScenarioHarness
 
 # ---------------------------------------------------------------------------
@@ -153,9 +153,7 @@ def test_queued_message_delivery(scenario_harness: ScenarioHarness) -> None:
 
     # Engine should have been called with messages in the prompt
     assert h.engine.last_messages is not None
-    prompt_text = " ".join(
-        str(getattr(m, "content", m)) for m in h.engine.last_messages
-    )
+    prompt_text = " ".join(str(getattr(m, "content", m)) for m in h.engine.last_messages)
     assert "Message one" in prompt_text
     assert "Message two" in prompt_text
     assert "Message three" in prompt_text
@@ -326,9 +324,7 @@ def test_stall_detection_and_recovery(scenario_harness: ScenarioHarness) -> None
     assert agent["stall_retries"] == 1
 
     # Verify stall event was published
-    stall_events = [
-        e for e in h.bus.history if e.event_type == EventType.AGENT_STALL_DETECTED
-    ]
+    stall_events = [e for e in h.bus.history if e.event_type == EventType.AGENT_STALL_DETECTED]
     assert len(stall_events) >= 1
     assert stall_events[0].data["agent_id"] == aid
 
@@ -527,9 +523,7 @@ def test_memory_persistence_across_ticks(scenario_harness: ScenarioHarness) -> N
 
     # The engine should have received the tick-1 summary in its prompt
     assert h.engine.last_messages is not None
-    prompt_text = " ".join(
-        str(getattr(m, "content", m)) for m in h.engine.last_messages
-    )
+    prompt_text = " ".join(str(getattr(m, "content", m)) for m in h.engine.last_messages)
     assert "Findings from tick one." in prompt_text
 
     # Tick 2 summary should now be stored

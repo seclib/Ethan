@@ -7,11 +7,11 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.gmail import GmailChannel
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import ChannelRegistry
+
 from tests.channels.channel_test_helpers import make_common_channel_tests
 
 
@@ -101,9 +101,7 @@ class TestSend:
     def test_gmail_send_exception_returns_false(self):
         ch = GmailChannel()
         mock_service = MagicMock()
-        mock_service.users().messages().send().execute.side_effect = RuntimeError(
-            "API error"
-        )
+        mock_service.users().messages().send().execute.side_effect = RuntimeError("API error")
         ch._service = mock_service
         ch._status = ChannelStatus.CONNECTED
 

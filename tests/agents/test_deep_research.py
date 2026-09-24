@@ -6,7 +6,6 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents._stubs import AgentResult
 from openjarvis.agents.deep_research import DeepResearchAgent
 from openjarvis.connectors.store import KnowledgeStore

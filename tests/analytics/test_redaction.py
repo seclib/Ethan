@@ -14,7 +14,6 @@ this file as well.
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.analytics.events import (
     REGISTRY,
     known_event_names,
@@ -124,11 +123,7 @@ def test_redact_keeps_safe_values() -> None:
 
 
 def test_redact_drops_pii_strings() -> None:
-    _jwt = (
-        "eyJhbGciOiJIUzI1NiJ9"
-        ".eyJzdWIiOiIxMjM0In0"
-        ".dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
-    )
+    _jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
     cleaned = redact(
         {
             "ok": "chat",

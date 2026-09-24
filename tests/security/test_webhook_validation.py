@@ -14,9 +14,7 @@ class TestTwilioValidationFailClosed:
         pytest.importorskip("fastapi")
         from openjarvis.server.webhook_routes import _validate_twilio_signature
 
-        with patch.dict(
-            "sys.modules", {"twilio": None, "twilio.request_validator": None}
-        ):
+        with patch.dict("sys.modules", {"twilio": None, "twilio.request_validator": None}):
             result = _validate_twilio_signature(
                 auth_token="test_token",
                 url="https://example.com/webhooks/twilio",

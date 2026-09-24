@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -67,17 +66,13 @@ class TestCliInstallE2E:
                     )
 
                 with patch.object(_SI, "__init__", patched_init):
-                    result = CliRunner().invoke(
-                        cli, ["skill", "install", "hermes:research-skill"]
-                    )
+                    result = CliRunner().invoke(cli, ["skill", "install", "hermes:research-skill"])
 
         assert result.exit_code == 0, result.output
         assert "Installed" in result.output
 
         installed = target / "hermes" / "research-skill" / "SKILL.md"
-        assert installed.exists(), (
-            f"Expected {installed} to exist; output:\n{result.output}"
-        )
+        assert installed.exists(), f"Expected {installed} to exist; output:\n{result.output}"
         body = installed.read_text()
         assert "shell_exec" in body
         assert "file_read" in body

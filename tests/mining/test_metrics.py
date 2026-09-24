@@ -45,8 +45,7 @@ def test_parse_vllm_metrics_reports_runtime_uptime():
     from openjarvis.mining._metrics import parse_vllm_metrics
 
     stats = parse_vllm_metrics(
-        "process_start_time_seconds 1\n"
-        'vllm:request_success_total{finished_reason="stop"} 1\n',
+        'process_start_time_seconds 1\nvllm:request_success_total{finished_reason="stop"} 1\n',
         provider_id="vllm-pearl",
     )
     assert stats.provider_id == "vllm-pearl"

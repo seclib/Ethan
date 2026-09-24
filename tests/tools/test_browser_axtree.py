@@ -84,9 +84,7 @@ class TestBrowserAXTreeTool:
 
     def test_playwright_not_installed(self) -> None:
         session = MagicMock()
-        type(session).page = PropertyMock(
-            side_effect=ImportError("playwright not installed")
-        )
+        type(session).page = PropertyMock(side_effect=ImportError("playwright not installed"))
         with patch("openjarvis.tools.browser_axtree._session", session):
             tool = BrowserAXTreeTool()
             result = tool.execute()

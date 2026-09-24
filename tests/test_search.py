@@ -25,12 +25,24 @@ def search_manager_with_mocks():
 class MockKnowledgeManager:
     async def search(self, query, limit=20):
         return [
-            {"id": "n1", "label": "Test Node", "content": "test content", "source": "src", "node_type": "note", "created_at": "2024-01-01"},
+            {
+                "id": "n1",
+                "label": "Test Node",
+                "content": "test content",
+                "source": "src",
+                "node_type": "note",
+                "created_at": "2024-01-01",
+            },
         ]
 
     async def list_collections(self):
         return [
-            {"id": "c1", "name": "Test Collection", "description": "A test collection", "document_ids": ["d1", "d2"]},
+            {
+                "id": "c1",
+                "name": "Test Collection",
+                "description": "A test collection",
+                "document_ids": ["d1", "d2"],
+            },
         ]
 
 
@@ -44,14 +56,23 @@ class MockChatStore:
         @staticmethod
         async def list(domain):
             return [
-                {"id": "msg1", "content": "test message", "chat_id": "chat1", "created_at": "2024-01-01"},
+                {
+                    "id": "msg1",
+                    "content": "test message",
+                    "chat_id": "chat1",
+                    "created_at": "2024-01-01",
+                },
             ]
 
 
 class MockRAGPipeline:
     async def retrieve(self, query, top_k=10):
         return [
-            {"chunk": {"id": "ch1", "content": "test chunk"}, "document_title": "Doc", "score": 0.9},
+            {
+                "chunk": {"id": "ch1", "content": "test chunk"},
+                "document_title": "Doc",
+                "score": 0.9,
+            },
         ]
 
 

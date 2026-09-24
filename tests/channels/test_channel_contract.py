@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import importlib
 
-import pytest
-
 import openjarvis.channels  # noqa: F401 — trigger registration
+import pytest
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.core.registry import ChannelRegistry
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.learning.intelligence.orchestrator.types import (
     Episode,
     EpisodeState,
@@ -18,9 +17,7 @@ from openjarvis.learning.intelligence.orchestrator.types import (
 
 class TestOrchestratorAction:
     def test_create(self):
-        a = OrchestratorAction(
-            thought="use calc", tool_name="calculator", tool_input="2+2"
-        )
+        a = OrchestratorAction(thought="use calc", tool_name="calculator", tool_input="2+2")
         assert a.thought == "use calc"
         assert a.tool_name == "calculator"
         assert a.tool_input == "2+2"
@@ -66,9 +63,7 @@ class TestEpisode:
             initial_prompt="What is 2+2?",
             ground_truth="4",
         )
-        action = OrchestratorAction(
-            thought="calc", tool_name="calculator", tool_input="2+2"
-        )
+        action = OrchestratorAction(thought="calc", tool_name="calculator", tool_input="2+2")
         obs = OrchestratorObservation(
             content="4",
             latency_seconds=0.5,
@@ -91,12 +86,8 @@ class TestEpisode:
 
     def test_add_step_max_power(self):
         ep = self._make_episode()
-        action2 = OrchestratorAction(
-            thought="again", tool_name="calc", tool_input="3+3"
-        )
-        obs2 = OrchestratorObservation(
-            content="6", power_watts=200.0, energy_joules=5.0
-        )
+        action2 = OrchestratorAction(thought="again", tool_name="calc", tool_input="3+3")
+        obs2 = OrchestratorObservation(content="6", power_watts=200.0, energy_joules=5.0)
         ep.add_step(action2, obs2)
         assert ep.max_power_watts == 200.0
         assert ep.total_energy_joules == 15.0
@@ -172,9 +163,7 @@ class TestEpisodeState:
             tool_input="1+1",
             is_final_answer=True,
         )
-        obs = OrchestratorObservation(
-            content="2", latency_seconds=1.0, energy_joules=5.0
-        )
+        obs = OrchestratorObservation(content="2", latency_seconds=1.0, energy_joules=5.0)
         state.add_turn(action, obs)
         ep = state.to_episode(task_id="t1", ground_truth="2", correct=True)
         assert ep.task_id == "t1"

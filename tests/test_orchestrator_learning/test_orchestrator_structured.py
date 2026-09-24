@@ -170,9 +170,7 @@ class TestParseStructuredResponse:
         assert parsed["final_answer"] == ""
 
     def test_parse_final_answer(self):
-        parsed = OrchestratorAgent._parse_structured_response(
-            "THOUGHT: done\nFINAL_ANSWER: 42"
-        )
+        parsed = OrchestratorAgent._parse_structured_response("THOUGHT: done\nFINAL_ANSWER: 42")
         assert parsed["final_answer"] == "42"
         assert parsed["thought"] == "done"
 

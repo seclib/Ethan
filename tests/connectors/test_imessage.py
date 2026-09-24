@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import List
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 

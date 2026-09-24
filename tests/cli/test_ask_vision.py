@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.config import JarvisConfig
 from openjarvis.core.types import Role
@@ -70,9 +69,7 @@ def _patch_ask(monkeypatch, tmp_path: Path, *, engine_name: str) -> _RecordingEn
     engine = _RecordingEngine()
     monkeypatch.setattr(_ask_mod, "get_engine", lambda *a, **kw: (engine_name, engine))
     monkeypatch.setattr(_ask_mod, "discover_engines", lambda c: [(engine_name, engine)])
-    monkeypatch.setattr(
-        _ask_mod, "discover_models", lambda e: {engine_name: ["test-model"]}
-    )
+    monkeypatch.setattr(_ask_mod, "discover_models", lambda e: {engine_name: ["test-model"]})
     return engine
 
 

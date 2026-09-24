@@ -1,7 +1,8 @@
 """Command matrix tests — smoke test all commands."""
+
 import pytest
 
-from cli.registry import discover_commands, COMMANDS
+from cli.registry import COMMANDS, discover_commands
 
 
 class TestCommandMatrix:
@@ -15,9 +16,20 @@ class TestCommandMatrix:
     def test_all_commands_registered(self):
         """All expected commands should be registered."""
         expected_commands = [
-            "chat", "status", "logs", "memory", "suggest",
-            "daemon", "service", "plugin", "plugins", "config",
-            "hello", "weather", "think", "run",
+            "chat",
+            "status",
+            "logs",
+            "memory",
+            "suggest",
+            "daemon",
+            "service",
+            "plugin",
+            "plugins",
+            "config",
+            "hello",
+            "weather",
+            "think",
+            "run",
         ]
 
         for cmd in expected_commands:
@@ -34,7 +46,6 @@ class TestCommandMatrix:
 
     def test_no_circular_imports(self):
         """Commands should not have circular imports."""
-        import importlib
         import sys
 
         # Clear modules to force reimport
@@ -44,7 +55,9 @@ class TestCommandMatrix:
 
         # Re-import should work without circular import errors
         try:
-            from cli.registry import discover_commands, COMMANDS
+            from cli.registry import COMMANDS, discover_commands
+
+            assert COMMANDS is not None, "COMMANDS registry should be importable"
             discover_commands()
         except ImportError as e:
             pytest.fail(f"Circular import detected: {e}")
@@ -62,4 +75,4 @@ class TestCommandMatrix:
             except Exception:
                 pass  # OK for smoke test
 
-        assert len(bad_returns) == 0, f"Commands with bad return types:\n" + "\n".join(bad_returns)
+        assert len(bad_returns) == 0, "Commands with bad return types:\n" + "\n".join(bad_returns)

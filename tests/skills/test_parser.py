@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.skills.parser import SkillParseError, SkillParser
 
 
@@ -57,9 +56,7 @@ class TestStrictNamingRules:
 
     def test_valid_kebab_name_accepted(self):
         parser = SkillParser()
-        manifest = parser.parse_frontmatter(
-            {"name": "my-skill-123", "description": "x"}
-        )
+        manifest = parser.parse_frontmatter({"name": "my-skill-123", "description": "x"})
         assert manifest.name == "my-skill-123"
 
 

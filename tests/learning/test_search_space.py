@@ -430,9 +430,7 @@ class TestToPromptDescription:
             "Tools",
             "Learning",
         ):
-            assert f"## {primitive}" in desc, (
-                f"Primitive header {primitive} not in description"
-            )
+            assert f"## {primitive}" in desc, f"Primitive header {primitive} not in description"
 
     def test_constraints_in_description(self) -> None:
         desc = DEFAULT_SEARCH_SPACE.to_prompt_description()

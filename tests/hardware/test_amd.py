@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.core.config import (
     GpuInfo,
     HardwareInfo,
@@ -95,12 +94,7 @@ class TestAMDDetection:
                 "GPU[3] : vram Total Memory (B): 206158430208\n"
                 "GPU[3] : vram Total Used Memory (B): 0"
             ),
-            (
-                "GPU[0] : Info line\n"
-                "GPU[1] : Info line\n"
-                "GPU[2] : Info line\n"
-                "GPU[3] : Info line"
-            ),
+            ("GPU[0] : Info line\nGPU[1] : Info line\nGPU[2] : Info line\nGPU[3] : Info line"),
         ],
     )
     def test_amd_multi_gpu_count(self, mock_run, mock_which):

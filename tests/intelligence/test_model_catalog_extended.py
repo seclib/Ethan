@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.registry import ModelRegistry
 from openjarvis.core.types import ModelSpec
 from openjarvis.intelligence.model_catalog import (
@@ -267,9 +266,7 @@ class TestModelDiscovery:
         """Every local model has at least one supported engine."""
         for spec in BUILTIN_MODELS:
             if not spec.requires_api_key:
-                assert len(spec.supported_engines) >= 1, (
-                    f"{spec.model_id} has no supported engines"
-                )
+                assert len(spec.supported_engines) >= 1, f"{spec.model_id} has no supported engines"
 
     def test_cloud_models_require_api_key(self) -> None:
         """All cloud models have requires_api_key=True."""
@@ -290,9 +287,7 @@ class TestModelDiscovery:
         }
         for spec in BUILTIN_MODELS:
             if spec.model_id in cloud_ids:
-                assert spec.requires_api_key is True, (
-                    f"{spec.model_id} should require API key"
-                )
+                assert spec.requires_api_key is True, f"{spec.model_id} should require API key"
 
     def test_moe_models_have_active_params(self) -> None:
         """MoE models have active_parameter_count_b set."""

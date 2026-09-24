@@ -37,15 +37,13 @@ def test_converter_quantizes_linear_weights_and_writes_pearl_config(
     save_file(
         {
             "model.embed_tokens.weight": torch.ones(4, 4, dtype=torch.bfloat16),
-            "model.embed_tokens_per_layer.weight": torch.full(
-                (4, 4), 2, dtype=torch.bfloat16
+            "model.embed_tokens_per_layer.weight": torch.full((4, 4), 2, dtype=torch.bfloat16),
+            "model.layers.0.self_attn.q_proj.weight": torch.arange(16, dtype=torch.float32).reshape(
+                4, 4
             ),
-            "model.layers.0.self_attn.q_proj.weight": torch.arange(
-                16, dtype=torch.float32
-            ).reshape(4, 4),
-            "model.layers.0.self_attn.o_proj.weight": torch.arange(
-                16, dtype=torch.float32
-            ).reshape(4, 4),
+            "model.layers.0.self_attn.o_proj.weight": torch.arange(16, dtype=torch.float32).reshape(
+                4, 4
+            ),
             "model.layers.0.input_layernorm.weight": torch.ones(4),
         },
         src / "model.safetensors",
@@ -73,10 +71,7 @@ def test_converter_quantizes_linear_weights_and_writes_pearl_config(
 
     config = json.loads((out / "config.json").read_text())
     assert config["quantization_config"]["quant_method"] == "pearl"
-    assert (
-        config["quantization_config"]["config_groups"]["group_1"]["weights"]["num_bits"]
-        == 7
-    )
+    assert config["quantization_config"]["config_groups"]["group_1"]["weights"]["num_bits"] == 7
     assert "re:.*visual.*" in config["quantization_config"]["ignore"]
     assert "re:.*embed_tokens_per_layer$" in config["quantization_config"]["ignore"]
     index = json.loads((out / "model.safetensors.index.json").read_text())

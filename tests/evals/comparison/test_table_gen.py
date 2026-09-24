@@ -264,7 +264,6 @@ class TestTableBuilderRegistry:
 class TestTableGenCLI:
     def test_cli_writes_fragment_and_preview(self, tmp_path: Path) -> None:
         from click.testing import CliRunner
-
         from openjarvis.evals.comparison.table_gen import main
 
         results_dir = tmp_path / "results"

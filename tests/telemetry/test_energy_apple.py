@@ -171,6 +171,4 @@ class TestSampleUninitialized:
         assert result.gpu_energy_joules >= 0.0
         assert result.dram_energy_joules >= 0.0
         assert result.ane_energy_joules >= 0.0
-        assert_sample_result_basics(
-            result, vendor="apple", energy_method="cpu_time_estimate"
-        )
+        assert_sample_result_basics(result, vendor="apple", energy_method="cpu_time_estimate")

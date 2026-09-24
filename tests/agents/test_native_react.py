@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents._stubs import AgentContext
 from openjarvis.agents.native_react import NativeReActAgent
 from openjarvis.core.events import EventBus, EventType
@@ -139,11 +138,7 @@ class TestNativeReActParsing:
 
     def test_parse_multiline_thought(self):
         parse = self._parser()
-        text = (
-            "Thought: First I need to think.\n"
-            "Then consider options.\n"
-            "Final Answer: done"
-        )
+        text = "Thought: First I need to think.\nThen consider options.\nFinal Answer: done"
         result = parse(text)
         assert result["final_answer"] == "done"
 
@@ -225,8 +220,7 @@ class TestNativeReActAgent:
         engine.engine_id = "mock"
         engine.generate.side_effect = [
             _engine_response(
-                "Thought: Calculate.\nAction: calculator\n"
-                'Action Input: {"expression": "3*7"}'
+                'Thought: Calculate.\nAction: calculator\nAction Input: {"expression": "3*7"}'
             ),
             _engine_response("Thought: Done.\nFinal Answer: 21"),
         ]
@@ -241,16 +235,13 @@ class TestNativeReActAgent:
         engine.engine_id = "mock"
         engine.generate.side_effect = [
             _engine_response(
-                "Thought: Step 1.\nAction: calculator\n"
-                'Action Input: {"expression": "1+1"}'
+                'Thought: Step 1.\nAction: calculator\nAction Input: {"expression": "1+1"}'
             ),
             _engine_response(
-                "Thought: Step 2.\nAction: calculator\n"
-                'Action Input: {"expression": "2+2"}'
+                'Thought: Step 2.\nAction: calculator\nAction Input: {"expression": "2+2"}'
             ),
             _engine_response(
-                "Thought: Step 3.\nAction: think\n"
-                'Action Input: {"thought": "combining results"}'
+                'Thought: Step 3.\nAction: think\nAction Input: {"thought": "combining results"}'
             ),
             _engine_response("Thought: All done.\nFinal Answer: Complete."),
         ]
@@ -269,8 +260,7 @@ class TestNativeReActAgent:
         engine = MagicMock()
         engine.engine_id = "mock"
         engine.generate.return_value = _engine_response(
-            "Thought: Keep going.\nAction: calculator\n"
-            'Action Input: {"expression": "1+1"}'
+            'Thought: Keep going.\nAction: calculator\nAction Input: {"expression": "1+1"}'
         )
         agent = NativeReActAgent(
             engine,
@@ -288,12 +278,8 @@ class TestNativeReActAgent:
         engine = MagicMock()
         engine.engine_id = "mock"
         engine.generate.side_effect = [
-            _engine_response(
-                "Thought: Use a tool.\nAction: nonexistent\nAction Input: {}"
-            ),
-            _engine_response(
-                "Thought: Error occurred.\nFinal Answer: Could not run tool."
-            ),
+            _engine_response("Thought: Use a tool.\nAction: nonexistent\nAction Input: {}"),
+            _engine_response("Thought: Error occurred.\nFinal Answer: Could not run tool."),
         ]
         agent = NativeReActAgent(engine, "test-model", tools=[_CalculatorStub()])
         result = agent.run("Do something")
@@ -306,9 +292,7 @@ class TestNativeReActAgent:
         bus = EventBus(record_history=True)
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Quick.\nFinal Answer: Done."
-        )
+        engine.generate.return_value = _engine_response("Thought: Quick.\nFinal Answer: Done.")
         agent = NativeReActAgent(engine, "test-model", bus=bus)
         agent.run("Hello")
         event_types = [e.event_type for e in bus.history]
@@ -322,8 +306,7 @@ class TestNativeReActAgent:
         engine.engine_id = "mock"
         engine.generate.side_effect = [
             _engine_response(
-                "Thought: Calc.\nAction: calculator\n"
-                'Action Input: {"expression": "1+1"}'
+                'Thought: Calc.\nAction: calculator\nAction Input: {"expression": "1+1"}'
             ),
             _engine_response("Thought: Done.\nFinal Answer: 2"),
         ]
@@ -342,9 +325,7 @@ class TestNativeReActAgent:
         """Pass AgentContext with conversation history."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Simple.\nFinal Answer: Hi!"
-        )
+        engine.generate.return_value = _engine_response("Thought: Simple.\nFinal Answer: Hi!")
         conv = Conversation()
         conv.add(Message(role=Role.USER, content="Previous message"))
         conv.add(Message(role=Role.ASSISTANT, content="Previous response"))
@@ -382,9 +363,7 @@ class TestNativeReActAgent:
         """Agent runs correctly without an event bus."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Easy.\nFinal Answer: Works!"
-        )
+        engine.generate.return_value = _engine_response("Thought: Easy.\nFinal Answer: Works!")
         agent = NativeReActAgent(engine, "test-model")
         result = agent.run("Hello")
         assert result.content == "Works!"
@@ -405,8 +384,7 @@ class TestNativeReActAgent:
         engine.engine_id = "mock"
         engine.generate.side_effect = [
             _engine_response(
-                "Thought: Calc.\nAction: calculator\n"
-                'Action Input: {"expression": "5+5"}'
+                'Thought: Calc.\nAction: calculator\nAction Input: {"expression": "5+5"}'
             ),
             _engine_response("Thought: Got it.\nFinal Answer: 10"),
         ]
@@ -425,9 +403,7 @@ class TestNativeReActAgent:
         """System prompt should list available tool names."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Done.\nFinal Answer: ok"
-        )
+        engine.generate.return_value = _engine_response("Thought: Done.\nFinal Answer: ok")
         agent = NativeReActAgent(
             engine,
             "test-model",
@@ -444,9 +420,7 @@ class TestNativeReActAgent:
         """System prompt should say 'No tools available.' when no tools."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: No tools.\nFinal Answer: ok"
-        )
+        engine.generate.return_value = _engine_response("Thought: No tools.\nFinal Answer: ok")
         agent = NativeReActAgent(engine, "test-model")
         agent.run("Hello")
         call_args = engine.generate.call_args
@@ -475,14 +449,10 @@ class TestNativeReActAgent:
         bus = EventBus(record_history=True)
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Quick.\nFinal Answer: Hi"
-        )
+        engine.generate.return_value = _engine_response("Thought: Quick.\nFinal Answer: Hi")
         agent = NativeReActAgent(engine, "test-model", bus=bus)
         agent.run("test input")
-        start_events = [
-            e for e in bus.history if e.event_type == EventType.AGENT_TURN_START
-        ]
+        start_events = [e for e in bus.history if e.event_type == EventType.AGENT_TURN_START]
         assert len(start_events) == 1
         assert start_events[0].data["agent"] == "native_react"
         assert start_events[0].data["input"] == "test input"
@@ -491,9 +461,7 @@ class TestNativeReActAgent:
         """System prompt should include parameter schemas, not just names."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Thought: Done.\nFinal Answer: ok"
-        )
+        engine.generate.return_value = _engine_response("Thought: Done.\nFinal Answer: ok")
         agent = NativeReActAgent(
             engine,
             "test-model",
@@ -537,9 +505,7 @@ def test_native_react_with_different_models(model):
     """NativeReActAgent works with different model names."""
     engine = MagicMock()
     engine.engine_id = "mock"
-    engine.generate.return_value = _engine_response(
-        "Thought: Responding.\nFinal Answer: Hello!"
-    )
+    engine.generate.return_value = _engine_response("Thought: Responding.\nFinal Answer: Hello!")
     agent = NativeReActAgent(engine, model)
     result = agent.run("Hello")
     assert result.content == "Hello!"

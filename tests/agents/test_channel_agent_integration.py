@@ -89,10 +89,7 @@ _DOCS = [
         doc_id="gcal-001",
         source="gcalendar",
         doc_type="event",
-        content=(
-            "Team sync meeting scheduled for Monday at 10am."
-            " Attendees: alice, bob, carol."
-        ),
+        content=("Team sync meeting scheduled for Monday at 10am. Attendees: alice, bob, carol."),
         title="Team Sync",
         author="alice",
     ),
@@ -188,9 +185,7 @@ def test_quick_query_inline_response(tmp_path: Path) -> None:
     ca.shutdown()
 
     # 7. Assertions
-    assert len(channel._sent) == 1, (
-        f"Expected exactly 1 sent message, got {len(channel._sent)}"
-    )
+    assert len(channel._sent) == 1, f"Expected exactly 1 sent message, got {len(channel._sent)}"
     sent_content: str = channel._sent[0]["content"]
 
     # Response sent inline (no escalation link)
@@ -273,9 +268,7 @@ def test_deep_query_escalation_link(tmp_path: Path) -> None:
     ca.shutdown()
 
     # 7. Assertions
-    assert len(channel._sent) == 1, (
-        f"Expected exactly 1 sent message, got {len(channel._sent)}"
-    )
+    assert len(channel._sent) == 1, f"Expected exactly 1 sent message, got {len(channel._sent)}"
     sent_content: str = channel._sent[0]["content"]
 
     # Response contains the escalation link

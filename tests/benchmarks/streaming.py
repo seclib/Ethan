@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
-import subprocess
 from pathlib import Path
 
 from .benchmark_runner import BenchmarkResult
-
 
 CLI_ROOT = Path(__file__).parent.parent.parent
 CLI_ENTRY = str(CLI_ROOT / "cli" / "ethan")
@@ -45,7 +44,10 @@ class StreamingBenchmark:
         for i in range(samples):
             start = time.perf_counter()
             proc = subprocess.run(
-                [sys.executable, "-c", """
+                [
+                    sys.executable,
+                    "-c",
+                    """
 import sys
 sys.path.insert(0, 'cli/core')
 import time
@@ -67,10 +69,14 @@ t1 = time.perf_counter()
 write_ms = (t1 - t0) * 1000
 
 print(f"{init_ms:.2f},{write_ms:.2f}")
-"""],
-                capture_output=True, text=True, timeout=30, cwd=str(CLI_ROOT)
+""",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(CLI_ROOT),
             )
-            elapsed = (time.perf_counter() - start) * 1000.0
+            (time.perf_counter() - start) * 1000.0
 
             try:
                 parts = proc.stdout.strip().split(",")
@@ -78,7 +84,9 @@ print(f"{init_ms:.2f},{write_ms:.2f}")
                 write_ms = float(parts[1])
                 if i == 0:
                     metrics.add_metric("streamer_init_ms", init_ms, "ms", warn=5, fail=20)
-                    metrics.add_metric("streamer_write_100chunks_ms", write_ms, "ms", warn=50, fail=200)
+                    metrics.add_metric(
+                        "streamer_write_100chunks_ms", write_ms, "ms", warn=50, fail=200
+                    )
             except (ValueError, IndexError):
                 pass
 
@@ -91,7 +99,10 @@ print(f"{init_ms:.2f},{write_ms:.2f}")
 
         for i in range(samples):
             proc = subprocess.run(
-                [sys.executable, "-c", """
+                [
+                    sys.executable,
+                    "-c",
+                    """
 import sys
 sys.path.insert(0, 'cli/core')
 import time
@@ -102,8 +113,12 @@ s._start_spinner()
 time.sleep(1)
 s._stop_spinner()
 print("ok")
-"""],
-                capture_output=True, text=True, timeout=30, cwd=str(CLI_ROOT)
+""",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(CLI_ROOT),
             )
             success = proc.stdout.strip() == "ok"
             if i == 0:
@@ -118,8 +133,11 @@ print("ok")
 
         for i in range(samples):
             start = time.perf_counter()
-            proc = subprocess.run(
-                [sys.executable, "-c", """
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    """
 import sys
 sys.path.insert(0, 'cli/core')
 from colors import C, I
@@ -129,8 +147,12 @@ outputs = []
 for _ in range(1000):
     outputs.append(f"{C.GREEN}{I.CHECK} test output line{C.RESET}")
 print(" ".join(outputs[:1]))
-"""],
-                capture_output=True, text=True, timeout=30, cwd=str(CLI_ROOT)
+""",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(CLI_ROOT),
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             if i == 0:

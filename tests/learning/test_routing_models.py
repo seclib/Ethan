@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.intelligence.model_catalog import register_builtin_models
 from openjarvis.learning._stubs import RoutingContext
 from openjarvis.learning.routing.router import (
@@ -113,9 +112,7 @@ class TestRouterWithNewModels:
         router = HeuristicRouter(
             available_models=NEW_LOCAL_MODELS,
         )
-        ctx = build_routing_context(
-            "Please explain step by step how neural networks learn"
-        )
+        ctx = build_routing_context("Please explain step by step how neural networks learn")
         selected = router.select_model(ctx)
         assert selected == "gpt-oss:120b"
 

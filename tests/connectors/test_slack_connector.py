@@ -11,7 +11,6 @@ from typing import List
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 
@@ -141,9 +140,7 @@ def test_sync_yields_documents(
     # Set up fake credentials so is_connected() returns True. User tokens
     # (``xoxp-``) are the only shape the connector accepts post-migration.
     creds_path = Path(connector._credentials_path)
-    creds_path.write_text(
-        json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8"
-    )
+    creds_path.write_text(json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8")
 
     # Configure mocks
     mock_auth.return_value = _AUTH_TEST_RESPONSE
@@ -176,9 +173,7 @@ def test_sync_yields_documents(
     assert doc_c001.participants == ["alice@co.com"]
     assert doc_c001.participants_raw == ["U001"]
     assert doc_c001.channel == "general"
-    assert doc_c001.url == (
-        "https://acme.slack.com/archives/C001/p1710500000000100"
-    )
+    assert doc_c001.url == ("https://acme.slack.com/archives/C001/p1710500000000100")
     assert doc_c001.metadata["channel_id"] == "C001"
     assert doc_c001.metadata["channel_name"] == "general"
     assert doc_c001.metadata["team_id"] == "T0ACME"
@@ -259,9 +254,7 @@ def test_sync_includes_dms_and_group_dms(
     any conversation type, and must NOT skip non-``is_member`` channels.
     """
     creds_path = Path(connector._credentials_path)
-    creds_path.write_text(
-        json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8"
-    )
+    creds_path.write_text(json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8")
 
     mock_auth.return_value = _AUTH_TEST_RESPONSE
     mock_users.return_value = _USERS_RESPONSE
@@ -326,9 +319,7 @@ def test_sync_includes_dms_and_group_dms(
     # User-token sync must NEVER call conversations.join (the user is
     # already in the conversations the listing returns).
     join_calls = [
-        c
-        for c in mock_retry.call_args_list
-        if c.args and c.args[0] == "conversations.join"
+        c for c in mock_retry.call_args_list if c.args and c.args[0] == "conversations.join"
     ]
     assert join_calls == []
 
@@ -341,9 +332,7 @@ def test_sync_includes_dms_and_group_dms(
 def test_disconnect(connector, tmp_path: Path) -> None:
     """disconnect() deletes the credentials file."""
     creds_path = Path(connector._credentials_path)
-    creds_path.write_text(
-        json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8"
-    )
+    creds_path.write_text(json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8")
     assert connector.is_connected() is True
 
     connector.disconnect()
@@ -413,9 +402,7 @@ def test_end_to_end_ingest_and_search(
     from openjarvis.connectors.store import KnowledgeStore  # noqa: PLC0415
 
     creds_path = Path(connector._credentials_path)
-    creds_path.write_text(
-        json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8"
-    )
+    creds_path.write_text(json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8")
     mock_auth.return_value = _AUTH_TEST_RESPONSE
     mock_users.return_value = _USERS_RESPONSE
     mock_channels.return_value = _CHANNELS_RESPONSE
@@ -532,9 +519,7 @@ def test_sync_logs_per_type_channel_counts(
     scopes are correct without grepping per-channel logs.
     """
     creds_path = Path(connector._credentials_path)
-    creds_path.write_text(
-        json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8"
-    )
+    creds_path.write_text(json.dumps({"token": "xoxp-fake-user-token"}), encoding="utf-8")
 
     mock_auth.return_value = _AUTH_TEST_RESPONSE
     mock_users.return_value = _USERS_RESPONSE
@@ -570,9 +555,7 @@ def test_sync_logs_per_type_channel_counts(
 
 
 @patch("openjarvis.connectors.slack_connector._slack_api_auth_test")
-def test_handle_callback_persists_after_auth_test_succeeds(
-    mock_auth, connector
-) -> None:
+def test_handle_callback_persists_after_auth_test_succeeds(mock_auth, connector) -> None:
     """A valid xoxp- token is persisted only after auth.test returns ok."""
     mock_auth.return_value = _AUTH_TEST_RESPONSE
 
@@ -617,6 +600,5 @@ def test_handle_callback_xoxb_message_wording(connector) -> None:
         connector.handle_callback("xoxb-bot-token")
 
     assert str(excinfo.value) == (
-        "Bot tokens (xoxb-) can't read DMs. "
-        "Use a User OAuth Token (xoxp-) instead."
+        "Bot tokens (xoxb-) can't read DMs. Use a User OAuth Token (xoxp-) instead."
     )

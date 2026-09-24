@@ -319,9 +319,7 @@ class TestToolUsingAgent:
             confirm_callback=confirm,
         )
 
-        result = agent._executor.execute(
-            ToolCall(id="1", name="confirm", arguments="{}")
-        )
+        result = agent._executor.execute(ToolCall(id="1", name="confirm", arguments="{}"))
 
         assert result.success is True
         confirm.assert_called_once()

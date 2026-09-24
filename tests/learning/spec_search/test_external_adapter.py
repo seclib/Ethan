@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from openjarvis.evals.core.types import EvalRecord
 from openjarvis.learning.spec_search.external_adapter import (
     write_external_records_as_traces,

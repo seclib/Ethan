@@ -7,9 +7,7 @@ from pathlib import Path
 
 
 def _git(cwd: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True)
     return result.stdout.strip()
 
 
@@ -17,9 +15,7 @@ def _setup_config_tree(root: Path) -> None:
     (root / "agents" / "simple").mkdir(parents=True)
     (root / "tools").mkdir(parents=True)
     (root / "config.toml").write_text("[learning]\nenabled = true\n")
-    (root / "agents" / "simple" / "system_prompt.md").write_text(
-        "You are a helpful assistant.\n"
-    )
+    (root / "agents" / "simple" / "system_prompt.md").write_text("You are a helpful assistant.\n")
     (root / "tools" / "descriptions.toml").write_text("[web_search]\n")
 
 

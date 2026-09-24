@@ -1,11 +1,10 @@
 """Integration tests for all failure modes."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from unittest import mock
-
-import pytest
 
 
 class TestAPIUnreachable:
@@ -13,12 +12,14 @@ class TestAPIUnreachable:
 
     def test_chat_api_unreachable(self) -> None:
         from cli.commands.chat import cmd_chat
+
         with mock.patch("cli.commands.chat.alive", return_value=False):
             result = cmd_chat([])
             assert result == 1
 
     def test_status_api_unreachable(self, capsys) -> None:
         from cli.commands.status import cmd_status
+
         with mock.patch("cli.commands.status.alive", return_value=False):
             result = cmd_status([])
             captured = capsys.readouterr()
@@ -26,8 +27,9 @@ class TestAPIUnreachable:
             assert "OFFLINE" in captured.out
 
     def test_daemon_fetch_state_handles_refused(self) -> None:
-        from cli.core.daemon import _fetch_state
         from urllib.error import URLError
+
+        from cli.core.daemon import _fetch_state
 
         def _refused(*_args, **_kwargs):
             raise URLError("Connection refused")
@@ -41,6 +43,7 @@ class TestCorruptConfig:
 
     def test_corrupt_config_file(self) -> None:
         from cli.core.config import CONFIG_FILE, load
+
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             f.write("not valid json {")
@@ -50,6 +53,7 @@ class TestCorruptConfig:
 
     def test_corrupt_local_config(self) -> None:
         from cli.core.config import CONFIG_FILE, CONFIG_LOCAL_FILE, load
+
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump({"api": {"base_url": "http://valid"}}, f)
@@ -64,6 +68,7 @@ class TestCorruptMemory:
 
     def test_corrupt_memory_file(self) -> None:
         from cli.core.memory import MEM_FILE, _load
+
         MEM_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(MEM_FILE, "w") as f:
             f.write("corrupt json")
@@ -72,6 +77,7 @@ class TestCorruptMemory:
 
     def test_corrupt_log_file(self) -> None:
         from cli.core.logging import LOG_FILE, _load
+
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(LOG_FILE, "w") as f:
             f.write("corrupt json")
@@ -83,13 +89,15 @@ class TestPermissionDenied:
     """Permission error handling tests."""
 
     def test_permission_error_constructor(self) -> None:
-        from cli.core.errors import permission_denied, EthanError
+        from cli.core.errors import EthanError, permission_denied
+
         err = permission_denied("no write access", "root")
         assert isinstance(err, EthanError)
         assert "no write access" in err.context
 
     def test_permission_error_format(self) -> None:
-        from cli.core.errors import permission_denied, format_error
+        from cli.core.errors import format_error, permission_denied
+
         err = permission_denied("disk full")
         result = format_error(err)
         assert "Permission denied" in result
@@ -101,6 +109,7 @@ class TestEmptyState:
 
     def test_empty_state_from_api(self) -> None:
         from cli.commands.status import cmd_status
+
         with mock.patch("cli.commands.status.alive", return_value=True):
             with mock.patch("cli.commands.status.get_state", return_value=None):
                 result = cmd_status([])
@@ -108,6 +117,7 @@ class TestEmptyState:
 
     def test_incomplete_state_response(self) -> None:
         from cli.commands.status import cmd_status
+
         with mock.patch("cli.commands.status.alive", return_value=True):
             with mock.patch("cli.commands.status.get_state", return_value={}):
                 result = cmd_status([])
@@ -134,7 +144,8 @@ class TestDaemonFailure:
     """Daemon failure handling."""
 
     def test_daemon_pid_corrupt(self) -> None:
-        from cli.core.daemon import _pid_read, PID_FILE
+        from cli.core.daemon import PID_FILE, _pid_read
+
         PID_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(PID_FILE, "w") as f:
             f.write("not an integer")
@@ -142,7 +153,8 @@ class TestDaemonFailure:
         assert pid is None
 
     def test_daemon_cache_corrupt(self) -> None:
-        from cli.core.daemon import _cache_read, CACHE_FILE
+        from cli.core.daemon import CACHE_FILE, _cache_read
+
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CACHE_FILE, "w") as f:
             f.write("corrupt json")

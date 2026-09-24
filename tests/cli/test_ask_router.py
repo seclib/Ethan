@@ -6,7 +6,6 @@ import importlib
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 _ask_mod = importlib.import_module("openjarvis.cli.ask")

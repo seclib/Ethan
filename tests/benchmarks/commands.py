@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
-import subprocess
 from pathlib import Path
 
 from .benchmark_runner import BenchmarkResult
-
 
 CLI_ROOT = Path(__file__).parent.parent.parent
 CLI_ENTRY = str(CLI_ROOT / "cli" / "ethan")
@@ -45,18 +44,21 @@ class CommandsBenchmark:
 
         for i in range(samples):
             start = time.perf_counter()
-            proc = subprocess.run(
-                [sys.executable, CLI_ENTRY] + args,
-                capture_output=True, text=True, timeout=30
+            subprocess.run(
+                [sys.executable, CLI_ENTRY] + args, capture_output=True, text=True, timeout=30
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             timings.append(elapsed)
 
         if timings:
             avg = sum(timings) / len(timings)
-            metrics.add_metric("avg_response_ms", avg, "ms",
-                               warn=500 if name != "help" else 200,
-                               fail=2000 if name != "help" else 1000)
+            metrics.add_metric(
+                "avg_response_ms",
+                avg,
+                "ms",
+                warn=500 if name != "help" else 200,
+                fail=2000 if name != "help" else 1000,
+            )
             metrics.add_metric("min_response_ms", min(timings), "ms")
             metrics.add_metric("max_response_ms", max(timings), "ms")
             if len(timings) > 1:

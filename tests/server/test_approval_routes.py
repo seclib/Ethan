@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.tools.approval_store import (
     STATUS_APPROVED,
     STATUS_DENIED,
@@ -132,9 +131,7 @@ class TestListPendingApprovals:
         """The route must deserialize payload — not return the raw JSON string."""
         _queue(approval_store, payload={"key": "value", "nested": {"x": 1}})
         action = client.get("/v1/approvals/pending").json()["actions"][0]
-        assert isinstance(action["payload"], dict), (
-            f"Expected dict, got {type(action['payload'])}"
-        )
+        assert isinstance(action["payload"], dict), f"Expected dict, got {type(action['payload'])}"
         assert action["payload"]["key"] == "value"
 
     def test_correct_field_values(self, client, approval_store):

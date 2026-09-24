@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -74,9 +73,7 @@ class TestOptimizeSkillsCommand:
                 "openjarvis.learning.agents.skill_optimizer.SkillOptimizer.optimize",
                 return_value=fake_results,
             ):
-                result = CliRunner().invoke(
-                    cli, ["optimize", "skills", "--policy", "dspy"]
-                )
+                result = CliRunner().invoke(cli, ["optimize", "skills", "--policy", "dspy"])
                 assert result.exit_code == 0
                 assert "research-skill" in result.output
                 assert "optimized" in result.output

@@ -203,9 +203,7 @@ def test_check_pearld_reachable_true():
 
     with patch("openjarvis.mining._discovery.httpx.post") as post:
         post.return_value.status_code = 200
-        post.return_value.json.return_value = {
-            "result": {"blocks": 442107, "headers": 442107}
-        }
+        post.return_value.json.return_value = {"result": {"blocks": 442107, "headers": 442107}}
         ok, info = check_pearld_reachable("http://localhost:44107", "user", "pass")
         assert ok is True
         assert "442107" in info
@@ -213,7 +211,6 @@ def test_check_pearld_reachable_true():
 
 def test_check_pearld_reachable_false_on_connection_error():
     import httpx
-
     from openjarvis.mining._discovery import check_pearld_reachable
 
     with patch("openjarvis.mining._discovery.httpx.post") as post:

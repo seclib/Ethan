@@ -6,7 +6,6 @@ import base64
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-
 from openjarvis.core.registry import ToolRegistry
 
 # ---------------------------------------------------------------------------
@@ -47,9 +46,7 @@ def _make_import_error_session():
     """Create a session whose .page raises ImportError."""
     session = MagicMock()
     type(session).page = PropertyMock(
-        side_effect=ImportError(
-            "playwright not installed. Install with: uv sync --extra browser"
-        )
+        side_effect=ImportError("playwright not installed. Install with: uv sync --extra browser")
     )
     return session
 
@@ -149,9 +146,7 @@ class TestBrowserNavigateTool:
         from openjarvis.tools.browser import BrowserNavigateTool
 
         mock_ssrf_module = MagicMock()
-        mock_ssrf_module.check_ssrf.return_value = (
-            "URL resolves to private IP: 127.0.0.1"
-        )
+        mock_ssrf_module.check_ssrf.return_value = "URL resolves to private IP: 127.0.0.1"
         page = _make_mock_page()
         session = _make_mock_session(page)
 
@@ -215,9 +210,7 @@ class TestBrowserNavigateTool:
             tool = BrowserNavigateTool()
             tool.execute(url="https://example.com", wait_for="networkidle")
 
-        page.goto.assert_called_once_with(
-            "https://example.com", wait_until="networkidle"
-        )
+        page.goto.assert_called_once_with("https://example.com", wait_until="networkidle")
 
     def test_execute_invalid_wait_for_defaults_to_load(self):
         from openjarvis.tools.browser import BrowserNavigateTool

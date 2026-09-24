@@ -8,7 +8,6 @@ import textwrap
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.mcp.protocol import MCPRequest
 from openjarvis.mcp.server import MCPServer
 from openjarvis.mcp.transport import (
@@ -177,9 +176,7 @@ class TestStdioTransport:
             worker = threading.Thread(target=call, daemon=True)
             worker.start()
             worker.join(timeout=2.0)
-            assert not worker.is_alive(), (
-                "send_notification blocked on stdout — override missing"
-            )
+            assert not worker.is_alive(), "send_notification blocked on stdout — override missing"
             assert result_box.get("ok") is True, result_box
         finally:
             transport.close()
@@ -289,15 +286,11 @@ class TestStreamableHTTPTransport:
         mock_client_cls.return_value = mock_client
 
         # First response sets a session id
-        first_response = self._make_mock_response(
-            {"jsonrpc": "2.0", "id": 1, "result": {}}
-        )
+        first_response = self._make_mock_response({"jsonrpc": "2.0", "id": 1, "result": {}})
         first_response.headers = {"mcp-session-id": "sess-abc-123"}
 
         # Second response
-        second_response = self._make_mock_response(
-            {"jsonrpc": "2.0", "id": 2, "result": {}}
-        )
+        second_response = self._make_mock_response({"jsonrpc": "2.0", "id": 2, "result": {}})
         second_response.headers = {}
 
         mock_client.post.side_effect = [first_response, second_response]

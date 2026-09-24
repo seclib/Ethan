@@ -112,10 +112,7 @@ class TestClassifyQuery:
         assert classify_query("What's Sarah's email?") == "quick"
 
     def test_compare_is_deep(self):
-        assert (
-            classify_query("Compare what Sarah and Mike said about the budget")
-            == "deep"
-        )
+        assert classify_query("Compare what Sarah and Mike said about the budget") == "deep"
 
 
 # ---------------------------------------------------------------------------

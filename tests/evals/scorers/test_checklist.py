@@ -45,10 +45,7 @@ class FakeJudgeBackend:
 
 
 def test_checklist_scorer_all_pass():
-    response = (
-        "1. yes — The response mentions Redis\n"
-        "2. yes — The response mentions port 6379\n"
-    )
+    response = "1. yes — The response mentions Redis\n2. yes — The response mentions port 6379\n"
     backend = FakeJudgeBackend(response)
     scorer = ChecklistScorer(backend, "test-model")
     score, details = scorer.score_checklist(

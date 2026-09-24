@@ -231,9 +231,7 @@ class TestWireChannelSessionIsolation:
     def test_two_chats_isolated(self, tmp_path):
         system = _make_system(tmp_path=tmp_path)
         replies = {"111": "reply-A", "222": "reply-B"}
-        system.ask = MagicMock(
-            side_effect=lambda q, **kw: {"content": replies.get(q, "")}
-        )
+        system.ask = MagicMock(side_effect=lambda q, **kw: {"content": replies.get(q, "")})
 
         mock_channel = MagicMock()
         system.wire_channel(mock_channel)

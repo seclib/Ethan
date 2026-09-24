@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from openjarvis.connectors.attachment_store import AttachmentStore
 
 # ---------------------------------------------------------------------------

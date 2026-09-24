@@ -1,7 +1,5 @@
 """tests/test_settings.py — Settings organization and structure."""
 
-import pytest
-
 
 def test_settings_sections_defined():
     """Verify all required settings sections are defined."""

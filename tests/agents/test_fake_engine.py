@@ -39,9 +39,7 @@ def test_fake_engine_tool_calls():
         [
             {
                 "content": "",
-                "tool_calls": [
-                    {"id": "1", "function": {"name": "think", "arguments": "{}"}}
-                ],
+                "tool_calls": [{"id": "1", "function": {"name": "think", "arguments": "{}"}}],
             }
         ]
     )

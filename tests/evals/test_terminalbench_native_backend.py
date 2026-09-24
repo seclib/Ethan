@@ -13,9 +13,8 @@ import types
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
-import pytest
-
 import openjarvis.evals.backends.terminalbench_native as tbn
+import pytest
 from openjarvis.evals.backends.terminalbench_native import (
     summarize_benchmark_results,
 )
@@ -130,9 +129,7 @@ class TestTimeoutKwargs:
         backend.run_harness("run-1")
         assert "global_agent_timeout_sec" not in fake_tb_backend.captured_kwargs
 
-    def test_old_terminal_bench_fails_loud(
-        self, fake_tb_backend, monkeypatch, tmp_path
-    ):
+    def test_old_terminal_bench_fails_loud(self, fake_tb_backend, monkeypatch, tmp_path):
         """An old Harness without the kwargs must not hang silently."""
         monkeypatch.setattr(tbn, "Harness", OldFakeHarness, raising=False)
         backend = tbn.TerminalBenchNativeBackend(output_dir=str(tmp_path))
@@ -155,12 +152,8 @@ class TestSummarizeBenchmarkResults:
         """
         results = SimpleNamespace(
             results=[
-                make_trial(
-                    "t-ok", is_resolved=True, input_tokens=900, output_tokens=100
-                ),
-                make_trial(
-                    "t-miss", is_resolved=False, input_tokens=800, output_tokens=50
-                ),
+                make_trial("t-ok", is_resolved=True, input_tokens=900, output_tokens=100),
+                make_trial("t-miss", is_resolved=False, input_tokens=800, output_tokens=50),
                 make_trial(
                     "t-setup-dead",
                     is_resolved=False,
@@ -225,9 +218,7 @@ class TestSummarizeBenchmarkResults:
         assert summary.accuracy == 1.0
 
     def test_empty_results(self):
-        summary, failures = summarize_benchmark_results(
-            SimpleNamespace(results=[]), model="m"
-        )
+        summary, failures = summarize_benchmark_results(SimpleNamespace(results=[]), model="m")
         assert summary.total_samples == 0
         assert summary.accuracy == 0.0
         assert failures == []
@@ -240,10 +231,9 @@ class TestSummarizeBenchmarkResults:
 
 class TestRunTerminalbenchNativeWiring:
     def _run(self, fake_tb_backend, tmp_path, trials: List[Any], **config_kwargs):
-        from rich.console import Console
-
         from openjarvis.evals.cli import _run_terminalbench_native
         from openjarvis.evals.core.types import RunConfig
+        from rich.console import Console
 
         fake_tb_backend.results = SimpleNamespace(results=trials)
         config = RunConfig(

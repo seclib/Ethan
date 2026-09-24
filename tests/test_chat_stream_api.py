@@ -11,7 +11,6 @@ LLM externe, aucune configuration requise.
 from __future__ import annotations
 
 import asyncio
-import json
 
 from core.chat import ChatPipeline
 from core.state import CoreRecordStore
@@ -39,12 +38,14 @@ def test_stream_echo_contract_and_mode_persistence():
         pipeline = ChatPipeline(chat_store=chat_store)  # ProviderManager None → écho
         v1_router.set_chat_pipeline(pipeline)
         try:
-            response = await v1_router.chat_completions_stream({
-                "message": "Analyse ce problème",
-                "user_id": "alice",
-                "mode": "plan",
-                "reasoning_effort": "high",
-            })
+            response = await v1_router.chat_completions_stream(
+                {
+                    "message": "Analyse ce problème",
+                    "user_id": "alice",
+                    "mode": "plan",
+                    "reasoning_effort": "high",
+                }
+            )
             body = await _consume(response)
         finally:
             v1_router.set_chat_pipeline(None)
@@ -78,10 +79,12 @@ def test_stream_without_mode_falls_back_to_act():
         pipeline = ChatPipeline(chat_store=chat_store)
         v1_router.set_chat_pipeline(pipeline)
         try:
-            response = await v1_router.chat_completions_stream({
-                "message": "Bonjour",
-                "user_id": "bob",
-            })
+            response = await v1_router.chat_completions_stream(
+                {
+                    "message": "Bonjour",
+                    "user_id": "bob",
+                }
+            )
             await _consume(response)
         finally:
             v1_router.set_chat_pipeline(None)

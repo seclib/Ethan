@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 import respx
-
 from openjarvis.tools.http_request import HttpRequestTool
 
 
@@ -20,9 +19,7 @@ def _force_httpx_fallback():
     through to the httpx code path where respx interception works.
     """
     mock_rust = MagicMock()
-    mock_rust.HttpRequestTool.return_value.execute.side_effect = RuntimeError(
-        "mocked out"
-    )
+    mock_rust.HttpRequestTool.return_value.execute.side_effect = RuntimeError("mocked out")
     with patch(
         "openjarvis._rust_bridge.get_rust_module",
         return_value=mock_rust,
@@ -82,9 +79,7 @@ class TestHttpRequestTool:
         """Request to cloud metadata endpoint should be blocked."""
         tool = HttpRequestTool()
         with patch("openjarvis.tools.http_request.check_ssrf") as mock_ssrf:
-            mock_ssrf.return_value = (
-                "Blocked host: 169.254.169.254 (cloud metadata endpoint)"
-            )
+            mock_ssrf.return_value = "Blocked host: 169.254.169.254 (cloud metadata endpoint)"
             result = tool.execute(url="http://169.254.169.254/latest/meta-data/")
         assert result.success is False
         assert "SSRF protection" in result.content
@@ -210,9 +205,7 @@ class TestHttpRequestTool:
     def test_redirect_to_private_ip_blocked(self):
         """A redirect to an internal/metadata host must be re-checked + blocked."""
         respx.get("https://public.example.com/start").mock(
-            return_value=httpx.Response(
-                302, headers={"location": "http://169.254.169.254/latest/"}
-            )
+            return_value=httpx.Response(302, headers={"location": "http://169.254.169.254/latest/"})
         )
         tool = HttpRequestTool()
         # First check (initial URL) passes; the redirect target is blocked.

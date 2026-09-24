@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
-import signal
-import subprocess
 from pathlib import Path
 
 from .benchmark_runner import BenchmarkResult
-
 
 CLI_ROOT = Path(__file__).parent.parent.parent
 CLI_ENTRY = str(CLI_ROOT / "cli" / "ethan")
@@ -46,8 +44,7 @@ class DaemonBenchmark:
         for i in range(samples):
             start = time.perf_counter()
             subprocess.run(
-                [sys.executable, CLI_ENTRY, "--help"],
-                capture_output=True, text=True, timeout=30
+                [sys.executable, CLI_ENTRY, "--help"], capture_output=True, text=True, timeout=30
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             timings.append(elapsed)
@@ -68,7 +65,8 @@ class DaemonBenchmark:
             # Start daemon in background
             daemon_proc = subprocess.Popen(
                 [sys.executable, CLI_ENTRY, "daemon", "start"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
             time.sleep(1)  # Wait for daemon to start
 
@@ -76,7 +74,9 @@ class DaemonBenchmark:
                 start = time.perf_counter()
                 subprocess.run(
                     [sys.executable, CLI_ENTRY, "--help"],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
                 )
                 elapsed = (time.perf_counter() - start) * 1000.0
                 timings.append(elapsed)
@@ -102,13 +102,15 @@ class DaemonBenchmark:
         try:
             daemon_proc = subprocess.Popen(
                 [sys.executable, CLI_ENTRY, "daemon", "start"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
             time.sleep(2)  # Let it stabilize
 
             # Measure RSS
             try:
                 import psutil
+
                 proc = psutil.Process(daemon_proc.pid)
                 rss_mb = proc.memory_info().rss / (1024 * 1024)
                 cpu_pct = proc.cpu_percent(interval=1.0)

@@ -1,14 +1,16 @@
 """Daemon impact benchmarks — measure cache performance."""
-import pytest
-import time
+
 import statistics
 
-from cli.registry import discover_commands, COMMANDS
+import pytest
+
+from cli.registry import COMMANDS, discover_commands
 
 
 @pytest.fixture
 def runner():
     from tests.cli.ethan.benchmarks.benchmark_runner import BenchmarkRunner
+
     return BenchmarkRunner(warmup_iterations=3, benchmark_iterations=50)
 
 
@@ -23,13 +25,13 @@ class TestDaemonImpact:
 
     def test_daemon_cache_hit_vs_miss(self, runner):
         """Daemon cache hit should be faster than miss."""
-        from cli.core.client import get_state
 
         # Measure cache miss (simulated slow path)
         def cache_miss():
             # Simulate cache miss - direct API call
-            import urllib.request
             import json
+            import urllib.request
+
             try:
                 req = urllib.request.Request("http://localhost:8000/v1/state")
                 with urllib.request.urlopen(req, timeout=1) as resp:
@@ -45,7 +47,7 @@ class TestDaemonImpact:
 
         # Baseline (no daemon / cold)
         cold_summary = runner.measure("cache_miss", cache_miss)
-        
+
         # With daemon cache
         warm_summary = runner.measure("cache_hit", cache_hit)
 
@@ -53,8 +55,10 @@ class TestDaemonImpact:
         if cold_summary.mean_ms > 0:
             improvement = cold_summary.mean_ms / warm_summary.mean_ms
             # In real scenario expect 2-5x, in test allow any improvement
-            assert warm_summary.mean_ms < cold_summary.mean_ms, \
-                f"Cache hit slower than miss: {warm_summary.mean_ms:.1f}ms vs {cold_summary.mean_ms:.1f}ms"
+            assert warm_summary.mean_ms < cold_summary.mean_ms, (
+                f"Cache hit slower than miss: {warm_summary.mean_ms:.1f}ms "
+                f"vs {cold_summary.mean_ms:.1f}ms (x{improvement:.2f})"
+            )
 
     def test_repeated_command_execution(self, runner):
         """Repeated commands should benefit from caching."""
@@ -65,6 +69,7 @@ class TestDaemonImpact:
         times = []
         for i in range(10):
             import time as t
+
             t0 = t.perf_counter()
             try:
                 cmd([])
@@ -76,5 +81,6 @@ class TestDaemonImpact:
         # Check that execution is reasonably fast
         avg = statistics.mean(times)
         max_allowed = 200  # ms
-        assert avg < max_allowed, \
+        assert avg < max_allowed, (
             f"Repeated command too slow: avg={avg:.1f}ms (target: <{max_allowed}ms)"
+        )

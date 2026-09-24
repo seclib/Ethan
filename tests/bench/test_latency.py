@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.bench.latency import LatencyBenchmark
 from openjarvis.core.registry import BenchmarkRegistry
 

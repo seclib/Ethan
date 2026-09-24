@@ -1,5 +1,6 @@
 import pytest
-from core.tools.mcp_client import MCPClient, MCP_AVAILABLE
+from core.tools.mcp_client import MCP_AVAILABLE, MCPClient
+
 
 def test_mcp_client_init():
     client = MCPClient()
@@ -8,6 +9,7 @@ def test_mcp_client_init():
     else:
         # If it's available, session is None before connect anyway
         assert client.session is None
+
 
 @pytest.mark.asyncio
 async def test_mcp_client_connect_missing():

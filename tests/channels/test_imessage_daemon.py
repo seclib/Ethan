@@ -25,9 +25,7 @@ def _create_fake_chat_db(db_path: Path) -> None:
     conn.execute("INSERT INTO handle VALUES (1, '+15551234567')")
     conn.execute("INSERT INTO chat VALUES (1, '+15551234567', 'Test Chat')")
     conn.execute("INSERT INTO chat_message_join VALUES (1, 1)")
-    conn.execute(
-        "INSERT INTO message VALUES (1, 'Hello agent', 1, 700000000000000000, 0)"
-    )
+    conn.execute("INSERT INTO message VALUES (1, 'Hello agent', 1, 700000000000000000, 0)")
     conn.commit()
     conn.close()
 
@@ -95,9 +93,7 @@ def test_poll_skips_own_messages(tmp_path: Path) -> None:
     conn.execute("INSERT INTO handle VALUES (1, '+15551234567')")
     conn.execute("INSERT INTO chat VALUES (1, '+15551234567', 'Test')")
     conn.execute("INSERT INTO chat_message_join VALUES (1, 1)")
-    conn.execute(
-        "INSERT INTO message VALUES (1, 'My own msg', 1, 700000000000000000, 1)"
-    )
+    conn.execute("INSERT INTO message VALUES (1, 'My own msg', 1, 700000000000000000, 1)")
     conn.commit()
     conn.close()
     messages = poll_new_messages(

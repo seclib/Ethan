@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.knowledge import KnowledgeCollectionManager
 from core.rag.embeddings import RAGEmbeddings
 from core.rag.pipeline import RAGPipeline
@@ -61,6 +60,7 @@ def _mock_pipeline() -> RAGPipeline:
 
 # ── Catalogue de stratégies ──────────────────────────────────────────────────
 
+
 def test_catalog_exposes_only_real_strategies():
     """Le catalogue ne contient que les stratégies réellement implémentées."""
     strategies = available_strategies()
@@ -90,6 +90,7 @@ def test_validate_strict_and_normalize_fail_safe():
 
 # ── Stratégie keyword ────────────────────────────────────────────────────────
 
+
 def test_keyword_strategy_works_without_real_embeddings():
     """``keyword`` : recherche textuelle pure, indépendante des embeddings."""
 
@@ -108,6 +109,7 @@ def test_keyword_strategy_works_without_real_embeddings():
 
 
 # ── Stratégie semantic ───────────────────────────────────────────────────────
+
 
 def test_semantic_strategy_finds_synonyms_without_lexical_overlap():
     """``semantic`` : retrouve « chat » pour la requête « animal domestique »."""
@@ -142,6 +144,7 @@ def test_semantic_strategy_falls_back_to_textual_on_mock_embeddings():
 
 # ── Stratégie hybrid ─────────────────────────────────────────────────────────
 
+
 def test_hybrid_strategy_fuses_lexical_and_semantic():
     """``hybrid`` : la fusion RRF combine les classements des deux voies.
 
@@ -173,6 +176,7 @@ def test_hybrid_strategy_fuses_lexical_and_semantic():
 
 
 # ── Stratégie auto + config globale ──────────────────────────────────────────
+
 
 def test_auto_strategy_is_default_and_degrades_gracefully():
     """``auto`` (défaut) : sémantique si embeddings réels, sinon textuel."""
@@ -220,6 +224,7 @@ def test_global_strategy_config_roundtrip_and_fail_safe():
 
 # ── Stratégie par collection ─────────────────────────────────────────────────
 
+
 def test_collection_strategy_overrides_global_and_resolves_effective():
     """Résolution effective : collection > globale > auto ; le retrieve d'une
     collection applique réellement sa stratégie."""
@@ -253,15 +258,11 @@ def test_collection_strategy_overrides_global_and_resolves_effective():
         # Retrieve réel : la requête « administration base de donnees » n'a
         # aucun recouvrement lexical avec « postgresql » — la collection
         # semantic le retrouve, la collection keyword (globale) non.
-        results_sem = await collections.retrieve(
-            "administration base de donnees", col_sem["id"]
-        )
+        results_sem = await collections.retrieve("administration base de donnees", col_sem["id"])
         assert results_sem
         assert results_sem[0]["chunk"]["document_id"] == pg_doc.id
 
-        results_kw = await collections.retrieve(
-            "administration base de donnees", col["id"]
-        )
+        results_kw = await collections.retrieve("administration base de donnees", col["id"])
         assert results_kw == []
 
         # Retour à la globale : réinitialisation de la stratégie collection.
@@ -275,9 +276,7 @@ def test_collection_rejects_unknown_strategy():
     """Une stratégie inconnue est refusée à la création ET à la mise à jour."""
 
     async def scenario():
-        collections = KnowledgeCollectionManager(
-            store=CoreRecordStore(), rag=_pipeline()
-        )
+        collections = KnowledgeCollectionManager(store=CoreRecordStore(), rag=_pipeline())
         with pytest.raises(ValueError, match="inconnue"):
             await collections.create_collection("Docs", retrieval_strategy="rerank")
         col = await collections.create_collection("Docs", retrieval_strategy="hybrid")
@@ -292,6 +291,7 @@ def test_collection_rejects_unknown_strategy():
 
 
 # ── Recommandation (fondée sur les capacités réelles) ────────────────────────
+
 
 def test_recommendation_follows_real_engine_capabilities():
     """La recommandation appartient au Core et suit l'état réel du moteur :

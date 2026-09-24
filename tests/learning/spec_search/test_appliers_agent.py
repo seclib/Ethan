@@ -17,16 +17,9 @@ from openjarvis.learning.spec_search.models import (
 def _make_ctx(tmp_path: Path) -> ApplyContext:
     agents_dir = tmp_path / "agents" / "simple"
     agents_dir.mkdir(parents=True)
-    (agents_dir / "system_prompt.md").write_text(
-        "You are a helpful assistant.\nBe concise.\n"
-    )
+    (agents_dir / "system_prompt.md").write_text("You are a helpful assistant.\nBe concise.\n")
     (tmp_path / "config.toml").write_text(
-        "[agent]\n"
-        'default = "simple"\n'
-        "\n"
-        "[agent.simple]\n"
-        'class = "simple"\n'
-        "max_turns = 5\n"
+        '[agent]\ndefault = "simple"\n\n[agent.simple]\nclass = "simple"\nmax_turns = 5\n'
     )
     return ApplyContext(openjarvis_home=tmp_path, session_id="s1")
 

@@ -3,27 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
 
+import pytest
 from core.config import (
-    ConfigSchema,
-    ConfigurationService,
-    ConfigStore,
     ConfigLoader,
+    ConfigSchema,
+    ConfigStore,
+    ConfigurationService,
     RuntimeMode,
-    ProviderConfig,
-    ProvidersConfig,
-    RAGConfig,
-    MemoryConfig,
-    AgentsConfig,
-    PlannerConfig,
-    PluginsConfig,
-    AuthenticationConfig,
-    ModelsConfig,
 )
 
-
 # ── Tests du schéma ─────────────────────────────────────────────────────────
+
 
 class TestConfigSchema:
     def test_defaults(self):
@@ -72,6 +63,7 @@ class TestConfigSchema:
 
 
 # ── Tests du ConfigurationService ───────────────────────────────────────────
+
 
 class TestConfigurationService:
     @pytest.fixture
@@ -164,6 +156,7 @@ class TestConfigurationService:
 
 
 # ── Tests du ConfigStore ────────────────────────────────────────────────────
+
 
 class TestConfigStore:
     def test_memory_store(self):

@@ -19,9 +19,7 @@ def _make_proc(
     stderr: str = "",
     returncode: int = 0,
 ) -> CompletedProcess:
-    return CompletedProcess(
-        args=[], returncode=returncode, stdout=stdout, stderr=stderr
-    )
+    return CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -171,9 +169,7 @@ class TestLUKS:
                     "name": "sda",
                     "type": "disk",
                     "fstype": None,
-                    "children": [
-                        {"name": "sda1", "type": "part", "fstype": "crypto_LUKS"}
-                    ],
+                    "children": [{"name": "sda1", "type": "part", "fstype": "crypto_LUKS"}],
                 }
             ]
         }
@@ -296,9 +292,7 @@ class TestICloudSync:
     def test_no_icloud_sync(self) -> None:
         scanner = PrivacyScanner()
         with patch.object(scanner, "_run") as mock_run:
-            mock_run.return_value = CompletedProcess(
-                [], 0, stdout="no relevant output", stderr=""
-            )
+            mock_run.return_value = CompletedProcess([], 0, stdout="no relevant output", stderr="")
             result = scanner.check_icloud_sync()
         assert result.status in ("ok", "skip")
 
@@ -348,9 +342,7 @@ class TestDNS:
 
     def test_encrypted_dns_detected(self) -> None:
         scanner = PrivacyScanner()
-        scutil_out = (
-            "resolver #1\n  nameserver[0] : 127.0.0.1\n  flags    : dns-over-https\n"
-        )
+        scutil_out = "resolver #1\n  nameserver[0] : 127.0.0.1\n  flags    : dns-over-https\n"
         with (
             patch("sys.platform", "darwin"),
             patch("subprocess.run", return_value=_make_proc(stdout=scutil_out)),
@@ -361,9 +353,7 @@ class TestDNS:
 
     def test_plain_dns_detected(self) -> None:
         scanner = PrivacyScanner()
-        scutil_out = (
-            "resolver #1\n  nameserver[0] : 8.8.8.8\n  nameserver[1] : 8.8.4.4\n"
-        )
+        scutil_out = "resolver #1\n  nameserver[0] : 8.8.8.8\n  nameserver[1] : 8.8.4.4\n"
         with (
             patch("sys.platform", "darwin"),
             patch("subprocess.run", return_value=_make_proc(stdout=scutil_out)),
@@ -445,7 +435,6 @@ class TestJsonOutput:
 
     def test_json_output_structure(self) -> None:
         from click.testing import CliRunner
-
         from openjarvis.cli.scan_cmd import scan
 
         runner = CliRunner()

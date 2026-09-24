@@ -27,9 +27,7 @@ def _setup_isolated_repo_root(tmp_path: Path) -> Path:
     (root / "agents" / "simple").mkdir(parents=True)
     (root / "tools").mkdir(parents=True)
     (root / "config.toml").write_text("[learning]\nenabled = true\n")
-    (root / "agents" / "simple" / "system_prompt.md").write_text(
-        "You are a helpful assistant.\n"
-    )
+    (root / "agents" / "simple" / "system_prompt.md").write_text("You are a helpful assistant.\n")
     (root / "tools" / "descriptions.toml").write_text("[web_search]\n")
     return root
 
@@ -147,9 +145,7 @@ class TestStageCommitDiscard:
         store.init()
 
         # Create an untracked, uncommitted change.
-        (root / "agents" / "simple" / "system_prompt.md").write_text(
-            "Pre-existing manual edit.\n"
-        )
+        (root / "agents" / "simple" / "system_prompt.md").write_text("Pre-existing manual edit.\n")
 
         with pytest.raises(DirtyWorkingTreeError):
             store.begin_stage("edit-003")
@@ -158,9 +154,7 @@ class TestStageCommitDiscard:
 class TestRevertSession:
     """Tests for revert_session."""
 
-    def test_revert_creates_new_commits_and_does_not_rewrite(
-        self, tmp_path: Path
-    ) -> None:
+    def test_revert_creates_new_commits_and_does_not_rewrite(self, tmp_path: Path) -> None:
         from openjarvis.learning.spec_search.checkpoint.store import (
             CheckpointStore,
         )
@@ -180,9 +174,7 @@ class TestRevertSession:
         )
 
         handle2 = store.begin_stage("edit-002")
-        (root / "tools" / "descriptions.toml").write_text(
-            "[web_search]\nupdated = true\n"
-        )
+        (root / "tools" / "descriptions.toml").write_text("[web_search]\nupdated = true\n")
         store.commit_stage(
             handle2,
             message="learning: edit-002 update tool",

@@ -152,9 +152,7 @@ class TestRunCondition:
         )
         return SkillBenchmarkRunner(cfg)
 
-    def test_run_condition_aggregates_per_seed(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
+    def test_run_condition_aggregates_per_seed(self, tmp_path: Path, monkeypatch: Any) -> None:
         """run_condition runs the eval once per seed and aggregates the
         results into a ConditionResult."""
         from openjarvis.evals.skill_benchmark import (
@@ -205,9 +203,7 @@ class TestRunCondition:
         assert result.total_tokens == 300
         assert result.total_runtime_seconds == 30.0
 
-    def test_run_condition_single_seed_zero_stddev(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
+    def test_run_condition_single_seed_zero_stddev(self, tmp_path: Path, monkeypatch: Any) -> None:
         from openjarvis.evals.skill_benchmark import (
             SkillBenchmarkConfig,
             SkillBenchmarkRunner,
@@ -242,9 +238,7 @@ class TestRunCondition:
 
 
 class TestRunAllConditions:
-    def test_run_all_conditions_invokes_all_four(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
+    def test_run_all_conditions_invokes_all_four(self, tmp_path: Path, monkeypatch: Any) -> None:
         from openjarvis.evals.skill_benchmark import (
             ConditionResult,
             SkillBenchmarkConfig,
@@ -289,9 +283,7 @@ class TestRunAllConditions:
         }
         assert len(comparison.results) == 4
 
-    def test_run_all_conditions_computes_deltas(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
+    def test_run_all_conditions_computes_deltas(self, tmp_path: Path, monkeypatch: Any) -> None:
         from openjarvis.evals.skill_benchmark import (
             ConditionResult,
             SkillBenchmarkConfig,
@@ -334,12 +326,8 @@ class TestRunAllConditions:
         comparison = runner.run_all_conditions()
         # Deltas use the same names as the conditions
         assert comparison.deltas["skills_on - no_skills"] == pytest.approx(0.05)
-        assert comparison.deltas["skills_optimized_dspy - skills_on"] == pytest.approx(
-            0.05
-        )
-        assert comparison.deltas["skills_optimized_gepa - skills_on"] == pytest.approx(
-            0.03
-        )
+        assert comparison.deltas["skills_optimized_dspy - skills_on"] == pytest.approx(0.05)
+        assert comparison.deltas["skills_optimized_gepa - skills_on"] == pytest.approx(0.03)
 
 
 class TestWriteReport:

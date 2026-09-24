@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Generator
 
 import pytest
-
 from openjarvis.telemetry.batch import BatchMetrics, EnergyBatch
 
 # ---------------------------------------------------------------------------

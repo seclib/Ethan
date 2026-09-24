@@ -12,23 +12,24 @@ Ces tests n'exercent AUCUN service externe réel : les providers sont mockés
 pour simuler les comportements (succès, erreur, timeout, etc.).
 """
 
+# ruff: noqa: E402 — `sys.path` est préparé après la docstring, avant les imports.
 import asyncio
 import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from core.llm.provider_manager import ProviderManager
 from core.llm.providers.base import LLMProvider
 from core.llm.store import ProviderStore
-from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage, ChatResponse, ModelInfo
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────
+
 
 class FakeProvider(LLMProvider):
     """Provider factice configurable pour simuler les scénarios."""
@@ -46,7 +47,9 @@ class FakeProvider(LLMProvider):
     async def initialize(self) -> None:
         pass
 
-    async def chat(self, messages, model=None, temperature=0.7, max_tokens=None, stream=False) -> ChatResponse:
+    async def chat(
+        self, messages, model=None, temperature=0.7, max_tokens=None, stream=False
+    ) -> ChatResponse:
         self.chat_calls += 1
         if self.latency:
             await asyncio.sleep(self.latency)
@@ -94,6 +97,7 @@ def _new_manager():
 # 1. OLLAMA LOCAL
 # ═════════════════════════════════════════════════════════════════════════
 
+
 def test_ollama_local_provider_initialized():
     """Le provider Ollama local est initialisé et listé par défaut."""
 
@@ -121,12 +125,14 @@ def test_ollama_local_chat_uses_default_model():
         provider._client = AsyncMock()
         provider._client.post.return_value = MagicMock(
             raise_for_status=MagicMock(),
-            json=MagicMock(return_value={
-                "message": {"content": "bonjour"},
-                "model": "llama3.1",
-                "prompt_eval_count": 10,
-                "eval_count": 5,
-            }),
+            json=MagicMock(
+                return_value={
+                    "message": {"content": "bonjour"},
+                    "model": "llama3.1",
+                    "prompt_eval_count": 10,
+                    "eval_count": 5,
+                }
+            ),
         )
         result = await provider.chat([ChatMessage(role="user", content="salut")])
         assert result.content == "bonjour"
@@ -142,6 +148,7 @@ def test_ollama_local_chat_uses_default_model():
 # ═════════════════════════════════════════════════════════════════════════
 # 2. PROVIDER API OPENAI COMPATIBLE
 # ═════════════════════════════════════════════════════════════════════════
+
 
 def test_openai_compatible_provider_registered():
     """Un provider openai-compatible peut être enregistré et utilisé."""
@@ -179,6 +186,7 @@ def test_openai_compatible_provider_registered():
 # ═════════════════════════════════════════════════════════════════════════
 # 3. PROVIDER DÉSACTIVÉ
 # ═════════════════════════════════════════════════════════════════════════
+
 
 def test_disabled_provider_not_in_registry():
     """Un provider désactivé n'est pas dans le registry et ne peut pas être utilisé."""
@@ -230,6 +238,7 @@ def test_disable_enabled_provider():
 # ═════════════════════════════════════════════════════════════════════════
 # 4. MAUVAISE CLÉ API
 # ═════════════════════════════════════════════════════════════════════════
+
 
 def test_bad_api_key_connection_fails():
     """Une mauvaise clé API → test_connection() retourne False."""
@@ -288,6 +297,7 @@ def test_bad_api_key_chat_raises():
 # ═════════════════════════════════════════════════════════════════════════
 # 5. PERTE RÉSEAU
 # ═════════════════════════════════════════════════════════════════════════
+
 
 def test_network_loss_connection_fails():
     """Perte réseau → test_connection() retourne False sans crash."""
@@ -365,6 +375,7 @@ def test_network_loss_list_models_returns_empty():
 # ═════════════════════════════════════════════════════════════════════════
 # 6. REDÉMARRAGE ETHAN
 # ═════════════════════════════════════════════════════════════════════════
+
 
 def test_restart_preserves_provider_configs():
     """Après redémarrage, les configs providers sont restaurées depuis le store."""

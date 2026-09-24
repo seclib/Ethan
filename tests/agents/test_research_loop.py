@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Sequence
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents.research_loop import (
     SEARCH_TOOL_SPEC,
     SYSTEM_PROMPT,
@@ -50,11 +49,7 @@ class _MockEngine:
     ) -> Dict[str, Any]:
         self.calls.append({"tools": tools, "messages": list(messages)})
         if self._responses:
-            return (
-                self._responses.pop(0)
-                if len(self._responses) > 1
-                else self._responses[0]
-            )
+            return self._responses.pop(0) if len(self._responses) > 1 else self._responses[0]
         return {"content": "", "tool_calls": [], "usage": {}}
 
 
@@ -183,7 +178,10 @@ def test_clarify_before_any_search_is_rejected(stub_search: MagicMock) -> None:
     )
 
     agent = ResearchAgent(
-        engine, stub_search, model="mock", max_iterations=5,
+        engine,
+        stub_search,
+        model="mock",
+        max_iterations=5,
         clarify_handler=fake_clarify,
     )
     result = agent.run("vague query")
@@ -271,10 +269,7 @@ def test_build_sources_falls_back_to_reconstruction_when_url_missing() -> None:
             )
         ]
     )
-    assert (
-        sources[0]["url"]
-        == "https://acme.slack.com/archives/C123/p1710500000000100"
-    )
+    assert sources[0]["url"] == "https://acme.slack.com/archives/C123/p1710500000000100"
 
 
 def test_hit_url_granola_not_reconstructible() -> None:
@@ -345,9 +340,7 @@ def test_search_sources_coerces_scalar_to_list(stub_search: MagicMock) -> None:
                     {
                         "id": "s1",
                         "name": "search",
-                        "arguments": json.dumps(
-                            {"query": "anything", "sources": "slack"}
-                        ),
+                        "arguments": json.dumps({"query": "anything", "sources": "slack"}),
                     }
                 ],
                 "usage": {},

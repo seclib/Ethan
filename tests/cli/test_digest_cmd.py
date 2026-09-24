@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 
 from click.testing import CliRunner
-
 from openjarvis.agents.digest_store import DigestArtifact, DigestStore
 
 

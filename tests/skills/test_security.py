@@ -16,15 +16,10 @@ class TestTrustTiers:
         assert classify_trust_tier(is_bundled=True) == TrustTier.BUNDLED
 
     def test_indexed_tier(self):
-        assert (
-            classify_trust_tier(has_signature=True, in_index=True) == TrustTier.INDEXED
-        )
+        assert classify_trust_tier(has_signature=True, in_index=True) == TrustTier.INDEXED
 
     def test_unreviewed_tier(self):
-        assert (
-            classify_trust_tier(has_signature=False, in_index=False)
-            == TrustTier.UNREVIEWED
-        )
+        assert classify_trust_tier(has_signature=False, in_index=False) == TrustTier.UNREVIEWED
 
     def test_workspace_tier(self):
         assert classify_trust_tier(is_workspace=True) == TrustTier.WORKSPACE

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.channels._stubs import (
     BaseChannel,
     ChannelHandler,

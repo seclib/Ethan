@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.evals.core.types import EvalRecord
 from openjarvis.evals.datasets.loghub import LogHubDataset
 from openjarvis.evals.scorers.loghub_scorer import LogHubScorer
@@ -34,9 +33,7 @@ class TestLogHubDatasetDetails:
         label_file = tmp_path / "anomaly_label.csv"
 
         log_file.write_text(
-            "081109 event blk_123 info\n"
-            "081109 event blk_123 detail\n"
-            "081109 event blk_456 info\n"
+            "081109 event blk_123 info\n081109 event blk_123 detail\n081109 event blk_456 info\n"
         )
         with open(label_file, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["BlockId", "Label"])

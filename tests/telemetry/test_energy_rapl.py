@@ -6,11 +6,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.telemetry.energy_rapl import (
     RaplEnergyMonitor,
     _discover_domains,
 )
+
 from tests.telemetry.energy_test_helpers import (
     assert_close_sets_uninitialized,
     assert_sample_result_basics,
@@ -158,9 +158,7 @@ class TestSampleNormalDelta:
         assert result.cpu_energy_joules == pytest.approx(100000 / 1e6)
         assert result.dram_energy_joules == pytest.approx(20000 / 1e6)
         assert result.energy_joules == pytest.approx(120000 / 1e6)
-        assert_sample_result_basics(
-            result, vendor="cpu_rapl", energy_method="rapl"
-        )
+        assert_sample_result_basics(result, vendor="cpu_rapl", energy_method="rapl")
 
 
 # ---------------------------------------------------------------------------

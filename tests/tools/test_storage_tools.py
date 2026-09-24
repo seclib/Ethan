@@ -6,7 +6,6 @@ import os
 import tempfile
 
 import pytest
-
 from openjarvis.mcp.server import MCPServer
 from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
 from openjarvis.tools.storage_tools import (

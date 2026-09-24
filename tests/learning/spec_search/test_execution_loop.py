@@ -23,9 +23,7 @@ def _make_ctx(tmp_path: Path) -> ApplyContext:
     (agents_dir / "system_prompt.md").write_text("You are helpful.\n")
     tools_dir = tmp_path / "tools"
     tools_dir.mkdir(parents=True)
-    (tools_dir / "descriptions.toml").write_text(
-        '[web_search]\ndescription = "Search"\n'
-    )
+    (tools_dir / "descriptions.toml").write_text('[web_search]\ndescription = "Search"\n')
     return ApplyContext(openjarvis_home=tmp_path, session_id="s1")
 
 

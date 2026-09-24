@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.core.registry import SpeechRegistry
 from openjarvis.speech._stubs import TranscriptionResult
 from openjarvis.speech.deepgram import DeepgramSpeechBackend

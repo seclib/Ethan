@@ -1,13 +1,12 @@
 """Snapshot regression tests — compare CLI outputs against golden snapshots."""
-import pytest
+
 from pathlib import Path
-from unittest.mock import patch
+
+import pytest
 
 from cli.registry import COMMANDS
-from tests.cli.ethan.snapshot import SnapshotEngine
 from tests.cli.ethan.comparator import Comparator
-from tests.cli.ethan.helpers import capture_output
-
+from tests.cli.ethan.snapshot import SnapshotEngine
 
 SNAPSHOT_DIR = Path(__file__).parent.parent / "golden"
 
@@ -21,9 +20,14 @@ def snapshot_engine():
 @pytest.fixture
 def comparator():
     """Provide comparison engine with tolerance."""
-    return Comparator(tolerance_lines=2, ignore_patterns=[
-        r"Session ID:", r"Timestamp:", r"\d{4}-\d{2}-\d{2}",
-    ])
+    return Comparator(
+        tolerance_lines=2,
+        ignore_patterns=[
+            r"Session ID:",
+            r"Timestamp:",
+            r"\d{4}-\d{2}-\d{2}",
+        ],
+    )
 
 
 class TestStatusSnapshots:
@@ -36,12 +40,12 @@ class TestStatusSnapshots:
             pytest.skip("status command not registered")
 
         # Capture output
-        stdout_buf = []
         import sys
         from io import StringIO
+
         old_stdout = sys.stdout
         sys.stdout = StringIO()
-        
+
         try:
             exit_code = cmd([])
             output = sys.stdout.getvalue()
@@ -82,9 +86,10 @@ class TestLogsSnapshots:
 
         import sys
         from io import StringIO
+
         old_stdout = sys.stdout
         sys.stdout = StringIO()
-        
+
         try:
             exit_code = cmd([])
             output = sys.stdout.getvalue()
@@ -122,9 +127,10 @@ class TestMemorySnapshots:
 
         import sys
         from io import StringIO
+
         old_stdout = sys.stdout
         sys.stdout = StringIO()
-        
+
         try:
             exit_code = cmd(["recent"])
             output = sys.stdout.getvalue()

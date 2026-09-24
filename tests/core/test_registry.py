@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.registry import (
     EngineRegistry,
     ModelRegistry,
@@ -107,5 +106,6 @@ def test_miner_registry_register_and_get():
 
 def test_miner_registry_cleared_between_tests():
     from openjarvis.core.registry import MinerRegistry
+
     # If autouse clear works, no entry from prior tests remains
     assert MinerRegistry.contains("stub-pearl") is False

@@ -78,8 +78,7 @@ class TestSkillDiscovery:
         """3+ traces with same 2-tool sequence should be discovered."""
         sd = SkillDiscovery(min_frequency=3, min_outcome=0.5)
         traces = [
-            _make_trace(["web_search", "file_write"], outcome=0.9, query=f"q{i}")
-            for i in range(5)
+            _make_trace(["web_search", "file_write"], outcome=0.9, query=f"q{i}") for i in range(5)
         ]
         result = sd.analyze_traces(traces)
         assert len(result) >= 1

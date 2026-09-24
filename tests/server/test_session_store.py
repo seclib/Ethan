@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from openjarvis.server.session_store import SessionStore
 
 
@@ -96,9 +95,7 @@ class TestExpireSessions:
         store.get_or_create("user1", "twilio")
         store.append_message("user1", "twilio", "user", "old message")
         # Force the updated_at to be old
-        store._db.execute(
-            "UPDATE channel_sessions SET updated_at = datetime('now', '-25 hours')"
-        )
+        store._db.execute("UPDATE channel_sessions SET updated_at = datetime('now', '-25 hours')")
         store._db.commit()
         store.expire_sessions(max_age_hours=24)
         session = store.get_or_create("user1", "twilio")

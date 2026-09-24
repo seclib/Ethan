@@ -37,7 +37,6 @@ def _make_app(db_path: str):
     from unittest.mock import patch
 
     from fastapi import FastAPI
-
     from openjarvis.agents.digest_store import DigestStore
     from openjarvis.server.digest_routes import create_digest_router
 
@@ -81,7 +80,6 @@ def test_get_digest_audio(store, tmp_path):
 def test_get_digest_404(tmp_path):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-
     from openjarvis.server.digest_routes import create_digest_router
 
     app = FastAPI()

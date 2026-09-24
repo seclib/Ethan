@@ -13,9 +13,8 @@ import pytest
 pytest.importorskip("fastapi", reason="openjarvis[server] not installed")
 
 from fastapi import FastAPI  # noqa: E402
-from starlette.testclient import TestClient  # noqa: E402
-
 from openjarvis.core.registry import ChannelRegistry  # noqa: E402
+from starlette.testclient import TestClient  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -191,9 +190,7 @@ class TestSendBlueWebhook:
         from openjarvis.channels.sendblue import SendBlueChannel
         from openjarvis.server.webhook_routes import create_webhook_router
 
-        ch = SendBlueChannel(
-            api_key_id="k", api_secret_key="s", from_number="+1555"
-        )
+        ch = SendBlueChannel(api_key_id="k", api_secret_key="s", from_number="+1555")
         ch.connect()
         app = FastAPI()
         router = create_webhook_router(bridge=mock_bridge, sendblue_channel=ch)

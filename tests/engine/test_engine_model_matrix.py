@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import httpx
 import pytest
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -170,9 +169,7 @@ def _mock_tool_call(respx_mock, engine_key: str, host: str, model: str):
 def _mock_error(respx_mock, engine_key: str, host: str):
     """Set up mock for connection error."""
     if engine_key == "ollama":
-        respx_mock.post(f"{host}/api/chat").mock(
-            side_effect=httpx.ConnectError("refused")
-        )
+        respx_mock.post(f"{host}/api/chat").mock(side_effect=httpx.ConnectError("refused"))
     else:  # All OpenAI-compatible engines
         prefix = _api_prefix(engine_key)
         respx_mock.post(f"{host}{prefix}/chat/completions").mock(
@@ -190,9 +187,7 @@ class TestEngineScenarios:
     def test_simple_chat(self, respx_mock, engine_key: str, host: str) -> None:
         engine = _create_engine(engine_key, host)
         _mock_simple_chat(respx_mock, engine_key, host, "qwen3:8b")
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hello")], model="qwen3:8b"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hello")], model="qwen3:8b")
         assert result["content"] == "Hello!"
         assert result["usage"]["prompt_tokens"] == 10
 
@@ -231,9 +226,7 @@ class TestEngineModelMatrix:
     ) -> None:
         engine = _create_engine(engine_key, host)
         _mock_simple_chat(respx_mock, engine_key, host, model_id)
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model=model_id
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model=model_id)
         assert result["content"] == "Hello!"
         assert result["model"] == model_id
 
@@ -261,12 +254,8 @@ class TestEngineHealth:
     def test_health_false(self, respx_mock, engine_key: str, host: str) -> None:
         engine = _create_engine(engine_key, host)
         if engine_key == "ollama":
-            respx_mock.get(f"{host}/api/tags").mock(
-                side_effect=httpx.ConnectError("refused")
-            )
+            respx_mock.get(f"{host}/api/tags").mock(side_effect=httpx.ConnectError("refused"))
         else:  # All OpenAI-compatible engines
             prefix = _api_prefix(engine_key)
-            respx_mock.get(f"{host}{prefix}/models").mock(
-                side_effect=httpx.ConnectError("refused")
-            )
+            respx_mock.get(f"{host}{prefix}/models").mock(side_effect=httpx.ConnectError("refused"))
         assert engine.health() is False

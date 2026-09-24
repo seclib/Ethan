@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from openjarvis.connectors.obsidian import ObsidianConnector
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.store import KnowledgeStore

@@ -46,9 +46,7 @@ def _manager(
     manager = FolderManager(
         store=store,
         knowledge=KnowledgeManager(store=store),
-        collections=KnowledgeCollectionManager(
-            store=store, rag=RAGPipeline(store=store)
-        ),
+        collections=KnowledgeCollectionManager(store=store, rag=RAGPipeline(store=store)),
         skills=skills,
     )
     return manager, skills
@@ -110,12 +108,8 @@ def test_subfolders_and_tree_ordering():
     async def scenario():
         manager, _ = _manager()
         root = await manager.create_folder("OSINT", user_id="alice")
-        recon = await manager.create_folder(
-            "Recon", parent_id=root["id"], user_id="alice"
-        )
-        forensic = await manager.create_folder(
-            "Forensic", parent_id=root["id"], user_id="alice"
-        )
+        recon = await manager.create_folder("Recon", parent_id=root["id"], user_id="alice")
+        forensic = await manager.create_folder("Forensic", parent_id=root["id"], user_id="alice")
         await manager.create_folder("Deep", parent_id=recon["id"], user_id="alice")
 
         tree = await manager.list_tree()
@@ -128,7 +122,6 @@ def test_subfolders_and_tree_ordering():
         await manager.update_folder(forensic["id"], order=10)
         tree = await manager.list_tree()
         assert [c["name"] for c in tree[0]["children"]] == ["Recon", "Forensic"]
-
 
 
 def test_move_folder_and_cycle_guards():
@@ -191,7 +184,6 @@ def test_delete_folder_reattaches_children_and_purges_memberships():
     asyncio.run(scenario())
 
 
-
 # ── Classement des ressources (relations, multi-membership) ─────────────────
 
 
@@ -217,21 +209,19 @@ def test_resource_classification_multi_membership_and_move():
         # Résolution : le record réel est renvoyé, pas une copie
         content = await manager.list_folder_resources(recon["id"])
         assert content == [
-            {"resource_type": "skill", "resource_id": "s1",
-             "record": {"id": "s1", "name": "nmap"}}
+            {"resource_type": "skill", "resource_id": "s1", "record": {"id": "s1", "name": "nmap"}}
         ]
 
         # move_resource remplace l'ensemble des dossiers
         target = await manager.move_resource("skill", "s1", [code["id"]])
         assert target == [code["id"]]
-        assert {
-            f["name"] for f in await manager.list_resource_folders("skill", "s1")
-        } == {"Code"}
+        assert {f["name"] for f in await manager.list_resource_folders("skill", "s1")} == {"Code"}
         # Multi via move
         await manager.move_resource("skill", "s1", [osint["id"], code["id"]])
-        assert {
-            f["name"] for f in await manager.list_resource_folders("skill", "s1")
-        } == {"OSINT", "Code"}
+        assert {f["name"] for f in await manager.list_resource_folders("skill", "s1")} == {
+            "OSINT",
+            "Code",
+        }
 
         # Sans dossier : move_resource([]) remet la ressource hors classement
         await manager.move_resource("skill", "s1", [])
@@ -267,7 +257,6 @@ def test_resource_validation_fail_closed():
     asyncio.run(scenario())
 
 
-
 def test_real_core_resources_resolution_and_stale_purge():
     """Providers réels : knowledge nodes et collections RAG résolus ; une
     ressource supprimée est purgée du classement."""
@@ -275,12 +264,8 @@ def test_real_core_resources_resolution_and_stale_purge():
     async def scenario():
         store = CoreRecordStore()
         knowledge = KnowledgeManager(store=store)
-        collections = KnowledgeCollectionManager(
-            store=store, rag=RAGPipeline(store=store)
-        )
-        manager = FolderManager(
-            store=store, knowledge=knowledge, collections=collections
-        )
+        collections = KnowledgeCollectionManager(store=store, rag=RAGPipeline(store=store))
+        manager = FolderManager(store=store, knowledge=knowledge, collections=collections)
 
         node = await knowledge.create("Protocole OSINT", content="Méthodologie")
         collection = await collections.create_collection("Docs")
@@ -290,9 +275,7 @@ def test_real_core_resources_resolution_and_stale_purge():
         await manager.attach_resource(folder["id"], "collection", collection["id"])
 
         content = await manager.list_folder_resources(folder["id"])
-        assert {item["resource_type"] for item in content} == {
-            "knowledge", "collection"
-        }
+        assert {item["resource_type"] for item in content} == {"knowledge", "collection"}
         records = {item["record"]["id"] for item in content}
         assert node.id in records and collection["id"] in records
 
@@ -318,9 +301,7 @@ def test_real_persistence_across_manager_instances():
         skills.add({"id": "s1", "name": "nmap"})
         manager1, _ = _manager(store, skills)
         folder = await manager1.create_folder("OSINT", user_id="alice")
-        sub = await manager1.create_folder(
-            "Recon", parent_id=folder["id"], user_id="alice"
-        )
+        sub = await manager1.create_folder("Recon", parent_id=folder["id"], user_id="alice")
         await manager1.attach_resource(sub["id"], "skill", "s1")
 
         # Nouvelle instance : mêmes données persistées
@@ -374,9 +355,7 @@ def test_multi_folders_multi_resource_types_end_to_end():
         skills.add({"id": "sk-burp", "name": "Burp proxy"})
         skills.add({"id": "sk-grep", "name": "Grep recipes"})
         knowledge = KnowledgeManager(store=store)
-        collections = KnowledgeCollectionManager(
-            store=store, rag=RAGPipeline(store=store)
-        )
+        collections = KnowledgeCollectionManager(store=store, rag=RAGPipeline(store=store))
         manager = FolderManager(
             store=store, knowledge=knowledge, collections=collections, skills=skills
         )
@@ -396,25 +375,24 @@ def test_multi_folders_multi_resource_types_end_to_end():
         await manager.attach_resource(recon["id"], "skill", "sk-nmap")
 
         content = await manager.list_folder_resources(recon["id"])
-        assert {i["resource_type"] for i in content} == {
-            "knowledge", "collection", "skill"
-        }
+        assert {i["resource_type"] for i in content} == {"knowledge", "collection", "skill"}
         # Filtrage par type dans un dossier
         only_skills = await manager.list_folder_resources(recon["id"], "skill")
         assert [i["record"]["id"] for i in only_skills] == ["sk-nmap"]
 
         # 4. Multi-membership : la skill dans deux dossiers
         await manager.attach_resource(code["id"], "skill", "sk-nmap")
-        assert {
-            f["name"] for f in await manager.list_resource_folders("skill", "sk-nmap")
-        } == {"Recon", "Code"}
+        assert {f["name"] for f in await manager.list_resource_folders("skill", "sk-nmap")} == {
+            "Recon",
+            "Code",
+        }
 
         # 5. Déplacement : sk-burp va de Code vers OSINT
         await manager.attach_resource(code["id"], "skill", "sk-burp")
         await manager.move_resource("skill", "sk-burp", [osint["id"]])
-        assert {
-            f["name"] for f in await manager.list_resource_folders("skill", "sk-burp")
-        } == {"OSINT"}
+        assert {f["name"] for f in await manager.list_resource_folders("skill", "sk-burp")} == {
+            "OSINT"
+        }
 
         # 6. Filtrage batch par dossier (index ressource → dossiers)
         index = await manager.folder_index("skill")
@@ -433,9 +411,9 @@ def test_multi_folders_multi_resource_types_end_to_end():
         await manager.delete_folder(recon["id"])
         assert await manager.get_folder(recon["id"]) is None
         # sk-nmap reste classé dans Code ; node/col redeviennent sans dossier
-        assert {
-            f["name"] for f in await manager.list_resource_folders("skill", "sk-nmap")
-        } == {"Code"}
+        assert {f["name"] for f in await manager.list_resource_folders("skill", "sk-nmap")} == {
+            "Code"
+        }
         remaining_nodes = await manager.list_untagged("knowledge")
         assert any(n["id"] == node.id for n in remaining_nodes)
         # L'arborescence reste cohérente

@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.evals.comparison.third_party import (
     ThirdPartyConfig,
     ThirdPartyEntry,
@@ -37,9 +36,7 @@ class TestLoadThirdPartyConfig:
         assert cfg.entries["hermes"].pinned_commit == "abc123"
         assert cfg.entries["openclaw"].pinned_commit == "def456"
 
-    def test_env_var_overrides_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_overrides_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         toml_path = tmp_path / "_third_party.toml"
         toml_path.write_text(
             "[hermes]\n"
@@ -63,10 +60,7 @@ class TestLoadThirdPartyConfig:
         assert "hermes" in cfg.entries
         assert "openclaw" in cfg.entries
         assert cfg.entries["hermes"].pinned_commit == "5d3be898a"
-        assert (
-            cfg.entries["openclaw"].pinned_commit
-            == "123ae82fca3009df7144fa8d41e1185cd63e61e1"
-        )
+        assert cfg.entries["openclaw"].pinned_commit == "123ae82fca3009df7144fa8d41e1185cd63e61e1"
 
 
 class TestVerifyCommitPin:
@@ -103,9 +97,7 @@ class TestVerifyCommitPin:
             with pytest.raises(CommitDriftError, match="abc123.*deadbeef"):
                 verify_commit_pin(entry)
 
-    def test_drift_override_env_var(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_drift_override_env_var(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from openjarvis.evals.comparison.third_party import verify_commit_pin
 
         entry = ThirdPartyEntry(

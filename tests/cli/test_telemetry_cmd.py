@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.types import TelemetryRecord
 from openjarvis.telemetry.store import TelemetryStore

@@ -101,9 +101,7 @@ class TestPercentileFromBuckets:
 
     def test_median_interpolation(self):
         lines = SAMPLE_METRICS.splitlines()
-        buckets, _, _ = _parse_histogram_buckets(
-            lines, "vllm:time_to_first_token_seconds"
-        )
+        buckets, _, _ = _parse_histogram_buckets(lines, "vllm:time_to_first_token_seconds")
         p50 = _percentile_from_buckets(buckets, 50)
         # 50th percentile: target = 50 out of 100
         # Bucket le=0.05 has 40, le=0.1 has 80
@@ -113,9 +111,7 @@ class TestPercentileFromBuckets:
 
     def test_p95(self):
         lines = SAMPLE_METRICS.splitlines()
-        buckets, _, _ = _parse_histogram_buckets(
-            lines, "vllm:time_to_first_token_seconds"
-        )
+        buckets, _, _ = _parse_histogram_buckets(lines, "vllm:time_to_first_token_seconds")
         p95 = _percentile_from_buckets(buckets, 95)
         # target = 95, bucket le=0.25 has 95 exactly
         # le=0.1 has 80, le=0.25 has 95
@@ -186,9 +182,7 @@ class TestVLLMMetricsScraper:
         def raise_status_error(*args, **kwargs):
             request = _httpx.Request("GET", "http://localhost:8000/metrics")
             response = _httpx.Response(500, request=request)
-            raise _httpx.HTTPStatusError(
-                "Server Error", request=request, response=response
-            )
+            raise _httpx.HTTPStatusError("Server Error", request=request, response=response)
 
         target = "openjarvis.telemetry.vllm_metrics.httpx.get"
         with patch(target, side_effect=raise_status_error):

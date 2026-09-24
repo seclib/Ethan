@@ -81,9 +81,7 @@ async def test_vllm_pearl_start_writes_sidecar(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_vllm_pearl_start_pool_target_raises_not_implemented(
-    monkeypatch, tmp_path
-):  # noqa: E501
+async def test_vllm_pearl_start_pool_target_raises_not_implemented(monkeypatch, tmp_path):  # noqa: E501
     from openjarvis.mining._stubs import MiningConfig, PoolTarget
     from openjarvis.mining.vllm_pearl import VllmPearlProvider
 

@@ -147,8 +147,7 @@ class TestErrorPathFrameworkPropagation:
         # The KEY assertion: framework must come from backend.framework_name,
         # NOT from the EvalResult dataclass default of "openjarvis".
         assert result.framework == "hermes", (
-            f"Expected framework='hermes' (from backend.framework_name), "
-            f"got {result.framework!r}"
+            f"Expected framework='hermes' (from backend.framework_name), got {result.framework!r}"
         )
         assert result.error is not None
         assert "simulated backend failure" in result.error

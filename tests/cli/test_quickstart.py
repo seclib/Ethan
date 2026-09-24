@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -97,10 +96,7 @@ class TestQuickstartCommand:
             runner = CliRunner()
             result = runner.invoke(cli, ["quickstart"])
             assert result.exit_code == 0
-            assert (
-                "already exists" in result.output.lower()
-                or "skip" in result.output.lower()
-            )
+            assert "already exists" in result.output.lower() or "skip" in result.output.lower()
 
     def test_force_regenerates_config(self, tmp_path):
         """--force should regenerate config even if it exists."""
@@ -170,10 +166,7 @@ class TestQuickstartCommand:
             runner = CliRunner()
             result = runner.invoke(cli, ["quickstart"])
             assert result.exit_code == 1
-            assert (
-                "engine" in result.output.lower()
-                or "not reachable" in result.output.lower()
-            )
+            assert "engine" in result.output.lower() or "not reachable" in result.output.lower()
 
     def test_falls_back_to_any_healthy_engine(self, tmp_path):
         """If the recommended engine is down, use a healthy fallback engine."""

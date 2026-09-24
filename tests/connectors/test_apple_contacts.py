@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import List
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 
@@ -186,10 +185,7 @@ def _create_fake_contacts_db(db_path: Path) -> None:
         "VALUES (1, 0, 2, '@alicesmith', 'Twitter', NULL)"
     )
     # Note
-    conn.execute(
-        "INSERT INTO ZABCDNOTE (Z_PK, ZCONTACT, ZTEXT) "
-        "VALUES (1, 2, 'Met at WWDC 2024')"
-    )
+    conn.execute("INSERT INTO ZABCDNOTE (Z_PK, ZCONTACT, ZTEXT) VALUES (1, 2, 'Met at WWDC 2024')")
 
     # ── Contact 2: Acme Corp (org-only, no person name) ─────────────
     conn.execute(

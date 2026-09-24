@@ -1,16 +1,15 @@
 """Tests — Cognitive Loop (ADR-1004)"""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from core.context.intent import Intent, IntentRouter
 from core.orchestrator.cognitive_loop import (
     CognitiveLoop,
-    CognitiveState,
     CognitiveResult,
+    CognitiveState,
 )
-from core.orchestration import Executor, Observer, Planner
 from core.orchestrator.registry import CapabilityRegistry
 
 
@@ -75,9 +74,9 @@ class TestCognitiveLoopPerception:
     @pytest.mark.asyncio
     async def test_perceive(self, cognitive_loop, mock_intent_router, sample_intent):
         mock_intent_router.parse.return_value = sample_intent
-        
+
         intent = await cognitive_loop._perceive("text", "Hello")
-        
+
         mock_intent_router.parse.assert_called_once_with("text", "Hello")
         assert intent == sample_intent
         assert intent.source == "text"
@@ -86,9 +85,9 @@ class TestCognitiveLoopPerception:
 class TestCognitiveLoopReasoning:
     def test_reason(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
-        
+
         reasoning = cognitive_loop._reason(sample_intent, state)
-        
+
         assert reasoning["intent_type"] == "text"
         assert reasoning["has_context"] is True
         assert reasoning["history_length"] == 0
@@ -98,22 +97,23 @@ class TestCognitiveLoopReasoning:
             session_id="test",
             history=[{"success": True}],
         )
-        
+
         reasoning = cognitive_loop._reason(sample_intent, state)
-        
+
         assert reasoning["history_length"] == 1
         assert reasoning["last_success"] is True
 
 
 class TestCognitiveLoopPlanning:
     def test_plan(self, cognitive_loop, sample_intent):
-        with patch.object(cognitive_loop.planner, 'build') as mock_build:
+        with patch.object(cognitive_loop.planner, "build") as mock_build:
             from core.orchestrator.planner import Plan
+
             mock_plan = Plan(steps=[])
             mock_build.return_value = mock_plan
-            
+
             plan = cognitive_loop._plan(sample_intent, {})
-            
+
             mock_build.assert_called_once_with(sample_intent)
             assert plan == mock_plan
 
@@ -121,39 +121,36 @@ class TestCognitiveLoopPlanning:
 class TestCognitiveLoopExecution:
     @pytest.mark.asyncio
     async def test_execute(self, cognitive_loop, sample_context):
+        from core.capabilities import CapabilityResult, CapabilityStatus
         from core.orchestrator.planner import Plan, Step
-        from core.capabilities import CapabilityStatus, CapabilityResult
-        
-        plan = Plan(steps=[
-            Step(capability="test_cap", args={"arg1": "value1"})
-        ])
-        
+
+        plan = Plan(steps=[Step(capability="test_cap", args={"arg1": "value1"})])
+
         mock_cap = MagicMock()
         mock_cap.validate = AsyncMock(return_value=True)
-        mock_cap.execute = AsyncMock(return_value=CapabilityResult(
-            status=CapabilityStatus.SUCCESS,
-            output="test output",
-        ))
+        mock_cap.execute = AsyncMock(
+            return_value=CapabilityResult(
+                status=CapabilityStatus.SUCCESS,
+                output="test output",
+            )
+        )
         cognitive_loop.registry.get.return_value = mock_cap
-        
+
         observations = await cognitive_loop._execute(plan, sample_context)
-        
+
         assert len(observations) == 1
         assert observations[0].success is True
 
     @pytest.mark.asyncio
     async def test_execute_failure(self, cognitive_loop, sample_context):
         from core.orchestrator.planner import Plan, Step
-        from core.capabilities import CapabilityStatus, CapabilityResult
-        
-        plan = Plan(steps=[
-            Step(capability="missing_cap", args={})
-        ])
-        
+
+        plan = Plan(steps=[Step(capability="missing_cap", args={})])
+
         cognitive_loop.registry.get.return_value = None
-        
+
         observations = await cognitive_loop._execute(plan, sample_context)
-        
+
         assert len(observations) == 1
         assert observations[0].success is False
 
@@ -161,28 +158,26 @@ class TestCognitiveLoopExecution:
 class TestCognitiveLoopMemory:
     def test_update_memory(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
-        
+
         from core.orchestrator.observer import Observation
-        observations = [
-            Observation(summary="Test obs", details={}, success=True)
-        ]
-        
+
+        observations = [Observation(summary="Test obs", details={}, success=True)]
+
         cognitive_loop._update_memory(sample_intent, observations, state)
-        
+
         assert len(state.history) == 1
         assert "interaction_1" in state.memory
         assert state.memory["interaction_1"]["success"] is True
 
     def test_update_memory_with_failures(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
-        
+
         from core.orchestrator.observer import Observation
-        observations = [
-            Observation(summary="Failed", details={}, success=False)
-        ]
-        
+
+        observations = [Observation(summary="Failed", details={}, success=False)]
+
         cognitive_loop._update_memory(sample_intent, observations, state)
-        
+
         assert state.memory["interaction_1"]["success"] is False
         # Note: last_failure is set in _reflect, not _update_memory
 
@@ -190,28 +185,26 @@ class TestCognitiveLoopMemory:
 class TestCognitiveLoopReflection:
     def test_reflect_success(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
-        
+
         from core.orchestrator.observer import Observation
-        observations = [
-            Observation(summary="Success", details={}, success=True)
-        ]
-        
+
+        observations = [Observation(summary="Success", details={}, success=True)]
+
         reflection = cognitive_loop._reflect(sample_intent, observations, state)
-        
+
         assert "Successfully processed" in reflection
         assert len(state.reflections) == 1
         assert "last_failure" not in state.memory
 
     def test_reflect_failure(self, cognitive_loop, sample_intent):
         state = CognitiveState(session_id="test")
-        
+
         from core.orchestrator.observer import Observation
-        observations = [
-            Observation(summary="Failed op", details={}, success=False)
-        ]
-        
+
+        observations = [Observation(summary="Failed op", details={}, success=False)]
+
         reflection = cognitive_loop._reflect(sample_intent, observations, state)
-        
+
         assert "Partial failure" in reflection
         assert "last_failure" in state.memory
         assert state.memory["last_failure"]["intent"] == "Test input"
@@ -220,10 +213,9 @@ class TestCognitiveLoopReflection:
 class TestCognitiveLoopIntegration:
     @pytest.mark.asyncio
     async def test_run_full_cycle(self, cognitive_loop, mock_intent_router, sample_context):
-        from core.orchestrator.planner import Plan, Step
-        from core.capabilities import CapabilityStatus, CapabilityResult
-        from core.orchestrator.observer import Observation
-        
+        from core.capabilities import CapabilityResult, CapabilityStatus
+        from core.orchestrator.planner import Plan
+
         # Setup mocks
         sample_intent = Intent(
             source="text",
@@ -232,23 +224,23 @@ class TestCognitiveLoopIntegration:
             timestamp=datetime(2024, 1, 1, 12, 0, 0),
         )
         mock_intent_router.parse.return_value = sample_intent
-        
-        with patch.object(cognitive_loop.planner, 'build') as mock_build:
+
+        with patch.object(cognitive_loop.planner, "build") as mock_build:
             mock_build.return_value = Plan(steps=[])
-            
-            with patch.object(cognitive_loop.executor, 'run') as mock_exec:
+
+            with patch.object(cognitive_loop.executor, "run") as mock_exec:
                 mock_exec.return_value = CapabilityResult(
                     status=CapabilityStatus.SUCCESS,
                     output="result",
                 )
-                
+
                 result = await cognitive_loop.run(
                     source="text",
                     raw_input="Test query",
                     session_id="session_1",
                     context=sample_context,
                 )
-                
+
                 assert isinstance(result, CognitiveResult)
                 assert result.intent == sample_intent
                 assert result.success is True
@@ -258,7 +250,7 @@ class TestCognitiveLoopIntegration:
     def test_get_state(self, cognitive_loop):
         state = cognitive_loop._get_state("session_1")
         assert state.session_id == "session_1"
-        
+
         # Should return same state on second call
         state2 = cognitive_loop._get_state("session_1")
         assert state is state2
@@ -266,6 +258,6 @@ class TestCognitiveLoopIntegration:
     def test_clear_state(self, cognitive_loop):
         cognitive_loop._get_state("session_to_clear")
         assert "session_to_clear" in cognitive_loop._states
-        
+
         cognitive_loop.clear_state("session_to_clear")
         assert "session_to_clear" not in cognitive_loop._states

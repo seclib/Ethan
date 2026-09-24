@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import List
 
 import pytest
-
 from openjarvis.channels._stubs import BaseChannel, ChannelHandler, ChannelStatus
 from openjarvis.core.registry import ChannelRegistry
 

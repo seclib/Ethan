@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents.manager import AgentManager
 
 
@@ -34,7 +33,6 @@ class TestAgentManagerRoutes:
     @pytest.fixture
     def client(self, manager):
         from fastapi import FastAPI
-
         from openjarvis.server.agent_manager_routes import create_agent_manager_router
 
         app = FastAPI()
@@ -277,7 +275,6 @@ class TestAgentManagerStreaming:
     @pytest.fixture
     def stream_client(self, manager, _mock_engine):
         from fastapi import FastAPI
-
         from openjarvis.server.agent_manager_routes import create_agent_manager_router
 
         app = FastAPI()
@@ -401,7 +398,6 @@ class TestAgentManagerStreaming:
 
         from fastapi import FastAPI
         from fastapi.testclient import TestClient as TC
-
         from openjarvis.server.agent_manager_routes import create_agent_manager_router
 
         app = FastAPI()

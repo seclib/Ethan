@@ -10,7 +10,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from openjarvis.connectors.obsidian import ObsidianConnector
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.store import KnowledgeStore
@@ -83,6 +82,4 @@ def test_live_obsidian_full_pipeline() -> None:
             assert "[obsidian]" in result.content
             print("  'registry pattern': found with attribution")
 
-        print(
-            f"\n  SMOKE TEST PASSED — {items} chunks indexed, search working end-to-end"
-        )
+        print(f"\n  SMOKE TEST PASSED — {items} chunks indexed, search working end-to-end")

@@ -9,7 +9,6 @@ ETHAN Core owns chat persistence and orchestration.  These tests validate:
 from __future__ import annotations
 
 import asyncio
-import json
 
 from core.chat import ChatPipeline
 from core.state import CoreRecordStore
@@ -131,6 +130,7 @@ def test_chat_pipeline_unknown_chat_raises():
 
 def test_chat_store_update_message_streaming_state():
     """Messages support pending → done transitions during streaming."""
+
     async def scenario():
         store = ChatStore(store=CoreRecordStore())
         chat = await store.create_chat("Streaming", user_id="alice")
@@ -380,6 +380,7 @@ def test_execute_tool_call_runs_via_core_executor():
 
     asyncio.run(scenario())
 
+
 def test_pipeline_run_persists_mode_metadata():
     """Le mode et l'effort de raisonnement sont persistés avec les messages.
 
@@ -427,14 +428,18 @@ def test_resolve_session_settings_applies_mode_profile_without_ghost_values():
 
         # Mode explicite, sans reasoning : le profil PLAN (high) est résolu mais
         # non supporté (aucune capacité de modèle déclarée) → pas de valeur.
-        resolved, _provider, _model, re_effort, mode_meta = (
-            await pipeline._resolve_session_settings(
-                chat_id=None,
-                provider_id=None,
-                model=None,
-                mode="plan",
-                reasoning_effort=None,
-            )
+        (
+            resolved,
+            _provider,
+            _model,
+            re_effort,
+            mode_meta,
+        ) = await pipeline._resolve_session_settings(
+            chat_id=None,
+            provider_id=None,
+            model=None,
+            mode="plan",
+            reasoning_effort=None,
         )
         assert resolved is not None
         assert resolved.mode.value == "plan"
@@ -443,14 +448,12 @@ def test_resolve_session_settings_applies_mode_profile_without_ghost_values():
         assert "reasoning_effort" not in mode_meta
 
         # Priorité requête : l'effort explicite est porté par l'intent.
-        _, _, _, re_explicit, meta_explicit = (
-            await pipeline._resolve_session_settings(
-                chat_id=None,
-                provider_id=None,
-                model=None,
-                mode="debug",
-                reasoning_effort="low",
-            )
+        _, _, _, re_explicit, meta_explicit = await pipeline._resolve_session_settings(
+            chat_id=None,
+            provider_id=None,
+            model=None,
+            mode="debug",
+            reasoning_effort="low",
         )
         assert re_explicit == "low"
         assert meta_explicit["reasoning_effort"] == "low"

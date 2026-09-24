@@ -109,14 +109,7 @@ class TestApplyPatchTool:
     def test_backup_disabled(self, tmp_path):
         f = tmp_path / "no_bak.txt"
         f.write_text("hello\nworld\n", encoding="utf-8")
-        patch = (
-            "--- a/no_bak.txt\n"
-            "+++ b/no_bak.txt\n"
-            "@@ -1,2 +1,2 @@\n"
-            "-hello\n"
-            "+goodbye\n"
-            " world\n"
-        )
+        patch = "--- a/no_bak.txt\n+++ b/no_bak.txt\n@@ -1,2 +1,2 @@\n-hello\n+goodbye\n world\n"
         tool = ApplyPatchTool()
         result = tool.execute(patch=patch, path=str(f), backup=False)
         assert result.success is True
@@ -136,9 +129,7 @@ class TestApplyPatchTool:
     def test_auto_detect_path_from_patch_header(self, tmp_path):
         f = tmp_path / "auto.txt"
         f.write_text("one\ntwo\nthree\n", encoding="utf-8")
-        patch = (
-            f"--- a/auto.txt\n+++ b/{f}\n@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"
-        )
+        patch = f"--- a/auto.txt\n+++ b/{f}\n@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"
         tool = ApplyPatchTool()
         # No explicit path — should auto-detect from +++ header
         result = tool.execute(patch=patch, backup=False)
@@ -154,9 +145,7 @@ class TestApplyPatchTool:
 
     def test_file_not_found(self):
         tool = ApplyPatchTool()
-        patch = (
-            "--- a/nonexistent.txt\n+++ b/nonexistent.txt\n@@ -1 +1 @@\n-old\n+new\n"
-        )
+        patch = "--- a/nonexistent.txt\n+++ b/nonexistent.txt\n@@ -1 +1 @@\n-old\n+new\n"
         result = tool.execute(patch=patch, path="/nonexistent/path/file.txt")
         assert result.success is False
         assert "not found" in result.content.lower()
@@ -165,12 +154,7 @@ class TestApplyPatchTool:
         f = tmp_path / "add_only.txt"
         f.write_text("first\nsecond\n", encoding="utf-8")
         patch = (
-            "--- a/add_only.txt\n"
-            "+++ b/add_only.txt\n"
-            "@@ -1,2 +1,3 @@\n"
-            " first\n"
-            "+inserted\n"
-            " second\n"
+            "--- a/add_only.txt\n+++ b/add_only.txt\n@@ -1,2 +1,3 @@\n first\n+inserted\n second\n"
         )
         tool = ApplyPatchTool()
         result = tool.execute(patch=patch, path=str(f), backup=False)

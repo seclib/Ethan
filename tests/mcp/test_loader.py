@@ -18,9 +18,7 @@ def _make_mcp_cfg(*, enabled=True, servers):
     """Build a duck-typed MCPConfig with enabled flag + servers JSON."""
     cfg = MagicMock()
     cfg.enabled = enabled
-    cfg.servers = (
-        json.dumps(servers) if not isinstance(servers, str) else servers
-    )
+    cfg.servers = json.dumps(servers) if not isinstance(servers, str) else servers
     return cfg
 
 
@@ -33,13 +31,12 @@ def _fake_tool(name):
 @pytest.fixture
 def _mock_mcp_stack():
     """Patch MCPClient / transports / MCPToolProvider so no real I/O happens."""
-    with patch("openjarvis.mcp.client.MCPClient") as MockClient, patch(
-        "openjarvis.mcp.transport.StreamableHTTPTransport"
-    ) as MockHttp, patch(
-        "openjarvis.mcp.transport.StdioTransport"
-    ) as MockStdio, patch(
-        "openjarvis.tools.mcp_adapter.MCPToolProvider"
-    ) as MockProvider:
+    with (
+        patch("openjarvis.mcp.client.MCPClient") as MockClient,
+        patch("openjarvis.mcp.transport.StreamableHTTPTransport") as MockHttp,
+        patch("openjarvis.mcp.transport.StdioTransport") as MockStdio,
+        patch("openjarvis.tools.mcp_adapter.MCPToolProvider") as MockProvider,
+    ):
         # Default: any provider discovers no tools (per-test overrides as needed)
         MockProvider.return_value.discover.return_value = []
         MockClient.return_value.initialize.return_value = None
@@ -124,14 +121,10 @@ class TestLoaderTokenPlumbing:
 
         cfg = _make_mcp_cfg(
             enabled=True,
-            servers=[
-                {"name": "local-mcp", "command": "mcp-server-foo", "args": ["--flag"]}
-            ],
+            servers=[{"name": "local-mcp", "command": "mcp-server-foo", "args": ["--flag"]}],
         )
         load_mcp_tools_from_config(cfg)
-        _mock_mcp_stack["stdio"].assert_called_once_with(
-            command=["mcp-server-foo", "--flag"]
-        )
+        _mock_mcp_stack["stdio"].assert_called_once_with(command=["mcp-server-foo", "--flag"])
 
 
 class TestLoaderFiltering:
@@ -161,9 +154,7 @@ class TestLoaderFiltering:
         ]
         cfg = _make_mcp_cfg(
             enabled=True,
-            servers=[
-                {"name": "x", "url": "http://x", "include_tools": ["alpha"]}
-            ],
+            servers=[{"name": "x", "url": "http://x", "include_tools": ["alpha"]}],
         )
         tools, _ = load_mcp_tools_from_config(cfg)
         assert [t.spec.name for t in tools] == ["alpha"]
@@ -178,9 +169,7 @@ class TestLoaderFiltering:
         ]
         cfg = _make_mcp_cfg(
             enabled=True,
-            servers=[
-                {"name": "x", "url": "http://x", "exclude_tools": ["alpha"]}
-            ],
+            servers=[{"name": "x", "url": "http://x", "exclude_tools": ["alpha"]}],
         )
         tools, _ = load_mcp_tools_from_config(cfg)
         assert [t.spec.name for t in tools] == ["beta"]
@@ -217,9 +206,7 @@ class TestLoaderFailureIsolation:
         good_client = MagicMock()
         good_client.initialize.return_value = None
         _mock_mcp_stack["client"].side_effect = [bad_client, good_client]
-        _mock_mcp_stack["provider"].return_value.discover.return_value = [
-            _fake_tool("survivor")
-        ]
+        _mock_mcp_stack["provider"].return_value.discover.return_value = [_fake_tool("survivor")]
 
         cfg = _make_mcp_cfg(
             enabled=True,

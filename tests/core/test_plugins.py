@@ -1,16 +1,16 @@
 """Tests — Plugin Discovery & Loading (ADR-1008)"""
 
-import pytest
-import asyncio
-from pathlib import Path
 import shutil
 import tempfile
-from unittest.mock import MagicMock, AsyncMock
+from pathlib import Path
 
-from core.plugins import Plugin, PluginRegistry, PluginMetadata, PluginContext
+import pytest
+from core.plugins import Plugin, PluginContext, PluginMetadata, PluginRegistry
+
 
 class MockPlugin(Plugin):
     """A simple plugin for testing."""
+
     def __init__(self, name="test-plugin", version="1.0.0"):
         self.name = name
         self.version = version
@@ -21,7 +21,7 @@ class MockPlugin(Plugin):
             version=self.version,
             description="Test plugin",
             author="Tester",
-            capabilities=["test.cap"]
+            capabilities=["test.cap"],
         )
 
     async def initialize(self, context: PluginContext) -> None:
@@ -29,6 +29,7 @@ class MockPlugin(Plugin):
 
     async def shutdown(self) -> None:
         pass
+
 
 class TestPluginRegistry:
     """Tests for PluginRegistry."""
@@ -123,7 +124,7 @@ class TestPluginRegistry:
     async def test_discover_invalid_plugin(self, registry, temp_plugin_dir):
         """Test discovery ignores invalid python files."""
         (temp_plugin_dir / "invalid.py").write_text("print('hello')")
-        
+
         await registry.discover([temp_plugin_dir])
         assert len(registry) == 0
 

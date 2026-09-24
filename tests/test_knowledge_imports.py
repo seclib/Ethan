@@ -11,14 +11,12 @@ root (le binaire reste dans le FileStore, jamais exposé ni écrit hors store).
 from __future__ import annotations
 
 import asyncio
-import pytest
 
 import pytest
-
 from core.knowledge.collections import KnowledgeCollectionManager
 from core.knowledge.imports import (
-    KnowledgeImportManager,
     _MAX_FILE_SIZE,
+    KnowledgeImportManager,
 )
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore
@@ -31,9 +29,7 @@ def env():
     files = FileStore(store=store)
     rag = RAGPipeline(store=store)
     collections = KnowledgeCollectionManager(store=store, rag=rag)
-    manager = KnowledgeImportManager(
-        file_store=files, collections=collections, ingestion=rag
-    )
+    manager = KnowledgeImportManager(file_store=files, collections=collections, ingestion=rag)
     return {
         "store": store,
         "files": files,
@@ -63,7 +59,8 @@ async def _start(manager, files, collection_id, user="user-a"):
 @pytest.mark.asyncio
 async def test_import_single_file(env):
     col = await env["collections"].create_collection(
-        "Docs", retrieval_strategy="hybrid",
+        "Docs",
+        retrieval_strategy="hybrid",
     )
     state = await _start(env["manager"], [("note.md", b"# Heading\nHello world")], col["id"])
     assert state["status"] == "done"
@@ -82,14 +79,16 @@ async def test_import_folder_batch(env):
     files = [
         ("a.txt", b"alpha"),
         ("sub/b.md", b"beta beta"),
-        ("unsupported.xyz", b"nope"),      # erreur MIME isolée
-        ("../escape.txt", b"oops"),         # traversée → erreur isolée
+        ("unsupported.xyz", b"nope"),  # erreur MIME isolée
+        ("../escape.txt", b"oops"),  # traversée → erreur isolée
     ]
     state = await _start(env["manager"], files, col["id"])
     assert state["status"] == "done"
-    assert len(state["results"]) == 2          # a.txt + sub/b.md
-    assert len(state["errors"]) == 1           # unsupported.xyz (traversée rejetée aussi)
-    assert state["errors"][0]["code"] == 422
+    assert len(state["results"]) == 2  # a.txt + sub/b.md
+    # Erreurs ISOLÉES par fichier (philosophie du domaine) : MIME non supporté
+    # ET traversée — tous deux 422, jamais de panne globale.
+    assert len(state["errors"]) == 2
+    assert all(e["code"] == 422 for e in state["errors"])
     # Le chemin relatif reste un nom affichable ; le Core ne lit pas le FS
     names = {r["filename"] for r in state["results"]}
     assert "sub/b.md" in names

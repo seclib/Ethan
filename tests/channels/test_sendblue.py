@@ -10,11 +10,11 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.sendblue import SendBlueChannel
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import ChannelRegistry
+
 from tests.channels.channel_test_helpers import make_common_channel_tests
 
 
@@ -234,9 +234,7 @@ class TestWebhookHandler:
 
         event_types = [e.event_type for e in bus.history]
         assert EventType.CHANNEL_MESSAGE_RECEIVED in event_types
-        event = [
-            e for e in bus.history if e.event_type == EventType.CHANNEL_MESSAGE_RECEIVED
-        ][0]
+        event = [e for e in bus.history if e.event_type == EventType.CHANNEL_MESSAGE_RECEIVED][0]
         assert event.data["sender"] == "+19127130720"
         assert event.data["service"] == "iMessage"
 

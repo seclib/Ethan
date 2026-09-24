@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from core.llm.model_store import ModelStore
 
 
@@ -16,15 +15,17 @@ def store() -> ModelStore:
 @pytest.mark.asyncio
 async def test_create_and_get_model(store: ModelStore):
     """Création puis récupération d'une fiche modèle."""
-    created = await store.create_model({
-        "name": "My Custom Llama",
-        "model": "llama3.1:70b-instruct-q4_K_M",
-        "base_model_id": "llama3.1",
-        "params": {"temperature": 0.7, "max_tokens": 4096},
-        "meta": {"tags": ["local", "test"]},
-        "is_active": True,
-        "acl": ["user:admin"],
-    })
+    created = await store.create_model(
+        {
+            "name": "My Custom Llama",
+            "model": "llama3.1:70b-instruct-q4_K_M",
+            "base_model_id": "llama3.1",
+            "params": {"temperature": 0.7, "max_tokens": 4096},
+            "meta": {"tags": ["local", "test"]},
+            "is_active": True,
+            "acl": ["user:admin"],
+        }
+    )
 
     assert created["id"] is not None
     assert created["name"] == "My Custom Llama"
@@ -60,11 +61,14 @@ async def test_update_model(store: ModelStore):
     created = await store.create_model({"name": "Original", "is_active": True})
     original_updated = created["updated_at"]
 
-    updated = await store.update_model(created["id"], {
-        "name": "Updated",
-        "is_active": False,
-        "params": {"temperature": 0.1},
-    })
+    updated = await store.update_model(
+        created["id"],
+        {
+            "name": "Updated",
+            "is_active": False,
+            "params": {"temperature": 0.1},
+        },
+    )
 
     assert updated is not None
     assert updated["name"] == "Updated"
@@ -123,16 +127,20 @@ async def test_toggle_model_not_found(store: ModelStore):
 @pytest.mark.asyncio
 async def test_search_models(store: ModelStore):
     """search_models filtre par nom, base_model_id et tags."""
-    await store.create_model({
-        "name": "Llama 3.1 Custom",
-        "base_model_id": "llama3.1",
-        "meta": {"tags": ["local", "coding"]},
-    })
-    await store.create_model({
-        "name": "GPT-4 Custom",
-        "base_model_id": "gpt-4",
-        "meta": {"tags": ["cloud", "reasoning"]},
-    })
+    await store.create_model(
+        {
+            "name": "Llama 3.1 Custom",
+            "base_model_id": "llama3.1",
+            "meta": {"tags": ["local", "coding"]},
+        }
+    )
+    await store.create_model(
+        {
+            "name": "GPT-4 Custom",
+            "base_model_id": "gpt-4",
+            "meta": {"tags": ["cloud", "reasoning"]},
+        }
+    )
 
     # Recherche par nom
     results = await store.search_models("llama")

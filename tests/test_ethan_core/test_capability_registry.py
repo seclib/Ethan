@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import pytest
-
 from core.modules.capability import Capability
 from core.registry.capability import (
-    CapabilityRegistry,
     CapabilityConflictError,
+    CapabilityRegistry,
 )
 
 
@@ -61,7 +60,9 @@ class TestCapabilityRegistry:
         result = capability_registry.get("nonexistent")
         assert result is None
 
-    def test_unregister(self, capability_registry: CapabilityRegistry, sample_capability: Capability):
+    def test_unregister(
+        self, capability_registry: CapabilityRegistry, sample_capability: Capability
+    ):
         """Suppression d'une capacité."""
         capability_registry.register("test-module", sample_capability)
         assert capability_registry.count() == 1

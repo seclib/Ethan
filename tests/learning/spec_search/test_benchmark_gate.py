@@ -11,9 +11,7 @@ from openjarvis.learning.spec_search.models import BenchmarkSnapshot
 def _make_scorer(scores: dict[str, float], overall: float | None = None):
     """Return a callable that produces a BenchmarkSnapshot with given scores."""
 
-    def scorer(
-        *, benchmark_version: str, subsample_size: int, seed: int
-    ) -> BenchmarkSnapshot:
+    def scorer(*, benchmark_version: str, subsample_size: int, seed: int) -> BenchmarkSnapshot:
         computed = sum(scores.values()) / max(len(scores), 1)
         return BenchmarkSnapshot(
             benchmark_version=benchmark_version,

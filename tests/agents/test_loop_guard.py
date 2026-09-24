@@ -55,9 +55,7 @@ class TestLoopGuard:
         guard, bus = self._make_guard(max_identical_calls=1)
         guard.check_call("x", '{"a": 1}')
         guard.check_call("x", '{"a": 1}')
-        events = [
-            e for e in bus.history if e.event_type == EventType.LOOP_GUARD_TRIGGERED
-        ]
+        events = [e for e in bus.history if e.event_type == EventType.LOOP_GUARD_TRIGGERED]
         assert len(events) == 1
 
     def test_reset(self):

@@ -108,7 +108,6 @@ class TestCORSConfiguration:
         from unittest.mock import MagicMock
 
         from fastapi.testclient import TestClient
-
         from openjarvis.server.app import create_app
 
         mock_engine = MagicMock()
@@ -129,9 +128,7 @@ class TestCORSConfiguration:
                 "Access-Control-Request-Method": "GET",
             },
         )
-        assert (
-            resp.headers.get("access-control-allow-origin") == "http://localhost:3000"
-        )
+        assert resp.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
         resp2 = client.options(
             "/health",
@@ -156,7 +153,6 @@ class TestCORSConfiguration:
         from unittest.mock import MagicMock
 
         from fastapi.testclient import TestClient
-
         from openjarvis.server.app import create_app
 
         mock_engine = MagicMock()

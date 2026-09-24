@@ -97,6 +97,4 @@ def test_all_builtin_tools_registered():
 
     registered = set(ToolRegistry.keys())
     missing = EXPECTED_TOOLS - registered
-    assert not missing, (
-        f"Tools not registered (missing import in __init__.py?): {sorted(missing)}"
-    )
+    assert not missing, f"Tools not registered (missing import in __init__.py?): {sorted(missing)}"

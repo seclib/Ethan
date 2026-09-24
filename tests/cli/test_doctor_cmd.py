@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.cli.doctor_cmd import (
     _check_config_exists,

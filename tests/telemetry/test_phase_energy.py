@@ -7,7 +7,6 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.types import Message, Role, TelemetryRecord
 from openjarvis.telemetry.aggregator import TelemetryAggregator

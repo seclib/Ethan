@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -65,16 +64,12 @@ class TestCloudEngineGenerate:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
-        fake_usage = SimpleNamespace(
-            prompt_tokens=10, completion_tokens=5, total_tokens=15
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content="Hello!"),
             finish_reason="stop",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="gpt-4o"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="gpt-4o")
 
         fake_client = mock.MagicMock()
         fake_client.chat.completions.create.return_value = fake_resp
@@ -83,9 +78,7 @@ class TestCloudEngineGenerate:
         engine = CloudEngine()
         engine._openai_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="gpt-4o"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="gpt-4o")
         assert result["content"] == "Hello!"
         assert result["usage"]["prompt_tokens"] == 10
 
@@ -179,9 +172,7 @@ class TestOpenAIUnsupportedTemperatureRetry:
         assert "temperature" in calls[0]
         assert "temperature" not in calls[1]
 
-    def test_unrelated_400_is_not_retried(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unrelated_400_is_not_retried(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -264,9 +255,7 @@ class TestCodexClientInit:
 
 
 class TestCodexGenerate:
-    def test_generate_codex_uses_responses_api(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_generate_codex_uses_responses_api(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -582,15 +571,11 @@ class TestCloudEngineDeepSeek:
         assert engine.can_serve("deepseek-v4-pro") is True
         assert engine.can_serve("deepseek-v4-flash") is True
 
-    def test_generate_routes_to_deepseek_client(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_generate_routes_to_deepseek_client(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for var in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"):
             monkeypatch.delenv(var, raising=False)
 
-        fake_usage = SimpleNamespace(
-            prompt_tokens=7, completion_tokens=3, total_tokens=10
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=7, completion_tokens=3, total_tokens=10)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content="ds-hello"),
             finish_reason="stop",
@@ -605,23 +590,17 @@ class TestCloudEngineDeepSeek:
         engine = CloudEngine()
         engine._deepseek_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="deepseek-v4-pro"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="deepseek-v4-pro")
         assert result["content"] == "ds-hello"
         assert result["usage"]["prompt_tokens"] == 7
         # Routed to the DeepSeek client, not OpenAI.
         fake_client.chat.completions.create.assert_called_once()
 
-    def test_generate_without_client_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_generate_without_client_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for var in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY"):
             monkeypatch.delenv(var, raising=False)
         EngineRegistry.register_value("cloud", CloudEngine)
         engine = CloudEngine()
         assert engine._deepseek_client is None
         with pytest.raises(EngineConnectionError):
-            engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="deepseek-v4-pro"
-            )
+            engine.generate([Message(role=Role.USER, content="Hi")], model="deepseek-v4-pro")

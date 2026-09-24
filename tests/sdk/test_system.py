@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.core.config import JarvisConfig
 from openjarvis.core.events import EventBus
 from openjarvis.system import JarvisSystem, SystemBuilder
@@ -315,13 +314,7 @@ class TestSystemBuilder:
 
     def test_builder_sandbox_scheduler_chaining(self):
         config = JarvisConfig()
-        builder = (
-            SystemBuilder(config)
-            .engine("ollama")
-            .model("test")
-            .sandbox(True)
-            .scheduler(True)
-        )
+        builder = SystemBuilder(config).engine("ollama").model("test").sandbox(True).scheduler(True)
         assert builder._sandbox is True
         assert builder._scheduler is True
         assert builder._engine_key == "ollama"
@@ -332,9 +325,7 @@ class TestSystemBuilderEngineInstance:
 
     @staticmethod
     def _fake_engine(healthy: bool = True) -> MagicMock:
-        engine = MagicMock(
-            spec=["health", "can_serve", "generate", "list_models", "close"]
-        )
+        engine = MagicMock(spec=["health", "can_serve", "generate", "list_models", "close"])
         engine.health.return_value = healthy
         engine._host = "http://127.0.0.1:18999"
         return engine

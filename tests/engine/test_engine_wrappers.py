@@ -7,7 +7,6 @@ from collections.abc import AsyncIterator
 from typing import Any, Dict, List
 
 import pytest
-
 from openjarvis.core.events import EventBus
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._stubs import InferenceEngine, StreamChunk
@@ -32,9 +31,7 @@ class _FakeStreamFullEngine(InferenceEngine):
     async def stream(self, messages, *, model, **kwargs) -> AsyncIterator[str]:
         yield "ok"
 
-    async def stream_full(
-        self, messages, *, model, **kwargs
-    ) -> AsyncIterator[StreamChunk]:
+    async def stream_full(self, messages, *, model, **kwargs) -> AsyncIterator[StreamChunk]:
         for c in self._chunks:
             yield c
 

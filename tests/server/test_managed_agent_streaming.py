@@ -136,9 +136,7 @@ class TestInstantiateManagedTool:
 
     def test_memory_tool_gets_backend(self):
         backend = object()
-        app_state = SimpleNamespace(
-            memory_backend=backend, config=None, channel_bridge=None
-        )
+        app_state = SimpleNamespace(memory_backend=backend, config=None, channel_bridge=None)
         tool = _instantiate_managed_tool(
             _FakeTool, "memory_store", engine=object(), model="m", app_state=app_state
         )
@@ -146,9 +144,7 @@ class TestInstantiateManagedTool:
 
     def test_llm_tool_gets_engine_and_model(self):
         engine = object()
-        app_state = SimpleNamespace(
-            memory_backend=None, config=None, channel_bridge=None
-        )
+        app_state = SimpleNamespace(memory_backend=None, config=None, channel_bridge=None)
         tool = _instantiate_managed_tool(
             _FakeTool, "llm", engine=engine, model="qwen", app_state=app_state
         )
@@ -156,18 +152,14 @@ class TestInstantiateManagedTool:
 
     def test_channel_tool_gets_channel(self):
         bridge = object()
-        app_state = SimpleNamespace(
-            memory_backend=None, config=None, channel_bridge=bridge
-        )
+        app_state = SimpleNamespace(memory_backend=None, config=None, channel_bridge=bridge)
         tool = _instantiate_managed_tool(
             _FakeTool, "channel_send", engine=object(), model="m", app_state=app_state
         )
         assert tool.kwargs == {"channel": bridge}
 
     def test_plain_tool_gets_no_injection(self):
-        app_state = SimpleNamespace(
-            memory_backend=None, config=None, channel_bridge=None
-        )
+        app_state = SimpleNamespace(memory_backend=None, config=None, channel_bridge=None)
         tool = _instantiate_managed_tool(
             _FakeTool, "calculator", engine=object(), model="m", app_state=app_state
         )

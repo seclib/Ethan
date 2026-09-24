@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from openjarvis.core.types import TelemetryRecord
 from openjarvis.telemetry.aggregator import TelemetryAggregator
 from openjarvis.telemetry.store import TelemetryStore

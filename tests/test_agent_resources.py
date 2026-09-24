@@ -83,27 +83,37 @@ class _FakeToolManager:
 
 SKILLS = {
     "skill-folder": {
-        "id": "skill-folder", "name": "Folder Skill",
-        "content": "Méthodologie du dossier.", "is_active": True,
+        "id": "skill-folder",
+        "name": "Folder Skill",
+        "content": "Méthodologie du dossier.",
+        "is_active": True,
     },
     "skill-explicit": {
-        "id": "skill-explicit", "name": "Explicit Skill",
-        "content": "Skill choisi individuellement.", "is_active": True,
+        "id": "skill-explicit",
+        "name": "Explicit Skill",
+        "content": "Skill choisi individuellement.",
+        "is_active": True,
     },
     "skill-orphan": {
-        "id": "skill-orphan", "name": "Global Skill",
-        "content": "Jamais autorisé automatiquement.", "is_active": True,
+        "id": "skill-orphan",
+        "name": "Global Skill",
+        "content": "Jamais autorisé automatiquement.",
+        "is_active": True,
     },
 }
 
 TOOLS = {
     "tool-web": {
-        "id": "tool-web", "name": "web_search",
-        "description": "Recherche web", "provider": "builtin",
+        "id": "tool-web",
+        "name": "web_search",
+        "description": "Recherche web",
+        "provider": "builtin",
     },
     "tool-mcp": {
-        "id": "tool-mcp", "name": "mcp_grep",
-        "description": "Grep MCP", "provider": "mcp-fs",
+        "id": "tool-mcp",
+        "name": "mcp_grep",
+        "description": "Grep MCP",
+        "provider": "mcp-fs",
     },
 }
 
@@ -123,6 +133,7 @@ def _setup():
 
 
 # ── (SUITE) ──────────────────────────────────────────────────────────────────
+
 
 def _build_executor(provider, skill_store, collections, knowledge, folders, tools):
     return create_agent_executor(
@@ -145,9 +156,7 @@ def test_agent_without_selection_receives_nothing():
     async def scenario():
         provider = _FakeProvider()
         _s, rag, collections, knowledge, skill_store, tools, folders = _setup()
-        executor = _build_executor(
-            provider, skill_store, collections, knowledge, folders, tools
-        )
+        executor = _build_executor(provider, skill_store, collections, knowledge, folders, tools)
         # Catalogue global garni : rien ne doit fuiter vers l'agent.
         await knowledge.create("Protocole", content="Contenu global interdit.")
         await collections.create_collection("Global Col", user_id="alice")
@@ -171,9 +180,7 @@ def test_folder_selection_includes_contained_resources():
     async def scenario():
         provider = _FakeProvider()
         _s, rag, collections, knowledge, skill_store, tools, folders = _setup()
-        executor = _build_executor(
-            provider, skill_store, collections, knowledge, folders, tools
-        )
+        executor = _build_executor(provider, skill_store, collections, knowledge, folders, tools)
 
         folder = await folders.create_folder("OSINT Kit", user_id="alice")
         node = await knowledge.create("Protocole OSINT", content="Ne jamais toucher la cible.")
@@ -186,8 +193,12 @@ def test_folder_selection_includes_contained_resources():
 
         agent = Agent(id="a1", name="OSINT Agent", provider="fake", folder_ids=[folder["id"]])
         result = await resolve_agent_resources(
-            agent, folders=folders, knowledge=knowledge,
-            collections=collections, skills=skill_store, tools=tools,
+            agent,
+            folders=folders,
+            knowledge=knowledge,
+            collections=collections,
+            skills=skill_store,
+            tools=tools,
         )
         assert [k["id"] for k in result["knowledge"]] == [node.id]
         assert [c["id"] for c in result["collections"]] == [col["id"]]
@@ -208,6 +219,7 @@ def test_folder_selection_includes_contained_resources():
 
 # ── (SUITE 2) ────────────────────────────────────────────────────────────────
 
+
 def test_multiple_agents_receive_only_their_own_resources():
     """Deux agents aux ensembles différents : chacun reçoit exactement les
     siennes — knowledge spécifique, collections, skills et tools/MCP."""
@@ -223,7 +235,7 @@ def test_multiple_agents_receive_only_their_own_resources():
             provider_b, skill_store, collections, knowledge, folders, tools
         )
 
-        node_b = await knowledge.create("Dossier médical", content="Informations médicales.")
+        await knowledge.create("Dossier médical", content="Informations médicales.")
         doc_b = await rag.ingest("Comptes rendus de laboratoire.", title="Labo")
         col_b = await collections.create_collection("Médical", user_id="alice")
         await collections.add_document(col_b["id"], doc_b.id)
@@ -231,7 +243,9 @@ def test_multiple_agents_receive_only_their_own_resources():
         # Agent A : knowledge spécifique + tools builtin et MCP.
         node_a = await knowledge.create("Notes research", content="Notes de recherche.")
         agent_a = Agent(
-            id="a1", name="Research Agent", provider="fake",
+            id="a1",
+            name="Research Agent",
+            provider="fake",
             knowledge_ids=[node_a.id],
             tool_ids=["tool-web", "tool-mcp"],
         )
@@ -239,7 +253,9 @@ def test_multiple_agents_receive_only_their_own_resources():
 
         # Agent B : collection + skill explicites, aucun tool.
         agent_b = Agent(
-            id="b1", name="Medical Agent", provider="fake",
+            id="b1",
+            name="Medical Agent",
+            provider="fake",
             knowledge_collection_ids=[col_b["id"]],
             skill_ids=["skill-explicit"],
         )
@@ -265,7 +281,9 @@ def test_multiple_agents_receive_only_their_own_resources():
 
     asyncio.run(scenario())
 
+
 # ── (SUITE 3) ────────────────────────────────────────────────────────────────
+
 
 def test_dedup_and_individual_removal():
     """Une ressource présente à la fois dans un dossier ET sélectionnée
@@ -275,21 +293,25 @@ def test_dedup_and_individual_removal():
     async def scenario():
         provider = _FakeProvider()
         _s, rag, collections, knowledge, skill_store, tools, folders = _setup()
-        executor = _build_executor(
-            provider, skill_store, collections, knowledge, folders, tools
-        )
+        executor = _build_executor(provider, skill_store, collections, knowledge, folders, tools)
 
         folder = await folders.create_folder("Commun", user_id="alice")
         await folders.attach_resource(folder["id"], "skill", "skill-explicit")
 
         agent = Agent(
-            id="d1", name="Dedup Agent", provider="fake",
+            id="d1",
+            name="Dedup Agent",
+            provider="fake",
             skill_ids=["skill-explicit"],  # même skill, en explicite
             folder_ids=[folder["id"]],
         )
         resolved = await resolve_agent_resources(
-            agent, folders=folders, knowledge=knowledge,
-            collections=collections, skills=skill_store, tools=tools,
+            agent,
+            folders=folders,
+            knowledge=knowledge,
+            collections=collections,
+            skills=skill_store,
+            tools=tools,
         )
         assert len(resolved["skills"]) == 1  # déduplication par identité
 
@@ -300,9 +322,7 @@ def test_dedup_and_individual_removal():
         await folders.detach_resource(folder["id"], "skill", "skill-explicit")
         # ...mais reste accessible si sélectionnée explicitement.
         provider2 = _FakeProvider()
-        executor2 = _build_executor(
-            provider2, skill_store, collections, knowledge, folders, tools
-        )
+        executor2 = _build_executor(provider2, skill_store, collections, knowledge, folders, tools)
         await executor2(agent, "Tâche")
         assert "Skill choisi individuellement." in _system_of(provider2)
 
@@ -311,9 +331,7 @@ def test_dedup_and_individual_removal():
             id="d2", name="Folder Only", provider="fake", folder_ids=[folder["id"]]
         )
         provider3 = _FakeProvider()
-        executor3 = _build_executor(
-            provider3, skill_store, collections, knowledge, folders, tools
-        )
+        executor3 = _build_executor(provider3, skill_store, collections, knowledge, folders, tools)
         await executor3(agent_folder_only, "Tâche")
         assert "Skill choisi individuellement." not in _system_of(provider3)
 
@@ -327,19 +345,24 @@ def test_ghost_resources_are_ignored_and_reported():
     async def scenario():
         provider = _FakeProvider()
         _s, rag, collections, knowledge, skill_store, tools, folders = _setup()
-        executor = _build_executor(
-            provider, skill_store, collections, knowledge, folders, tools
-        )
+        executor = _build_executor(provider, skill_store, collections, knowledge, folders, tools)
         folder = await folders.create_folder("Éphémère", user_id="alice")
         await folders.delete_folder(folder["id"])
 
         agent = Agent(
-            id="g1", name="Ghost Agent", provider="fake",
-            folder_ids=[folder["id"]], skill_ids=["skill-supprimé"],
+            id="g1",
+            name="Ghost Agent",
+            provider="fake",
+            folder_ids=[folder["id"]],
+            skill_ids=["skill-supprimé"],
         )
         resolved = await resolve_agent_resources(
-            agent, folders=folders, knowledge=knowledge,
-            collections=collections, skills=skill_store, tools=tools,
+            agent,
+            folders=folders,
+            knowledge=knowledge,
+            collections=collections,
+            skills=skill_store,
+            tools=tools,
         )
         types = {(g["resource_type"], g["resource_id"]) for g in resolved["ghosts"]}
         assert ("folder", folder["id"]) in types
@@ -358,6 +381,7 @@ def test_tool_resolution_and_folder_tool_membership():
 
     async def scenario():
         _p, rag, collections, knowledge, skill_store, tools, folders = _setup()
+
         # Registre ouvert : les tools deviennent classables dans les dossiers
         # (FolderResourceProvider attend des getters async).
         async def _get_tool(tool_id: str):
@@ -372,12 +396,19 @@ def test_tool_resolution_and_folder_tool_membership():
         await folders.attach_resource(folder["id"], "tool", "tool-mcp")
 
         agent = Agent(
-            id="t1", name="Tooled Agent", provider="fake",
-            tool_ids=["tool-web"], folder_ids=[folder["id"]],
+            id="t1",
+            name="Tooled Agent",
+            provider="fake",
+            tool_ids=["tool-web"],
+            folder_ids=[folder["id"]],
         )
         resolved = await resolve_agent_resources(
-            agent, folders=folders, knowledge=knowledge,
-            collections=collections, skills=skill_store, tools=tools,
+            agent,
+            folders=folders,
+            knowledge=knowledge,
+            collections=collections,
+            skills=skill_store,
+            tools=tools,
         )
         tool_ids = {t["id"] for t in resolved["tools"]}
         assert tool_ids == {"tool-web", "tool-mcp"}

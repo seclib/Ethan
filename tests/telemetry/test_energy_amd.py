@@ -28,9 +28,7 @@ def _make_fake_amdsmi(device_count: int = 1):
     mod.amdsmi_shut_down = MagicMock()
     handles = [f"amd-handle-{i}" for i in range(device_count)]
     mod.amdsmi_get_processor_handles = MagicMock(return_value=handles)
-    mod.amdsmi_get_gpu_asic_info = MagicMock(
-        return_value={"market_name": "AMD Instinct MI300X"}
-    )
+    mod.amdsmi_get_gpu_asic_info = MagicMock(return_value={"market_name": "AMD Instinct MI300X"})
     mod.amdsmi_get_energy_count = MagicMock(
         return_value={"energy_accumulator": 1000.0, "counter_resolution": 15.3}
     )
@@ -62,9 +60,7 @@ class TestAvailable:
     def test_available_false_when_amdsmi_not_importable(self):
         import openjarvis.telemetry.energy_amd as mod
 
-        assert_available_false_when_lib_missing(
-            mod, mod.AmdEnergyMonitor, "_AMDSMI_AVAILABLE"
-        )
+        assert_available_false_when_lib_missing(mod, mod.AmdEnergyMonitor, "_AMDSMI_AVAILABLE")
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +128,7 @@ class TestSampleCounterDelta:
                 expected_joules = (2000.0 - 1000.0) * 15.3 / 1e6
                 assert result.energy_joules == pytest.approx(expected_joules)
                 assert result.gpu_energy_joules == pytest.approx(expected_joules)
-                assert_sample_result_basics(
-                    result, vendor="amd", energy_method="hw_counter"
-                )
+                assert_sample_result_basics(result, vendor="amd", energy_method="hw_counter")
             finally:
                 mod._AMDSMI_AVAILABLE = orig
 

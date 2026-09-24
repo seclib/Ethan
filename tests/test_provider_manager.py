@@ -6,6 +6,7 @@ implémentation factice. Ils valident la logique de gestion, de persistance
 et d'injection de secrets du ProviderManager.
 """
 
+# ruff: noqa: E402 — `sys.path` est préparé après la docstring, avant les imports.
 import asyncio
 import os
 import sys
@@ -17,10 +18,10 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from core.llm.provider_manager import ProviderManager
 from core.llm.providers.base import LLMProvider
 from core.llm.store import ProviderStore
-from core.llm.provider_manager import ProviderManager
-from core.llm.types import ChatMessage, ChatResponse, ModelInfo
+from core.llm.types import ChatResponse, ModelInfo
 
 
 class FakeProvider(LLMProvider):
@@ -83,6 +84,7 @@ def _new_manager():
 
 # ── ProviderStore (mémoire) ─────────────────────────────────────────────
 
+
 def test_store_save_get_delete_roundtrip():
     """Le store en mémoire persiste / lit / supprime les configs."""
 
@@ -117,6 +119,7 @@ def test_store_default_provider_fallback():
 
 
 # ── ProviderManager ─────────────────────────────────────────────────────
+
 
 def test_manager_constructs_without_services():
     """Le manager s'installe sans Redis/Postgres."""

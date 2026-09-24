@@ -7,7 +7,6 @@ Mark: live
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.skills.manager import SkillManager
 from openjarvis.skills.tool_adapter import SkillTool
@@ -63,9 +62,7 @@ class TestSkillSystemIntegration:
 
         # Test instruction-only skill
         tools = mgr.get_skill_tools()
-        code_explainer = next(
-            (t for t in tools if "code-explainer" in t.spec.name), None
-        )
+        code_explainer = next((t for t in tools if "code-explainer" in t.spec.name), None)
         assert code_explainer is not None, "code-explainer skill should exist"
 
         result = code_explainer.execute(task="explain a for loop")

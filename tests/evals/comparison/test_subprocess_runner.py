@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.evals.backends.external._subprocess_runner import (
     EnergySample,
     SubprocessResult,
@@ -150,9 +149,7 @@ class TestRunOneShot:
 
 
 class TestEnergySampler:
-    def test_fallback_chain_reaches_unavailable(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fallback_chain_reaches_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When all samplers fail to initialize, return the null sampler."""
         from openjarvis.evals.backends.external import _subprocess_runner as m
 

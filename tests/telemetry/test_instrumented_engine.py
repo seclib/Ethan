@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.types import Message, Role
 from openjarvis.telemetry.instrumented_engine import InstrumentedEngine
@@ -62,9 +61,7 @@ class TestInstrumentedEngine:
         messages = [Message(role=Role.USER, content="Hi")]
         ie.generate(messages, model="test")
 
-        tel_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        tel_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         assert len(tel_events) == 1
         record = tel_events[0].data["record"]
         assert record.model_id == "test"
@@ -91,9 +88,7 @@ class TestInstrumentedEngine:
         messages = [Message(role=Role.USER, content="Hi")]
         ie.generate(messages, model="test", temperature=0.5, max_tokens=100)
         call_kwargs = mock_engine.generate.call_args
-        temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get(
-            "temperature"
-        )
+        temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get("temperature")
         assert temp == 0.5
 
     def test_inner_engine_id(self, mock_engine, bus):
@@ -127,9 +122,7 @@ class TestTokensPerJoule:
         messages = [Message(role=Role.USER, content="Hi")]
         ie.generate(messages, model="test")
 
-        tel_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        tel_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         record = tel_events[0].data["record"]
         assert record.tokens_per_joule == 0.0
 

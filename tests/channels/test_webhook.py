@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.webhook import WebhookChannel
 from openjarvis.core.events import EventBus, EventType

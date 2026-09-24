@@ -19,9 +19,7 @@ def test_budget_exceeded_sets_status(tmp_path):
     updated = mgr.get_agent(agent["id"])
     assert updated["status"] == "budget_exceeded"
 
-    budget_events = [
-        e for e in bus.history if e.event_type == EventType.AGENT_BUDGET_EXCEEDED
-    ]
+    budget_events = [e for e in bus.history if e.event_type == EventType.AGENT_BUDGET_EXCEEDED]
     assert len(budget_events) == 1
     mgr.close()
 

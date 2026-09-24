@@ -5,10 +5,9 @@ from __future__ import annotations
 from io import StringIO
 from unittest.mock import MagicMock
 
-from rich.console import Console
-
 from openjarvis.bench._stubs import BenchmarkResult
 from openjarvis.cli.bench_cmd import _render_stats_table
+from rich.console import Console
 
 
 class TestLatencyBenchmarkStats:

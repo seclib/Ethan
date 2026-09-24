@@ -7,7 +7,6 @@ import pytest
 fastapi = pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
-
 from openjarvis.speech._stubs import TranscriptionResult  # noqa: E402
 
 
@@ -29,7 +28,6 @@ def mock_speech_backend():
 @pytest.fixture
 def app_with_speech(mock_speech_backend):
     from fastapi import FastAPI
-
     from openjarvis.server.api_routes import speech_router
 
     app = FastAPI()
@@ -72,7 +70,6 @@ def test_health_endpoint(client):
 def test_health_no_backend():
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-
     from openjarvis.server.api_routes import speech_router
 
     app = FastAPI()

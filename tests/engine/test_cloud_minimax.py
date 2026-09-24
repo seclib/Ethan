@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -121,9 +120,7 @@ class TestMiniMaxGenerate:
         )
         engine._minimax_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="MiniMax-M2.7"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="MiniMax-M2.7")
         assert result["content"] == "I am MiniMax M2.7"
         assert result["model"] == "MiniMax-M2.7"
         assert result["usage"]["prompt_tokens"] == 10
@@ -151,9 +148,7 @@ class TestMiniMaxGenerate:
         )
         engine._minimax_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5")
         assert result["content"] == "I am MiniMax M2.5"
         assert result["model"] == "MiniMax-M2.5"
         assert result["usage"]["prompt_tokens"] == 10
@@ -173,9 +168,7 @@ class TestMiniMaxGenerate:
         assert result["content"] == "I am MiniMax M2.5 Highspeed"
         assert result["model"] == "MiniMax-M2.5-highspeed"
 
-    def test_temperature_clamped_above_zero(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_temperature_clamped_above_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """MiniMax requires temperature in (0.0, 1.0]; verify zero is clamped."""
         engine = _make_cloud_engine(monkeypatch)
         fake_client = mock.MagicMock()
@@ -188,9 +181,7 @@ class TestMiniMaxGenerate:
             temperature=0.0,
         )
         call_kwargs = fake_client.chat.completions.create.call_args
-        actual_temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get(
-            "temperature"
-        )
+        actual_temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get("temperature")
         assert actual_temp >= 0.01, "Temperature should be clamped above zero"
 
     def test_temperature_clamped_at_max(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,9 +197,7 @@ class TestMiniMaxGenerate:
             temperature=2.0,
         )
         call_kwargs = fake_client.chat.completions.create.call_args
-        actual_temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get(
-            "temperature"
-        )
+        actual_temp = call_kwargs.kwargs.get("temperature") or call_kwargs[1].get("temperature")
         assert actual_temp <= 1.0, "Temperature should be clamped at 1.0"
 
     def test_tool_calls_extraction(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -225,9 +214,7 @@ class TestMiniMaxGenerate:
         fake_client.chat.completions.create.return_value = fake_resp
         engine._minimax_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Search")], model="MiniMax-M2.5"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Search")], model="MiniMax-M2.5")
         assert "tool_calls" in result
         assert len(result["tool_calls"]) == 1
         tc = result["tool_calls"][0]
@@ -242,9 +229,7 @@ class TestMiniMaxGenerate:
         )
         engine._minimax_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5")
         assert "tool_calls" not in result
 
     def test_no_client_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -252,9 +237,7 @@ class TestMiniMaxGenerate:
         assert engine._minimax_client is None
 
         with pytest.raises(EngineConnectionError, match="MiniMax client not available"):
-            engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5"
-            )
+            engine.generate([Message(role=Role.USER, content="Hi")], model="MiniMax-M2.5")
 
 
 # ---------------------------------------------------------------------------
@@ -263,9 +246,7 @@ class TestMiniMaxGenerate:
 
 
 class TestMiniMaxModelDiscovery:
-    def test_list_models_includes_minimax(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_list_models_includes_minimax(self, monkeypatch: pytest.MonkeyPatch) -> None:
         engine = _make_cloud_engine(monkeypatch)
         engine._minimax_client = mock.MagicMock()
         models = engine.list_models()

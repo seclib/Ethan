@@ -6,16 +6,6 @@ The global COMMANDS registry is isolated per test session.
 
 from __future__ import annotations
 
-import json
-import os
-import sys
-from pathlib import Path
-from typing import Any, Generator
-from unittest import mock
-
-import pytest
-
-
 # ── Alias de modules : interfaces.cli.* ≡ cli.* ────────────────────────────
 # Les commandes CLI importent leurs dépendances via `interfaces.cli.*` (chemin
 # absolu de prod) alors que les tests et monkeypatchs utilisent `cli.*`
@@ -27,10 +17,56 @@ import pytest
 # `interfaces.cli.*` — même lazy — vers l'objet `cli.*` déjà enregistré.
 # Ce correctif est limité au conftest de test (aucune modification du code
 # applicatif), conformément au principe « test-infra only ».
-
 import importlib.abc
 import importlib.util
+import json
+import os
 import pkgutil
+import sys
+from pathlib import Path
+from typing import Any, Generator
+from unittest import mock
+
+import pytest
+
+_REPO_ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+# Mode fidélité (diagnostic) : désactive l'alias quand le module cible vient
+# d'un autre arbre que le repo. Utile pour vérifier qu'un échec vient bien du
+# code testé et non de la résolution de modules.
+#   ETHAN_CONFTEST_FIDELITY=1 pytest tests/cli/...
+_FIDELITY = os.environ.get("ETHAN_CONFTEST_FIDELITY") == "1"
+
+
+def _in_repo(mod) -> bool:
+    """True si le module a été chargé depuis l'arbre du repo courant."""
+    path = getattr(mod, "__file__", None)
+    return bool(path) and _REPO_ROOT in os.path.realpath(path)
+
+
+def _purge_stale_modules() -> None:
+    """Purge les modules `cli`/`core` chargés depuis un AUTRE arbre que le repo.
+
+    Dette d'environnement : si le virtualenv contient un paquet `cli`/`core`
+    homonyme (ancien wheel installé), il est résolu AVANT la racine projet
+    (`pythonpath=[".", "interfaces"]` est ajouté en fin de `sys.path`,
+    site-packages passe avant). Les tests exécutent alors du code obsolète,
+    produisant des échecs non corrélés aux sources. On purge, puis les imports
+    se résolvent vers l'arbre courant.
+    """
+    purged = []
+    for name, mod in list(sys.modules.items()):
+        if not (name == "cli" or name.startswith(("cli.", "core"))):
+            continue
+        if _in_repo(mod) or getattr(mod, "__file__", None) is None:
+            continue
+        del sys.modules[name]
+        purged.append(f"{name} → {mod.__file__}")
+    if purged:
+        print(
+            "\n[conftest] modules hors-repo purgés (venv pollué) :\n  - "
+            + "\n  - ".join(purged[:10])
+        )
 
 
 def _load_cli_tree() -> None:
@@ -67,7 +103,7 @@ class _CliAliasFinder(importlib.abc.MetaPathFinder):
         if fullname == "interfaces.cli":
             alias = "cli"
         elif fullname.startswith("interfaces.cli."):
-            alias = "cli." + fullname[len("interfaces.cli."):]
+            alias = "cli." + fullname[len("interfaces.cli.") :]
         else:
             return None
         mod = sys.modules.get(alias)
@@ -76,6 +112,10 @@ class _CliAliasFinder(importlib.abc.MetaPathFinder):
                 mod = importlib.import_module(alias)
             except ModuleNotFoundError:
                 return None
+        if _FIDELITY and not _in_repo(mod):
+            # Mode fidélité : ne pas masquer un homonyme hors-repo, pour que
+            # l'import suive le chemin réel (site-packages).
+            return None
         return importlib.util.spec_from_loader(fullname, _CliAliasLoader(mod))
 
 
@@ -84,7 +124,23 @@ class _CliAliasFinder(importlib.abc.MetaPathFinder):
 # par _load_cli_tree() ci-dessous (ex: chat.py fait
 # `from interfaces.cli.core.client import send, alive` au chargement).
 sys.meta_path.insert(0, _CliAliasFinder())
+_purge_stale_modules()
 _load_cli_tree()
+
+
+@pytest.fixture(autouse=True)
+def _reset_api_circuit_breaker() -> Generator[None, None, None]:
+    """Réarme le disjoncteur API autour de chaque test.
+
+    `cli.core.client._circuit_breaker` est un état GLOBAL : un test qui
+    simule des échecs réseau l'ouvre pour tout le reste de la session, et les
+    tests suivants court-circuitent sans appel réseau (échecs en cascade).
+    """
+    from interfaces.cli.core import client as _client
+
+    _client.reset_circuit_breaker()
+    yield
+    _client.reset_circuit_breaker()
 
 
 @pytest.fixture(autouse=True)
@@ -154,7 +210,12 @@ def mock_api_server():
         """Simulate urllib.request.urlopen responses."""
         from urllib.error import URLError
 
-        url_str = url if isinstance(url, str) else url.full_url if hasattr(url, "full_url") else str(url)
+        if isinstance(url, str):
+            url_str = url
+        elif hasattr(url, "full_url"):
+            url_str = url.full_url
+        else:
+            url_str = str(url)
 
         if responses.get("raise_on") and responses["raise_on"][0] in url_str:
             exc = responses["raise_on"][1]
@@ -192,27 +253,75 @@ def mock_api_server():
     patcher.stop()
 
 
+# ── Seams mockés ───────────────────────────────────────────────────────────
+# Les commandes importent leurs dépendances directement
+# (`from cli.core.client import send, alive`) : la référence est alors liée
+# dans le namespace du module CONSOMMATEUR. Patcher `cli.core.client.*` ne
+# remplace donc pas `cli.commands.chat.alive` — cause des échecs en cascade sur
+# les tests de chat. On patche le module client ET les consommateurs importés.
+_CONSUMER_MODULES = (
+    "cli.commands.chat",
+    "cli.commands.status",
+    "cli.commands.run",
+    "cli.commands.think",
+)
+
+
+def _patch_seam(attr: str, new) -> list:
+    """Patche `attr` dans cli.core.client et chez ses consommateurs importés."""
+    patchers = [mock.patch(f"cli.core.client.{attr}", new)]
+    for mod_name in _CONSUMER_MODULES:
+        mod = sys.modules.get(mod_name)
+        if mod is not None and hasattr(mod, attr):
+            patchers.append(mock.patch.object(mod, attr, new))
+    for patcher in patchers:
+        patcher.start()
+    return patchers
+
+
 @pytest.fixture
 def mock_client_send():
-    """Mock cli.core.client.send() to return controlled (text, latency_ms)."""
-    with mock.patch("cli.core.client.send") as m:
-        m.return_value = ("mock response", 42)
-        yield m
+    """Mock le seam `send()` (module client + consommateurs)."""
+    m = mock.MagicMock(return_value=("mock response", 42))
+    patchers = _patch_seam("send", m)
+    yield m
+    for patcher in patchers:
+        patcher.stop()
 
 
 @pytest.fixture
 def mock_client_alive():
-    """Mock cli.core.client.alive() to simulate API state."""
-    with mock.patch("cli.core.client.alive") as m:
-        m.return_value = True
-        yield m
+    """Mock le seam `alive()` (module client + consommateurs)."""
+    m = mock.MagicMock(return_value=True)
+    patchers = _patch_seam("alive", m)
+    yield m
+    for patcher in patchers:
+        patcher.stop()
 
 
 @pytest.fixture
 def mock_client_get_state():
-    """Mock cli.core.client.get_state() to return controlled state."""
-    with mock.patch("cli.core.client.get_state") as m:
-        m.return_value = {"mode": "running", "active_goal": "test", "running_tasks": 0}
+    """Mock le seam `get_state()` (module client + consommateurs)."""
+    m = mock.MagicMock(return_value={"mode": "running", "active_goal": "test", "running_tasks": 0})
+    patchers = _patch_seam("get_state", m)
+    yield m
+    for patcher in patchers:
+        patcher.stop()
+
+
+@pytest.fixture
+def mock_api_direct():
+    """Réponse HTTP instantanée pour `cli.core.client.urlopen` (benchmarks).
+
+    Fixture manquante auparavant : `benchmarks/test_api_latency.py` la
+    référençait sans qu'elle existe → erreur de collecte du fichier entier.
+    """
+    payload = json.dumps({"response": "pong"}).encode()
+    resp = mock.MagicMock()
+    resp.status = 200
+    resp.read.return_value = payload
+    resp.__enter__.return_value = resp
+    with mock.patch("cli.core.client.urlopen", return_value=resp) as m:
         yield m
 
 

@@ -119,17 +119,9 @@ class TestMaybeDowngradeToReplace:
             maybe_downgrade_to_replace,
         )
 
-        original = (
-            "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
-        )
+        original = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
         diff = (
-            "--- a/prompt.md\n"
-            "+++ b/prompt.md\n"
-            "@@ -2,1 +2,1 @@\n"
-            " line1\n"
-            "-line2\n"
-            "+changed\n"
-            " line3\n"
+            "--- a/prompt.md\n+++ b/prompt.md\n@@ -2,1 +2,1 @@\n line1\n-line2\n+changed\n line3\n"
         )
         edit = Edit(
             id="edit-001",
@@ -205,8 +197,6 @@ class TestMaybeDowngradeToReplace:
             expected_improvement="cluster-001",
             risk_tier=EditRiskTier.REVIEW,
         )
-        result = maybe_downgrade_to_replace(
-            edit, prompt_reader=lambda t: "original content\n"
-        )
+        result = maybe_downgrade_to_replace(edit, prompt_reader=lambda t: "original content\n")
         # Can't apply the diff, so it should downgrade
         assert result.op == EditOp.REPLACE_SYSTEM_PROMPT

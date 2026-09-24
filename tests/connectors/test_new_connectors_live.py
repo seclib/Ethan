@@ -8,7 +8,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 
 

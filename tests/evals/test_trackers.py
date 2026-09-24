@@ -7,7 +7,6 @@ from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.evals.core.tracker import ResultTracker
 from openjarvis.evals.core.types import EvalResult, RunConfig, RunSummary
 

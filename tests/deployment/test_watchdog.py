@@ -95,9 +95,7 @@ class WatchdogHarness:
         return [line for line in log.read_text().splitlines() if line.strip()]
 
     def write_state(self, counts: dict[str, int]) -> None:
-        self.state_file.write_text(
-            "".join(f"{svc} {cnt}\n" for svc, cnt in counts.items())
-        )
+        self.state_file.write_text("".join(f"{svc} {cnt}\n" for svc, cnt in counts.items()))
 
     def read_state(self) -> dict[str, int]:
         if not self.state_file.exists():
@@ -216,9 +214,7 @@ class TestScriptContract:
         assert SCRIPT.is_file()
 
     def test_syntaxe_bash_valide(self):
-        result = subprocess.run(
-            ["bash", "-n", str(SCRIPT)], capture_output=True, text=True
-        )
+        result = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
 
 
@@ -271,17 +267,13 @@ class TestLiveStack:
 def _docker_available() -> bool:
     """True si le daemon Docker répond."""
     try:
-        result = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=15
-        )
+        result = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.TimeoutExpired):
         return False
     return result.returncode == 0
 
 
-requires_docker = pytest.mark.skipif(
-    not _docker_available(), reason="Docker daemon indisponible"
-)
+requires_docker = pytest.mark.skipif(not _docker_available(), reason="Docker daemon indisponible")
 
 
 # Image locale (aucun pull réseau) + entrypoint neutralisé : le service

@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.folders import FolderManager
 from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from core.rag import RAGPipeline
@@ -36,9 +35,13 @@ def ctx(tmp_path):
 
 def test_collection_creation(ctx):
     """Une collection est un record Core (stratégie incluse), pas un dossier."""
-    col = asyncio.run(ctx["collections"].create_collection(
-        "OSINT", description="Sources ouvertes", retrieval_strategy="hybrid",
-    ))
+    col = asyncio.run(
+        ctx["collections"].create_collection(
+            "OSINT",
+            description="Sources ouvertes",
+            retrieval_strategy="hybrid",
+        )
+    )
     assert col["name"] == "OSINT"
     assert col["retrieval_strategy"] == "hybrid"
     got = asyncio.run(ctx["collections"].get_collection(col["id"]))
@@ -48,9 +51,12 @@ def test_collection_creation(ctx):
 def test_folder_inside_collection(ctx):
     """`collection_id` est une référence validée (fail-closed), dissociable."""
     col = asyncio.run(ctx["collections"].create_collection("Recon"))
-    folder = asyncio.run(ctx["folders"].create_folder(
-        "Sources", collection_id=col["id"],
-    ))
+    folder = asyncio.run(
+        ctx["folders"].create_folder(
+            "Sources",
+            collection_id=col["id"],
+        )
+    )
     assert folder["collection_id"] == col["id"]
 
     # Collection inexistante → rejet (jamais de relation fantôme)
@@ -58,9 +64,12 @@ def test_folder_inside_collection(ctx):
         asyncio.run(ctx["folders"].create_folder("Ghost", collection_id="nope"))
 
     # Dissociation explicite (None remet à racine de navigation)
-    detached = asyncio.run(ctx["folders"].update_folder(
-        folder["id"], collection_id=None,
-    ))
+    detached = asyncio.run(
+        ctx["folders"].update_folder(
+            folder["id"],
+            collection_id=None,
+        )
+    )
     assert detached["collection_id"] is None
 
 
@@ -70,9 +79,13 @@ def test_folder_navigation_by_collection(ctx):
     col_b = asyncio.run(ctx["collections"].create_collection("B"))
 
     parent_a = asyncio.run(ctx["folders"].create_folder("PA", collection_id=col_a["id"]))
-    asyncio.run(ctx["folders"].create_folder(
-        "PA-child", parent_id=parent_a["id"], collection_id=col_a["id"],
-    ))
+    asyncio.run(
+        ctx["folders"].create_folder(
+            "PA-child",
+            parent_id=parent_a["id"],
+            collection_id=col_a["id"],
+        )
+    )
     asyncio.run(ctx["folders"].create_folder("PB", collection_id=col_b["id"]))
     asyncio.run(ctx["folders"].create_folder("Sans collection"))
 
@@ -94,9 +107,12 @@ def test_rename_folder_and_collection(ctx):
     renamed_folder = asyncio.run(ctx["folders"].rename_folder(folder["id"], "F2"))
     assert renamed_folder["name"] == "F2"
 
-    renamed_col = asyncio.run(ctx["collections"].update_collection(
-        col["id"], {"name": "New"},
-    ))
+    renamed_col = asyncio.run(
+        ctx["collections"].update_collection(
+            col["id"],
+            {"name": "New"},
+        )
+    )
     assert renamed_col["name"] == "New"
 
     with pytest.raises(ValueError):
@@ -111,9 +127,12 @@ def test_delete_folder_reparents_and_keeps_resources(ctx):
     mid = asyncio.run(ctx["folders"].create_folder("Mid", parent_id=root["id"]))
     leaf = asyncio.run(ctx["folders"].create_folder("Leaf", parent_id=mid["id"]))
 
-    node = asyncio.run(ctx["knowledge"].create(
-        "Playbook", content="osint steps",
-    ))
+    node = asyncio.run(
+        ctx["knowledge"].create(
+            "Playbook",
+            content="osint steps",
+        )
+    )
     asyncio.run(ctx["folders"].attach_resource(mid["id"], "knowledge", node.id))
 
     deleted = asyncio.run(ctx["folders"].delete_folder(mid["id"]))
@@ -142,9 +161,12 @@ def test_invalid_paths_rejected(ctx):
     col = asyncio.run(ctx["collections"].create_collection("K"))
     folder = asyncio.run(ctx["folders"].create_folder("K1", collection_id=col["id"]))
     with pytest.raises(ValueError):
-        asyncio.run(ctx["folders"].update_folder(
-            folder["id"], parent_id=folder["id"],  # cycle
-        ))
+        asyncio.run(
+            ctx["folders"].update_folder(
+                folder["id"],
+                parent_id=folder["id"],  # cycle
+            )
+        )
 
 
 def test_filesystem_boundary_untouched(ctx, tmp_path):
@@ -152,11 +174,14 @@ def test_filesystem_boundary_untouched(ctx, tmp_path):
     disque, aucun répertoire créé — le stockage physique reste sous le contrôle
     exclusif de FileStore (hors périmètre de ce module)."""
     col = asyncio.run(ctx["collections"].create_collection("FS"))
-    asyncio.run(ctx["folders"].create_folder(
-        "../escape", description="../../etc/passwd", collection_id=col["id"],
-    ))
+    asyncio.run(
+        ctx["folders"].create_folder(
+            "../escape",
+            description="../../etc/passwd",
+            collection_id=col["id"],
+        )
+    )
     tree = asyncio.run(ctx["folders"].list_tree(collection_id=col["id"]))
     # Le nom est une donnée libre, jamais un chemin : rien n'a été résolu/traversé
     assert tree[0]["name"] == "../escape"
     assert list(tmp_path.iterdir()) == []
-

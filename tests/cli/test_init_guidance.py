@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.cli.init_cmd import _next_steps_text
 
@@ -137,9 +136,7 @@ class TestInitDownloadPrompt:
             mock.patch("openjarvis.cli.init_cmd.DEFAULT_CONFIG_PATH", config_path),
             mock.patch("openjarvis.cli.init_cmd.PrivacyScanner"),
         ):
-            result = CliRunner().invoke(
-                cli, ["init", "--engine", "ollama"], input="n\n"
-            )
+            result = CliRunner().invoke(cli, ["init", "--engine", "ollama"], input="n\n")
         assert result.exit_code == 0
         assert "Download" in result.output
         assert "now?" in result.output
@@ -169,9 +166,7 @@ class TestInitEmptyModelFallback:
         ):
             result = CliRunner().invoke(cli, ["init", "--engine", "llamacpp"])
         assert result.exit_code == 0
-        assert (
-            "Not enough memory" in result.output or "not enough memory" in result.output
-        )
+        assert "Not enough memory" in result.output or "not enough memory" in result.output
 
 
 class TestNextStepsExoNexa:
@@ -201,9 +196,7 @@ class TestInitDownloadDispatch:
             ) as mock_pull,
             mock.patch("openjarvis.cli.init_cmd.PrivacyScanner"),
         ):
-            result = CliRunner().invoke(
-                cli, ["init", "--engine", "ollama"], input="y\n"
-            )
+            result = CliRunner().invoke(cli, ["init", "--engine", "ollama"], input="y\n")
         assert result.exit_code == 0
         mock_pull.assert_called_once()
 

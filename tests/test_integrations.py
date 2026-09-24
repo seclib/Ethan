@@ -5,6 +5,7 @@ credential handling (jamais de secret dans le public/events), lifecycle
 connect/disconnect, healthcheck par kind (délégation MCP sans duplication).
 """
 
+# ruff: noqa: E402 — `sys.path` est préparé après la docstring, avant les imports.
 from __future__ import annotations
 
 import sys
@@ -15,7 +16,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import pytest
-
 from core.auth import Permission
 from core.integrations import (
     INTEGRATION_KINDS,
@@ -23,7 +23,6 @@ from core.integrations import (
     IntegrationManager,
 )
 from core.state.record_store import CoreRecordStore
-
 
 SECRET = "sk-super-secret-token-12345"
 
@@ -97,9 +96,7 @@ class TestPermissionValidation:
     @pytest.mark.asyncio
     async def test_invalid_permission_rejected(self, manager):
         with pytest.raises(IntegrationError, match="Unknown ETHAN permission"):
-            await manager.register(
-                name="perm-bad", kind="storage", required_permissions=["fly"]
-            )
+            await manager.register(name="perm-bad", kind="storage", required_permissions=["fly"])
 
     @pytest.mark.asyncio
     async def test_permissions_match_permission_enum(self, manager):
@@ -115,9 +112,7 @@ class TestPermissionValidation:
     async def test_update_revalidates_permissions(self, manager):
         integration = await manager.register(name="perm-upd", kind="mcp")
         with pytest.raises(IntegrationError, match="Unknown ETHAN permission"):
-            await manager.update(
-                integration["id"], {"required_permissions": ["bypass"]}
-            )
+            await manager.update(integration["id"], {"required_permissions": ["bypass"]})
 
 
 # ── Credential handling (jamais de secret exposé) ───────────────────────────
@@ -135,9 +130,7 @@ class TestCredentialHandling:
 
     @pytest.mark.asyncio
     async def test_get_and_list_never_contain_secret(self, manager):
-        await manager.register(
-            name="cred-safe-2", kind="storage", credentials={"token": SECRET}
-        )
+        await manager.register(name="cred-safe-2", kind="storage", credentials={"token": SECRET})
         for integration in await manager.list():
             assert SECRET not in str(integration)
 
@@ -160,9 +153,7 @@ class TestCredentialHandling:
         )
         raw_integration = await manager._store.get("integrations", integration["id"])
         assert SECRET not in str(raw_integration)
-        raw_creds = await manager._store.get(
-            "integration-credentials", integration["id"]
-        )
+        raw_creds = await manager._store.get("integration-credentials", integration["id"])
         assert raw_creds["token"] == SECRET  # runtime-only access
 
     @pytest.mark.asyncio
@@ -179,9 +170,7 @@ class TestCredentialHandling:
             name="cred-update", kind="storage", credentials={"token": SECRET}
         )
         new_secret = "sk-rotated-token-67890"
-        await manager.update(
-            integration["id"], {"credentials": {"token": new_secret}}
-        )
+        await manager.update(integration["id"], {"credentials": {"token": new_secret}})
         creds = await manager.get_credentials(integration["id"])
         assert creds == {"token": new_secret}
         assert SECRET not in str(await manager.get(integration["id"]))
@@ -264,9 +253,7 @@ class TestHealthcheck:
 
     @pytest.mark.asyncio
     async def test_mcp_bound_server_missing(self):
-        manager = IntegrationManager(
-            store=CoreRecordStore(), tool_servers=FakeToolServers({})
-        )
+        manager = IntegrationManager(store=CoreRecordStore(), tool_servers=FakeToolServers({}))
         integration = await manager.register(
             name="mcp-lost", kind="mcp", config={"server_id": "gone"}
         )

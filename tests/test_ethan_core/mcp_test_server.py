@@ -28,9 +28,7 @@ async def handle_list_tools() -> ListToolsResult:
     )
 
 
-async def handle_call_tool(
-    context, params: CallToolRequestParams
-) -> CallToolResult:
+async def handle_call_tool(context, params: CallToolRequestParams) -> CallToolResult:
     """Handle call_tool request."""
     if params.name == "echo":
         text = (params.arguments or {}).get("text", "")

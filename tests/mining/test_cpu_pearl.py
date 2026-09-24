@@ -50,9 +50,7 @@ def windows_hw():
     """A HardwareInfo describing a Windows host (unsupported in v1)."""
     from openjarvis.core.config import HardwareInfo
 
-    return HardwareInfo(
-        platform="win32", cpu_brand="x86_64", cpu_count=16, ram_gb=64.0, gpu=None
-    )
+    return HardwareInfo(platform="win32", cpu_brand="x86_64", cpu_count=16, ram_gb=64.0, gpu=None)
 
 
 def test_detect_supported_on_apple_silicon_when_packages_present(darwin_apple_hw):
@@ -69,9 +67,7 @@ def test_detect_supported_on_linux_too(linux_nvidia_hw):
     from openjarvis.mining.cpu_pearl import CpuPearlProvider
 
     with patch(_AVAIL, return_value=True):
-        cap = CpuPearlProvider.detect(
-            linux_nvidia_hw, engine_id="anything", model="any"
-        )
+        cap = CpuPearlProvider.detect(linux_nvidia_hw, engine_id="anything", model="any")
     assert cap.supported is True
 
 
@@ -99,9 +95,7 @@ def test_detect_engine_independent(darwin_apple_hw):
 
     with patch(_AVAIL, return_value=True):
         for engine in ("ollama", "llamacpp", "vllm", "mlx", "anthropic-cloud", ""):
-            cap = CpuPearlProvider.detect(
-                darwin_apple_hw, engine_id=engine, model="any"
-            )
+            cap = CpuPearlProvider.detect(darwin_apple_hw, engine_id=engine, model="any")
             assert cap.supported is True, f"engine_id={engine!r} should be supported"
 
 

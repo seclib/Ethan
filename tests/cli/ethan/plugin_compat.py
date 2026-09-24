@@ -1,13 +1,15 @@
 """Plugin compatibility checker — ensure plugins load correctly."""
+
 import importlib.util
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List, Optional
+from pathlib import Path
+from typing import List
 
 
 @dataclass
 class PluginCheckResult:
     """Result of plugin compatibility check."""
+
     plugin: str
     loaded: bool
     version: str = "?"
@@ -116,7 +118,7 @@ class PluginCompatibilityChecker:
         failed = total - loaded
 
         lines = [
-            f"Plugin Compatibility Summary",
+            "Plugin Compatibility Summary",
             f"  Total: {total}",
             f"  Loaded: {loaded}",
             f"  Failed: {failed}",

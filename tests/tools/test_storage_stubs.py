@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.tools.storage._stubs import MemoryBackend, RetrievalResult
 
 

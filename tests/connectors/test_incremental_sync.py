@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 import pytest
-
 from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.store import KnowledgeStore
@@ -138,9 +137,7 @@ def test_incremental_only_adds_new_items(
     class SelectiveTimestampConnector(TimestampConnector):
         """Returns a different doc list on each sync call."""
 
-        def __init__(
-            self, first_docs: List[Document], second_docs: List[Document]
-        ) -> None:
+        def __init__(self, first_docs: List[Document], second_docs: List[Document]) -> None:
             super().__init__(first_docs)
             self._first_docs = first_docs
             self._second_docs = second_docs

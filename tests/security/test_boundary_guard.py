@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import List
 
 import pytest
-
 from openjarvis.core.types import ToolCall
 
 # ---------------------------------------------------------------------------
@@ -110,9 +109,7 @@ class TestBoundaryGuardCheckOutbound:
         tc = ToolCall(
             id="test_1",
             name="web_search",
-            arguments=(
-                '{"query": "my key is sk-proj-abc123def456ghi789jkl012mno345pqr678stu"}'
-            ),
+            arguments=('{"query": "my key is sk-proj-abc123def456ghi789jkl012mno345pqr678stu"}'),
         )
         result = guard.check_outbound(tc)
         assert "sk-proj-" not in result.arguments
@@ -248,9 +245,7 @@ class TestToolExecutorBoundaryIntegration:
         tc = ToolCall(
             id="t1",
             name="fake_external",
-            arguments=(
-                '{"q": "my key is sk-proj-abc123def456ghi789jkl012mno345pqr678stu"}'
-            ),
+            arguments=('{"q": "my key is sk-proj-abc123def456ghi789jkl012mno345pqr678stu"}'),
         )
         result = executor.execute(tc)
         assert "sk-proj-" not in result.content

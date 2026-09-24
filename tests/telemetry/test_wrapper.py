@@ -21,9 +21,7 @@ class _StubEngine(InferenceEngine):
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
         }
 
-    def generate(
-        self, messages: Sequence[Message], *, model: str, **kwargs: Any
-    ) -> Dict[str, Any]:
+    def generate(self, messages: Sequence[Message], *, model: str, **kwargs: Any) -> Dict[str, Any]:
         return self._response
 
     async def stream(
@@ -72,9 +70,7 @@ class TestInstrumentedGenerate:
             model="m",
             bus=bus,
         )
-        telem_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        telem_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         assert len(telem_events) == 1
         rec = telem_events[0].data["record"]
         assert isinstance(rec, TelemetryRecord)
@@ -89,9 +85,7 @@ class TestInstrumentedGenerate:
             model="m",
             bus=bus,
         )
-        telem_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        telem_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         rec = telem_events[0].data["record"]
         assert rec.latency_seconds >= 0
 

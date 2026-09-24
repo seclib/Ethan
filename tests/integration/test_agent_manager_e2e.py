@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from openjarvis.agents.manager import AgentManager
 
 

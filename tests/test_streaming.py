@@ -1,8 +1,8 @@
 """Tests for ETHAN CLI streaming module — concurrency safety."""
 
 import sys
-import time
 import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "cli"))
 
 def test_streamer_init():
     from cli.core.streaming import Streamer
+
     s = Streamer()
     assert s is not None
     assert s.text == ""
@@ -18,6 +19,7 @@ def test_streamer_init():
 
 def test_streamer_write():
     from cli.core.streaming import Streamer
+
     s = Streamer()
     s.start("test")
     s.write(" chunk 1")
@@ -27,6 +29,7 @@ def test_streamer_write():
 
 def test_streamer_cancel():
     from cli.core.streaming import Streamer
+
     s = Streamer()
     s.start("processing")
     s.cancel()
@@ -36,6 +39,7 @@ def test_streamer_cancel():
 
 def test_streamer_fallback():
     from cli.core.streaming import Streamer
+
     s = Streamer()
     s.start("thinking")
     s.fallback("connection lost")
@@ -45,6 +49,7 @@ def test_streamer_fallback():
 def test_streamer_concurrent_writes():
     """Test thread safety: multiple writes from different threads."""
     from cli.core.streaming import Streamer
+
     s = Streamer()
     s.start("concurrent")
 
@@ -65,6 +70,7 @@ def test_streamer_concurrent_writes():
 def test_streamer_lock_is_used():
     """Verify that Streamer uses a threading.Lock."""
     from cli.core.streaming import Streamer
+
     s = Streamer()
     assert s._lock is not None
     # threading.Lock() returns a lock object; check by type name
@@ -74,6 +80,7 @@ def test_streamer_lock_is_used():
 def test_streamer_multiple_start_stop():
     """Test that start/done can be called multiple times."""
     from cli.core.streaming import Streamer
+
     s = Streamer()
     for _ in range(3):
         s.start("cycle")
@@ -85,6 +92,7 @@ def test_streamer_multiple_start_stop():
 def test_streamer_stop_event():
     """Verify threading.Event is used for spinner stop."""
     from cli.core.streaming import Streamer
+
     s = Streamer()
     assert s._stop_event is not None
     assert isinstance(s._stop_event, threading.Event)

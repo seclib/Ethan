@@ -141,10 +141,7 @@ class TestHeuristicRouter:
     def test_reasoning_keywords_prefer_large(self) -> None:
         _register_models()
         router = HeuristicRouter(available_models=["small", "large"])
-        query = (
-            "Please explain step by step how the process"
-            " of photosynthesis works in plants"
-        )
+        query = "Please explain step by step how the process of photosynthesis works in plants"
         ctx = build_routing_context(query)
         assert router.select_model(ctx) == "large"
 

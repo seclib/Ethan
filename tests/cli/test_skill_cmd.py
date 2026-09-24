@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -300,9 +299,7 @@ class TestSkillDiscoverCommand:
                 "openjarvis.cli.skill_cmd._get_discovered_dir",
                 return_value=output_dir,
             ):
-                result = CliRunner().invoke(
-                    cli, ["skill", "discover", "--min-frequency", "3"]
-                )
+                result = CliRunner().invoke(cli, ["skill", "discover", "--min-frequency", "3"])
                 assert result.exit_code == 0
                 assert output_dir.exists()
                 # At least one manifest should have been written
@@ -345,9 +342,7 @@ class TestSkillShowOverlayCommand:
             "openjarvis.cli.skill_cmd._get_overlay_dir",
             return_value=tmp_path,
         ):
-            result = CliRunner().invoke(
-                cli, ["skill", "show-overlay", "research-skill"]
-            )
+            result = CliRunner().invoke(cli, ["skill", "show-overlay", "research-skill"])
             assert result.exit_code == 0
             assert "research-skill" in result.output
             assert "Better description" in result.output

@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.store import KnowledgeStore
@@ -55,9 +54,7 @@ def pipeline(store: KnowledgeStore) -> IngestionPipeline:
 # ---------------------------------------------------------------------------
 
 
-def test_ingest_single_short_document(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_ingest_single_short_document(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """A short document produces exactly one chunk that is retrievable."""
     doc = _make_doc(
         doc_id="doc:short:001",
@@ -84,9 +81,7 @@ def test_ingest_single_short_document(
 # ---------------------------------------------------------------------------
 
 
-def test_ingest_dedup_same_doc_id(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_ingest_dedup_same_doc_id(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """Ingesting the same doc_id a second time produces no new chunks."""
     doc = _make_doc(
         doc_id="doc:dedup:001",
@@ -101,9 +96,7 @@ def test_ingest_dedup_same_doc_id(
     assert store.count() == 1
 
 
-def test_ingest_dedup_within_batch(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_ingest_dedup_within_batch(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """Duplicate doc_ids within the same batch are deduplicated."""
     doc_a = _make_doc(doc_id="doc:batch:dup", content="First occurrence of this doc.")
     doc_b = _make_doc(doc_id="doc:batch:dup", content="Second occurrence of this doc.")
@@ -151,8 +144,7 @@ def test_ingest_long_document_multiple_chunks(
 
     # Build a document with many sentences that will exceed 10 tokens each
     sentences = [
-        f"This is sentence number {i} about machine learning research topics."
-        for i in range(20)
+        f"This is sentence number {i} about machine learning research topics." for i in range(20)
     ]
     long_content = " ".join(sentences)
 
@@ -187,9 +179,7 @@ def test_ingest_long_document_multiple_chunks(
 # ---------------------------------------------------------------------------
 
 
-def test_ingest_event_single_chunk(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_ingest_event_single_chunk(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """Event documents always produce exactly one chunk regardless of length."""
     event_content = (
         "Team all-hands meeting on Thursday at 2pm in the main conference room. "
@@ -221,9 +211,7 @@ def test_ingest_event_single_chunk(
 # ---------------------------------------------------------------------------
 
 
-def test_ingest_multiple_sources_filter(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_ingest_multiple_sources_filter(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """Chunks from different sources can be filtered independently."""
     gmail_doc = _make_doc(
         doc_id="gmail:thread:abc",
@@ -311,9 +299,7 @@ def test_thread_id_namespaced_at_pipeline(
     )
     pipeline.ingest([doc])
 
-    rows = store._conn.execute(
-        "SELECT thread_id FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT thread_id FROM knowledge_chunks").fetchall()
     assert len(rows) == 1
     assert rows[0][0] == "gmail:raw-thread-id"
 
@@ -330,9 +316,7 @@ def test_thread_id_namespacing_is_idempotent(
     )
     pipeline.ingest([doc])
 
-    rows = store._conn.execute(
-        "SELECT thread_id FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT thread_id FROM knowledge_chunks").fetchall()
     assert rows[0][0] == "gmail:already-prefixed"
 
 
@@ -348,9 +332,7 @@ def test_source_id_derived_from_doc_id_prefix(
     )
     pipeline.ingest([doc])
 
-    rows = store._conn.execute(
-        "SELECT source_id FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT source_id FROM knowledge_chunks").fetchall()
     assert rows[0][0] == "msg42"
 
 
@@ -366,9 +348,7 @@ def test_source_id_uses_explicit_field_when_set(
     doc.source_id = "explicit-src-id"
     pipeline.ingest([doc])
 
-    rows = store._conn.execute(
-        "SELECT source_id FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT source_id FROM knowledge_chunks").fetchall()
     assert rows[0][0] == "explicit-src-id"
 
 
@@ -382,16 +362,12 @@ def test_content_hash_computed_per_chunk(
     doc = _make_doc(doc_id="doc:hash:1", content=content)
     pipeline.ingest([doc])
 
-    rows = store._conn.execute(
-        "SELECT content, content_hash FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT content, content_hash FROM knowledge_chunks").fetchall()
     assert len(rows) == 1
     assert rows[0][1] == _hashlib.sha256(rows[0][0].encode("utf-8")).hexdigest()
 
 
-def test_last_synced_set_at_ingest(
-    pipeline: IngestionPipeline, store: KnowledgeStore
-) -> None:
+def test_last_synced_set_at_ingest(pipeline: IngestionPipeline, store: KnowledgeStore) -> None:
     """last_synced is populated with the ingest time, not 0 default."""
     import time as _time
 
@@ -399,9 +375,7 @@ def test_last_synced_set_at_ingest(
     pipeline.ingest([_make_doc(doc_id="doc:ls:1", content="Last synced check.")])
     after = _time.time()
 
-    rows = store._conn.execute(
-        "SELECT last_synced FROM knowledge_chunks"
-    ).fetchall()
+    rows = store._conn.execute("SELECT last_synced FROM knowledge_chunks").fetchall()
     assert len(rows) == 1
     assert before <= rows[0][0] <= after
 
@@ -421,6 +395,7 @@ class _StubEmbedder:
 
     def embed(self, text: str):  # type: ignore[no-untyped-def]
         import numpy as _np
+
         self.calls += 1
         # Map content to a stable 4-d float32 vector for assertion convenience.
         h = abs(hash(text)) % 10_000
@@ -450,12 +425,11 @@ def test_pipeline_populates_embedding_when_embedder_provided(
 
 
 def test_pipeline_skips_embedding_when_no_embedder(
-    pipeline: IngestionPipeline, store: KnowledgeStore,
+    pipeline: IngestionPipeline,
+    store: KnowledgeStore,
 ) -> None:
     """Default pipeline leaves embedding NULL and embedding_model_version empty."""
-    pipeline.ingest(
-        [_make_doc(doc_id="doc:emb:none", content="No embedder configured.")]
-    )
+    pipeline.ingest([_make_doc(doc_id="doc:emb:none", content="No embedder configured.")])
 
     rows = store._conn.execute(
         "SELECT embedding, embedding_model_version FROM knowledge_chunks"

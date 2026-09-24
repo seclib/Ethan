@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Optional
 
 import pytest
-
 from openjarvis.channels._stubs import (
     BaseChannel,
     ChannelMessage,

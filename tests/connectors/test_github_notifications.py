@@ -6,7 +6,6 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 
@@ -17,9 +16,7 @@ def test_github_notifications_registered():
         GitHubNotificationsConnector,
     )
 
-    ConnectorRegistry.register_value(
-        "github_notifications", GitHubNotificationsConnector
-    )
+    ConnectorRegistry.register_value("github_notifications", GitHubNotificationsConnector)
     assert ConnectorRegistry.contains("github_notifications")
     cls = ConnectorRegistry.get("github_notifications")
     assert cls.connector_id == "github_notifications"

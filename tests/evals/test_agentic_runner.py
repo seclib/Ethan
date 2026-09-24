@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import pytest
-
 from openjarvis.evals.core.agentic_runner import AgenticRunner, _extract_patch
 from openjarvis.evals.core.environment import TaskEnvironmentError
 
@@ -70,10 +69,7 @@ class FailingTaskEnv:
         self._metadata = metadata
 
     def __enter__(self) -> "FailingTaskEnv":
-        message = (
-            "Task 't1': required binary 'tmux' is not usable in task image "
-            "'tb__t1__client'"
-        )
+        message = "Task 't1': required binary 'tmux' is not usable in task image 'tb__t1__client'"
         self._metadata["harness_error"] = message
         raise TaskEnvironmentError(message)
 
@@ -256,9 +252,7 @@ class TestAgenticRunner:
 class TestExtractPatch:
     def test_fenced_diff(self):
         text = (
-            "Here's the fix:\n```diff\n"
-            "--- a/foo.py\n+++ b/foo.py\n"
-            "@@ -1 +1 @@\n-old\n+new\n```\n"
+            "Here's the fix:\n```diff\n--- a/foo.py\n+++ b/foo.py\n@@ -1 +1 @@\n-old\n+new\n```\n"
         )
         patch = _extract_patch(text)
         assert patch is not None

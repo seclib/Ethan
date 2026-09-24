@@ -25,16 +25,12 @@ class TestLiteLLMEngineHealth:
 
 class TestLiteLLMEngineGenerate:
     def test_generate(self) -> None:
-        fake_usage = SimpleNamespace(
-            prompt_tokens=10, completion_tokens=5, total_tokens=15
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content="Hello!", tool_calls=None),
             finish_reason="stop",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="gpt-4o"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="gpt-4o")
 
         fake_litellm = mock.MagicMock()
         fake_litellm.completion.return_value = fake_resp
@@ -42,9 +38,7 @@ class TestLiteLLMEngineGenerate:
 
         with mock.patch.dict("sys.modules", {"litellm": fake_litellm}):
             engine = LiteLLMEngine()
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="gpt-4o"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="gpt-4o")
 
         assert result["content"] == "Hello!"
         assert result["usage"]["prompt_tokens"] == 10
@@ -62,9 +56,7 @@ class TestLiteLLMEngineGenerate:
                 arguments='{"expression": "2+2"}',
             ),
         )
-        fake_usage = SimpleNamespace(
-            prompt_tokens=20, completion_tokens=10, total_tokens=30
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=20, completion_tokens=10, total_tokens=30)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(
                 content="",
@@ -72,9 +64,7 @@ class TestLiteLLMEngineGenerate:
             ),
             finish_reason="tool_calls",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="gpt-4o"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="gpt-4o")
 
         fake_litellm = mock.MagicMock()
         fake_litellm.completion.return_value = fake_resp
@@ -107,16 +97,12 @@ class TestLiteLLMEngineGenerate:
         assert tc["arguments"] == '{"expression": "2+2"}'
 
     def test_generate_with_api_base(self) -> None:
-        fake_usage = SimpleNamespace(
-            prompt_tokens=5, completion_tokens=3, total_tokens=8
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=5, completion_tokens=3, total_tokens=8)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content="Hi!", tool_calls=None),
             finish_reason="stop",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="custom-model"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="custom-model")
 
         fake_litellm = mock.MagicMock()
         fake_litellm.completion.return_value = fake_resp
@@ -124,24 +110,18 @@ class TestLiteLLMEngineGenerate:
 
         with mock.patch.dict("sys.modules", {"litellm": fake_litellm}):
             engine = LiteLLMEngine(api_base="http://localhost:8080")
-            engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="custom-model"
-            )
+            engine.generate([Message(role=Role.USER, content="Hi")], model="custom-model")
 
         call_kwargs = fake_litellm.completion.call_args
         assert call_kwargs[1]["api_base"] == "http://localhost:8080"
 
     def test_generate_cost_error_fallback(self) -> None:
-        fake_usage = SimpleNamespace(
-            prompt_tokens=10, completion_tokens=5, total_tokens=15
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content="Hello!", tool_calls=None),
             finish_reason="stop",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="unknown/model"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="unknown/model")
 
         fake_litellm = mock.MagicMock()
         fake_litellm.completion.return_value = fake_resp
@@ -149,24 +129,16 @@ class TestLiteLLMEngineGenerate:
 
         with mock.patch.dict("sys.modules", {"litellm": fake_litellm}):
             engine = LiteLLMEngine()
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="unknown/model"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="unknown/model")
 
         assert result["cost_usd"] == 0.0
 
 
 class TestLiteLLMEngineStream:
     def test_stream(self) -> None:
-        chunk1 = SimpleNamespace(
-            choices=[SimpleNamespace(delta=SimpleNamespace(content="Hel"))]
-        )
-        chunk2 = SimpleNamespace(
-            choices=[SimpleNamespace(delta=SimpleNamespace(content="lo!"))]
-        )
-        chunk3 = SimpleNamespace(
-            choices=[SimpleNamespace(delta=SimpleNamespace(content=None))]
-        )
+        chunk1 = SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="Hel"))])
+        chunk2 = SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="lo!"))])
+        chunk3 = SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=None))])
 
         fake_litellm = mock.MagicMock()
         fake_litellm.completion.return_value = iter([chunk1, chunk2, chunk3])

@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.mcp.client import MCPClient
 from openjarvis.mcp.protocol import MCPRequest, MCPResponse
 from openjarvis.tools._stubs import ToolSpec

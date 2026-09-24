@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from openjarvis.core.types import TelemetryRecord
 from openjarvis.telemetry.aggregator import (
     AggregatedStats,

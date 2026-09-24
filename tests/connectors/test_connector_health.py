@@ -138,9 +138,7 @@ def test_knowledge_store_has_data() -> None:
             pytest.skip("KnowledgeStore exists but has no indexed data")
 
         # Check sources exist
-        rows = store._conn.execute(
-            "SELECT DISTINCT source FROM knowledge_chunks"
-        ).fetchall()
+        rows = store._conn.execute("SELECT DISTINCT source FROM knowledge_chunks").fetchall()
         sources = [r[0] for r in rows]
         assert len(sources) > 0, "No sources in KnowledgeStore"
     finally:
@@ -165,8 +163,7 @@ def test_knowledge_store_sources_have_chunks() -> None:
             pytest.skip("KnowledgeStore exists but has no indexed data")
 
         rows = store._conn.execute(
-            "SELECT source, COUNT(*) as n FROM knowledge_chunks "
-            "GROUP BY source ORDER BY n DESC"
+            "SELECT source, COUNT(*) as n FROM knowledge_chunks GROUP BY source ORDER BY n DESC"
         ).fetchall()
 
         for source, count in rows:

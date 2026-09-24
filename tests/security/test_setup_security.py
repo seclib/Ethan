@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.config import CapabilitiesConfig, JarvisConfig, SecurityConfig
 from openjarvis.core.events import EventBus
 from openjarvis.security import SecurityContext, setup_security

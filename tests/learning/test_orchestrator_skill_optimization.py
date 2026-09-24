@@ -79,9 +79,7 @@ class TestOrchestratorRunSkillTrigger:
         )
         return cfg
 
-    def test_run_does_not_call_skill_optimizer_when_disabled(
-        self, tmp_path: Path
-    ) -> None:
+    def test_run_does_not_call_skill_optimizer_when_disabled(self, tmp_path: Path) -> None:
         from openjarvis.learning.learning_orchestrator import (
             LearningOrchestrator,
         )
@@ -102,9 +100,7 @@ class TestOrchestratorRunSkillTrigger:
                 orchestrator.run()
                 mock_optimize.assert_not_called()
 
-    def test_run_calls_skill_optimizer_when_enabled(
-        self, tmp_path: Path
-    ) -> None:
+    def test_run_calls_skill_optimizer_when_enabled(self, tmp_path: Path) -> None:
         from openjarvis.learning.agents.skill_optimizer import (
             SkillOptimizationResult,
         )
@@ -140,7 +136,4 @@ class TestOrchestratorRunSkillTrigger:
                 # results in the returned dict
                 assert "skill_optimization" in result
                 assert "research-skill" in result["skill_optimization"]
-                assert (
-                    result["skill_optimization"]["research-skill"]["status"]
-                    == "optimized"
-                )
+                assert result["skill_optimization"]["research-skill"]["status"] == "optimized"

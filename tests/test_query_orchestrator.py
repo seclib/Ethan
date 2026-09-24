@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import pytest
-
 from openjarvis.core.config import JarvisConfig
 from openjarvis.core.events import EventBus
 from openjarvis.system import QueryOrchestrator

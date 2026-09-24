@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.cli.daemon_cmd import _read_pid, _write_pid
 

@@ -6,7 +6,6 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.twitter_channel import TwitterChannel
 from openjarvis.core.events import EventBus, EventType
@@ -102,7 +101,9 @@ class TestSend:
 
         with patch("httpx.post", return_value=mock_response) as mock_post:
             result = ch.send(
-                "twitter", "Replying!", conversation_id="9876543210",
+                "twitter",
+                "Replying!",
+                conversation_id="9876543210",
             )
             assert result is True
             payload = mock_post.call_args[1]["json"]

@@ -42,9 +42,7 @@ def _make_stub_trace_store(traces: list[_StubTrace] | None = None) -> MagicMock:
     store = MagicMock()
     traces = traces or [_StubTrace()]
     store.list_traces.return_value = traces
-    store.get.side_effect = lambda tid: next(
-        (t for t in traces if t.trace_id == tid), None
-    )
+    store.get.side_effect = lambda tid: next((t for t in traces if t.trace_id == tid), None)
     store.search.return_value = [
         {"trace_id": t.trace_id, "query": t.query, "score": 1.0} for t in traces
     ]
@@ -69,9 +67,7 @@ def _make_stub_config(tmp_path: Path) -> dict:
     (agents_dir / "system_prompt.md").write_text("You are a helpful assistant.\n")
     tools_dir = tmp_path / "tools"
     tools_dir.mkdir(parents=True)
-    (tools_dir / "descriptions.toml").write_text(
-        '[web_search]\ndescription = "Search the web"\n'
-    )
+    (tools_dir / "descriptions.toml").write_text('[web_search]\ndescription = "Search the web"\n')
     config_path = tmp_path / "config.toml"
     config_path.write_text("[learning]\nenabled = true\n")
     return {

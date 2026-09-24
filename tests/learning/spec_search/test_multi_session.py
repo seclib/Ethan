@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.learning.spec_search.models import (
     AutonomyMode,
     BenchmarkSnapshot,
@@ -137,9 +136,7 @@ class TestSpecSearchLoop:
                 _session(0.5009),  # below eps from current best
             ]
         )
-        loop = SpecSearchLoop(
-            orch, stagnation_k=2, stagnation_eps=0.001, max_total_cost_usd=10.0
-        )
+        loop = SpecSearchLoop(orch, stagnation_k=2, stagnation_eps=0.001, max_total_cost_usd=10.0)
         result = loop.run()
         assert result.stop_reason == "stagnation"
         assert len(result.sessions) == 3

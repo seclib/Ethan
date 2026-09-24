@@ -14,7 +14,6 @@ import asyncio
 
 import pytest
 from core.plugins import PluginRegistry, PluginValidator
-from core.plugins.validator import ValidationResult
 from core.state import CoreRecordStore
 
 
@@ -43,9 +42,7 @@ class TestValidateManifest:
         assert "version" in result.error
 
     def test_blank_name_rejected(self):
-        result = PluginValidator().validate_manifest(
-            {"name": "   ", "version": "1.0.0", "id": "x"}
-        )
+        result = PluginValidator().validate_manifest({"name": "   ", "version": "1.0.0", "id": "x"})
         assert not result.valid
         assert "name" in result.error
 
@@ -121,9 +118,9 @@ class TestValidateComplete:
 
 class TestShimCompat:
     def test_legacy_shim_reexports_core(self):
-        import plugins.validator as legacy_shim
-
         from core.plugins import validator as core_validator
+
+        import plugins.validator as legacy_shim
 
         assert legacy_shim.PluginValidator is core_validator.PluginValidator
         assert legacy_shim.ValidationResult is core_validator.ValidationResult
@@ -140,9 +137,7 @@ class TestRegistryIntegration:
         assert installed["installed"] is True
 
     def test_install_custom_kept_id_ok(self, registry):
-        installed = asyncio.run(
-            registry.install_custom("Mon Plugin", plugin_id="my-plugin")
-        )
+        installed = asyncio.run(registry.install_custom("Mon Plugin", plugin_id="my-plugin"))
         assert installed["id"] == "my-plugin"
 
     def test_install_custom_blank_name_rejected(self, registry):

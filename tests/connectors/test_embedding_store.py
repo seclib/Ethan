@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.connectors.embedding_store import EmbeddingStore
 
 torch = pytest.importorskip("torch", reason="torch required for embedding tests")

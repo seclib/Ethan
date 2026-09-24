@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.learning.intelligence.orchestrator.sft_trainer import (
     OrchestratorSFTConfig,
     OrchestratorSFTDataset,
@@ -163,9 +162,7 @@ class TestSFTLabelMasking:
                 attention_mask = torch.tensor([[1, 1, 0, 0, 0, 0, 0, 0]])
                 return {"input_ids": input_ids, "attention_mask": attention_mask}
 
-        ds = OrchestratorSFTDataset(
-            trace_path=str(trace_file), tokenizer=_FakeTokenizer()
-        )
+        ds = OrchestratorSFTDataset(trace_path=str(trace_file), tokenizer=_FakeTokenizer())
         item = ds[0]
         ids, mask, labels = item["input_ids"], item["attention_mask"], item["labels"]
 

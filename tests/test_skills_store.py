@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.skills.lab import LabStatus, SkillLab
 from core.skills.store import SkillStore
 from core.skills.validation import collect_unknown_tools
@@ -79,6 +78,7 @@ def test_toggle_and_list_filters():
         assert [s["name"] for s in await store.list_skills(kind="prompt", active=False)] == ["p1"]
 
     asyncio.run(scenario())
+
 
 def test_sync_builtin_skills_idempotent_preserves_active():
     async def scenario():
@@ -157,9 +157,7 @@ def test_import_export_roundtrip():
 def test_import_skips_invalid_records():
     async def scenario():
         store = SkillStore()
-        summary = await store.import_skills(
-            {"skills": [{"description": "sans nom"}, "junk"]}
-        )
+        summary = await store.import_skills({"skills": [{"description": "sans nom"}, "junk"]})
         assert summary == {"imported": 0, "skipped": 2}
 
     asyncio.run(scenario())
@@ -206,4 +204,3 @@ def test_lab_requires_docker_no_local_execution():
         assert len(lab.list_results()) == 1
 
     asyncio.run(scenario())
-

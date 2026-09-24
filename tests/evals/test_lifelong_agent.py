@@ -370,8 +370,7 @@ class TestScorerDBMD5:
         r = _db_record(md5="x", sql="INSERT INTO users VALUES (4, 'Dave', 88.0)")
         ok, _ = s.score(
             r,
-            "Action: Operation\n```sql\n"
-            "INSERT INTO users VALUES (4, 'Dave', 88.0)\n```",
+            "Action: Operation\n```sql\nINSERT INTO users VALUES (4, 'Dave', 88.0)\n```",
         )
         assert ok is True
 
@@ -475,10 +474,7 @@ class TestExtractBashCommands:
         assert len(cmds) == 1
 
     def test_multiple_commands(self) -> None:
-        text = (
-            "Act: ```bash\nmkdir /tmp/test\n```\n"
-            "Act: ```bash\ntouch /tmp/test/file.txt\n```"
-        )
+        text = "Act: ```bash\nmkdir /tmp/test\n```\nAct: ```bash\ntouch /tmp/test/file.txt\n```"
         cmds = _extract_bash_commands(text)
         assert len(cmds) == 2
 
@@ -648,9 +644,7 @@ class TestDBEnvironment:
         assert "Alice" in obs
 
         # Turn 1: agent explores
-        obs, done = env.step(
-            "Action: Operation\n```sql\nSELECT COUNT(*) FROM users\n```"
-        )
+        obs, done = env.step("Action: Operation\n```sql\nSELECT COUNT(*) FROM users\n```")
         assert not done
         assert "3" in obs or "Result" in obs
 

@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import pytest
-
-from core.bus.interface import EventBus
 from core.bus.memory_bus import InMemoryBus
-from core.registry.capability import CapabilityRegistry
-from core.registry.module import ModuleRegistry
-from core.registry.events import EventSchemaRegistry
+from core.config.secrets import SecretManager
 from core.modules.capability import Capability
 from core.modules.dependency import Dependency
 from core.modules.permissions import Permissions
-from core.config.secrets import SecretManager
+from core.registry.capability import CapabilityRegistry
+from core.registry.events import EventSchemaRegistry
+from core.registry.module import ModuleRegistry
 
 
 @pytest.fixture

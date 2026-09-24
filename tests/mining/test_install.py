@@ -9,12 +9,8 @@ import types
 import pytest
 
 
-@pytest.mark.parametrize(
-    "missing_module", ["pearl_mining", "pearl_gateway", "miner_base"]
-)
-def test_pearl_packages_available_returns_false_when_any_one_missing(
-    missing_module, monkeypatch
-):
+@pytest.mark.parametrize("missing_module", ["pearl_mining", "pearl_gateway", "miner_base"])
+def test_pearl_packages_available_returns_false_when_any_one_missing(missing_module, monkeypatch):
     """Returns False if ANY of the three packages is absent."""
     from openjarvis.mining import _install
 
@@ -33,8 +29,7 @@ def test_pearl_packages_available_returns_true_when_all_present():
     from openjarvis.mining import _install
 
     fakes = {
-        name: types.ModuleType(name)
-        for name in ("pearl_mining", "pearl_gateway", "miner_base")
+        name: types.ModuleType(name) for name in ("pearl_mining", "pearl_gateway", "miner_base")
     }
     with pytest.MonkeyPatch().context() as mp:
         for name, mod in fakes.items():

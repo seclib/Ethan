@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents._stubs import AgentResult
 from openjarvis.agents.native_openhands import NativeOpenHandsAgent
 from openjarvis.agents.native_react import NativeReActAgent

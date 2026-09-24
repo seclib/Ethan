@@ -29,9 +29,7 @@ def _make_manager(store: CoreRecordStore) -> DomainManager:
     return DomainManager(
         store=store,
         knowledge=KnowledgeManager(store=store),
-        collections=KnowledgeCollectionManager(
-            store=store, rag=RAGPipeline(store=store)
-        ),
+        collections=KnowledgeCollectionManager(store=store, rag=RAGPipeline(store=store)),
     )
 
 
@@ -120,10 +118,7 @@ def test_resource_multi_membership_and_shared_resolution():
         assert {d["name"] for d in domains_of} == {"OSINT", "Recon"}
 
         # Counts
-        counts = {
-            d["name"]: d["resource_count"]
-            for d in await manager.list_domains_with_counts()
-        }
+        counts = {d["name"]: d["resource_count"] for d in await manager.list_domains_with_counts()}
         assert counts["OSINT"] == 1 and counts["Recon"] == 1
 
         # Resource inconnue → rejetée (integrity of links)
@@ -158,9 +153,7 @@ def test_domain_persistence_survives_new_manager_instance():
 
             pool = await asyncio.wait_for(asyncpg.create_pool(url), timeout=4)
         except Exception:
-            pytest.skip(
-                "PostgreSQL unavailable — standalone memory path covered elsewhere"
-            )
+            pytest.skip("PostgreSQL unavailable — standalone memory path covered elsewhere")
             return
 
         token = uuid.uuid4().hex[:8]
@@ -208,9 +201,7 @@ def test_domain_api_routes_crud_and_membership():
     core_domains.set_domain_manager(manager)
     try:
         domain = asyncio.run(
-            core_domains.create_domain(
-                {"name": "Security", "description": "Défense", "icon": "🛡️"}
-            )
+            core_domains.create_domain({"name": "Security", "description": "Défense", "icon": "🛡️"})
         )
         assert domain["name"] == "Security"
 
@@ -240,9 +231,7 @@ def test_domain_api_routes_crud_and_membership():
         resources = asyncio.run(core_domains.list_domain_resources(domain["id"]))
         assert resources[0]["record"]["label"] == "Playbook"
 
-        removed = asyncio.run(
-            core_domains.detach_resource(domain["id"], "knowledge", doc.id)
-        )
+        removed = asyncio.run(core_domains.detach_resource(domain["id"], "knowledge", doc.id))
         assert removed["status"] == "detached"
 
         deleted = asyncio.run(core_domains.delete_domain(domain["id"]))

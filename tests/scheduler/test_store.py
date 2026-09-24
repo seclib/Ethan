@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.scheduler.store import SchedulerStore
 
 
@@ -101,9 +100,7 @@ class TestDueTasks:
         assert "t2" not in ids
 
     def test_due_tasks_excludes_paused(self, store):
-        store.save_task(
-            _make_task("t1", next_run="2026-01-01T00:00:00+00:00", status="paused")
-        )
+        store.save_task(_make_task("t1", next_run="2026-01-01T00:00:00+00:00", status="paused"))
         due = store.get_due_tasks("2026-06-01T00:00:00+00:00")
         assert len(due) == 0
 

@@ -6,9 +6,8 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import openjarvis.agents  # noqa: F401 -- trigger registration
+import pytest
 from openjarvis.agents._stubs import AgentResult
 from openjarvis.agents.claude_code import (
     _OUTPUT_END,
@@ -385,9 +384,7 @@ class TestClaudeCodeEvents:
         ):
             agent.run("test input")
 
-        start_events = [
-            e for e in bus.history if e.event_type == EventType.AGENT_TURN_START
-        ]
+        start_events = [e for e in bus.history if e.event_type == EventType.AGENT_TURN_START]
         assert len(start_events) == 1
         assert start_events[0].data["agent"] == "claude_code"
         assert start_events[0].data["input"] == "test input"

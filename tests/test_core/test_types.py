@@ -1,15 +1,14 @@
 """Tests des dataclasses core/types/."""
 
-import pytest
 from datetime import datetime
 
-from core.ethan_types.event import Event, EventType
-from core.ethan_types.message import ChatMessage, ChatResponse, Message
 from core.ethan_types.capability import Capability, Dependency
-from core.ethan_types.goal import Goal, GoalState, GoalPriority
-from core.ethan_types.plan import Plan, Task, TaskState, TaskDAG
-from core.ethan_types.module import ModuleConfig, ModuleState, ModuleStateData
-from core.ethan_types.result import Result, Error, Progress
+from core.ethan_types.event import Event, EventType
+from core.ethan_types.goal import Goal, GoalPriority, GoalState
+from core.ethan_types.message import ChatMessage, ChatResponse
+from core.ethan_types.module import ModuleConfig
+from core.ethan_types.plan import Plan, Task, TaskDAG
+from core.ethan_types.result import Result
 
 
 class TestEvent:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.types import ToolResult
 from openjarvis.learning.intelligence.orchestrator.environment import (
     OrchestratorEnvironment,
@@ -89,27 +88,21 @@ class TestOrchestratorEnvironment:
         env = OrchestratorEnvironment(tools=[_MockCalculator()], max_turns=2)
         state = env.reset("q")
         for _ in range(2):
-            action = OrchestratorAction(
-                thought="go", tool_name="calculator", tool_input="1+1"
-            )
+            action = OrchestratorAction(thought="go", tool_name="calculator", tool_input="1+1")
             state, obs = env.step(state, action)
         assert env.is_done(state) is True
 
     def test_invalid_tool_raises(self):
         env = OrchestratorEnvironment(tools=[_MockCalculator()])
         state = env.reset("q")
-        action = OrchestratorAction(
-            thought="t", tool_name="nonexistent", tool_input="x"
-        )
+        action = OrchestratorAction(thought="t", tool_name="nonexistent", tool_input="x")
         with pytest.raises(ValueError, match="not available"):
             env.step(state, action)
 
     def test_max_turns_exceeded_raises(self):
         env = OrchestratorEnvironment(tools=[_MockCalculator()], max_turns=1)
         state = env.reset("q")
-        action = OrchestratorAction(
-            thought="go", tool_name="calculator", tool_input="1+1"
-        )
+        action = OrchestratorAction(thought="go", tool_name="calculator", tool_input="1+1")
         state, _ = env.step(state, action)
         with pytest.raises(ValueError, match="exceeded"):
             env.step(state, action)

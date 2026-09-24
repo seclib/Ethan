@@ -6,7 +6,6 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.core.registry import ConnectorRegistry
 
 

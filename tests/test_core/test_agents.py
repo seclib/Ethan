@@ -1,10 +1,9 @@
 """Tests de l'Agent ABC."""
 
 import asyncio
-import pytest
 
-from core.agents.base import Agent, AgentConfig, AgentStatus, AgentRegistry
-from core.bus.memory_bus import InMemoryBus
+import pytest
+from core.agents.base import Agent, AgentConfig, AgentRegistry, AgentStatus
 from core.ethan_types.event import Event, EventType
 from core.ethan_types.result import Result
 
@@ -149,10 +148,7 @@ class TestAgentRegistry:
     @pytest.mark.asyncio
     async def test_start_all_stop_all(self):
         registry = AgentRegistry()
-        agents = [
-            SimpleAgent(config=AgentConfig(name=f"agent-{i}"))
-            for i in range(3)
-        ]
+        agents = [SimpleAgent(config=AgentConfig(name=f"agent-{i}")) for i in range(3)]
         for a in agents:
             registry.register(a)
 

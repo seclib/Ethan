@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents._stubs import AgentContext, AgentResult
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import AgentRegistry, RouterPolicyRegistry, ToolRegistry
@@ -163,7 +162,6 @@ class TestAPIServerRoundtrip:
     def test_roundtrip(self):
         pytest.importorskip("fastapi")
         from fastapi.testclient import TestClient
-
         from openjarvis.server.app import create_app
 
         engine = _make_engine("API response!")
@@ -188,7 +186,6 @@ class TestAPIServerRoundtrip:
     def test_models_endpoint(self):
         pytest.importorskip("fastapi")
         from fastapi.testclient import TestClient
-
         from openjarvis.server.app import create_app
 
         engine = _make_engine()
@@ -250,9 +247,7 @@ class TestTelemetryThroughAgent:
         agent = AgentRegistry.get("simple")(engine, "test-model", bus=bus)
         agent.run("Hello")
 
-        telem_events = [
-            e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD
-        ]
+        telem_events = [e for e in bus.history if e.event_type == EventType.TELEMETRY_RECORD]
         assert len(telem_events) == 1
         rec = telem_events[0].data["record"]
         assert rec.model_id == "test-model"

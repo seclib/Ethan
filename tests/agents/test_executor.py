@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.agents._stubs import AgentResult
 from openjarvis.agents.errors import FatalError, RetryableError
 from openjarvis.core.events import EventBus, EventType
@@ -39,9 +38,7 @@ def executor(manager, event_bus):
 
 
 class TestExecutorBasic:
-    def test_execute_tick_publishes_start_end_events(
-        self, executor, manager, event_bus
-    ):
+    def test_execute_tick_publishes_start_end_events(self, executor, manager, event_bus):
         agent = manager.create_agent(name="test", agent_type="monitor_operative")
         events = []
         event_bus.subscribe(EventType.AGENT_TICK_START, lambda e: events.append(e))
@@ -90,9 +87,7 @@ class TestExecutorBasic:
         errors = []
         event_bus.subscribe(EventType.AGENT_TICK_ERROR, lambda e: errors.append(e))
 
-        with patch.object(
-            executor, "_invoke_agent", side_effect=FatalError("bad config")
-        ):
+        with patch.object(executor, "_invoke_agent", side_effect=FatalError("bad config")):
             executor.execute_tick(agent["id"])
 
         assert manager.get_agent(agent["id"])["status"] == "error"
@@ -119,9 +114,7 @@ class TestExecutorBasic:
     def test_execute_tick_gives_up_after_max_retries(self, executor, manager):
         agent = manager.create_agent(name="test", agent_type="monitor_operative")
 
-        with patch.object(
-            executor, "_invoke_agent", side_effect=RetryableError("always fails")
-        ):
+        with patch.object(executor, "_invoke_agent", side_effect=RetryableError("always fails")):
             with patch("openjarvis.agents.executor.retry_delay", return_value=0):
                 executor.execute_tick(agent["id"])
 

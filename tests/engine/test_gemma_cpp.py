@@ -6,7 +6,6 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.core.config import EngineConfig, GemmaCppEngineConfig
 from openjarvis.core.types import Message, Role
 
@@ -36,9 +35,7 @@ class TestMessagesToPrompt:
         engine = self._make_engine()
         msgs = [Message(role=Role.USER, content="Hello")]
         result = engine._messages_to_prompt(msgs)
-        assert result == (
-            "<start_of_turn>user\nHello<end_of_turn>\n<start_of_turn>model\n"
-        )
+        assert result == ("<start_of_turn>user\nHello<end_of_turn>\n<start_of_turn>model\n")
 
     def test_system_folded_into_user(self) -> None:
         engine = self._make_engine()
@@ -48,9 +45,7 @@ class TestMessagesToPrompt:
         ]
         result = engine._messages_to_prompt(msgs)
         assert result == (
-            "<start_of_turn>user\n"
-            "You are helpful.\n\nHello<end_of_turn>\n"
-            "<start_of_turn>model\n"
+            "<start_of_turn>user\nYou are helpful.\n\nHello<end_of_turn>\n<start_of_turn>model\n"
         )
 
     def test_multi_turn_conversation(self) -> None:
@@ -86,9 +81,7 @@ class TestMessagesToPrompt:
         ]
         result = engine._messages_to_prompt(msgs)
         assert result == (
-            "<start_of_turn>user\n"
-            "Rule 1\n\nRule 2\n\nGo<end_of_turn>\n"
-            "<start_of_turn>model\n"
+            "<start_of_turn>user\nRule 1\n\nRule 2\n\nGo<end_of_turn>\n<start_of_turn>model\n"
         )
 
 

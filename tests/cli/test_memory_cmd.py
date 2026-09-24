@@ -6,7 +6,6 @@ import importlib
 from pathlib import Path
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.registry import MemoryRegistry
 from openjarvis.tools.storage.sqlite import SQLiteMemory

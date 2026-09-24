@@ -175,9 +175,7 @@ def test_full_research_pipeline(tmp_path):
 
     # At least one successful knowledge_search tool result
     ks_results = [
-        tr
-        for tr in result.tool_results
-        if tr.tool_name == "knowledge_search" and tr.success
+        tr for tr in result.tool_results if tr.tool_name == "knowledge_search" and tr.success
     ]
     assert len(ks_results) >= 1, (
         f"Expected at least 1 successful knowledge_search call, "

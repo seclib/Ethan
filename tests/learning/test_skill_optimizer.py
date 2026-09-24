@@ -103,9 +103,7 @@ class TestSkillOptimizerOptimize:
         assert results["research-skill"].status == "skipped"
         assert results["research-skill"].trace_count == 3
 
-    def test_optimizes_skill_with_enough_traces(
-        self, tmp_path: Path, monkeypatch: Any
-    ) -> None:
+    def test_optimizes_skill_with_enough_traces(self, tmp_path: Path, monkeypatch: Any) -> None:
         from openjarvis.learning.agents.skill_optimizer import (
             SkillOptimizer,
             _OptimizerOutput,

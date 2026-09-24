@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import time
-import json
-import subprocess
-from pathlib import Path
-from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from .benchmark_runner import BenchmarkResult
 
@@ -27,27 +22,21 @@ class APILatencyBenchmark:
 
         # --- Health endpoint ---
         health_result = self._benchmark_endpoint(
-            "API Health", self.HEALTH_ENDPOINT, samples,
-            warn=200, fail=1000
+            "API Health", self.HEALTH_ENDPOINT, samples, warn=200, fail=1000
         )
         results.append(health_result)
 
         # --- State endpoint ---
         state_result = self._benchmark_endpoint(
-            "API State", self.STATE_ENDPOINT, samples,
-            warn=500, fail=2000
+            "API State", self.STATE_ENDPOINT, samples, warn=500, fail=2000
         )
         results.append(state_result)
 
         # --- Latency percentiles ---
         if health_result.metrics:
             all_latencies = []
-            all_latencies.extend(
-                m.value for m in health_result.metrics if "latency" in m.name
-            )
-            all_latencies.extend(
-                m.value for m in state_result.metrics if "latency" in m.name
-            )
+            all_latencies.extend(m.value for m in health_result.metrics if "latency" in m.name)
+            all_latencies.extend(m.value for m in state_result.metrics if "latency" in m.name)
             if all_latencies:
                 sorted_lat = sorted(all_latencies)
                 p50 = sorted_lat[len(sorted_lat) // 2]
@@ -65,8 +54,7 @@ class APILatencyBenchmark:
         return results
 
     def _benchmark_endpoint(
-        self, name: str, url: str, samples: int,
-        warn: float, fail: float
+        self, name: str, url: str, samples: int, warn: float, fail: float
     ) -> BenchmarkResult:
         """Benchmark a single API endpoint."""
         metrics = BenchmarkResult(group="api", name=name, samples=samples)
@@ -81,7 +69,7 @@ class APILatencyBenchmark:
                 _ = resp.read()
                 elapsed = (time.perf_counter() - start) * 1000.0
                 latencies.append(elapsed)
-            except (URLError, OSError, ValueError) as e:
+            except (URLError, OSError, ValueError):
                 errors += 1
                 if i == 0:
                     metrics.add_metric("api_reachable", 0.0, "bool", fail=1)

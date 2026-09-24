@@ -7,7 +7,6 @@ from typing import Any, Dict
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.types import StepType, Trace, TraceStep
 from openjarvis.evals.core.backend import InferenceBackend
 from openjarvis.evals.core.types import RunSummary
@@ -323,10 +322,7 @@ class TestProposeNext:
         assert "What is 2+2?" in prompt
 
     def test_empty_history(self) -> None:
-        response = (
-            '```json\n{"params": {"agent.type": "simple"},'
-            ' "reasoning": "start simple"}\n```'
-        )
+        response = '```json\n{"params": {"agent.type": "simple"}, "reasoning": "start simple"}\n```'
         backend = _make_mock_backend(response)
         opt = LLMOptimizer(
             search_space=_make_search_space(),
@@ -370,8 +366,7 @@ class TestAnalyzeTrial:
 
     def test_returns_trial_feedback(self) -> None:
         backend = _make_mock_backend(
-            "The configuration showed strong accuracy at 0.80 "
-            "but latency could be improved."
+            "The configuration showed strong accuracy at 0.80 but latency could be improved."
         )
         opt = LLMOptimizer(
             search_space=_make_search_space(),
@@ -498,19 +493,14 @@ class TestParseConfigResponse:
     def test_generic_code_block(self) -> None:
         opt = self._make_optimizer()
         response = (
-            "```\n"
-            '{"params": {"intelligence.temperature": 0.1}, '
-            '"reasoning": "Low temp"}\n'
-            "```"
+            '```\n{"params": {"intelligence.temperature": 0.1}, "reasoning": "Low temp"}\n```'
         )
         config = opt._parse_config_response(response)
         assert config.params["intelligence.temperature"] == 0.1
 
     def test_raw_json(self) -> None:
         opt = self._make_optimizer()
-        response = (
-            'I suggest: {"params": {"agent.max_turns": 10}, "reasoning": "More turns"}'
-        )
+        response = 'I suggest: {"params": {"agent.max_turns": 10}, "reasoning": "More turns"}'
         config = opt._parse_config_response(response)
         assert config.params["agent.max_turns"] == 10
         assert config.reasoning == "More turns"
@@ -961,11 +951,7 @@ class TestProposeMerge:
     """Tests for LLMOptimizer.propose_merge."""
 
     def test_includes_candidates_in_prompt(self) -> None:
-        response = (
-            '```json\n{"params": {"agent.type":'
-            ' "orchestrator"}, "reasoning":'
-            ' "merged"}\n```'
-        )
+        response = '```json\n{"params": {"agent.type": "orchestrator"}, "reasoning": "merged"}\n```'
         backend = _make_mock_backend(response)
         opt = LLMOptimizer(
             search_space=_make_search_space(),

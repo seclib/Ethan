@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 import pytest
-
 from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.store import KnowledgeStore
@@ -53,9 +52,7 @@ class StubConnector(BaseConnector):
 # ---------------------------------------------------------------------------
 
 
-def _make_doc(
-    doc_id: str, source: str = "stub", content: str = "Test content."
-) -> Document:
+def _make_doc(doc_id: str, source: str = "stub", content: str = "Test content.") -> Document:
     return Document(
         doc_id=doc_id,
         source=source,
@@ -94,10 +91,7 @@ def engine(pipeline: IngestionPipeline, tmp_path: Path) -> SyncEngine:
 
 def test_sync_connector(engine: SyncEngine, store: KnowledgeStore) -> None:
     """StubConnector yields 5 docs; all are ingested and retrievable."""
-    docs = [
-        _make_doc(f"doc:{i}", content=f"Unique content for document {i}")
-        for i in range(5)
-    ]
+    docs = [_make_doc(f"doc:{i}", content=f"Unique content for document {i}") for i in range(5)]
     connector = StubConnector(docs)
 
     items = engine.sync(connector)
@@ -154,12 +148,10 @@ def test_sync_multiple_connectors(
         connector_id = "stub_b"
 
     docs_a = [
-        _make_doc(f"a:doc:{i}", source="source_a", content=f"Alpha content {i}")
-        for i in range(3)
+        _make_doc(f"a:doc:{i}", source="source_a", content=f"Alpha content {i}") for i in range(3)
     ]
     docs_b = [
-        _make_doc(f"b:doc:{i}", source="source_b", content=f"Beta content {i}")
-        for i in range(4)
+        _make_doc(f"b:doc:{i}", source="source_b", content=f"Beta content {i}") for i in range(4)
     ]
 
     engine = SyncEngine(pipeline, state_db=str(tmp_path / "multi_sync_state.db"))

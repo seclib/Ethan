@@ -6,7 +6,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.mcp.protocol import MCPRequest
 
 
@@ -155,9 +154,7 @@ class TestStreamableHTTPTransport:
         mock_client = _mock_httpx_client
         mock_client.post.return_value = _make_http_response({})
 
-        transport = StreamableHTTPTransport(
-            "http://localhost:9583/mcp", token="abc123"
-        )
+        transport = StreamableHTTPTransport("http://localhost:9583/mcp", token="abc123")
         for i in range(3):
             transport.send(MCPRequest(method="tools/list", id=i))
 
@@ -167,7 +164,6 @@ class TestStreamableHTTPTransport:
     def test_connect_error_handling(self, _mock_httpx_client):
         """httpx.ConnectError should be wrapped in RuntimeError."""
         import httpx
-
         from openjarvis.mcp.transport import StreamableHTTPTransport
 
         mock_client = _mock_httpx_client
@@ -180,7 +176,6 @@ class TestStreamableHTTPTransport:
     def test_timeout_error_handling(self, _mock_httpx_client):
         """httpx.TimeoutException should be wrapped in RuntimeError."""
         import httpx
-
         from openjarvis.mcp.transport import StreamableHTTPTransport
 
         mock_client = _mock_httpx_client

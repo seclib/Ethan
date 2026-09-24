@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.connectors.store import KnowledgeStore
 from openjarvis.core.registry import ToolRegistry
 

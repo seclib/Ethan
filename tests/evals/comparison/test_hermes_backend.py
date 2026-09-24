@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.evals.backends.external._subprocess_runner import SubprocessResult
 from openjarvis.evals.backends.external.hermes_agent import HermesBackend
 from openjarvis.evals.comparison.third_party import (
@@ -23,9 +22,7 @@ def _fake_third_party(tmp_path: Path) -> ThirdPartyConfig:
                 name="hermes",
                 path=tmp_path,
                 pinned_commit="abc123",
-                runner_script=(
-                    "src/openjarvis/evals/backends/external/_runners/hermes_runner.py"
-                ),
+                runner_script=("src/openjarvis/evals/backends/external/_runners/hermes_runner.py"),
                 python_executable="",
             )
         }
@@ -33,9 +30,7 @@ def _fake_third_party(tmp_path: Path) -> ThirdPartyConfig:
 
 
 class TestHermesBackend:
-    def test_generate_full_builds_correct_subprocess_command(
-        self, tmp_path: Path
-    ) -> None:
+    def test_generate_full_builds_correct_subprocess_command(self, tmp_path: Path) -> None:
         cfg = _fake_third_party(tmp_path)
         with (
             patch(

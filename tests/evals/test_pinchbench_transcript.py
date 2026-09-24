@@ -43,9 +43,7 @@ def test_events_to_transcript_tool_call_pair():
     from openjarvis.evals.scorers.pinchbench import events_to_transcript
 
     events = [
-        _make_event(
-            EventType.TOOL_CALL_START, tool="file_read", arguments={"path": "a.txt"}
-        ),
+        _make_event(EventType.TOOL_CALL_START, tool="file_read", arguments={"path": "a.txt"}),
         _make_event(EventType.TOOL_CALL_END, tool="file_read", result="file contents"),
     ]
     transcript = events_to_transcript(events)

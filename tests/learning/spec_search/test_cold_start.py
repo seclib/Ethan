@@ -30,9 +30,7 @@ def _make_trace_store(count: int = 0, high_feedback_count: int = 0) -> MagicMock
     store = MagicMock()
     store.count.return_value = count
     # list_traces returns traces with high feedback
-    high_traces = [
-        _StubTrace(trace_id=f"t{i}", feedback=0.9) for i in range(high_feedback_count)
-    ]
+    high_traces = [_StubTrace(trace_id=f"t{i}", feedback=0.9) for i in range(high_feedback_count)]
     store.list_traces.return_value = high_traces
     return store
 

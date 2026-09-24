@@ -100,9 +100,7 @@ class TestSchedulerBasic:
         from openjarvis.agents.scheduler import AgentScheduler
 
         executor = MagicMock()
-        scheduler = AgentScheduler(
-            manager=manager, executor=executor, tick_interval=0.1
-        )
+        scheduler = AgentScheduler(manager=manager, executor=executor, tick_interval=0.1)
 
         agent = manager.create_agent(
             name="test",
@@ -121,9 +119,7 @@ class TestSchedulerBasic:
         from openjarvis.agents.scheduler import AgentScheduler
 
         executor = MagicMock()
-        scheduler = AgentScheduler(
-            manager=manager, executor=executor, tick_interval=0.1
-        )
+        scheduler = AgentScheduler(manager=manager, executor=executor, tick_interval=0.1)
 
         agent = manager.create_agent(
             name="test",

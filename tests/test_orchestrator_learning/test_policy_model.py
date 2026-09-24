@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.learning.intelligence.orchestrator.policy_model import (
     OrchestratorPolicyModel,
 )
@@ -86,9 +85,7 @@ class TestBuildPrompt:
     def test_includes_history(self):
         m = OrchestratorPolicyModel()
         state = EpisodeState(initial_prompt="q")
-        action = OrchestratorAction(
-            thought="use calc", tool_name="calculator", tool_input="2+2"
-        )
+        action = OrchestratorAction(thought="use calc", tool_name="calculator", tool_input="2+2")
         obs = OrchestratorObservation(content="4")
         state.add_turn(action, obs)
         prompt = m._build_prompt(state, ["calculator"])

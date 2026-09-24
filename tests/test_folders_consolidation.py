@@ -19,14 +19,14 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from core.folders import FolderManager
+from core.folders.manager import _utc_now
 from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore
-from core.folders.manager import _utc_now
-from uuid import uuid4
 
 _MEMBERSHIPS = "folder-memberships"
 
@@ -128,7 +128,9 @@ class _FakeCollectionsManager:
         return list(self._documents.get(collection_id, []))
 
 
-async def _seed(manager: FolderManager, skills: _FakeSkillStore, names: list[str]) -> dict[str, str]:
+async def _seed(
+    manager: FolderManager, skills: _FakeSkillStore, names: list[str]
+) -> dict[str, str]:
     """Un dossier + un skill par nom ; retourne {nom: folder_id}."""
     folder_ids: dict[str, str] = {}
     for name in names:
@@ -231,9 +233,14 @@ def test_merge_partial_failure_is_reported_not_masked():
         ids = await _seed(manager, skills, ["src", "dst"])
         # Membership fantôme : ressource disparue (fail-closed attendu).
         await store.save(
-            _MEMBERSHIPS, "src:skill:ghost",
-            {"id": "src:skill:ghost", "folder_id": ids["src"],
-             "resource_type": "skill", "resource_id": "ghost"},
+            _MEMBERSHIPS,
+            "src:skill:ghost",
+            {
+                "id": "src:skill:ghost",
+                "folder_id": ids["src"],
+                "resource_type": "skill",
+                "resource_id": "ghost",
+            },
         )
         await manager.attach_resource(ids["src"], "skill", "skill-src")
 
@@ -245,6 +252,8 @@ def test_merge_partial_failure_is_reported_not_masked():
         assert "ghost" in report["errors"][0]
 
     asyncio.run(scenario())
+
+
 # ── Copy ─────────────────────────────────────────────────────────────────────
 
 
@@ -314,8 +323,10 @@ def test_move_unknown_resource_is_reported_as_error():
         ids = await _seed(manager, skills, ["cible"])
 
         report = await manager.move_resources_to_folder(
-            [{"resource_type": "skill", "resource_id": "ghost"},
-             {"resource_type": "skill", "resource_id": "skill-cible"}],
+            [
+                {"resource_type": "skill", "resource_id": "ghost"},
+                {"resource_type": "skill", "resource_id": "skill-cible"},
+            ],
             ids["cible"],
         )
 
@@ -340,6 +351,7 @@ def test_move_all_unknown_reports_failed_status():
         assert report["moved"] == 0
 
     asyncio.run(scenario())
+
 
 # ── Conversion dossier → collection Knowledge ────────────────────────────────
 
@@ -419,10 +431,17 @@ def test_create_archive_returns_pending_record():
         manager, skills, store, _c = _manager()
         folder = await manager.create_folder("Archive Test")
         # Membership simulé : create_archive compte les relations du store.
-        await store.save("folder-memberships", "m1", {
-            "id": "m1", "folder_id": folder["id"], "resource_type": "skill",
-            "resource_id": "skill-test", "created_at": _utc_now(),
-        })
+        await store.save(
+            "folder-memberships",
+            "m1",
+            {
+                "id": "m1",
+                "folder_id": folder["id"],
+                "resource_type": "skill",
+                "resource_id": "skill-test",
+                "created_at": _utc_now(),
+            },
+        )
 
         archive = await manager.create_archive(
             "backup",
@@ -461,14 +480,30 @@ def test_list_deleted_items_filters_by_user():
         manager, _, store, _ = _manager()
 
         # Simule des éléments soft-deletés directement dans le store
-        await store.save("folder-deleted", "del-1", {
-            "id": "del-1", "type": "folder", "name": "d1", "user_id": "alice",
-            "deleted_at": "2025-01-01T00:00:00Z", "deleted_by": "alice",
-        })
-        await store.save("folder-deleted", "del-2", {
-            "id": "del-2", "type": "folder", "name": "d2", "user_id": "bob",
-            "deleted_at": "2025-01-02T00:00:00Z", "deleted_by": "bob",
-        })
+        await store.save(
+            "folder-deleted",
+            "del-1",
+            {
+                "id": "del-1",
+                "type": "folder",
+                "name": "d1",
+                "user_id": "alice",
+                "deleted_at": "2025-01-01T00:00:00Z",
+                "deleted_by": "alice",
+            },
+        )
+        await store.save(
+            "folder-deleted",
+            "del-2",
+            {
+                "id": "del-2",
+                "type": "folder",
+                "name": "d2",
+                "user_id": "bob",
+                "deleted_at": "2025-01-02T00:00:00Z",
+                "deleted_by": "bob",
+            },
+        )
 
         all_items = await manager.list_deleted_items()
         assert len(all_items) == 2
@@ -493,14 +528,30 @@ def test_empty_trash_purges_all_items():
     async def scenario():
         manager, _, store, _ = _manager()
 
-        await store.save("folder-deleted", "del-1", {
-            "id": "del-1", "type": "folder", "name": "d1", "user_id": "alice",
-            "deleted_at": "2025-01-01T00:00:00Z", "deleted_by": "alice",
-        })
-        await store.save("folder-deleted", "del-2", {
-            "id": "del-2", "type": "resource", "name": "r1", "user_id": "alice",
-            "deleted_at": "2025-01-02T00:00:00Z", "deleted_by": "alice",
-        })
+        await store.save(
+            "folder-deleted",
+            "del-1",
+            {
+                "id": "del-1",
+                "type": "folder",
+                "name": "d1",
+                "user_id": "alice",
+                "deleted_at": "2025-01-01T00:00:00Z",
+                "deleted_by": "alice",
+            },
+        )
+        await store.save(
+            "folder-deleted",
+            "del-2",
+            {
+                "id": "del-2",
+                "type": "resource",
+                "name": "r1",
+                "user_id": "alice",
+                "deleted_at": "2025-01-02T00:00:00Z",
+                "deleted_by": "alice",
+            },
+        )
 
         count = await manager.empty_trash()
         assert count == 2

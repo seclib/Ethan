@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.operators.types import OperatorManifest
 
 # ---------------------------------------------------------------------------
@@ -515,9 +514,7 @@ class TestOperativeAgent:
         # Check system prompt was in messages
         call = engine.calls[0]
         messages = call["messages"]
-        assert any(
-            m.role.value == "system" and "test operator" in m.content for m in messages
-        )
+        assert any(m.role.value == "system" and "test operator" in m.content for m in messages)
 
     def test_run_loads_session(self):
         from openjarvis.agents.operative import OperativeAgent

@@ -17,9 +17,7 @@ class EchoTool(BaseTool):
         return ToolSpec(name="echo", description="Echo input")
 
     def execute(self, **params):
-        return ToolResult(
-            tool_name="echo", content=params.get("text", ""), success=True
-        )
+        return ToolResult(tool_name="echo", content=params.get("text", ""), success=True)
 
 
 def _make_executor(*extra_tools):

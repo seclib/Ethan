@@ -158,13 +158,17 @@ class TestScopeEnforcement:
             risk_level=RiskLevel.LOW,
         )
         result, _, _ = m.check(
-            "agent:test", "filesystem", "read",
+            "agent:test",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "ethan" / "README.md"),
         )
         assert result is PolicyResult.ALLOW
         # Hors scope: DENY
         result, _, _ = m.check(
-            "agent:test", "filesystem", "read",
+            "agent:test",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / ".." / ".ssh" / "id_rsa"),
         )
         assert result is PolicyResult.DENY
@@ -174,22 +178,30 @@ class TestAudit:
     def test_append_only(self, manager: CapabilityManager, roots: list[str]) -> None:
         before = len(manager.audit_log)
         manager.check(
-            "agent:test", "filesystem", "read",
+            "agent:test",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "a.txt"),
         )
         manager.check(
-            "agent:other", "filesystem", "read",
+            "agent:other",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "b.txt"),
         )
         assert len(manager.audit_log) == before + 2
 
     def test_summary(self, manager: CapabilityManager, roots: list[str]) -> None:
         manager.check(
-            "agent:test", "filesystem", "read",
+            "agent:test",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "a.txt"),
         )
         manager.check(
-            "agent:other", "filesystem", "read",
+            "agent:other",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "b.txt"),
         )
         s = manager.audit_summary()
@@ -199,7 +211,9 @@ class TestAudit:
 
     def test_entry_fields(self, manager: CapabilityManager, roots: list[str]) -> None:
         manager.check(
-            "agent:test", "filesystem", "read",
+            "agent:test",
+            "filesystem",
+            "read",
             str(Path(roots[0]) / "a.txt"),
         )
         entry = manager.audit_log[-1]
@@ -218,7 +232,10 @@ class TestValidation:
         m = CapabilityManager(allowed_roots=roots)
         with pytest.raises(ValueError, match="not allowed"):
             m.grant(
-                "agent:test", "filesystem", "execute", "/tmp",
+                "agent:test",
+                "filesystem",
+                "execute",
+                "/tmp",
                 risk_level=RiskLevel.LOW,
             )
 

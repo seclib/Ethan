@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.mcp.protocol import (
     INVALID_PARAMS,
     METHOD_NOT_FOUND,

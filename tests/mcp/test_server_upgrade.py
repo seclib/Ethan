@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.mcp.protocol import MCPRequest
 from openjarvis.mcp.server import MCPServer
 from openjarvis.tools.calculator import CalculatorTool

@@ -5,8 +5,6 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 
-from rich.console import Console
-
 from openjarvis.evals.core.display import (
     print_banner,
     print_completion,
@@ -17,6 +15,7 @@ from openjarvis.evals.core.display import (
     print_suite_summary,
 )
 from openjarvis.evals.core.types import MetricStats, RunSummary
+from rich.console import Console
 
 
 def _make_console() -> tuple[Console, StringIO]:

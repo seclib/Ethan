@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
-
 from openjarvis.agents._stubs import AgentContext, AgentResult, ToolUsingAgent
 from openjarvis.cli import cli
 from openjarvis.core.types import ToolCall, ToolResult
@@ -89,9 +88,7 @@ class _ConfirmingAgent(ToolUsingAgent):
     agent_id = "confirming_agent"
 
     def run(self, input, context: AgentContext | None = None, **kwargs):
-        result = self._executor.execute(
-            ToolCall(id="confirm", name="dangerous", arguments="{}")
-        )
+        result = self._executor.execute(ToolCall(id="confirm", name="dangerous", arguments="{}"))
         return AgentResult(
             content=result.content,
             tool_results=[result],
@@ -212,9 +209,7 @@ class TestAskAgentOption:
         )
         assert result.exit_code != 0
 
-    def test_no_agent_flag_falls_back_to_config_default_agent(
-        self, runner, mock_setup
-    ):
+    def test_no_agent_flag_falls_back_to_config_default_agent(self, runner, mock_setup):
         """When --agent is omitted, ``config.agent.default_agent`` is used.
 
         The default ``JarvisConfig`` sets ``default_agent = "simple"``, so
@@ -227,9 +222,7 @@ class TestAskAgentOption:
         assert result.exit_code == 0
         assert "Hello from engine" in result.output
 
-    def test_explicit_empty_agent_opts_out_of_agent_mode(
-        self, runner, mock_setup
-    ):
+    def test_explicit_empty_agent_opts_out_of_agent_mode(self, runner, mock_setup):
         """``--agent ""`` is the explicit opt-out: use direct-to-engine."""
         result = runner.invoke(cli, ["ask", "--agent", "", "Hello"])
         assert result.exit_code == 0
@@ -346,9 +339,7 @@ class TestPersonaFilesReachModel:
     the model — the bug this suite is meant to prevent regressing into.
     """
 
-    def test_soul_md_content_reaches_engine_in_simple_agent(
-        self, runner, monkeypatch, tmp_path
-    ):
+    def test_soul_md_content_reaches_engine_in_simple_agent(self, runner, monkeypatch, tmp_path):
         """SOUL.md content must appear in the system message sent to the engine."""
         from openjarvis.core.config import JarvisConfig
 
@@ -374,13 +365,9 @@ class TestPersonaFilesReachModel:
         _register_tools()
         with (
             patch.object(_ask_mod, "load_config", return_value=cfg),
-            patch.object(
-                _ask_mod, "get_engine", return_value=("mock", engine)
-            ),
+            patch.object(_ask_mod, "get_engine", return_value=("mock", engine)),
             patch.object(_ask_mod, "discover_engines", return_value=[("mock", engine)]),
-            patch.object(
-                _ask_mod, "discover_models", return_value={"mock": ["test-model"]}
-            ),
+            patch.object(_ask_mod, "discover_models", return_value={"mock": ["test-model"]}),
             patch.object(_ask_mod, "register_builtin_models"),
             patch.object(_ask_mod, "merge_discovered_models"),
         ):
@@ -390,11 +377,7 @@ class TestPersonaFilesReachModel:
         # Grab the messages passed to engine.generate
         engine.generate.assert_called()
         call_args = engine.generate.call_args
-        messages = (
-            call_args.args[0]
-            if call_args.args
-            else call_args.kwargs.get("messages")
-        )
+        messages = call_args.args[0] if call_args.args else call_args.kwargs.get("messages")
         assert messages is not None and len(messages) >= 2
         system_messages = [m for m in messages if str(m.role).endswith("SYSTEM")]
         assert system_messages, f"No SYSTEM message in {messages!r}"
@@ -404,9 +387,7 @@ class TestPersonaFilesReachModel:
         assert "MEMORY_SENTINEL" in joined
         assert "USER_SENTINEL" in joined
 
-    def test_orchestrator_keeps_its_own_system_prompt(
-        self, runner, monkeypatch, tmp_path
-    ):
+    def test_orchestrator_keeps_its_own_system_prompt(self, runner, monkeypatch, tmp_path):
         """OrchestratorAgent's __init__ doesn't accept ``prompt_builder``;
         the wiring must skip it silently rather than crash."""
         from openjarvis.core.config import JarvisConfig
@@ -423,13 +404,9 @@ class TestPersonaFilesReachModel:
         _register_tools()
         with (
             patch.object(_ask_mod, "load_config", return_value=cfg),
-            patch.object(
-                _ask_mod, "get_engine", return_value=("mock", engine)
-            ),
+            patch.object(_ask_mod, "get_engine", return_value=("mock", engine)),
             patch.object(_ask_mod, "discover_engines", return_value=[("mock", engine)]),
-            patch.object(
-                _ask_mod, "discover_models", return_value={"mock": ["test-model"]}
-            ),
+            patch.object(_ask_mod, "discover_models", return_value={"mock": ["test-model"]}),
             patch.object(_ask_mod, "register_builtin_models"),
             patch.object(_ask_mod, "merge_discovered_models"),
         ):

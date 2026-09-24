@@ -57,9 +57,7 @@ class TestGroupAdvantageNormalization:
         assert abs(sum(advantages) / len(advantages)) < 1e-6
         # Std should be ~1
         adv_mean = sum(advantages) / len(advantages)
-        adv_std = (
-            sum((a - adv_mean) ** 2 for a in advantages) / len(advantages)
-        ) ** 0.5
+        adv_std = (sum((a - adv_mean) ** 2 for a in advantages) / len(advantages)) ** 0.5
         assert abs(adv_std - 1.0) < 1e-6
 
     def test_best_gets_positive_advantage(self):

@@ -154,9 +154,8 @@ class TestEdit:
 
     def test_pillar_must_be_valid_enum(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import Edit
+        from pydantic import ValidationError
 
         kwargs = self._valid_edit_kwargs()
         kwargs["pillar"] = "not_a_pillar"
@@ -166,9 +165,8 @@ class TestEdit:
 
     def test_op_must_be_valid_enum(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import Edit
+        from pydantic import ValidationError
 
         kwargs = self._valid_edit_kwargs()
         kwargs["op"] = "not_an_op"
@@ -210,9 +208,7 @@ class TestFailureCluster:
             "sample_trace_ids": ["trace-001", "trace-002", "trace-003"],
             "student_failure_rate": 0.85,
             "teacher_success_rate": 0.95,
-            "skill_gap": (
-                "Student lacks chain-of-thought reasoning on multi-step arithmetic."
-            ),
+            "skill_gap": ("Student lacks chain-of-thought reasoning on multi-step arithmetic."),
             "addressed_by_edit_ids": ["edit-001", "edit-002"],
         }
 
@@ -247,9 +243,8 @@ class TestFailureCluster:
 
     def test_failure_rate_must_be_between_zero_and_one(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import FailureCluster
+        from pydantic import ValidationError
 
         kwargs = self._valid_cluster_kwargs()
         kwargs["student_failure_rate"] = 1.5
@@ -259,9 +254,8 @@ class TestFailureCluster:
 
     def test_success_rate_must_be_between_zero_and_one(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import FailureCluster
+        from pydantic import ValidationError
 
         kwargs = self._valid_cluster_kwargs()
         kwargs["teacher_success_rate"] = -0.1
@@ -353,9 +347,8 @@ class TestLearningPlan:
 
     def test_estimated_cost_must_be_non_negative(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import LearningPlan
+        from pydantic import ValidationError
 
         kwargs = self._valid_plan_kwargs()
         kwargs["estimated_cost_usd"] = -1.0
@@ -402,9 +395,8 @@ class TestBenchmarkSnapshot:
 
     def test_score_bounds(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import BenchmarkSnapshot
+        from pydantic import ValidationError
 
         kwargs = self._valid_snapshot_kwargs()
         kwargs["overall_score"] = 1.5
@@ -414,9 +406,8 @@ class TestBenchmarkSnapshot:
 
     def test_task_count_must_be_non_negative(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import BenchmarkSnapshot
+        from pydantic import ValidationError
 
         kwargs = self._valid_snapshot_kwargs()
         kwargs["task_count"] = -1
@@ -469,9 +460,8 @@ class TestEditOutcome:
 
     def test_status_must_be_valid_literal(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import EditOutcome
+        from pydantic import ValidationError
 
         kwargs = self._valid_outcome_kwargs()
         kwargs["status"] = "totally_made_up"
@@ -563,9 +553,8 @@ class TestLearningSession:
 
     def test_status_must_be_valid_enum(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import LearningSession
+        from pydantic import ValidationError
 
         kwargs = self._valid_session_kwargs()
         kwargs["status"] = "not_a_status"
@@ -575,9 +564,8 @@ class TestLearningSession:
 
     def test_teacher_cost_must_be_non_negative(self) -> None:
         import pytest
-        from pydantic import ValidationError
-
         from openjarvis.learning.spec_search.models import LearningSession
+        from pydantic import ValidationError
 
         kwargs = self._valid_session_kwargs()
         kwargs["teacher_cost_usd"] = -0.01

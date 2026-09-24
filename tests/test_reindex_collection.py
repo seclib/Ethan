@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.knowledge import KnowledgeCollectionManager
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore
@@ -29,7 +28,8 @@ def test_reindex_recreates_documents_and_keeps_source():
         collections, rag = _collections()
         doc = await rag.ingest(
             "Premier paragraphe de contenu significatif pour la collection.",
-            title="Source", source="https://example.com/1",
+            title="Source",
+            source="https://example.com/1",
             metadata={"web_url": "https://example.com/1"},
         )
         col = await collections.create_collection("Docs", user_id="alice")

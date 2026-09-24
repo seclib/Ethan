@@ -133,19 +133,23 @@ def test_executor_ignores_unavailable_collections_gracefully():
 def test_agent_type_roundtrip_metadata_fallback():
     """Compat : metadata.knowledge_ids (convention WebUI) → champ typé."""
 
-    legacy = Agent.from_dict({
-        "id": "a",
-        "name": "Legacy",
-        "metadata": {"knowledge_ids": ["col-1", "col-2"]},
-    })
+    legacy = Agent.from_dict(
+        {
+            "id": "a",
+            "name": "Legacy",
+            "metadata": {"knowledge_ids": ["col-1", "col-2"]},
+        }
+    )
     assert legacy.knowledge_collection_ids == ["col-1", "col-2"]
 
-    typed = Agent.from_dict({
-        "id": "a",
-        "name": "Typed",
-        "knowledge_collection_ids": ["col-3"],
-        "metadata": {"knowledge_ids": ["stale"]},
-    })
+    typed = Agent.from_dict(
+        {
+            "id": "a",
+            "name": "Typed",
+            "knowledge_collection_ids": ["col-3"],
+            "metadata": {"knowledge_ids": ["stale"]},
+        }
+    )
     assert typed.knowledge_collection_ids == ["col-3"]  # le champ typé prime
 
     # Round-trip complet via to_dict

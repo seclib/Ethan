@@ -67,9 +67,7 @@ class TestImportsDuDoctor:
             try:
                 importlib.import_module(module)
             except ImportError as exc:  # pragma: no cover - échec = régression
-                pytest.fail(
-                    f"cmd-doctor.sh référence {module!r}, non importable : {exc}"
-                )
+                pytest.fail(f"cmd-doctor.sh référence {module!r}, non importable : {exc}")
 
     def test_aucun_import_pre_rebuild(self):
         content = SCRIPT.read_text(encoding="utf-8")
@@ -160,9 +158,7 @@ class TestLiveStack:
         # Résumé 0 FAIL : « Tout est opérationnel » (0 warning) ou
         # « Aucun échec critique » (warnings tolérés) — jamais « Problèmes ».
         assert "Problèmes détectés" not in output, output
-        assert "Tout est opérationnel" in output or "Aucun échec critique" in output, (
-            output
-        )
+        assert "Tout est opérationnel" in output or "Aucun échec critique" in output, output
         for faux_positif in _FAUX_POSITIFS_HISTORIQUES:
             assert faux_positif not in output, (
                 f"faux positif réapparu dans `ethan doctor` : {faux_positif}"

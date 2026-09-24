@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.registry import (
     ToolRegistry,
@@ -41,9 +40,7 @@ class TestRegistryCmd:
         """Test that showing an unknown registry shows an error."""
         result = CliRunner().invoke(cli, ["registry", "show", "unknown_registry_xyz"])
         assert result.exit_code == 0  # CLI still exits 0, just shows error message
-        assert (
-            "unknown" in result.output.lower() or "not found" in result.output.lower()
-        )
+        assert "unknown" in result.output.lower() or "not found" in result.output.lower()
 
     def test_registry_show_tool_registry(self) -> None:
         """Test that showing the tool registry displays entries."""
@@ -95,9 +92,7 @@ class TestRegistryCmd:
         """Test that showing a nonexistent key in a registry is handled."""
         result = CliRunner().invoke(cli, ["registry", "show", "nonexistent"])
         assert result.exit_code == 0
-        assert (
-            "unknown" in result.output.lower() or "not found" in result.output.lower()
-        )
+        assert "unknown" in result.output.lower() or "not found" in result.output.lower()
 
     def test_registry_list_handles_import_error(self) -> None:
         """Test that registry list handles import errors gracefully."""
@@ -146,9 +141,7 @@ class TestRegistryCmd:
         # Patch keys to return a fake entry so iteration happens,
         # then patch get to raise
         with patch.object(ToolRegistry, "keys", return_value=["fake_tool"]):
-            with patch.object(
-                ToolRegistry, "get", side_effect=Exception("Iteration error")
-            ):
+            with patch.object(ToolRegistry, "get", side_effect=Exception("Iteration error")):
                 result = CliRunner().invoke(cli, ["registry", "show", "tool"])
                 assert result.exit_code == 0
                 assert "error" in result.output.lower()

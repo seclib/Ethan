@@ -50,9 +50,7 @@ class TestDiscoverFromTraces:
 
         mgr = SkillManager(bus=EventBus())
         output_dir = tmp_path / "discovered"
-        written = mgr.discover_from_traces(
-            store, min_frequency=3, output_dir=output_dir
-        )
+        written = mgr.discover_from_traces(store, min_frequency=3, output_dir=output_dir)
 
         assert len(written) >= 1
         # Discovery should produce at least one manifest file
@@ -65,9 +63,7 @@ class TestDiscoverFromTraces:
 
         mgr = SkillManager(bus=EventBus())
         output_dir = tmp_path / "discovered"
-        written = mgr.discover_from_traces(
-            store, min_frequency=3, output_dir=output_dir
-        )
+        written = mgr.discover_from_traces(store, min_frequency=3, output_dir=output_dir)
 
         assert written == []
 
@@ -84,9 +80,7 @@ class TestDiscoverFromTraces:
 
         mgr = SkillManager(bus=EventBus())
         output_dir = tmp_path / "discovered"
-        written = mgr.discover_from_traces(
-            store, min_frequency=3, output_dir=output_dir
-        )
+        written = mgr.discover_from_traces(store, min_frequency=3, output_dir=output_dir)
 
         for item in written:
             name = item["name"]

@@ -5,7 +5,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -40,9 +39,7 @@ class TestMLXGenerate:
                     },
                 )
             )
-            result = engine.generate(
-                [Message(role=Role.USER, content="2+2")], model="mlx-model"
-            )
+            result = engine.generate([Message(role=Role.USER, content="2+2")], model="mlx-model")
         assert result["content"] == "4"
 
     def test_generate_connection_error(self, engine: MLXEngine) -> None:

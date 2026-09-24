@@ -7,7 +7,6 @@ import sys
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.core.config import (
     GpuInfo,
     _detect_amd_gpu,

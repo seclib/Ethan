@@ -119,9 +119,7 @@ def test_connect_slack_bot_token_returns_400(app, tmp_path: Path) -> None:
     creds = tmp_path / "slack.json"
     _instances["slack"] = SlackConnector(credentials_path=str(creds))
     try:
-        resp = app.post(
-            "/v1/connectors/slack/connect", json={"token": "xoxb-fake-token"}
-        )
+        resp = app.post("/v1/connectors/slack/connect", json={"token": "xoxb-fake-token"})
         assert resp.status_code == 400
         assert "xoxb" in resp.json()["detail"].lower()
         assert not creds.exists()
@@ -129,9 +127,7 @@ def test_connect_slack_bot_token_returns_400(app, tmp_path: Path) -> None:
         _instances.pop("slack", None)
 
 
-def test_connect_granola_invalid_key_returns_400_keeps_existing(
-    app, tmp_path: Path
-) -> None:
+def test_connect_granola_invalid_key_returns_400_keeps_existing(app, tmp_path: Path) -> None:
     """A bad Granola key is rejected 400 and the existing credential survives."""
     import json
     from unittest.mock import patch

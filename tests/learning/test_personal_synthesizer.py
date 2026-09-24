@@ -7,7 +7,6 @@ from typing import Any, Dict
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.types import Trace
 from openjarvis.evals.core.types import EvalRecord
 from openjarvis.learning.optimize.personal.dataset import PersonalBenchmarkDataset

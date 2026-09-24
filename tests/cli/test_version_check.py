@@ -8,7 +8,6 @@ import time
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.cli import _version_check
 from openjarvis.cli._version_check import (
     _check_disabled,
@@ -29,9 +28,7 @@ def _clean_env(monkeypatch, tmp_path):
     monkeypatch.setattr(_version_check, "_CACHE_PATH", tmp_path / "version-check.json")
 
 
-def _pypi_response(
-    versions: dict[str, list] | None = None, info_version: str = ""
-) -> io.BytesIO:
+def _pypi_response(versions: dict[str, list] | None = None, info_version: str = "") -> io.BytesIO:
     """Build a minimal PyPI JSON payload."""
     payload = {
         "info": {"version": info_version},
@@ -131,9 +128,7 @@ class TestFetchLatestStable:
             },
             info_version="1.0.2.dev500",  # PyPI's "latest upload" may be a dev
         )
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             assert _fetch_latest_stable() == "1.0.1"
 
     def test_returns_info_version_when_no_stable(self):
@@ -141,9 +136,7 @@ class TestFetchLatestStable:
             versions={"1.0.0.dev1": [{}]},
             info_version="1.0.0.dev1",
         )
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             # No stable release yet — fall back to info.version so we still
             # report *something* rather than silently returning None.
             assert _fetch_latest_stable() == "1.0.0.dev1"
@@ -157,9 +150,7 @@ class TestFetchLatestStable:
             },
             info_version="1.1.0",
         )
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             assert _fetch_latest_stable() == "1.1.0"
 
     def test_network_error_returns_none(self):
@@ -171,9 +162,7 @@ class TestFetchLatestStable:
             versions={"1.0.0": [{}], "1.1.0rc1": [{}], "1.1.0b2": [{}]},
             info_version="1.1.0rc1",
         )
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             assert _fetch_latest_stable() == "1.0.0"
 
 
@@ -181,9 +170,7 @@ class TestGetLatestVersion:
     def test_fresh_cache_short_circuits_network(self, tmp_path):
         cache = _version_check._CACHE_PATH
         cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(
-            json.dumps({"last_check": time.time(), "latest_version": "9.9.9"})
-        )
+        cache.write_text(json.dumps({"last_check": time.time(), "latest_version": "9.9.9"}))
         with patch("urllib.request.urlopen") as mock_open:
             assert _get_latest_version("1.0.0") == "9.9.9"
             mock_open.assert_not_called()
@@ -195,18 +182,14 @@ class TestGetLatestVersion:
             json.dumps({"last_check": time.time() - 999_999, "latest_version": "0.0.1"})
         )
         body = _pypi_response(versions={"1.2.3": [{}]}, info_version="1.2.3")
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             assert _get_latest_version("1.0.0") == "1.2.3"
 
     def test_empty_version_is_not_cached(self, tmp_path):
         """An empty PyPI ``info.version`` must not poison the cache for 24h."""
         cache = _version_check._CACHE_PATH
         body = _pypi_response(versions={}, info_version="")
-        with patch(
-            "urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())
-        ):
+        with patch("urllib.request.urlopen", return_value=_FakeResponse(body.getvalue())):
             assert _get_latest_version("1.0.0") is None
         assert not cache.exists(), "empty version must not be written to cache"
 

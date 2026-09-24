@@ -5,7 +5,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.types import Message, Role
 from openjarvis.engine.openai_compat_engines import (
     OpenAICompatEngine,
@@ -48,9 +47,7 @@ class TestAuthorizationHeader:
             assert engine.health() is True
         assert route.calls.last.request.headers["Authorization"] == "Bearer sk-test"
 
-    def test_env_var_fallback_sanitizes_hyphen(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_fallback_sanitizes_hyphen(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # engine_id "openai-compat" must map to OPENAI_COMPAT_API_KEY —
         # shells cannot set hyphenated env-var names.
         monkeypatch.setenv("OPENAI_COMPAT_API_KEY", "sk-env")
@@ -72,9 +69,7 @@ class TestAuthorizationHeader:
             engine.health()
         assert route.calls.last.request.headers["Authorization"] == "Bearer sk-vllm"
 
-    def test_explicit_api_key_beats_env_var(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_explicit_api_key_beats_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_COMPAT_API_KEY", "sk-env")
         engine = OpenAICompatEngine(host="http://testhost:9000", api_key="sk-explicit")
         assert engine._api_key == "sk-explicit"

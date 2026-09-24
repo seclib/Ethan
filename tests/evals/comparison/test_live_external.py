@@ -23,9 +23,7 @@ pytestmark = pytest.mark.live_external
 
 
 def _have_env() -> bool:
-    return bool(os.environ.get("HERMES_AGENT_PATH")) and bool(
-        os.environ.get("OPENCLAW_PATH")
-    )
+    return bool(os.environ.get("HERMES_AGENT_PATH")) and bool(os.environ.get("OPENCLAW_PATH"))
 
 
 @pytest.mark.skipif(
@@ -106,6 +104,4 @@ class TestLiveExternal:
 
     def test_end_to_end_runs_one_config(self, tmp_path: Path) -> None:
         """Run one full benchmark cell via the CLI; verify summary.json shape."""
-        pytest.skip(
-            "Requires full eval-CLI integration; enable when Layer 2 wiring stable."
-        )
+        pytest.skip("Requires full eval-CLI integration; enable when Layer 2 wiring stable.")

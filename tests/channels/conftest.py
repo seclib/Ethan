@@ -6,8 +6,8 @@ import os
 from contextlib import contextmanager
 
 import pytest
-
 from openjarvis.core.events import EventBus
+
 from tests.agents.fake_engine import FakeEngine
 from tests.agents.scenario_harness import FakeSystem, ScenarioHarness
 

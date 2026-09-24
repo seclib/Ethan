@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 import pytest
-
 from openjarvis.connectors._stubs import BaseConnector, Document, SyncStatus
 from openjarvis.connectors.pipeline import IngestionPipeline
 from openjarvis.connectors.scheduler import SyncScheduler

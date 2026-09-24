@@ -6,11 +6,11 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.google_chat import GoogleChatChannel
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import ChannelRegistry
+
 from tests.channels.channel_test_helpers import make_common_channel_tests
 
 
@@ -40,10 +40,7 @@ class TestInit:
         ch = GoogleChatChannel(
             webhook_url="https://chat.googleapis.com/v1/spaces/xxx/messages?key=yyy"
         )
-        assert (
-            ch._webhook_url
-            == "https://chat.googleapis.com/v1/spaces/xxx/messages?key=yyy"
-        )
+        assert ch._webhook_url == "https://chat.googleapis.com/v1/spaces/xxx/messages?key=yyy"
 
     def test_env_var_fallback(self):
         with patch.dict(
@@ -53,10 +50,7 @@ class TestInit:
             },
         ):
             ch = GoogleChatChannel()
-            assert (
-                ch._webhook_url
-                == "https://chat.googleapis.com/v1/spaces/env/messages?key=env"
-            )
+            assert ch._webhook_url == "https://chat.googleapis.com/v1/spaces/env/messages?key=env"
 
     def test_constructor_overrides_env(self):
         with patch.dict(

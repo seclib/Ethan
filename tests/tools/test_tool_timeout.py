@@ -72,9 +72,7 @@ class TestToolTimeout:
         call = ToolCall(id="1", name="slow_tool", arguments="{}")
         executor.execute(call)
 
-        timeout_events = [
-            e for e in bus.history if e.event_type == EventType.TOOL_TIMEOUT
-        ]
+        timeout_events = [e for e in bus.history if e.event_type == EventType.TOOL_TIMEOUT]
         assert len(timeout_events) == 1
         assert timeout_events[0].data["tool"] == "slow_tool"
 

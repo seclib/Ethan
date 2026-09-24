@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli.add_cmd import _MCP_TEMPLATES, add
 
 

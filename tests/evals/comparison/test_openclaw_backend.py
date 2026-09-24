@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.evals.backends.external._subprocess_runner import SubprocessResult
 from openjarvis.evals.backends.external.openclaw import OpenClawBackend
 from openjarvis.evals.comparison.third_party import (
@@ -33,9 +32,7 @@ def _fake_third_party(tmp_path: Path) -> ThirdPartyConfig:
 
 
 class TestOpenClawBackend:
-    def test_generate_full_builds_correct_subprocess_command(
-        self, tmp_path: Path
-    ) -> None:
+    def test_generate_full_builds_correct_subprocess_command(self, tmp_path: Path) -> None:
         cfg = _fake_third_party(tmp_path)
         with (
             patch(

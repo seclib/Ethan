@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
-import subprocess
 from pathlib import Path
 
 from .benchmark_runner import BenchmarkResult
-
 
 CLI_ROOT = Path(__file__).parent.parent.parent
 CLI_ENTRY = str(CLI_ROOT / "cli" / "ethan")
@@ -35,8 +34,7 @@ class ColdStartBenchmark:
         for i in range(samples):
             start = time.perf_counter()
             result = subprocess.run(
-                [sys.executable, CLI_ENTRY, "help"],
-                capture_output=True, text=True, timeout=30
+                [sys.executable, CLI_ENTRY, "help"], capture_output=True, text=True, timeout=30
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             cold_times.append(elapsed)
@@ -59,8 +57,7 @@ class ColdStartBenchmark:
         for i in range(samples):
             start = time.perf_counter()
             result = subprocess.run(
-                [sys.executable, CLI_ENTRY, "help"],
-                capture_output=True, text=True, timeout=30
+                [sys.executable, CLI_ENTRY, "help"], capture_output=True, text=True, timeout=30
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             warm_times.append(elapsed)
@@ -76,14 +73,21 @@ class ColdStartBenchmark:
         for i in range(samples):
             start = time.perf_counter()
             result = subprocess.run(
-                [sys.executable, "-c", """
+                [
+                    sys.executable,
+                    "-c",
+                    """
 import sys
 sys.path.insert(0, 'cli')
 from registry import discover_commands, COMMANDS
 discover_commands()
 print(len(COMMANDS))
-"""],
-                capture_output=True, text=True, timeout=30, cwd=str(CLI_ROOT)
+""",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(CLI_ROOT),
             )
             elapsed = (time.perf_counter() - start) * 1000.0
             discover_times.append(elapsed)

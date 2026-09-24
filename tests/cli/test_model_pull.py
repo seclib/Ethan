@@ -5,9 +5,8 @@ from __future__ import annotations
 from unittest import mock
 
 from click.testing import CliRunner
-from rich.console import Console
-
 from openjarvis.cli.model import ollama_pull
+from rich.console import Console
 
 
 class TestOllamaPull:
@@ -58,9 +57,7 @@ class TestPullCliMultiEngine:
             mock_cfg.return_value.engine.ollama_host = None
             mock_run.return_value = mock.MagicMock(returncode=0)
 
-            result = runner.invoke(
-                cli, ["model", "pull", "qwen3.5:9b", "--engine", "llamacpp"]
-            )
+            result = runner.invoke(cli, ["model", "pull", "qwen3.5:9b", "--engine", "llamacpp"])
 
         assert result.exit_code == 0
         mock_run.assert_called_once()
@@ -80,9 +77,7 @@ class TestPullCliMultiEngine:
             mock_cfg.return_value.engine.ollama_host = None
             mock_run.return_value = mock.MagicMock(returncode=0)
 
-            result = runner.invoke(
-                cli, ["model", "pull", "qwen3.5:9b", "--engine", "mlx"]
-            )
+            result = runner.invoke(cli, ["model", "pull", "qwen3.5:9b", "--engine", "mlx"])
 
         assert result.exit_code == 0
         mock_run.assert_called_once()
@@ -101,9 +96,7 @@ class TestPullCliMultiEngine:
             mock_cfg.return_value.engine.default = "llamacpp"
             mock_cfg.return_value.engine.ollama_host = None
 
-            result = runner.invoke(
-                cli, ["model", "pull", "qwen3.5:9b", "--engine", "llamacpp"]
-            )
+            result = runner.invoke(cli, ["model", "pull", "qwen3.5:9b", "--engine", "llamacpp"])
 
         assert result.exit_code != 0
         assert "huggingface_hub" in result.output or "pip install" in result.output

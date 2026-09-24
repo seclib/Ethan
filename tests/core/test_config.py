@@ -88,9 +88,7 @@ class TestTomlLoading:
 
     def test_load_overrides(self, tmp_path: Path) -> None:
         toml_file = tmp_path / "config.toml"
-        toml_file.write_text(
-            '[engine]\ndefault = "vllm"\n\n[memory]\ndefault_backend = "faiss"\n'
-        )
+        toml_file.write_text('[engine]\ndefault = "vllm"\n\n[memory]\ndefault_backend = "faiss"\n')
         cfg = load_config(toml_file)
         assert cfg.engine.default == "vllm"
         assert cfg.memory.default_backend == "faiss"
@@ -110,9 +108,7 @@ class TestTomlLoading:
         """Regression for #401: the [system_prompt] block (and its prefix)
         must reach the runtime config, not be dropped by load_config()."""
         toml_file = tmp_path / "config.toml"
-        toml_file.write_text(
-            '[system_prompt]\nprefix = "You are Jarvis."\nsoul_max_chars = 999\n'
-        )
+        toml_file.write_text('[system_prompt]\nprefix = "You are Jarvis."\nsoul_max_chars = 999\n')
         cfg = load_config(toml_file)
         assert cfg.system_prompt.prefix == "You are Jarvis."
         assert cfg.system_prompt.soul_max_chars == 999
@@ -180,9 +176,7 @@ class TestChannelConfig:
 
     def test_channel_config_loads_from_toml(self, tmp_path: Path) -> None:
         toml_file = tmp_path / "config.toml"
-        toml_file.write_text(
-            '[channel]\nenabled = true\ndefault_channel = "telegram"\n'
-        )
+        toml_file.write_text('[channel]\nenabled = true\ndefault_channel = "telegram"\n')
         cfg = load_config(toml_file)
         assert cfg.channel.enabled is True
         assert cfg.channel.default_channel == "telegram"
@@ -294,8 +288,7 @@ class TestNestedEngineConfig:
     def test_loads_old_flat_lemonade_host(self, tmp_path: Path) -> None:
         toml_file = tmp_path / "config.toml"
         toml_file.write_text(
-            '[engine]\ndefault = "lemonade"\n'
-            'lemonade_host = "http://legacy-lemonade:19191"\n'
+            '[engine]\ndefault = "lemonade"\nlemonade_host = "http://legacy-lemonade:19191"\n'
         )
         cfg = load_config(toml_file)
         assert cfg.engine.default == "lemonade"
@@ -450,9 +443,7 @@ class TestSandboxConfig:
 
     def test_loads_from_toml(self, tmp_path: Path) -> None:
         toml_file = tmp_path / "config.toml"
-        toml_file.write_text(
-            '[sandbox]\nenabled = true\ntimeout = 600\nruntime = "podman"\n'
-        )
+        toml_file.write_text('[sandbox]\nenabled = true\ntimeout = 600\nruntime = "podman"\n')
         cfg = load_config(toml_file)
         assert cfg.sandbox.enabled is True
         assert cfg.sandbox.timeout == 600
@@ -485,8 +476,7 @@ class TestSchedulerConfig:
     def test_loads_from_toml(self, tmp_path: Path) -> None:
         toml_file = tmp_path / "config.toml"
         toml_file.write_text(
-            "[scheduler]\nenabled = true\npoll_interval = 30\n"
-            'db_path = "/tmp/sched.db"\n'
+            '[scheduler]\nenabled = true\npoll_interval = 30\ndb_path = "/tmp/sched.db"\n'
         )
         cfg = load_config(toml_file)
         assert cfg.scheduler.enabled is True

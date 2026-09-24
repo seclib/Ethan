@@ -7,7 +7,6 @@ import json
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -58,9 +57,7 @@ class TestOllamaGenerate:
                 200, json=_ollama_response(content="Test reply", model=model_id)
             )
         )
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hello")], model=model_id
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hello")], model=model_id)
         assert result["content"] == "Test reply"
         assert result["model"] == model_id
         assert result["usage"]["prompt_tokens"] == 10
@@ -112,9 +109,7 @@ class TestOllamaGenerate:
                 ),
             )
         )
-        result = engine.generate(
-            [Message(role=Role.USER, content="Use tools")], model=model_id
-        )
+        result = engine.generate([Message(role=Role.USER, content="Use tools")], model=model_id)
         assert len(result["tool_calls"]) == 2
         assert result["tool_calls"][0]["name"] == "tool_a"
         assert result["tool_calls"][1]["name"] == "tool_b"
@@ -126,15 +121,11 @@ class TestOllamaGenerate:
             json.dumps({"message": {"content": " world"}, "done": True}),
         ]
         body = "\n".join(lines)
-        respx_mock.post(f"{OLLAMA_HOST}/api/chat").mock(
-            return_value=httpx.Response(200, text=body)
-        )
+        respx_mock.post(f"{OLLAMA_HOST}/api/chat").mock(return_value=httpx.Response(200, text=body))
 
         async def collect():
             tokens = []
-            async for tok in engine.stream(
-                [Message(role=Role.USER, content="Hi")], model=model_id
-            ):
+            async for tok in engine.stream([Message(role=Role.USER, content="Hi")], model=model_id):
                 tokens.append(tok)
             return tokens
 
@@ -170,9 +161,7 @@ class TestOllamaModelDiscovery:
 
     def test_list_models_connection_error(self, respx_mock) -> None:
         engine = _make_engine()
-        respx_mock.get(f"{OLLAMA_HOST}/api/tags").mock(
-            side_effect=httpx.ConnectError("refused")
-        )
+        respx_mock.get(f"{OLLAMA_HOST}/api/tags").mock(side_effect=httpx.ConnectError("refused"))
         assert engine.list_models() == []
 
     def test_health_healthy(self, respx_mock) -> None:
@@ -185,9 +174,7 @@ class TestOllamaModelDiscovery:
     def test_health_unhealthy(self) -> None:
         engine = _make_engine()
         with respx.mock:
-            respx.get(f"{OLLAMA_HOST}/api/tags").mock(
-                side_effect=httpx.ConnectError("refused")
-            )
+            respx.get(f"{OLLAMA_HOST}/api/tags").mock(side_effect=httpx.ConnectError("refused"))
             assert engine.health() is False
 
 
@@ -200,13 +187,9 @@ class TestOllamaErrors:
     def test_connection_refused(self) -> None:
         engine = _make_engine()
         with respx.mock:
-            respx.post(f"{OLLAMA_HOST}/api/chat").mock(
-                side_effect=httpx.ConnectError("refused")
-            )
+            respx.post(f"{OLLAMA_HOST}/api/chat").mock(side_effect=httpx.ConnectError("refused"))
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
 
     def test_timeout_raises_connection_error(self) -> None:
         engine = _make_engine()
@@ -215,9 +198,7 @@ class TestOllamaErrors:
                 side_effect=httpx.TimeoutException("timed out")
             )
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
 
     def test_tools_payload_included(self, respx_mock) -> None:
         """Tools are included in the Ollama payload when provided."""

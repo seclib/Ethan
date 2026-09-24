@@ -9,6 +9,7 @@ from openjarvis.agents.executor import AgentExecutor
 from openjarvis.agents.manager import AgentManager
 from openjarvis.agents.scheduler import AgentScheduler
 from openjarvis.core.events import EventBus
+
 from tests.agents.fake_engine import FakeEngine
 
 

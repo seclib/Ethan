@@ -66,9 +66,7 @@ class TestDiagnosisRunner:
         )
 
         engine = MagicMock()
-        engine.generate.return_value = _make_engine_response(
-            content=_make_diagnosis_content()
-        )
+        engine.generate.return_value = _make_engine_response(content=_make_diagnosis_content())
 
         runner = DiagnosisRunner(
             teacher_engine=engine,
@@ -100,9 +98,7 @@ class TestDiagnosisRunner:
         )
 
         engine = MagicMock()
-        engine.generate.return_value = _make_engine_response(
-            content=_make_diagnosis_content()
-        )
+        engine.generate.return_value = _make_engine_response(content=_make_diagnosis_content())
 
         runner = DiagnosisRunner(
             teacher_engine=engine,
@@ -179,9 +175,7 @@ class TestDiagnosisRunner:
         )
 
         engine = MagicMock()
-        engine.generate.return_value = _make_engine_response(
-            content=_make_diagnosis_content()
-        )
+        engine.generate.return_value = _make_engine_response(content=_make_diagnosis_content())
 
         runner = DiagnosisRunner(
             teacher_engine=engine,

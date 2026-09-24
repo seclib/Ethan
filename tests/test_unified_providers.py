@@ -8,6 +8,7 @@ Validates the unified LLMProvider interface:
 - Secrets are never exposed in provider descriptions
 """
 
+# ruff: noqa: E402 — `sys.path` est préparé ci-dessous avant les imports du projet.
 from __future__ import annotations
 
 import sys
@@ -19,22 +20,19 @@ if str(ROOT) not in sys.path:
 
 import pytest
 import pytest_asyncio
-
-from core.llm.providers.base import LLMProvider
-from core.llm.providers.openai import OpenAIProvider
-from core.llm.providers.anthropic import AnthropicProvider
-from core.llm.providers.ollama import OllamaProvider
-from core.llm.store import ProviderStore
 from core.llm.provider_manager import ProviderManager
+from core.llm.providers.anthropic import AnthropicProvider
+from core.llm.providers.base import LLMProvider
+from core.llm.providers.ollama import OllamaProvider
+from core.llm.providers.openai import OpenAIProvider
+from core.llm.store import ProviderStore
 from core.llm.types import (
-    ChatMessage,
     ChatResponse,
     ModelInfo,
     TranscriptionRequest,
     VisionImage,
     VisionRequest,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -58,10 +56,13 @@ class StubVisionProvider(LLMProvider):
         raise NotImplementedError
 
     async def list_models(self):
-        return [ModelInfo(id="stub-v1", provider=self.name, name="Stub V1", capabilities=["vision"])]
+        return [
+            ModelInfo(id="stub-v1", provider=self.name, name="Stub V1", capabilities=["vision"])
+        ]
 
     async def vision_analyze(self, request):
         from core.llm.types import VisionResponse
+
         return VisionResponse(
             content="analyzed: " + request.prompt,
             model=request.model or self.default_model,
@@ -88,10 +89,18 @@ class StubTranscribeProvider(LLMProvider):
         raise NotImplementedError
 
     async def list_models(self):
-        return [ModelInfo(id="stub-t1", provider=self.name, name="Stub T1", capabilities=["transcription"])]
+        return [
+            ModelInfo(
+                id="stub-t1",
+                provider=self.name,
+                name="Stub T1",
+                capabilities=["transcription"],
+            )
+        ]
 
     async def transcribe(self, request):
         from core.llm.types import TranscriptionResponse
+
         return TranscriptionResponse(
             text="transcribed text",
             model=request.model or self.default_model,
@@ -186,11 +195,23 @@ class TestProviderManagerRouting:
         """Create a ProviderManager with stub providers registered."""
         mgr = ProviderManager(store=ProviderStore())
         mgr._registry._providers["stub-vision"] = StubVisionProvider()
-        mgr._providers_config["stub-vision"] = {"name": "stub-vision", "type": "custom", "enabled": True}
+        mgr._providers_config["stub-vision"] = {
+            "name": "stub-vision",
+            "type": "custom",
+            "enabled": True,
+        }
         mgr._registry._providers["stub-transcribe"] = StubTranscribeProvider()
-        mgr._providers_config["stub-transcribe"] = {"name": "stub-transcribe", "type": "custom", "enabled": True}
+        mgr._providers_config["stub-transcribe"] = {
+            "name": "stub-transcribe",
+            "type": "custom",
+            "enabled": True,
+        }
         mgr._registry._providers["stub-plain"] = StubPlainProvider()
-        mgr._providers_config["stub-plain"] = {"name": "stub-plain", "type": "custom", "enabled": True}
+        mgr._providers_config["stub-plain"] = {
+            "name": "stub-plain",
+            "type": "custom",
+            "enabled": True,
+        }
         return mgr
 
     @pytest.mark.asyncio
@@ -309,7 +330,9 @@ class TestDescribeProviderCapabilities:
         mgr = ProviderManager(store=ProviderStore())
         mgr._registry._providers["stub-vision"] = StubVisionProvider()
         mgr._providers_config["stub-vision"] = {
-            "name": "stub-vision", "type": "custom", "enabled": False,
+            "name": "stub-vision",
+            "type": "custom",
+            "enabled": False,
         }
         desc = await mgr.describe_provider("stub-vision")
         assert desc["capabilities"] == ["llm", "vision"]
@@ -319,7 +342,9 @@ class TestDescribeProviderCapabilities:
         mgr = ProviderManager(store=ProviderStore())
         mgr._registry._providers["stub-plain"] = StubPlainProvider()
         mgr._providers_config["stub-plain"] = {
-            "name": "stub-plain", "type": "custom", "enabled": False,
+            "name": "stub-plain",
+            "type": "custom",
+            "enabled": False,
             "api_key": "sk-super-secret",
         }
         desc = await mgr.describe_provider("stub-plain")
@@ -333,7 +358,9 @@ class TestDescribeProviderCapabilities:
         mgr = ProviderManager(store=ProviderStore())
         mgr._registry._providers["stub-plain"] = StubPlainProvider()
         mgr._providers_config["stub-plain"] = {
-            "name": "stub-plain", "type": "custom", "enabled": False,
+            "name": "stub-plain",
+            "type": "custom",
+            "enabled": False,
         }
         desc = await mgr.describe_provider("stub-plain")
         assert desc["has_api_key"] is False
@@ -363,6 +390,7 @@ class TestSecretSafety:
     def test_describe_provider_no_api_key(self):
         """ProviderResponse schema excludes api_key."""
         from interfaces.api.models.provider_schemas import ProviderResponse
+
         resp = ProviderResponse(
             id="test-openai",
             name="test-openai",
@@ -470,9 +498,7 @@ class TestAzureCapabilities:
 
         provider = AzureOpenAIProvider(api_key="test")
         with pytest.raises(RuntimeError, match="not initialized"):
-            await provider.vision_analyze(
-                VisionRequest(images=[VisionImage(data="x")])
-            )
+            await provider.vision_analyze(VisionRequest(images=[VisionImage(data="x")]))
 
     @pytest.mark.asyncio
     async def test_azure_transcribe_requires_client(self):

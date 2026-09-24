@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.knowledge import KnowledgeCollectionManager
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore

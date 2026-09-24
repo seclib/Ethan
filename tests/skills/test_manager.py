@@ -6,7 +6,6 @@ import textwrap
 from pathlib import Path
 
 import pytest
-
 from openjarvis.core.events import EventBus
 from openjarvis.core.types import ToolResult
 from openjarvis.skills.manager import SkillManager
@@ -43,9 +42,7 @@ class EchoTool(BaseTool):
         return ToolSpec(name="echo", description="Echo input")
 
     def execute(self, **params) -> ToolResult:
-        return ToolResult(
-            tool_name="echo", content=params.get("text", ""), success=True
-        )
+        return ToolResult(tool_name="echo", content=params.get("text", ""), success=True)
 
 
 # ---------------------------------------------------------------------------
@@ -304,9 +301,7 @@ class TestSkillManagerSourcedLayout:
         for source, name in [("hermes", "apple-notes"), ("openclaw", "etherscan")]:
             d = tmp_path / source / name
             d.mkdir(parents=True)
-            (d / "SKILL.md").write_text(
-                f"---\nname: {name}\ndescription: from {source}\n---\nBody"
-            )
+            (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: from {source}\n---\nBody")
 
         mgr = SkillManager(bus=EventBus())
         mgr.discover(paths=[tmp_path])
@@ -322,9 +317,7 @@ class TestSkillManagerSourcedLayout:
         # Flat layout
         flat = tmp_path / "my-flat-skill"
         flat.mkdir()
-        (flat / "SKILL.md").write_text(
-            "---\nname: my-flat-skill\ndescription: flat\n---\n"
-        )
+        (flat / "SKILL.md").write_text("---\nname: my-flat-skill\ndescription: flat\n---\n")
 
         # Sourced layout
         sourced = tmp_path / "hermes" / "my-sourced-skill"
@@ -379,9 +372,7 @@ class TestSkillManagerOverlayLoading:
 
         skill_dir = tmp_path / "skills" / "test-skill"
         skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: test-skill\ndescription: x\n---\nBody"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: test-skill\ndescription: x\n---\nBody")
 
         overlay_dir = tmp_path / "overlays"
         write_overlay(
@@ -431,9 +422,7 @@ class TestSkillManagerOverlayLoading:
 
         skill_dir = tmp_path / "skills" / "fs-skill"
         skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: fs-skill\ndescription: x\n---\nBody"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: fs-skill\ndescription: x\n---\nBody")
 
         overlay_dir = tmp_path / "overlays"
         write_overlay(
@@ -457,9 +446,7 @@ class TestSkillManagerOverlayLoading:
         assert len(examples) >= 1
         assert any("what is X?" in s and "X is Y" in s for s in examples)
 
-    def test_overlay_dir_read_from_config_when_not_explicit(
-        self, tmp_path: Path
-    ) -> None:
+    def test_overlay_dir_read_from_config_when_not_explicit(self, tmp_path: Path) -> None:
         """Plan 2A I1 fix: SkillManager picks up overlay_dir from
         cfg.learning.skills.overlay_dir when no explicit value is passed."""
         from unittest.mock import patch
@@ -482,9 +469,7 @@ class TestSkillManagerOverlayLoading:
             mgr = SkillManager(bus=EventBus())
             assert mgr._overlay_dir == (tmp_path / "configured-overlays").expanduser()
 
-    def test_discover_with_empty_paths_still_loads_overlays(
-        self, tmp_path: Path
-    ) -> None:
+    def test_discover_with_empty_paths_still_loads_overlays(self, tmp_path: Path) -> None:
         """Plan 2A I2 fix: discover() with no paths still applies overlays
         to skills that were seeded by other means."""
         from openjarvis.core.events import EventBus
@@ -519,9 +504,7 @@ class TestSkillManagerOverlayLoading:
 
 
 class TestSkillManagerRemove:
-    def test_find_installed_paths_returns_empty_when_missing(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_installed_paths_returns_empty_when_missing(self, tmp_path: Path) -> None:
         mgr = SkillManager(bus=EventBus())
         assert mgr.find_installed_paths("ghost", roots=[tmp_path]) == []
 
@@ -550,9 +533,7 @@ class TestSkillManagerRemove:
         paths = mgr.find_installed_paths("real-name", roots=[tmp_path])
         assert paths == [skill_dir]
 
-    def test_remove_deletes_directory_and_drops_from_catalog(
-        self, tmp_path: Path
-    ) -> None:
+    def test_remove_deletes_directory_and_drops_from_catalog(self, tmp_path: Path) -> None:
         _write_toml_skill(tmp_path, "doomed")
         mgr = SkillManager(bus=EventBus())
         mgr.discover(paths=[tmp_path])

@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from openjarvis.learning.spec_search.execute.base import ApplyContext
 from openjarvis.learning.spec_search.models import (
     Edit,

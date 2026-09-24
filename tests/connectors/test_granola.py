@@ -12,7 +12,6 @@ from typing import List
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 
@@ -395,7 +394,9 @@ class _FakeResponse:
             import httpx  # noqa: PLC0415
 
             raise httpx.HTTPStatusError(
-                "error", request=None, response=None  # type: ignore[arg-type]
+                "error",
+                request=None,
+                response=None,  # type: ignore[arg-type]
             )
 
 
@@ -425,9 +426,7 @@ def test_validate_key_rejects_unauthorized(status: int) -> None:
         with pytest.raises(GranolaKeyError) as excinfo:
             _granola_api_validate_key("grl_bad_key")
 
-    assert str(excinfo.value) == (
-        "Invalid API key. Check your key in Granola Settings → API."
-    )
+    assert str(excinfo.value) == ("Invalid API key. Check your key in Granola Settings → API.")
     # The probe must hit GET /v1/notes with limit=1 (cheap validation call).
     _, kwargs = mock_get.call_args
     assert kwargs["params"] == {"limit": 1}

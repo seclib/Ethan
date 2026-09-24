@@ -61,9 +61,7 @@ def test_partial_detection():
     record = _make_record(vulns)
     scorer = SecurityScannerScorer()
 
-    answer = (
-        "Found SQL injection in app.py. Severity: critical. Use parameterized queries."
-    )
+    answer = "Found SQL injection in app.py. Severity: critical. Use parameterized queries."
     is_correct, meta = scorer.score(record, answer)
     assert meta["vulns_found"] == 1
     assert meta["detection_rate"] == 0.5

@@ -91,9 +91,7 @@ class TestScoreTrace:
 
     def test_returns_score_and_feedback(self) -> None:
         backend = MagicMock()
-        backend.generate.return_value = (
-            "Score: 0.85\nGood reasoning and correct answer."
-        )
+        backend.generate.return_value = "Score: 0.85\nGood reasoning and correct answer."
         judge = TraceJudge(backend=backend, model="judge-model")
 
         trace = _make_trace()

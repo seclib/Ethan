@@ -204,9 +204,7 @@ class TestGetEngine:
         assert result is not None
         assert result[0] == "local"
 
-    def test_dummy_openai_key_does_not_misroute_local_model(
-        self, monkeypatch: object
-    ) -> None:
+    def test_dummy_openai_key_does_not_misroute_local_model(self, monkeypatch: object) -> None:
         """#335: a present-but-dummy OPENAI_API_KEY + a down local engine must
         NOT cause a local Ollama model to be routed to the cloud engine.
 
@@ -271,9 +269,7 @@ class TestGetEngine:
 class TestMiningSidecarEngineHandoff:
     """Engine discovery picks up (or ignores) a mining sidecar at runtime."""
 
-    def test_engine_discovery_picks_up_mining_sidecar(
-        self, written_sidecar, monkeypatch
-    ) -> None:
+    def test_engine_discovery_picks_up_mining_sidecar(self, written_sidecar, monkeypatch) -> None:
         """When a mining sidecar exists with vllm_endpoint, discovery
         registers a ``vllm-pearl-mining`` engine in the EngineRegistry.
         """

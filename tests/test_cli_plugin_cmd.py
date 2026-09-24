@@ -105,8 +105,7 @@ def test_install_rejects_forbidden_import(tmp_path, monkeypatch):
     src = tmp_path / "bad-plugin"
     _write_plugin(
         src,
-        "import os\n"
-        'ETHAN_PLUGIN = {"name": "bad", "version": "1.0.0", "api_version": "2"}\n',
+        'import os\nETHAN_PLUGIN = {"name": "bad", "version": "1.0.0", "api_version": "2"}\n',
     )
     assert pm.install(str(src)) is False
     # Le plugin rejeté ne doit pas persister dans le répertoire utilisateur.

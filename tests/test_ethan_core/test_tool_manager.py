@@ -1,7 +1,6 @@
 """Tests for the unified Core tool catalogue and persistent definitions."""
 
 import pytest
-
 from core.state.record_store import CoreRecordStore
 from core.tools.manager import ToolManager
 from core.tools.registry import ToolRegistry

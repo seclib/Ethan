@@ -370,9 +370,7 @@ class TestProgressCallback:
         optimizer.optimizer_model = "m"
         runner.benchmark = "b"
 
-        results = [
-            _sample_trial_result(f"t{i}", accuracy=0.5 + i * 0.1) for i in range(3)
-        ]
+        results = [_sample_trial_result(f"t{i}", accuracy=0.5 + i * 0.1) for i in range(3)]
         runner.run_trial.side_effect = results
 
         callback = MagicMock()
@@ -731,9 +729,7 @@ class TestTargetedAndMerge:
             fb_normal,  # trial 3
         ]
 
-        results = [
-            _sample_trial_result(f"t{i}", accuracy=0.5 + i * 0.05) for i in range(4)
-        ]
+        results = [_sample_trial_result(f"t{i}", accuracy=0.5 + i * 0.05) for i in range(4)]
         runner.run_trial.side_effect = results
 
         engine = OptimizationEngine(

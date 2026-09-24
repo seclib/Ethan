@@ -9,7 +9,6 @@ from unittest import mock
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._stubs import ResponseFormat
@@ -45,9 +44,7 @@ class TestResponseFormat:
 
 
 class TestOpenAIStructuredOutput:
-    def _make_engine(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> tuple[CloudEngine, mock.MagicMock]:
+    def _make_engine(self, monkeypatch: pytest.MonkeyPatch) -> tuple[CloudEngine, mock.MagicMock]:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         EngineRegistry.register_value("cloud", CloudEngine)
@@ -55,16 +52,12 @@ class TestOpenAIStructuredOutput:
         fake_client = mock.MagicMock()
         engine._openai_client = fake_client
 
-        fake_usage = SimpleNamespace(
-            prompt_tokens=10, completion_tokens=5, total_tokens=15
-        )
+        fake_usage = SimpleNamespace(prompt_tokens=10, completion_tokens=5, total_tokens=15)
         fake_choice = SimpleNamespace(
             message=SimpleNamespace(content='{"answer": 42}', tool_calls=None),
             finish_reason="stop",
         )
-        fake_resp = SimpleNamespace(
-            choices=[fake_choice], usage=fake_usage, model="gpt-4o"
-        )
+        fake_resp = SimpleNamespace(choices=[fake_choice], usage=fake_usage, model="gpt-4o")
         fake_client.chat.completions.create.return_value = fake_resp
         return engine, fake_client
 
@@ -120,9 +113,7 @@ class TestOpenAIStructuredOutput:
 
 
 class TestAnthropicStructuredOutput:
-    def _make_engine(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> tuple[CloudEngine, mock.MagicMock]:
+    def _make_engine(self, monkeypatch: pytest.MonkeyPatch) -> tuple[CloudEngine, mock.MagicMock]:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
         EngineRegistry.register_value("cloud", CloudEngine)
@@ -165,9 +156,7 @@ class TestAnthropicStructuredOutput:
             "name": "json_output",
         }
 
-    def test_json_schema_uses_custom_schema(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_json_schema_uses_custom_schema(self, monkeypatch: pytest.MonkeyPatch) -> None:
         engine, fake_client = self._make_engine(monkeypatch)
         schema = {"type": "object", "properties": {"name": {"type": "string"}}}
         rf = ResponseFormat(type="json_schema", schema=schema)
@@ -211,9 +200,7 @@ class TestAnthropicStructuredOutput:
 
 
 class TestGoogleStructuredOutput:
-    def _make_engine(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> tuple[CloudEngine, mock.MagicMock]:
+    def _make_engine(self, monkeypatch: pytest.MonkeyPatch) -> tuple[CloudEngine, mock.MagicMock]:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
@@ -251,9 +238,7 @@ class TestGoogleStructuredOutput:
             "sys.modules",
             {"google": mock.MagicMock(), "google.genai": mock.MagicMock()},
         ):
-            with mock.patch(
-                "openjarvis.engine.cloud.genai_types", fake_genai_types, create=True
-            ):
+            with mock.patch("openjarvis.engine.cloud.genai_types", fake_genai_types, create=True):
                 # We need to actually test the config mutation. The simplest
                 # approach is to observe the config object passed to
                 # generate_content.
@@ -267,9 +252,7 @@ class TestGoogleStructuredOutput:
         config_arg = call_kwargs[1]["config"]
         assert config_arg.response_mime_type == "application/json"
 
-    def test_json_schema_sets_response_schema(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_json_schema_sets_response_schema(self, monkeypatch: pytest.MonkeyPatch) -> None:
         engine, fake_client = self._make_engine(monkeypatch)
         schema = {"type": "object", "properties": {"name": {"type": "string"}}}
         rf = ResponseFormat(type="json_schema", schema=schema)

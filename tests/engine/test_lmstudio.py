@@ -5,7 +5,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -52,9 +51,7 @@ class TestLMStudioGenerate:
                     },
                 )
             )
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="llama-3.1-8b"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="llama-3.1-8b")
         assert result["content"] == "Hello!"
         assert result["usage"]["total_tokens"] == 7
 
@@ -64,9 +61,7 @@ class TestLMStudioGenerate:
                 side_effect=httpx.ConnectError("refused")
             )
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="llama-3.1-8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="llama-3.1-8b")
 
 
 class TestLMStudioHealth:

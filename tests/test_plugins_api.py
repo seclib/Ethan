@@ -9,11 +9,10 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from fastapi import HTTPException
-
 from core.plugins import PluginRegistry
 from core.state import CoreRecordStore
 from core.tools.registry import ToolRegistry
+from fastapi import HTTPException
 from interfaces.api.routers import v1
 
 
@@ -86,9 +85,7 @@ def test_lifecycle_routes(wired):
 
 def test_connect_disconnect_routes(wired):
     asyncio.run(v1.install_plugin_by_id("email"))
-    connected = asyncio.run(
-        v1.connect_plugin("email", {"config": {"mailbox": "ops@ethan.dev"}})
-    )
+    connected = asyncio.run(v1.connect_plugin("email", {"config": {"mailbox": "ops@ethan.dev"}}))
     assert connected["connected"] is True
     assert connected["configuration"]["mailbox"] == "ops@ethan.dev"
     disconnected = asyncio.run(v1.disconnect_plugin("email"))
@@ -109,6 +106,7 @@ def test_install_compat_body_nom(wired):
 
 
 # ── Routes update / uninstall ─────────────────────────────────────────────
+
 
 def test_update_route(wired):
     asyncio.run(v1.install_plugin_by_id("slack"))

@@ -68,9 +68,7 @@ def _make_outcome(
         cluster_deltas={"cluster-001": 0.1} if benchmark_delta else {},
         error=None if status == "applied" else "test failure",
         applied_at=(
-            datetime(2026, 4, 8, 3, 5, 0, tzinfo=timezone.utc)
-            if status == "applied"
-            else None
+            datetime(2026, 4, 8, 3, 5, 0, tzinfo=timezone.utc) if status == "applied" else None
         ),
     )
     extras = {
@@ -204,9 +202,7 @@ class TestSessionStoreList:
         for i in range(5):
             session = _make_session(session_id=f"s{i}")
             session = session.model_copy(
-                update={
-                    "started_at": datetime(2026, 4, 8, 3 + i, 0, 0, tzinfo=timezone.utc)
-                }
+                update={"started_at": datetime(2026, 4, 8, 3 + i, 0, 0, tzinfo=timezone.utc)}
             )
             store.save_session(session)
 

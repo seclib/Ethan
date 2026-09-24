@@ -8,9 +8,9 @@ Content-hash buckets stay empty until a file supplies a hash.
 from __future__ import annotations
 
 import asyncio
-import pytest
+
 from core.dedup import DuplicateCategory, DuplicateDetector, DuplicateReport
-from core.dedup.types import DuplicateGroup, ItemDomain, ScannedItem
+from core.dedup.types import ItemDomain, ScannedItem
 from core.state import CoreRecordStore
 
 
@@ -117,14 +117,16 @@ def test_find_orphans_excludes_rag_doc_with_matching_file():
 
 def test_file_to_item_normalises_metadata():
     det = _make_detector()
-    item = det._file_to_item({
-        "id": "xyz",
-        "filename": "data.csv",
-        "content_type": "text/csv",
-        "size": 2048,
-        "storage_path": "/store/data.csv",
-        "metadata": {"project": "p1"},
-    })
+    item = det._file_to_item(
+        {
+            "id": "xyz",
+            "filename": "data.csv",
+            "content_type": "text/csv",
+            "size": 2048,
+            "storage_path": "/store/data.csv",
+            "metadata": {"project": "p1"},
+        }
+    )
     assert item.id == "xyz"
     assert item.name == "data.csv"
     assert item.size == 2048

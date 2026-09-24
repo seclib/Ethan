@@ -7,7 +7,6 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.agents._stubs import AgentResult, BaseAgent
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.sandbox.runner import (

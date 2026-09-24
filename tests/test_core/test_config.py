@@ -1,13 +1,8 @@
 """Tests du système de configuration."""
 
-import os
-import tempfile
-from pathlib import Path
-
 import pytest
-
 from core.config.loader import ConfigLoader
-from core.config.schema import RuntimeMode, BusConfig, StorageConfig
+from core.config.schema import BusConfig, RuntimeMode, StorageConfig
 
 
 @pytest.fixture

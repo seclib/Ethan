@@ -67,9 +67,7 @@ class TestGRPOTrainer:
         from openjarvis.learning.intelligence.grpo_trainer import GRPOTrainer
 
         class MyReward:
-            def score(
-                self, prompt: str, response: str, ground_truth: str | None
-            ) -> float:
+            def score(self, prompt: str, response: str, ground_truth: str | None) -> float:
                 return 0.42
 
         trainer = GRPOTrainer(GRPOConfig(), reward_fn=MyReward())

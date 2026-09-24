@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
 from core.knowledge.web_ingest import WebIngestionManager
 from core.rag import RAGPipeline
@@ -34,11 +33,25 @@ HTML_HOME = """<html><head><title>Docs Home</title></head><body>
 <a href="https://external.example.org/page">Externe</a>
 </body></html>"""
 
-HTML_GUIDE = "<html><head><title>Guide</title></head><body><p>Guide d'utilisation : demarrer ici.</p></body></html>"
-HTML_API = "<html><head><title>API Reference</title></head><body><p>Endpoints et authentification.</p></body></html>"
-HTML_FAQ = "<html><head><title>FAQ</title></head><body><p>Questions frequentes et reponses.</p></body></html>"
-HTML_PRIVATE = "<html><head><title>Private</title></head><body><p>Contenu interdit.</p></body></html>"
-HTML_DUP = "<html><head><title>Duplicate</title></head><body><p>Guide d'utilisation : demarrer ici.</p></body></html>"
+HTML_GUIDE = (
+    "<html><head><title>Guide</title></head><body>"
+    "<p>Guide d'utilisation : demarrer ici.</p></body></html>"
+)
+HTML_API = (
+    "<html><head><title>API Reference</title></head><body>"
+    "<p>Endpoints et authentification.</p></body></html>"
+)
+HTML_FAQ = (
+    "<html><head><title>FAQ</title></head><body>"
+    "<p>Questions frequentes et reponses.</p></body></html>"
+)
+HTML_PRIVATE = (
+    "<html><head><title>Private</title></head><body><p>Contenu interdit.</p></body></html>"
+)
+HTML_DUP = (
+    "<html><head><title>Duplicate</title></head><body>"
+    "<p>Guide d'utilisation : demarrer ici.</p></body></html>"
+)
 
 ROBOTS = "User-agent: *\nDisallow: /private\nSitemap: {host}/sitemap.xml\n".format(host=HOST)
 SITEMAP = (
@@ -104,12 +117,15 @@ def _manager(fetcher: _FakeFetcher, **kwargs) -> tuple[WebIngestionManager, dict
         **kwargs,
     )
     return manager, {
-        "rag": rag, "knowledge": knowledge,
-        "collections": collections, "folders": folders,
+        "rag": rag,
+        "knowledge": knowledge,
+        "collections": collections,
+        "folders": folders,
     }
 
 
 # ── (SUITE) ──────────────────────────────────────────────────────────────────
+
 
 def test_scan_produces_preview_without_indexing():
     """Le scan découvre, extrait, déduplique — mais n'indexe RIEN."""
@@ -172,7 +188,9 @@ def test_scan_include_and_exclude_patterns():
         fetcher = _make_site()
         manager, _m = _manager(fetcher)
         preview = await manager.scan(
-            f"{HOST}/", max_pages=10, max_depth=1,
+            f"{HOST}/",
+            max_pages=10,
+            max_depth=1,
             exclude_patterns=["*/api*"],
         )
         urls = {p["url"] for p in preview["pages"] if p["status"] == "ok"}
@@ -182,7 +200,9 @@ def test_scan_include_and_exclude_patterns():
         fetcher2 = _make_site()
         manager2, _m2 = _manager(fetcher2)
         preview2 = await manager2.scan(
-            f"{HOST}/", max_pages=10, max_depth=1,
+            f"{HOST}/",
+            max_pages=10,
+            max_depth=1,
             include_patterns=["*guide*", f"{HOST}/"],
         )
         urls2 = {p["url"] for p in preview2["pages"] if p["status"] == "ok"}
@@ -212,8 +232,10 @@ def test_scan_rejects_unsafe_urls():
 
 # ── (SUITE 2) ────────────────────────────────────────────────────────────────
 
+
 def test_ingest_to_new_collection_and_folder():
     """Sélection → création dossier + collection (stratégie choisie) → index."""
+
     async def scenario():
         fetcher = _make_site()
         manager, m = _manager(fetcher)
@@ -227,7 +249,8 @@ def test_ingest_to_new_collection_and_folder():
             pages_by_url[f"{HOST}/dup"]["page_id"],
         ]
         result = await manager.ingest(
-            preview["scan_id"], page_ids,
+            preview["scan_id"],
+            page_ids,
             new_folder_name="Docs Web",
             target="collection",
             new_collection_name="Docs Produit",
@@ -259,6 +282,7 @@ def test_ingest_to_new_collection_and_folder():
 
 def test_ingest_to_existing_collection_updates_strategy():
     """Collection existante : la stratégie choisie met la collection à jour."""
+
     async def scenario():
         fetcher = _make_site()
         manager, m = _manager(fetcher)
@@ -267,9 +291,12 @@ def test_ingest_to_existing_collection_updates_strategy():
 
         col = await m["collections"].create_collection("Existant", user_id="alice")
         result = await manager.ingest(
-            preview["scan_id"], [root_page["page_id"]],
-            target="collection", collection_id=col["id"],
-            retrieval_strategy="semantic", embedding_model="nomic-embed-text",
+            preview["scan_id"],
+            [root_page["page_id"]],
+            target="collection",
+            collection_id=col["id"],
+            retrieval_strategy="semantic",
+            embedding_model="nomic-embed-text",
         )
         updated = await m["collections"].get_collection(col["id"])
         assert updated["retrieval_strategy"] == "semantic"
@@ -282,6 +309,7 @@ def test_ingest_to_existing_collection_updates_strategy():
 
 def test_ingest_to_knowledge_nodes_classified_in_folder():
     """Cible Knowledge : un nœud par page sélectionnée, classé dans le dossier."""
+
     async def scenario():
         fetcher = _make_site()
         manager, m = _manager(fetcher)
@@ -289,7 +317,8 @@ def test_ingest_to_knowledge_nodes_classified_in_folder():
         root_page = next(p for p in preview["pages"] if p["status"] == "ok")
 
         result = await manager.ingest(
-            preview["scan_id"], [root_page["page_id"]],
+            preview["scan_id"],
+            [root_page["page_id"]],
             new_folder_name="Veille",
             target="knowledge",
         )
@@ -311,6 +340,7 @@ def test_ingest_to_knowledge_nodes_classified_in_folder():
 
 def test_ingest_validation_errors():
     """Scan inconnu, pages inconnues, cible invalide → ValueError."""
+
     async def scenario():
         fetcher = _make_site()
         manager, _m = _manager(fetcher)
@@ -323,8 +353,10 @@ def test_ingest_validation_errors():
             await manager.ingest(preview["scan_id"], ["ghost-page"])
         with pytest.raises(ValueError, match="Cible inconnue"):
             await manager.ingest(
-                preview["scan_id"], [root_page["page_id"]],
-                target="database", new_collection_name="X",
+                preview["scan_id"],
+                [root_page["page_id"]],
+                target="database",
+                new_collection_name="X",
             )
         with pytest.raises(ValueError, match="collection_id ou new_collection_name"):
             await manager.ingest(preview["scan_id"], [root_page["page_id"]])
@@ -336,8 +368,10 @@ def test_ingest_validation_errors():
                 private_id = page["page_id"]
         if private_id:
             result = await manager.ingest(
-                preview["scan_id"], [private_id],
-                target="knowledge", new_folder_name="Vide",
+                preview["scan_id"],
+                [private_id],
+                target="knowledge",
+                new_folder_name="Vide",
             )
             assert result["indexed_count"] == 0
 

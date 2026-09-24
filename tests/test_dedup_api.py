@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
-from interfaces.api.routers import dedup as dedup_router
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
+from core.rag import RAGPipeline
 from core.state import CoreRecordStore
 from core.state.files import FileStore
-from core.knowledge import KnowledgeManager, KnowledgeCollectionManager
-from core.rag import RAGPipeline
+from interfaces.api.routers import dedup as dedup_router
 
 
 @pytest.fixture()
@@ -19,8 +20,11 @@ def wired():
     rag = RAGPipeline(store=store)
     collections = KnowledgeCollectionManager(store=store, rag=rag)
     dedup_router.set_dedup_managers(
-        store=store, files=files, knowledge=knowledge,
-        collections=collections, rag=rag,
+        store=store,
+        files=files,
+        knowledge=knowledge,
+        collections=collections,
+        rag=rag,
     )
     yield store
     dedup_router.set_dedup_managers(store=CoreRecordStore())

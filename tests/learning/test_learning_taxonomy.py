@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.learning._stubs import (
     AgentLearningPolicy,
     IntelligenceLearningPolicy,

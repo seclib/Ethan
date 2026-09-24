@@ -1,7 +1,6 @@
 """Tests for Core-owned provider construction and OpenRouter routing."""
 
 import pytest
-
 from core.llm.provider_factory import create_provider_from_config
 from core.llm.provider_manager import ProviderManager
 from core.llm.providers.azure import AzureOpenAIProvider
@@ -30,7 +29,12 @@ def test_factory_configures_openrouter_routing_and_technical_default_model():
 
 def test_factory_configures_azure_deployment_name():
     provider = create_provider_from_config(
-        {"type": "azure", "api_key": "test-key", "base_url": "https://example.azure.com", "default_model": "prod-gpt4"}
+        {
+            "type": "azure",
+            "api_key": "test-key",
+            "base_url": "https://example.azure.com",
+            "default_model": "prod-gpt4",
+        }
     )
 
     assert isinstance(provider, AzureOpenAIProvider)
@@ -58,7 +62,16 @@ async def test_openrouter_forwards_core_routing_to_provider_request():
                 {
                     "model": "openai/gpt-4.1-mini",
                     "usage": None,
-                    "choices": [type("Choice", (), {"message": type("Message", (), {"content": "ok"})(), "finish_reason": "stop"})()],
+                    "choices": [
+                        type(
+                            "Choice",
+                            (),
+                            {
+                                "message": type("Message", (), {"content": "ok"})(),
+                                "finish_reason": "stop",
+                            },
+                        )()
+                    ],
                 },
             )()
 
@@ -66,7 +79,9 @@ async def test_openrouter_forwards_core_routing_to_provider_request():
         api_key="test-key",
         routing={"order": ["OpenAI"], "allow_fallbacks": True},
     )
-    provider._client = type("Client", (), {"chat": type("Chat", (), {"completions": Completions()})()})()
+    provider._client = type(
+        "Client", (), {"chat": type("Chat", (), {"completions": Completions()})()}
+    )()
 
     await provider.chat([ChatMessage(role="user", content="hello")])
 

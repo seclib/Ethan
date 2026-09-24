@@ -1,4 +1,5 @@
 """Plugin compatibility tests — ensure plugins load and register correctly."""
+
 import pytest
 
 from ..plugin_compat import PluginCompatibilityChecker
@@ -21,11 +22,11 @@ class TestPluginRegistry:
 
         if failed:
             messages = [f"{r.plugin}: {', '.join(r.errors)}" for r in failed]
-            pytest.fail(f"Failed plugins:\n" + "\n".join(messages))
+            pytest.fail("Failed plugins:\n" + "\n".join(messages))
 
     def test_no_duplicate_commands(self, checker):
         """No two plugins should register the same command."""
-        from cli.registry import discover_commands, COMMANDS
+        from cli.registry import COMMANDS, discover_commands
 
         # Capture state before
         before = set(COMMANDS.keys())
@@ -45,7 +46,7 @@ class TestPluginRegistry:
 
     def test_all_plugin_commands_callable(self, checker):
         """Every registered plugin command must be callable."""
-        from cli.registry import discover_commands, COMMANDS
+        from cli.registry import COMMANDS, discover_commands
 
         discover_commands()
 

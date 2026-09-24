@@ -48,9 +48,7 @@ class TestScoreComplexity:
         assert result.signals["has_multi_step"] is True
 
     def test_reasoning_and_multi_step_combined(self) -> None:
-        result = score_complexity(
-            "Explain why X works, then analyze Y, then compare them"
-        )
+        result = score_complexity("Explain why X works, then analyze Y, then compare them")
         assert result.signals["has_reasoning"] is True
         assert result.signals["has_multi_step"] is True
         assert result.signals["reasoning"] == 1.0

@@ -1,10 +1,11 @@
 """tests/test_scheduler_cron.py — Cron scheduling and timezone support."""
 
+from datetime import datetime, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from core.scheduler.scheduler import (
-    next_cron_occurrence,
     _parse_cron_field,
+    next_cron_occurrence,
 )
 
 
@@ -68,8 +69,9 @@ class TestNextCronOccurrence:
 class TestSchedulerCron:
     @pytest.mark.asyncio
     async def test_schedule_cron_valid(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)
@@ -86,8 +88,9 @@ class TestSchedulerCron:
 
     @pytest.mark.asyncio
     async def test_schedule_cron_invalid(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)
@@ -102,8 +105,9 @@ class TestSchedulerCron:
 
     @pytest.mark.asyncio
     async def test_cancel_schedule(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)
@@ -119,8 +123,9 @@ class TestSchedulerCron:
 
     @pytest.mark.asyncio
     async def test_cancel_missing_returns_false(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)
@@ -129,8 +134,9 @@ class TestSchedulerCron:
 
     @pytest.mark.asyncio
     async def test_get_schedule(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)
@@ -150,8 +156,9 @@ class TestSchedulerCron:
 
     @pytest.mark.asyncio
     async def test_list_schedules(self):
-        from core.scheduler.scheduler import Scheduler
         from unittest.mock import AsyncMock
+
+        from core.scheduler.scheduler import Scheduler
 
         bus = AsyncMock()
         scheduler = Scheduler(bus=bus)

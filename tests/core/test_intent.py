@@ -2,16 +2,15 @@
 
 from datetime import datetime
 from unittest.mock import patch
-import pytest
 
+import pytest
 from core.context.intent import (
-    Intent,
-    IntentParser,
-    TextIntentParser,
     APIIntentParser,
-    VoiceIntentParser,
     AutomationIntentParser,
+    Intent,
     IntentRouter,
+    TextIntentParser,
+    VoiceIntentParser,
 )
 
 

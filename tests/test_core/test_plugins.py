@@ -1,7 +1,6 @@
 """Tests du système de plugins."""
 
 import pytest
-
 from core.plugins.interface import EthanPlugin, PluginManifest
 from core.plugins.loader import PluginLoader
 
@@ -104,11 +103,11 @@ MANIFEST = {
 
 class LoadablePlugin(EthanPlugin):
     manifest = PluginManifest(**MANIFEST)
-    
+
     async def init(self, bus, config):
         self.bus = bus
         self.config = config
-    
+
     async def close(self):
         pass
 """)

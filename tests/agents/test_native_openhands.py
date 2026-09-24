@@ -321,9 +321,7 @@ class TestNativeOpenHandsAgent:
         """When max turns exceeded, last content should be preserved."""
         engine = MagicMock()
         engine.engine_id = "mock"
-        engine.generate.return_value = _engine_response(
-            "Still working:\n```python\nx = 1\n```"
-        )
+        engine.generate.return_value = _engine_response("Still working:\n```python\nx = 1\n```")
         agent = NativeOpenHandsAgent(
             engine,
             "test-model",
@@ -363,9 +361,7 @@ class TestNativeOpenHandsAgent:
         engine.generate.return_value = _engine_response("Hi")
         agent = NativeOpenHandsAgent(engine, "test-model", bus=bus)
         agent.run("test input")
-        start_events = [
-            e for e in bus.history if e.event_type == EventType.AGENT_TURN_START
-        ]
+        start_events = [e for e in bus.history if e.event_type == EventType.AGENT_TURN_START]
         assert len(start_events) == 1
         assert start_events[0].data["agent"] == "native_openhands"
         assert start_events[0].data["input"] == "test input"
@@ -510,9 +506,7 @@ class TestUrlExpansion:
         mock_resp.raise_for_status = MagicMock()
         monkeypatch.setattr(httpx, "get", MagicMock(return_value=mock_resp))
 
-        text, expanded = NativeOpenHandsAgent._expand_urls(
-            "Summarize: https://example.com/article"
-        )
+        text, expanded = NativeOpenHandsAgent._expand_urls("Summarize: https://example.com/article")
         assert expanded is True
         assert "Page content" in text
         assert "Content from" in text
@@ -525,9 +519,7 @@ class TestUrlExpansion:
             "get",
             MagicMock(side_effect=Exception("Connection error")),
         )
-        text, expanded = NativeOpenHandsAgent._expand_urls(
-            "Read https://example.com/broken"
-        )
+        text, expanded = NativeOpenHandsAgent._expand_urls("Read https://example.com/broken")
         assert expanded is False
 
     def test_url_expanded_uses_direct_path(self, monkeypatch):

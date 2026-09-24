@@ -1,7 +1,5 @@
 """tests/test_library.py — Unified library API client."""
 
-import pytest
-
 
 def test_library_item_types():
     """Verify all library item types are defined."""

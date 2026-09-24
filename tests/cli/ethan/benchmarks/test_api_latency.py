@@ -1,15 +1,17 @@
 """API latency benchmarks."""
-import pytest
+
 import time
 from unittest.mock import patch
 
+import pytest
+
 from cli.core.client import send
-import urllib.error
 
 
 @pytest.fixture
 def runner():
     from tests.cli.ethan.benchmarks.benchmark_runner import BenchmarkRunner
+
     return BenchmarkRunner(warmup_iterations=2, benchmark_iterations=30)
 
 
@@ -23,15 +25,14 @@ class TestAPILatency:
 
     def test_direct_api_latency(self, runner, mock_api_direct):
         """Direct API call should complete in < 50ms mean."""
+
         def make_call():
             return _make_call()
 
         summary = runner.measure("api_direct", make_call)
 
-        assert summary.mean_ms < 50, \
-            f"Direct API too slow: {summary.mean_ms:.1f}ms (target: <50ms)"
-        assert summary.max_memory_mb < 30, \
-            f"API memory too high: {summary.max_memory_mb:.1f}MB"
+        assert summary.mean_ms < 50, f"Direct API too slow: {summary.mean_ms:.1f}ms (target: <50ms)"
+        assert summary.max_memory_mb < 30, f"API memory too high: {summary.max_memory_mb:.1f}MB"
 
     def test_api_with_retry_latency(self, runner):
         """API with retries should complete in < 300ms mean."""
@@ -47,16 +48,17 @@ class TestAPILatency:
         with patch("cli.core.client.send", side_effect=flaky_call):
             summary = runner.measure("api_retry", lambda: _make_call())
 
-        assert summary.mean_ms < 300, \
+        assert summary.mean_ms < 300, (
             f"API with retry too slow: {summary.mean_ms:.1f}ms (target: <300ms)"
+        )
 
     def test_api_valid_input_validation(self, runner):
         """Empty input should be rejected quickly."""
+
         def empty_call():
             return send("", session_id="test")
 
         summary = runner.measure("api_empty_validation", empty_call)
 
         # Should fail fast (no network call)
-        assert summary.mean_ms < 10, \
-            f"Empty input validation too slow: {summary.mean_ms:.1f}ms"
+        assert summary.mean_ms < 10, f"Empty input validation too slow: {summary.mean_ms:.1f}ms"

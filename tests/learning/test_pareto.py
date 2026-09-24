@@ -219,6 +219,5 @@ class TestComputeParetoFrontier:
 
         ids = {t.trial_id for t in frontier}
         assert ids == {"A", "B"}, (
-            "A (best accuracy) and B (best energy) form the frontier; "
-            "C is dominated by both"
+            "A (best accuracy) and B (best energy) form the frontier; C is dominated by both"
         )

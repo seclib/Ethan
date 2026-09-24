@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
 from openjarvis.tools.calculator import CalculatorTool, safe_eval
 
 

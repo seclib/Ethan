@@ -1,4 +1,5 @@
 """Comparator — compare CLI outputs against golden snapshots."""
+
 import re
 from dataclasses import dataclass
 from typing import List, Optional
@@ -7,6 +8,7 @@ from typing import List, Optional
 @dataclass
 class ComparisonResult:
     """Result of snapshot comparison."""
+
     passed: bool
     diff: str
     missing: List[str]
@@ -16,20 +18,11 @@ class ComparisonResult:
 class Comparator:
     """Compare CLI outputs against golden snapshots."""
 
-    def __init__(
-        self,
-        tolerance_lines: int = 0,
-        ignore_patterns: Optional[List[str]] = None
-    ):
+    def __init__(self, tolerance_lines: int = 0, ignore_patterns: Optional[List[str]] = None):
         self.tolerance_lines = tolerance_lines
         self.ignore_patterns = ignore_patterns or []
 
-    def compare(
-        self,
-        actual: str,
-        expected: str,
-        context: str = ""
-    ) -> ComparisonResult:
+    def compare(self, actual: str, expected: str, context: str = "") -> ComparisonResult:
         """Compare actual vs expected output.
 
         Args:
@@ -81,11 +74,7 @@ class Comparator:
                 filtered.append(line)
         return filtered
 
-    def _compute_diff(
-        self,
-        actual: List[str],
-        expected: List[str]
-    ) -> tuple[List[str], List[str]]:
+    def _compute_diff(self, actual: List[str], expected: List[str]) -> tuple[List[str], List[str]]:
         """Simple line-by-line diff."""
         actual_set = set(actual)
         expected_set = set(expected)
@@ -95,12 +84,7 @@ class Comparator:
 
         return missing, extra
 
-    def _format_diff(
-        self,
-        missing: List[str],
-        extra: List[str],
-        context: str
-    ) -> str:
+    def _format_diff(self, missing: List[str], extra: List[str], context: str) -> str:
         """Format diff for human reading."""
         lines = [f"Diff for: {context}", ""]
 

@@ -15,6 +15,7 @@ installés, on teste donc le chemin d'échec réel (RuntimeError via import
 paresseux) et des fakes mémoire pour les backends.
 """
 
+# ruff: noqa: E402 — `sys.path` est préparé après la docstring, avant les imports.
 from __future__ import annotations
 
 import sys
@@ -25,11 +26,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import pytest
-
 from core.rag.embeddings import RAGEmbeddings
 from core.rag.ingestion import RAGIngestion
 from core.rag.pipeline import RAGPipeline
-from core.rag.vector_store import RAGVectorStore, QdrantVectorStore
+from core.rag.vector_store import QdrantVectorStore, RAGVectorStore
 from core.state.record_store import CoreRecordStore
 
 
@@ -111,6 +111,7 @@ class ExplodingStore(RAGVectorStore):
 
 def _pipeline() -> RAGPipeline:
     return RAGPipeline(store=CoreRecordStore())
+
 
 # ── Chunking (stratégies + taille/overlap) ───────────────────────────────────
 
@@ -202,9 +203,10 @@ class TestDimensionMismatch:
         store._client = object()  # simule un client déjà initialisé
         try:
             import asyncio
-            asyncio.run(store.upsert([
-                {"chunk_id": "c1", "embedding": [1, 2, 3], "document_id": "d1"}
-            ]))
+
+            asyncio.run(
+                store.upsert([{"chunk_id": "c1", "embedding": [1, 2, 3], "document_id": "d1"}])
+            )
             pytest.fail("Expected dimension mismatch")
         except ValueError as exc:
             assert "dimension mismatch" in str(exc)

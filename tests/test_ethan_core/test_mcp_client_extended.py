@@ -45,9 +45,7 @@ class FakeMCPClient:
         return []
 
     async def call_tool(self, function_name, function_args):
-        return [
-            {"type": "text", "text": f"echo: {function_args.get('text', '')}"}
-        ]
+        return [{"type": "text", "text": f"echo: {function_args.get('text', '')}"}]
 
     async def disconnect(self):
         return None
@@ -122,9 +120,7 @@ class TestToolExecutorMCP:
             is_available=True,
             tags=["mcp"],
         )
-        result = await executor.execute(
-            tool, {"text": "hello"}, ToolContext(query="echo")
-        )
+        result = await executor.execute(tool, {"text": "hello"}, ToolContext(query="echo"))
         assert result.status == "failed"
 
     @pytest.mark.asyncio
@@ -136,11 +132,7 @@ class TestToolExecutorMCP:
         executor = ToolExecutor()
         tool = _mcp_tool()
         # Monkeypatch MCPClient to use our fake
-        monkeypatch.setattr(
-            "core.tools.mcp_client.MCPClient", FakeMCPClient
-        )
-        result = await executor.execute(
-            tool, {"text": "hello"}, ToolContext(query="echo")
-        )
+        monkeypatch.setattr("core.tools.mcp_client.MCPClient", FakeMCPClient)
+        result = await executor.execute(tool, {"text": "hello"}, ToolContext(query="echo"))
         assert result.status == "success"
         assert result.output == [{"type": "text", "text": "echo: hello"}]

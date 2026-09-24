@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.bench.energy import EnergyBenchmark
 from openjarvis.core.registry import BenchmarkRegistry
 from openjarvis.telemetry.energy_monitor import EnergySample

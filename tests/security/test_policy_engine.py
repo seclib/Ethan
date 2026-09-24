@@ -71,8 +71,13 @@ class TestAllow:
             return f"content:{path}"
 
         result = asyncio.run(
-            guard.execute("filesystem", "read", "/workspace/a.txt", read_file,
-                          params={"path": "/workspace/a.txt"})
+            guard.execute(
+                "filesystem",
+                "read",
+                "/workspace/a.txt",
+                read_file,
+                params={"path": "/workspace/a.txt"},
+            )
         )
         assert result == "content:/workspace/a.txt"
         assert ran == ["/workspace/a.txt"]
@@ -109,8 +114,7 @@ class TestDeny:
 
         with pytest.raises(PolicyDeniedError):
             asyncio.run(
-                guard.execute("shell", "execute", "rm -rf /tmp", dangerous,
-                              params={"path": "/tmp"})
+                guard.execute("shell", "execute", "rm -rf /tmp", dangerous, params={"path": "/tmp"})
             )
         assert ran == [], "le callback ne doit jamais être exécuté sur DENY"
 
@@ -119,9 +123,7 @@ class TestDeny:
 
 
 class TestRequireConfirmation:
-    def test_filesystem_delete_requires_confirmation(
-        self, engine: PolicyEngine
-    ) -> None:
+    def test_filesystem_delete_requires_confirmation(self, engine: PolicyEngine) -> None:
         """Suppression de fichier : REQUIRE_CONFIRMATION (PR-7)."""
         d = engine.check("filesystem", "delete", "/workspace/a.txt")
         assert d.result is PolicyResult.REQUIRE_CONFIRMATION
@@ -146,17 +148,20 @@ class TestRequireConfirmation:
 
         with pytest.raises(PolicyConfirmationRequiredError):
             asyncio.run(
-                guard.execute("filesystem", "delete", "/workspace/a.txt", delete,
-                              params={"path": "/workspace/a.txt"})
+                guard.execute(
+                    "filesystem",
+                    "delete",
+                    "/workspace/a.txt",
+                    delete,
+                    params={"path": "/workspace/a.txt"},
+                )
             )
         assert ran == [], "sans confirmation humaine, jamais d'exécution"
 
     def test_guard_with_approver_confirming(self, engine: PolicyEngine) -> None:
         """Avec un approver qui approuve, REQUIRE_CONFIRMATION → exécution."""
 
-        async def approving_approver(
-            request: PolicyRequest, decision: PolicyDecision
-        ) -> bool:
+        async def approving_approver(request: PolicyRequest, decision: PolicyDecision) -> bool:
             return True
 
         guard = PolicyGuard(engine, approver=approving_approver)
@@ -167,8 +172,13 @@ class TestRequireConfirmation:
             return "deleted"
 
         result = asyncio.run(
-            guard.execute("filesystem", "delete", "/workspace/a.txt", delete,
-                          params={"path": "/workspace/a.txt"})
+            guard.execute(
+                "filesystem",
+                "delete",
+                "/workspace/a.txt",
+                delete,
+                params={"path": "/workspace/a.txt"},
+            )
         )
         assert result == "deleted"
         assert ran == ["/workspace/a.txt"]
@@ -176,9 +186,7 @@ class TestRequireConfirmation:
     def test_guard_with_approver_rejecting(self, engine: PolicyEngine) -> None:
         """Avec un approver qui refuse → refus, callback non appelé."""
 
-        async def rejecting_approver(
-            request: PolicyRequest, decision: PolicyDecision
-        ) -> bool:
+        async def rejecting_approver(request: PolicyRequest, decision: PolicyDecision) -> bool:
             return False
 
         guard = PolicyGuard(engine, approver=rejecting_approver)
@@ -190,11 +198,15 @@ class TestRequireConfirmation:
 
         with pytest.raises(PolicyConfirmationRequiredError):
             asyncio.run(
-                guard.execute("filesystem", "delete", "/workspace/a.txt", delete,
-                              params={"path": "/workspace/a.txt"})
+                guard.execute(
+                    "filesystem",
+                    "delete",
+                    "/workspace/a.txt",
+                    delete,
+                    params={"path": "/workspace/a.txt"},
+                )
             )
         assert ran == []
-
 
 
 # ── CONFLIT DE RÈGLES (A3) ────────────────────────────────────────────
@@ -204,16 +216,28 @@ class TestRuleConflict:
     def test_same_level_most_restrictive_wins(self) -> None:
         """À niveau égal, DENY gagne sur ALLOW (A3)."""
         engine = PolicyEngine(rules=[])
-        engine.add_rule(Policy(
-            id="t.allow", level=PolicyLevel.USER, category="filesystem",
-            action="read", resource="/tmp/**", effect=PolicyEffect.ALLOW,
-            reason="autorise",
-        ))
-        engine.add_rule(Policy(
-            id="t.deny", level=PolicyLevel.USER, category="filesystem",
-            action="read", resource="/tmp/secret*", effect=PolicyEffect.DENY,
-            reason="interdit",
-        ))
+        engine.add_rule(
+            Policy(
+                id="t.allow",
+                level=PolicyLevel.USER,
+                category="filesystem",
+                action="read",
+                resource="/tmp/**",
+                effect=PolicyEffect.ALLOW,
+                reason="autorise",
+            )
+        )
+        engine.add_rule(
+            Policy(
+                id="t.deny",
+                level=PolicyLevel.USER,
+                category="filesystem",
+                action="read",
+                resource="/tmp/secret*",
+                effect=PolicyEffect.DENY,
+                reason="interdit",
+            )
+        )
         # Lecture d'un fichier secret : les deux règles matchent,
         # la plus restrictive (DENY) gagne.
         d = engine.check("filesystem", "read", "/tmp/secret.txt")
@@ -223,15 +247,26 @@ class TestRuleConflict:
     def test_same_level_confirm_beats_allow(self) -> None:
         """À niveau égal, REQUIRE_CONFIRMATION gagne sur ALLOW."""
         engine = PolicyEngine(rules=[])
-        engine.add_rule(Policy(
-            id="t.allow", level=PolicyLevel.USER, category="network",
-            action="write", resource="*", effect=PolicyEffect.ALLOW,
-        ))
-        engine.add_rule(Policy(
-            id="t.confirm", level=PolicyLevel.USER, category="network",
-            action="write", resource="https://*.example.com",
-            effect=PolicyEffect.REQUIRE_CONFIRMATION,
-        ))
+        engine.add_rule(
+            Policy(
+                id="t.allow",
+                level=PolicyLevel.USER,
+                category="network",
+                action="write",
+                resource="*",
+                effect=PolicyEffect.ALLOW,
+            )
+        )
+        engine.add_rule(
+            Policy(
+                id="t.confirm",
+                level=PolicyLevel.USER,
+                category="network",
+                action="write",
+                resource="https://*.example.com",
+                effect=PolicyEffect.REQUIRE_CONFIRMATION,
+            )
+        )
         d = engine.check("network", "write", "https://x.example.com")
         assert d.result is PolicyResult.REQUIRE_CONFIRMATION
         assert d.policy_id == "t.confirm"
@@ -244,16 +279,28 @@ class TestPriority:
     def test_higher_level_wins_over_lower(self) -> None:
         """Un niveau supérieur (CORE) gagne sur un niveau inférieur (SECURITY ALLOW)."""
         engine = PolicyEngine(rules=[])
-        engine.add_rule(Policy(
-            id="sec.allow", level=PolicyLevel.SECURITY, category="configuration",
-            action="write", resource="*", effect=PolicyEffect.ALLOW,
-            reason="sec autorise",
-        ))
-        engine.add_rule(Policy(
-            id="core.deny", level=PolicyLevel.CORE, category="configuration",
-            action="write", resource="constitution:*", effect=PolicyEffect.DENY,
-            reason="core interdit",
-        ))
+        engine.add_rule(
+            Policy(
+                id="sec.allow",
+                level=PolicyLevel.SECURITY,
+                category="configuration",
+                action="write",
+                resource="*",
+                effect=PolicyEffect.ALLOW,
+                reason="sec autorise",
+            )
+        )
+        engine.add_rule(
+            Policy(
+                id="core.deny",
+                level=PolicyLevel.CORE,
+                category="configuration",
+                action="write",
+                resource="constitution:*",
+                effect=PolicyEffect.DENY,
+                reason="core interdit",
+            )
+        )
         d = engine.check("configuration", "write", "constitution:core-1")
         assert d.result is PolicyResult.DENY
         assert d.level is PolicyLevel.CORE
@@ -262,15 +309,27 @@ class TestPriority:
     def test_lower_level_cannot_annul_higher_deny(self) -> None:
         """Un niveau inférieur ne peut pas annuler un DENY du niveau supérieur."""
         engine = PolicyEngine(rules=[])
-        engine.add_rule(Policy(
-            id="core.deny", level=PolicyLevel.CORE, category="docker",
-            action="execute", resource="*", effect=PolicyEffect.DENY,
-        ))
-        engine.add_rule(Policy(
-            id="user.allow", level=PolicyLevel.USER, category="docker",
-            action="execute", resource="*", effect=PolicyEffect.ALLOW,
-            reason="l'utilisateur autorise",
-        ))
+        engine.add_rule(
+            Policy(
+                id="core.deny",
+                level=PolicyLevel.CORE,
+                category="docker",
+                action="execute",
+                resource="*",
+                effect=PolicyEffect.DENY,
+            )
+        )
+        engine.add_rule(
+            Policy(
+                id="user.allow",
+                level=PolicyLevel.USER,
+                category="docker",
+                action="execute",
+                resource="*",
+                effect=PolicyEffect.ALLOW,
+                reason="l'utilisateur autorise",
+            )
+        )
         d = engine.check("docker", "execute", "run x")
         assert d.result is PolicyResult.DENY
         assert d.policy_id == "core.deny"
@@ -281,7 +340,6 @@ class TestPriority:
         d = engine.check("configuration", "write", "constitution:core-1")
         assert d.result is PolicyResult.DENY
         assert d.level is PolicyLevel.CORE
-
 
 
 # ── FAIL-CLOSED (A4) & NON-INFÉRENCE (A5) ─────────────────────────────
@@ -309,9 +367,7 @@ class TestFailClosedAndNoInference:
             return "killed"
 
         with pytest.raises(PolicyDeniedError):
-            asyncio.run(
-                guard.execute("process", "kill", "12345", kill, params={"pid": "12345"})
-            )
+            asyncio.run(guard.execute("process", "kill", "12345", kill, params={"pid": "12345"}))
         assert ran == []
 
 
@@ -321,22 +377,26 @@ class TestFailClosedAndNoInference:
 class TestSourceNeutrality:
     def test_llm_and_user_get_same_decision(self, engine: PolicyEngine) -> None:
         """A6 : la source ne change pas la décision."""
-        d_llm = engine.evaluate(PolicyRequest(
-            category="shell", action="execute", resource="rm -rf /tmp", source="llm"))
-        d_user = engine.evaluate(PolicyRequest(
-            category="shell", action="execute", resource="rm -rf /tmp", source="user"))
-        d_agent = engine.evaluate(PolicyRequest(
-            category="shell", action="execute", resource="rm -rf /tmp", source="agent"))
-        d_tool = engine.evaluate(PolicyRequest(
-            category="shell", action="execute", resource="rm -rf /tmp", source="tool"))
-        d_mcp = engine.evaluate(PolicyRequest(
-            category="shell", action="execute", resource="rm -rf /tmp", source="mcp"))
+        d_llm = engine.evaluate(
+            PolicyRequest(category="shell", action="execute", resource="rm -rf /tmp", source="llm")
+        )
+        d_user = engine.evaluate(
+            PolicyRequest(category="shell", action="execute", resource="rm -rf /tmp", source="user")
+        )
+        d_agent = engine.evaluate(
+            PolicyRequest(
+                category="shell", action="execute", resource="rm -rf /tmp", source="agent"
+            )
+        )
+        d_tool = engine.evaluate(
+            PolicyRequest(category="shell", action="execute", resource="rm -rf /tmp", source="tool")
+        )
+        d_mcp = engine.evaluate(
+            PolicyRequest(category="shell", action="execute", resource="rm -rf /tmp", source="mcp")
+        )
 
         assert d_llm.result is PolicyResult.DENY
-        assert (
-            d_llm.result == d_user.result == d_agent.result
-            == d_tool.result == d_mcp.result
-        )
+        assert d_llm.result == d_user.result == d_agent.result == d_tool.result == d_mcp.result
 
 
 # ── DÉCISION EXPLICITE & DIAGNOSTIC ───────────────────────────────────
@@ -358,7 +418,6 @@ class TestDecisionDetail:
         b = engine.check("filesystem", "delete", "/workspace/x")
         assert a.result is b.result
         assert a.policy_id == b.policy_id
-
 
 
 # ── COUVERTURE DES 8 CATÉGORIES ───────────────────────────────────────
@@ -387,4 +446,3 @@ class TestActionCategories:
                 f"{category}:{action}:{resource} ne doit pas être autorisé par défaut"
             )
             assert d.reason
-

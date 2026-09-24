@@ -49,9 +49,7 @@ def test_detect_requires_apple_gpu():
     from openjarvis.core.config import HardwareInfo
     from openjarvis.mining.apple_mps_pearl import AppleMpsPearlProvider
 
-    hw = HardwareInfo(
-        platform="darwin", cpu_brand="Apple", cpu_count=12, ram_gb=64.0, gpu=None
-    )
+    hw = HardwareInfo(platform="darwin", cpu_brand="Apple", cpu_count=12, ram_gb=64.0, gpu=None)
     with patch(_AVAIL, return_value=True):
         cap = AppleMpsPearlProvider.detect(hw, engine_id="mlx", model="any")
     assert cap.supported is False
@@ -124,10 +122,7 @@ def test_start_uses_mps_miner_module(mps_config, tmp_path, monkeypatch):
         asyncio.run(provider.start(mps_config))
 
     assert launcher_cls.call_args.kwargs["provider_id"] == "apple-mps-pearl"
-    assert (
-        launcher_cls.call_args.kwargs["miner_module"]
-        == "openjarvis.mining._mps_miner_loop_main"
-    )
+    assert launcher_cls.call_args.kwargs["miner_module"] == "openjarvis.mining._mps_miner_loop_main"
     payload = json.loads(sidecar.read_text())
     assert payload["provider"] == "apple-mps-pearl"
 
@@ -145,7 +140,6 @@ def test_mps_noisy_gemm_plain_proof_verifies_when_mps_available():
     from miner_base.commitment_hash import CommitmentHasher
     from miner_base.noise_generation import NoiseGenerator
     from miner_base.noisy_gemm import POW_TARGET_EASIEST, NoisyGemm
-
     from openjarvis.mining._mps_miner_loop_main import (
         MpsNoisyGemmAdapter,
         _mining_config_for_shape,

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.connectors.chunker import ChunkResult, SemanticChunker
 
 # ---------------------------------------------------------------------------

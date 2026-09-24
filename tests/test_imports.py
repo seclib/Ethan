@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_core_import():
     import core  # noqa: F401
 

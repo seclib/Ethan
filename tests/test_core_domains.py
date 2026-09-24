@@ -25,7 +25,9 @@ def test_agent_definition_lifecycle_and_execution_are_core_owned():
         )
         assert agent.status == AgentStatus.IDLE
 
-        execution = await manager.execute(agent.id, "find the domain boundary", skill_id="web-search")
+        execution = await manager.execute(
+            agent.id, "find the domain boundary", skill_id="web-search"
+        )
         assert execution.status.value == "completed"
         assert execution.result["memory_scope"] == "project:ethan"
         assert (await manager.get(agent.id)).status == AgentStatus.IDLE
@@ -58,7 +60,9 @@ def test_knowledge_relations_and_rag_access_share_core_contracts():
     async def scenario():
         knowledge = KnowledgeManager()
         first = await knowledge.create("ETHAN", content="ETHAN is a headless intelligent runtime.")
-        second = await knowledge.create("Interfaces", content="Interfaces reveal ETHAN capabilities.")
+        second = await knowledge.create(
+            "Interfaces", content="Interfaces reveal ETHAN capabilities."
+        )
         connected = await knowledge.connect(first.id, second.id, "revealed_by", strength=0.9)
         assert connected.connections[0].to_node_id == second.id
         assert (await knowledge.search("headless"))[0].id == first.id

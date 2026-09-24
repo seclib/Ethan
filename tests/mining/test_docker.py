@@ -11,9 +11,7 @@ def test_ensure_image_already_local():
     from openjarvis.mining._docker import PearlDockerLauncher
 
     fake = MagicMock()
-    fake.images.get.return_value = MagicMock(
-        id="sha256:abc", tags=["openjarvis/pearl-miner:main"]
-    )
+    fake.images.get.return_value = MagicMock(id="sha256:abc", tags=["openjarvis/pearl-miner:main"])
     launcher = PearlDockerLauncher(client=fake)
     out = launcher.ensure_image("openjarvis/pearl-miner:main")
     assert out == "openjarvis/pearl-miner:main"
@@ -73,7 +71,6 @@ def test_ensure_image_falls_back_to_build_for_default_tag():
 
 def test_ensure_image_errors_when_non_default_tag_missing():
     import pytest
-
     from openjarvis.mining._docker import (
         APIError,
         ImageAcquisitionError,

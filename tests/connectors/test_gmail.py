@@ -12,7 +12,6 @@ from typing import List
 from unittest.mock import patch
 
 import pytest
-
 from openjarvis.connectors._stubs import Document
 from openjarvis.core.registry import ConnectorRegistry
 
@@ -412,9 +411,7 @@ def test_html_to_text_strips_basic_tags() -> None:
     """_html_to_text() removes tags but preserves visible text content."""
     from openjarvis.connectors.gmail import _html_to_text  # noqa: PLC0415
 
-    html = (
-        "<html><body><p>Hello <b>world</b>!</p><p>Second paragraph.</p></body></html>"
-    )
+    html = "<html><body><p>Hello <b>world</b>!</p><p>Second paragraph.</p></body></html>"
     text = _html_to_text(html)
     assert "Hello" in text
     assert "world" in text
@@ -475,9 +472,7 @@ def test_sync_strips_html_when_no_text_plain(
     creds_path = Path(connector._credentials_path)
     creds_path.write_text(json.dumps({"token": "fake-access-token"}), encoding="utf-8")
 
-    html_bytes = (
-        b"<html><body><p>Hello <b>world</b>!</p><p>Second paragraph.</p></body></html>"
-    )
+    html_bytes = b"<html><body><p>Hello <b>world</b>!</p><p>Second paragraph.</p></body></html>"
     html_b64 = base64.urlsafe_b64encode(html_bytes).decode().rstrip("=")
 
     msg_html = {
@@ -526,9 +521,7 @@ def test_sync_prefers_text_plain_over_text_html(
     creds_path = Path(connector._credentials_path)
     creds_path.write_text(json.dumps({"token": "fake-access-token"}), encoding="utf-8")
 
-    plain_b64 = (
-        base64.urlsafe_b64encode(b"Plain text version preferred.").decode().rstrip("=")
-    )
+    plain_b64 = base64.urlsafe_b64encode(b"Plain text version preferred.").decode().rstrip("=")
     html_b64 = (
         base64.urlsafe_b64encode(b"<html><body><p>HTML version</p></body></html>")
         .decode()
@@ -570,9 +563,7 @@ def test_sync_prefers_text_plain_over_text_html(
 class _FakeResponse:
     """Minimal stand-in for httpx.Response used by the refresh test."""
 
-    def __init__(
-        self, *, status_code: int, json_data: dict | None = None, text: str = ""
-    ):
+    def __init__(self, *, status_code: int, json_data: dict | None = None, text: str = ""):
         self.status_code = status_code
         self._json = json_data or {}
         self.text = text
@@ -584,9 +575,7 @@ class _FakeResponse:
         if self.status_code >= 400:
             import httpx as _httpx
 
-            raise _httpx.HTTPStatusError(
-                f"HTTP {self.status_code}", request=None, response=self
-            )
+            raise _httpx.HTTPStatusError(f"HTTP {self.status_code}", request=None, response=self)
 
 
 def _write_full_creds(tmp_path: Path) -> str:
@@ -634,9 +623,7 @@ def test_401_triggers_refresh_and_retries_with_new_token(tmp_path: Path) -> None
         patch.object(gmail_mod.httpx, "get", side_effect=fake_get),
         patch.object(gmail_mod.httpx, "post", side_effect=fake_post),
     ):
-        result = gmail_mod._call_with_refresh(
-            gmail_mod._gmail_api_get_message, creds_path, "msg-1"
-        )
+        result = gmail_mod._call_with_refresh(gmail_mod._gmail_api_get_message, creds_path, "msg-1")
 
     # The retried request must carry the fresh token.
     assert len(get_calls) == 2
@@ -667,7 +654,6 @@ def test_401_triggers_refresh_and_retries_with_new_token(tmp_path: Path) -> None
 def test_non_401_status_is_not_refreshed(tmp_path: Path) -> None:
     """A 500 from Gmail must propagate — only 401 should trigger refresh."""
     import httpx as _httpx
-
     from openjarvis.connectors import gmail as gmail_mod
 
     creds_path = _write_full_creds(tmp_path)
@@ -678,16 +664,12 @@ def test_non_401_status_is_not_refreshed(tmp_path: Path) -> None:
     fake_post = patch.object(
         gmail_mod.httpx,
         "post",
-        side_effect=AssertionError(
-            "_call_with_refresh must not refresh on non-401 status"
-        ),
+        side_effect=AssertionError("_call_with_refresh must not refresh on non-401 status"),
     )
 
     with patch.object(gmail_mod.httpx, "get", side_effect=fake_get), fake_post:
         with pytest.raises(_httpx.HTTPStatusError):
-            gmail_mod._call_with_refresh(
-                gmail_mod._gmail_api_get_message, creds_path, "msg-1"
-            )
+            gmail_mod._call_with_refresh(gmail_mod._gmail_api_get_message, creds_path, "msg-1")
 
 
 def test_refresh_raises_when_refresh_token_missing(tmp_path: Path) -> None:

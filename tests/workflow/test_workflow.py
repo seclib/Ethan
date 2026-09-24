@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.workflow.builder import WorkflowBuilder
 from openjarvis.workflow.engine import WorkflowEngine

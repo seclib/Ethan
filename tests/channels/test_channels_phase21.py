@@ -6,7 +6,6 @@ import builtins
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.line_channel import LineChannel
 from openjarvis.channels.mastodon_channel import MastodonChannel

@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -58,9 +57,7 @@ def _fake_anthropic_response(
 ) -> SimpleNamespace:
     usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
     text_block = SimpleNamespace(text=content)
-    return SimpleNamespace(
-        content=[text_block], usage=usage, model=model, stop_reason="end_turn"
-    )
+    return SimpleNamespace(content=[text_block], usage=usage, model=model, stop_reason="end_turn")
 
 
 def _fake_gemini_response(
@@ -89,9 +86,7 @@ class TestCloudOpenAI:
         )
         engine._openai_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="gpt-5-mini"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="gpt-5-mini")
         assert result["content"] == "I am GPT-5 Mini"
         assert result["model"] == "gpt-5-mini"
         assert result["usage"]["prompt_tokens"] == 10
@@ -116,9 +111,7 @@ class TestCloudOpenAI:
         fake_client.chat.completions.create.return_value = fake_resp
         engine._openai_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Calculate")], model="gpt-5-mini"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Calculate")], model="gpt-5-mini")
         assert result["content"] == ""
         # Verify flat tool_calls format
         assert "tool_calls" in result
@@ -136,9 +129,7 @@ class TestCloudOpenAI:
         )
         engine._openai_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="gpt-5-mini"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="gpt-5-mini")
         assert "tool_calls" not in result
 
 
@@ -156,9 +147,7 @@ class TestCloudAnthropic:
         )
         engine._anthropic_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="claude-opus-4-6"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="claude-opus-4-6")
         assert result["content"] == "I am Opus 4.6"
         assert result["model"] == "claude-opus-4-6"
 
@@ -170,9 +159,7 @@ class TestCloudAnthropic:
         )
         engine._anthropic_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="claude-sonnet-4-6"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="claude-sonnet-4-6")
         assert result["content"] == "I am Sonnet 4.6"
 
     def test_claude_haiku_4_5_generate(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,9 +170,7 @@ class TestCloudAnthropic:
         )
         engine._anthropic_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="claude-haiku-4-5"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="claude-haiku-4-5")
         assert result["content"] == "I am Haiku 4.5"
 
     def test_claude_cost_estimate(self) -> None:
@@ -208,9 +193,7 @@ class TestCloudAnthropic:
         assert _is_anthropic_model("gpt-5-mini") is False
         assert _is_anthropic_model("gemini-3-pro") is False
 
-    def test_anthropic_tool_use_extraction(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_anthropic_tool_use_extraction(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Anthropic tool_use blocks are extracted as flat tool_calls."""
         engine = _make_cloud_engine(monkeypatch)
         fake_client = mock.MagicMock()
@@ -293,9 +276,7 @@ class TestCloudAnthropic:
         assert passed_tools[0]["name"] == "calc"
         assert "input_schema" in passed_tools[0]
 
-    def test_anthropic_no_tool_calls_when_absent(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_anthropic_no_tool_calls_when_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
         engine = _make_cloud_engine(monkeypatch)
         fake_client = mock.MagicMock()
         fake_client.messages.create.return_value = _fake_anthropic_response(
@@ -303,9 +284,7 @@ class TestCloudAnthropic:
         )
         engine._anthropic_client = fake_client
 
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hi")], model="claude-opus-4-6"
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hi")], model="claude-opus-4-6")
         assert "tool_calls" not in result
 
     def test_anthropic_system_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -422,9 +401,7 @@ class TestCloudGemini:
                 "google.genai.types": fake_types,
             },
         ):
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="gemini-3-pro"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="gemini-3-pro")
         assert result["content"] == "I am Gemini 3 Pro"
 
     def test_gemini_3_flash_generate(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -450,9 +427,7 @@ class TestCloudGemini:
             )
         assert result["content"] == "I am Gemini 3 Flash"
 
-    def test_gemini_function_call_extraction(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_gemini_function_call_extraction(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Google function_call parts are extracted as flat tool_calls."""
         engine = _make_cloud_engine(monkeypatch)
         fake_client = mock.MagicMock()
@@ -505,9 +480,7 @@ class TestCloudGemini:
         assert tc["name"] == "calculator"
         assert '"expression"' in tc["arguments"]
 
-    def test_gemini_no_tool_calls_when_absent(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_gemini_no_tool_calls_when_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
         engine = _make_cloud_engine(monkeypatch)
         fake_client = mock.MagicMock()
         fake_client.models.generate_content.return_value = _fake_gemini_response(
@@ -525,9 +498,7 @@ class TestCloudGemini:
                 "google.genai.types": fake_types,
             },
         ):
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="gemini-3-pro"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="gemini-3-pro")
         assert "tool_calls" not in result
 
     def test_gemini_cost_estimate(self) -> None:
@@ -573,9 +544,7 @@ class TestCloudGemini:
                 EngineConnectionError,
                 match="Google client not available",
             ):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="gemini-3-pro"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="gemini-3-pro")
 
 
 # ---------------------------------------------------------------------------

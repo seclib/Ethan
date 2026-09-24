@@ -53,6 +53,7 @@ def _context(user: str = "alice", source: str = "llm") -> ToolContext:
 def _run(fn):
     asyncio.run(fn)
 
+
 # ── TOOLS : sécurité branchée sur l'exécution ───────────────────────────────
 
 
@@ -68,9 +69,7 @@ class TestToolIntegration:
 
         async def _run() -> None:
             tool = _tool("docker", risk="critical")
-            result = await self._exec(
-                tool, {"command": "run nginx"}, enforcer=SecureToolEnforcer()
-            )
+            result = await self._exec(tool, {"command": "run nginx"}, enforcer=SecureToolEnforcer())
             assert result.status == "rejected"
             assert "Docker" in (result.error or "")
             # Jamais exécuté : le résultat n'est pas {"status":"ok"}.
@@ -94,13 +93,9 @@ class TestToolIntegration:
                     )
                 ]
             )
-            enforcer = SecureToolEnforcer(
-                engine=engine, capabilities=CapabilityManager()
-            )
+            enforcer = SecureToolEnforcer(engine=engine, capabilities=CapabilityManager())
             tool = _tool("shell", risk="high")
-            result = await self._exec(
-                tool, {"command": "ls -la /tmp"}, enforcer=enforcer
-            )
+            result = await self._exec(tool, {"command": "ls -la /tmp"}, enforcer=enforcer)
             assert result.status == "rejected"
             assert "capability" in (result.error or "").lower()
 
@@ -127,9 +122,7 @@ class TestToolIntegration:
             caps.grant("user:alice", "shell", "execute", "*")
             enforcer = SecureToolEnforcer(engine=engine, capabilities=caps)
             tool = _tool("shell", risk="high")
-            result = await self._exec(
-                tool, {"command": "ls -la /tmp"}, enforcer=enforcer
-            )
+            result = await self._exec(tool, {"command": "ls -la /tmp"}, enforcer=enforcer)
             assert result.status == "success"
 
         asyncio.run(_run())
@@ -142,9 +135,7 @@ class TestToolIntegration:
             caps.grant("user:alice", "docker", "execute", "*")
             enforcer = SecureToolEnforcer(capabilities=caps)
             tool = _tool("docker", risk="critical")
-            result = await self._exec(
-                tool, {"command": "run nginx"}, enforcer=enforcer
-            )
+            result = await self._exec(tool, {"command": "run nginx"}, enforcer=enforcer)
             # La règle SECURITY deny docker reste gagnante (A1/A2).
             assert result.status == "rejected"
 
@@ -186,9 +177,7 @@ class TestToolIntegration:
                     )
                 ]
             )
-            enforcer = SecureToolEnforcer(
-                engine=engine, exfil=ExfilGuard(redact=False)
-            )
+            enforcer = SecureToolEnforcer(engine=engine, exfil=ExfilGuard(redact=False))
             tool = _tool("send", risk="high")
             result = await self._exec(
                 tool,
@@ -205,9 +194,7 @@ class TestToolIntegration:
 
         async def _run() -> None:
             tool = _tool("docker", risk="critical")
-            result = await self._exec(
-                tool, {"command": "run nginx"}, enforcer=None
-            )
+            result = await self._exec(tool, {"command": "run nginx"}, enforcer=None)
             assert result.status == "success"
 
         asyncio.run(_run())
@@ -216,11 +203,8 @@ class TestToolIntegration:
         """Le mapping structurel tool → requête policy est correct."""
         assert classify_tool_call(_tool("shell"), {"command": "x"})[0] == "shell"
         assert classify_tool_call(_tool("docker"), {"command": "x"})[0] == "docker"
-        fs_cat, fs_op, _res = classify_tool_call(
-            _tool("fs"), {"action": "write", "path": "/etc/x"}
-        )
+        fs_cat, fs_op, _res = classify_tool_call(_tool("fs"), {"action": "write", "path": "/etc/x"})
         assert (fs_cat, fs_op) == ("filesystem", "write")
         assert classify_tool_call(_tool("send"), {"destination": "https://x"})[0] == (
             "external_transmission"
         )
-

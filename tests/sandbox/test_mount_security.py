@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from openjarvis.sandbox.mount_security import (
     DEFAULT_BLOCKED_PATTERNS,
     AllowedRoot,

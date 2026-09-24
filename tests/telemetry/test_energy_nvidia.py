@@ -83,9 +83,7 @@ class TestAvailable:
     def test_available_false_when_pynvml_not_importable(self):
         import openjarvis.telemetry.energy_nvidia as mod
 
-        assert_available_false_when_lib_missing(
-            mod, mod.NvidiaEnergyMonitor, "_PYNVML_AVAILABLE"
-        )
+        assert_available_false_when_lib_missing(mod, mod.NvidiaEnergyMonitor, "_PYNVML_AVAILABLE")
 
 
 # ---------------------------------------------------------------------------
@@ -115,9 +113,7 @@ class TestHwCounterProbe:
     def test_probe_fails_on_pre_volta(self):
         """nvmlDeviceGetTotalEnergyConsumption raises => polling fallback."""
         fake_pynvml = _make_fake_pynvml(device_count=1)
-        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError(
-            "Not supported"
-        )
+        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError("Not supported")
 
         with patch.dict(sys.modules, {"pynvml": fake_pynvml}):
             import openjarvis.telemetry.energy_nvidia as mod
@@ -155,9 +151,7 @@ class TestEnergyMethod:
 
     def test_returns_polling_when_no_hw_counter(self):
         fake_pynvml = _make_fake_pynvml(device_count=1)
-        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError(
-            "Not supported"
-        )
+        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError("Not supported")
 
         with patch.dict(sys.modules, {"pynvml": fake_pynvml}):
             import openjarvis.telemetry.energy_nvidia as mod
@@ -212,9 +206,7 @@ class TestSampleHwCounters:
                     call_count["n"] += 1
                     return val
 
-                fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = (
-                    get_energy_sample
-                )
+                fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = get_energy_sample
 
                 with monitor.sample() as result:
                     time.sleep(0.05)
@@ -222,9 +214,7 @@ class TestSampleHwCounters:
                 # delta = 8000 - 5000 = 3000 mJ => 3.0 J
                 assert result.energy_joules == pytest.approx(3.0)
                 assert result.gpu_energy_joules == pytest.approx(3.0)
-                assert_sample_result_basics(
-                    result, vendor="nvidia", energy_method="hw_counter"
-                )
+                assert_sample_result_basics(result, vendor="nvidia", energy_method="hw_counter")
             finally:
                 mod._PYNVML_AVAILABLE = orig
 
@@ -239,9 +229,7 @@ class TestSamplePolling:
         """Fallback mode uses trapezoidal integration of power readings."""
         fake_pynvml = _make_fake_pynvml(device_count=1, power_mw=300_000)
         # Make hw counter probe fail => polling mode
-        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError(
-            "Not supported"
-        )
+        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = RuntimeError("Not supported")
 
         with patch.dict(sys.modules, {"pynvml": fake_pynvml}):
             import openjarvis.telemetry.energy_nvidia as mod
@@ -258,9 +246,7 @@ class TestSamplePolling:
 
                 # With constant 300W polling, energy should be > 0
                 assert result.energy_joules > 0
-                assert_sample_result_basics(
-                    result, vendor="nvidia", energy_method="polling"
-                )
+                assert_sample_result_basics(result, vendor="nvidia", energy_method="polling")
             finally:
                 mod._PYNVML_AVAILABLE = orig
 
@@ -287,9 +273,7 @@ class TestSampleMultiGpu:
             ]
         )
 
-        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = lambda h: next(
-            readings
-        )
+        fake_pynvml.nvmlDeviceGetTotalEnergyConsumption.side_effect = lambda h: next(readings)
 
         with patch.dict(sys.modules, {"pynvml": fake_pynvml}):
             import openjarvis.telemetry.energy_nvidia as mod

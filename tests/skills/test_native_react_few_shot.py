@@ -55,9 +55,7 @@ class TestReactSystemPromptPlaceholder:
         assert "Final Answer:" in rendered
 
     def test_format_with_non_empty_examples(self):
-        examples_block = (
-            "## Skill Examples\n\n### research-skill\nInput: q\nOutput: a\n\n"
-        )
+        examples_block = "## Skill Examples\n\n### research-skill\nInput: q\nOutput: a\n\n"
         rendered = REACT_SYSTEM_PROMPT.format(
             tool_descriptions="No tools available.",
             skill_examples=examples_block,

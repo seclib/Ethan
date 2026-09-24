@@ -67,9 +67,7 @@ class TestImportSkill:
             tool_translator=ToolTranslator(),
             target_root=target_root,
         )
-        resolved = _make_resolved(
-            tmp_path, body="First use the Bash tool, then Read the file."
-        )
+        resolved = _make_resolved(tmp_path, body="First use the Bash tool, then Read the file.")
         result = importer.import_skill(resolved)
 
         installed = target_root / "hermes" / "my-skill" / "SKILL.md"

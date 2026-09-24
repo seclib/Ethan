@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from core.registry.events import EventSchemaRegistry
 from core.ethan_types.event import Event, EventType
+from core.registry.events import EventSchemaRegistry
 
 
 class TestEventSchemaRegistry:
@@ -172,12 +172,20 @@ class TestEventSchemaRegistry:
         schema_registry.register_schema(
             event_type=event_type_str,
             version="1.0.0",
-            schema={"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+            schema={
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"],
+            },
         )
         schema_registry.register_schema(
             event_type=event_type_str,
             version="2.0.0",
-            schema={"type": "object", "properties": {"name": {"type": "string"}, "email": {"type": "string"}}, "required": ["name", "email"]},
+            schema={
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "email": {"type": "string"}},
+                "required": ["name", "email"],
+            },
         )
 
         event = Event(
@@ -214,6 +222,7 @@ class TestEventSchemaRegistry:
         )
 
         import pytest
+
         with pytest.raises(ValueError, match="No migration path"):
             schema_registry.migrate(event, "99.0.0")
 

@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Ensure project root on path for test execution
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -18,8 +18,8 @@ def test_interfaces_api_import():
 
 
 def test_interfaces_cli_import():
-    import interfaces.cli.main  # noqa: F401
     import interfaces.cli.commands.router  # noqa: F401
+    import interfaces.cli.main  # noqa: F401
 
 
 def test_bootstrap_import():

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from openjarvis.mcp.client import MCPClient
 from openjarvis.mcp.protocol import MCPError
 from openjarvis.mcp.server import MCPServer

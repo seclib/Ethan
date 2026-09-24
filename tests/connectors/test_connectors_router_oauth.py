@@ -82,9 +82,7 @@ def hermetic_connectors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path
 
     monkeypatch.setattr(config_mod, "DEFAULT_CONFIG_DIR", tmp_path)
     monkeypatch.setattr(oauth_mod, "_CONNECTORS_DIR", conn_dir)
-    monkeypatch.setattr(
-        oauth_mod, "_SHARED_GOOGLE_CREDENTIALS_PATH", str(conn_dir / "google.json")
-    )
+    monkeypatch.setattr(oauth_mod, "_SHARED_GOOGLE_CREDENTIALS_PATH", str(conn_dir / "google.json"))
 
     # Force the connector modules to re-derive their default paths from the
     # patched DEFAULT_CONFIG_DIR now, before any request, and register them so
@@ -138,9 +136,7 @@ def test_connect_client_pair_returns_oauth_required_no_browser(
     sibling connectors are fixed too (not just gdrive).
     """
     with patch("openjarvis.core.open_browser") as mock_browser:
-        resp = client.post(
-            f"/v1/connectors/{connector_id}/connect", json={"code": _CLIENT_PAIR}
-        )
+        resp = client.post(f"/v1/connectors/{connector_id}/connect", json={"code": _CLIENT_PAIR})
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -170,13 +166,9 @@ def test_connect_malformed_client_pair_raises_400(
     assert "CLIENT_ID:CLIENT_SECRET" in resp.json()["detail"]
 
 
-def test_connect_raw_token_still_handled(
-    client: TestClient, hermetic_connectors: Path
-) -> None:
+def test_connect_raw_token_still_handled(client: TestClient, hermetic_connectors: Path) -> None:
     """A raw token (not a client pair) still flows through handle_callback."""
-    resp = client.post(
-        "/v1/connectors/gdrive/connect", json={"token": "ya29.raw-access-token"}
-    )
+    resp = client.post("/v1/connectors/gdrive/connect", json={"token": "ya29.raw-access-token"})
     assert resp.status_code == 200, resp.text
     saved = json.loads((hermetic_connectors / "gdrive.json").read_text())
     assert saved.get("token") == "ya29.raw-access-token"

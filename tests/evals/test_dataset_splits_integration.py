@@ -67,8 +67,7 @@ def test_train_and_test_are_disjoint_per_provider(mod_name, cls_name):
     # or an upstream filter produced an empty slice, fail loudly.
     if total == 0:
         pytest.fail(
-            f"{cls_name} returned 0 records for both train and test — "
-            f"likely a gate regression"
+            f"{cls_name} returned 0 records for both train and test — likely a gate regression"
         )
     if total < 10:
         pytest.skip("dataset too small for a 20/80 split")

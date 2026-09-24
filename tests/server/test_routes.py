@@ -9,7 +9,6 @@ import pytest
 
 fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
-
 from openjarvis.server.app import create_app  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -428,9 +427,7 @@ class TestChatCompletions:
             "/v1/chat/completions",
             json={
                 "model": "test-model",
-                "messages": [
-                    {"role": "user", "content": "Weather in Paris? Use get_weather."}
-                ],
+                "messages": [{"role": "user", "content": "Weather in Paris? Use get_weather."}],
                 "tools": [
                     {
                         "type": "function",
@@ -517,9 +514,7 @@ def _make_capturing_engine(captured: list):
         for token in ["Hello", " ", "world"]:
             yield token
 
-    async def mock_stream_full(
-        messages, *, model, temperature=0.7, max_tokens=1024, **kw
-    ):
+    async def mock_stream_full(messages, *, model, temperature=0.7, max_tokens=1024, **kw):
         from openjarvis.engine._stubs import StreamChunk
 
         captured.append(messages)

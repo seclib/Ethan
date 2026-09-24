@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import click
 import pytest
-
 from openjarvis.evals.cli import BACKENDS, _build_backend
 
 

@@ -18,7 +18,6 @@ import socket
 from pathlib import Path
 
 import pytest
-
 from openjarvis.tools.storage.dense import (
     DenseMemory,
     MdChunk,
@@ -59,10 +58,7 @@ class TestChunkMarkdown:
         assert chunk_markdown("   \n\n  ") == []
 
     def test_single_section_without_splits(self):
-        md = (
-            "# Title\n\n"
-            "Some body paragraph with a few sentences. Enough to be a chunk."
-        )
+        md = "# Title\n\nSome body paragraph with a few sentences. Enough to be a chunk."
         chunks = chunk_markdown(md, source="t.md")
         assert len(chunks) == 1
         assert chunks[0].breadcrumb == "Title"
@@ -203,8 +199,7 @@ class TestDedupeChunks:
         chunks = [_mk(a, "a.md"), _mk(b, "b.md"), _mk(c, "c.md")]
         survivors, report = dedupe_chunks(chunks)
         assert len(survivors) == 1, (
-            f"got {len(survivors)} survivors — "
-            "expected single cluster from boilerplate"
+            f"got {len(survivors)} survivors — expected single cluster from boilerplate"
         )
         assert report.removed_count == 2
 
@@ -215,10 +210,7 @@ class TestDedupeChunks:
         chunks with the same body but different leading words (e.g.
         ``Downloads`` vs ``Installation``) would have lower Jaccard.
         """
-        body = (
-            "openjarvis runs entirely on your hardware no cloud needed "
-            "local first foundation"
-        )
+        body = "openjarvis runs entirely on your hardware no cloud needed local first foundation"
         chunks = [
             MdChunk(
                 content=f"Downloads\n\n{body}",
@@ -340,14 +332,13 @@ def test_paraphrase_matches_semantically(indexed_backend):
     facts we need (CPU-only, llama.cpp).
     """
     results = indexed_backend.retrieve(
-        "can I run this on a laptop without a gpu?", top_k=3,
+        "can I run this on a laptop without a gpu?",
+        top_k=3,
     )
     assert results, "expected at least one hit"
     # Top-3 should all be from the topical docs (engines.md or hardware.md)
     topical = {r.source for r in results[:3]}
-    assert topical <= {"engines.md", "hardware.md"}, (
-        f"off-topic sources in top-3: {topical}"
-    )
+    assert topical <= {"engines.md", "hardware.md"}, f"off-topic sources in top-3: {topical}"
     top_lc = results[0].content.lower()
     assert "llama.cpp" in top_lc or "cpu" in top_lc
 
@@ -356,7 +347,8 @@ def test_paraphrase_matches_semantically(indexed_backend):
 def test_engine_query_finds_engines_doc(indexed_backend):
     """Semantic query about inference engines should find engines.md."""
     results = indexed_backend.retrieve(
-        "which backend is best for high throughput serving?", top_k=3,
+        "which backend is best for high throughput serving?",
+        top_k=3,
     )
     assert results
     assert results[0].source == "engines.md"

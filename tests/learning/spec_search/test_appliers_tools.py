@@ -16,9 +16,7 @@ from openjarvis.learning.spec_search.models import (
 def _make_ctx(tmp_path: Path) -> ApplyContext:
     tools_dir = tmp_path / "tools"
     tools_dir.mkdir(parents=True)
-    (tools_dir / "descriptions.toml").write_text(
-        '[web_search]\ndescription = "Search the web"\n'
-    )
+    (tools_dir / "descriptions.toml").write_text('[web_search]\ndescription = "Search the web"\n')
     (tmp_path / "config.toml").write_text('[agent.simple]\ntools = ["web_search"]\n')
     return ApplyContext(openjarvis_home=tmp_path, session_id="s1")
 

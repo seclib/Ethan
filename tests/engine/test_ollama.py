@@ -7,7 +7,6 @@ import json
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -34,9 +33,7 @@ class TestOllamaGenerate:
                     },
                 )
             )
-            result = engine.generate(
-                [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-            )
+            result = engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
         assert result["content"] == "Hello!"
         assert result["usage"]["prompt_tokens"] == 10
         assert result["usage"]["completion_tokens"] == 5
@@ -48,9 +45,7 @@ class TestOllamaGenerate:
                 side_effect=httpx.ConnectError("refused")
             )
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
 
 
 class TestOllamaListModels:

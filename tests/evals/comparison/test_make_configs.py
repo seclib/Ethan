@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 import tomllib
-
 from openjarvis.evals.comparison.make_configs import (
     BENCHMARKS,  # noqa: F401  (verify export)
     FRAMEWORKS,  # noqa: F401  (verify export)

@@ -12,7 +12,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from click.testing import CliRunner
-
 from openjarvis.evals.cli import main as cli_main
 from openjarvis.evals.core.runner import EvalRunner, _extract_continuous_score
 from openjarvis.evals.core.types import EvalRecord, RunConfig
@@ -34,11 +33,13 @@ def _make_dataset(records):
 
 def _make_backend(content="answer"):
     backend = MagicMock()
-    backend.generate_full = MagicMock(return_value={
-        "content": content,
-        "usage": {"prompt_tokens": 5, "completion_tokens": 3},
-        "latency_seconds": 0.1,
-    })
+    backend.generate_full = MagicMock(
+        return_value={
+            "content": content,
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+            "latency_seconds": 0.1,
+        }
+    )
     return backend
 
 
@@ -63,8 +64,7 @@ class _ContinuousScorer:
 def test_continuous_score_fields_present_in_summary(tmp_path):
     """End-to-end: runner exposes the continuous-score family in summary.json."""
     records = [
-        EvalRecord(record_id=f"r{i}", problem="q", reference="a", category="chat")
-        for i in range(5)
+        EvalRecord(record_id=f"r{i}", problem="q", reference="a", category="chat") for i in range(5)
     ]
     dataset = _make_dataset(records)
     backend = _make_backend()
@@ -131,6 +131,7 @@ limited original perspectives."
 
 MULTILINE_RAW = MULTILINE_RAW_PART1 + MULTILINE_RAW_PART2
 
+
 def test_judge_parser_handles_multiline_notes():
     """Multi-line notes strings (invalid JSON) are still recoverable."""
     parsed = _parse_judge_response(MULTILINE_RAW)
@@ -151,8 +152,17 @@ def test_safe_json_loads_strict_first():
 def test_escape_newlines_only_inside_strings():
     """Newlines outside string spans are preserved (structure-preserving)."""
     txt = (
-        chr(123) + "\n  " + chr(34) + "a" + chr(34) + ": "
-        + chr(34) + "x\ny" + chr(34) + "\n" + chr(125)
+        chr(123)
+        + "\n  "
+        + chr(34)
+        + "a"
+        + chr(34)
+        + ": "
+        + chr(34)
+        + "x\ny"
+        + chr(34)
+        + "\n"
+        + chr(125)
     )
     out = _escape_newlines_inside_strings(txt)
     assert out.startswith(chr(123) + "\n")
@@ -276,5 +286,3 @@ def test_extract_continuous_score_clamps_out_of_range():
 def test_rescore_from_metadata_returns_none_when_unparseable():
     assert rescore_from_metadata({"raw_judge_output": "totally not json"}) is None
     assert rescore_from_metadata({}) is None
-
-

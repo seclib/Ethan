@@ -1,11 +1,12 @@
 """API validator — validate API responses against schemas."""
+
 from dataclasses import dataclass
-from typing import Any, Optional
 
 
 @dataclass
 class APISchema:
     """Schema definition for API response."""
+
     endpoint: str
     method: str
     expected_keys: list[str]
@@ -16,6 +17,7 @@ class APISchema:
 @dataclass
 class ValidationResult:
     """Result of schema validation."""
+
     valid: bool
     errors: list[str]
 
@@ -90,9 +92,7 @@ class APIResponseValidator:
         for key, expected_type in schema.expected_types.items():
             if key in response and not isinstance(response[key], expected_type):
                 actual_type = type(response[key]).__name__
-                errors.append(
-                    f"Key '{key}': expected {expected_type.__name__}, got {actual_type}"
-                )
+                errors.append(f"Key '{key}': expected {expected_type.__name__}, got {actual_type}")
 
         return ValidationResult(
             valid=len(errors) == 0,

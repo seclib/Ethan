@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.config import JarvisConfig
 from openjarvis.core.events import EventBus
 from openjarvis.core.types import Role
@@ -37,13 +36,9 @@ class TestWireChannelHistory:
         minimal_system.session_store = store
 
         session_key = "telegram:chat123"
-        session = store.get_or_create(
-            session_key, channel="telegram", channel_user_id="u1"
-        )
+        session = store.get_or_create(session_key, channel="telegram", channel_user_id="u1")
         store.save_message(session.session_id, "user", "hello", channel="telegram")
-        store.save_message(
-            session.session_id, "assistant", "hi there", channel="telegram"
-        )
+        store.save_message(session.session_id, "assistant", "hi there", channel="telegram")
 
         captured: list = []
 

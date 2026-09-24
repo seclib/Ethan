@@ -5,7 +5,6 @@ from __future__ import annotations
 import subprocess
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -37,9 +36,7 @@ def test_pearl_doctor_reports_discovered_binaries(monkeypatch) -> None:
 def test_pearl_node_passes_args_to_pearld(monkeypatch) -> None:
     calls: list[tuple[str, tuple[str, ...], str | None]] = []
 
-    def fake_run(
-        name: str, args: tuple[str, ...], pearl_home: str | None = None
-    ) -> int:
+    def fake_run(name: str, args: tuple[str, ...], pearl_home: str | None = None) -> int:
         calls.append((name, args, pearl_home))
         return 7
 
@@ -57,9 +54,7 @@ def test_pearl_node_passes_args_to_pearld(monkeypatch) -> None:
 def test_pearl_ctl_passes_args_to_prlctl(monkeypatch) -> None:
     calls: list[tuple[str, tuple[str, ...], str | None]] = []
 
-    def fake_run(
-        name: str, args: tuple[str, ...], pearl_home: str | None = None
-    ) -> int:
+    def fake_run(name: str, args: tuple[str, ...], pearl_home: str | None = None) -> int:
         calls.append((name, args, pearl_home))
         return 0
 
@@ -71,9 +66,7 @@ def test_pearl_ctl_passes_args_to_prlctl(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert calls == [
-        ("prlctl", ("--wallet", "--notls", "-s", "localhost:44207", "help"), None)
-    ]
+    assert calls == [("prlctl", ("--wallet", "--notls", "-s", "localhost:44207", "help"), None)]
 
 
 def test_pearl_address_uses_wallet_rpc(monkeypatch) -> None:

@@ -57,9 +57,7 @@ class TestNoScheduler:
     def test_schedule_task_no_scheduler(self):
         tool = ScheduleTaskTool()
         tool._scheduler = None
-        result = tool.execute(
-            prompt="hello", schedule_type="once", schedule_value="2026-01-01"
-        )
+        result = tool.execute(prompt="hello", schedule_type="once", schedule_value="2026-01-01")
         assert not result.success
         assert "not available" in result.content
 
@@ -113,9 +111,7 @@ class TestWithScheduler:
     def test_list_scheduled_tasks(self):
         mock_sched = MagicMock()
         mock_sched.list_tasks.return_value = [
-            ScheduledTask(
-                id="t1", prompt="a", schedule_type="interval", schedule_value="60"
-            ),
+            ScheduledTask(id="t1", prompt="a", schedule_type="interval", schedule_value="60"),
         ]
         tool = ListScheduledTasksTool()
         tool._scheduler = mock_sched

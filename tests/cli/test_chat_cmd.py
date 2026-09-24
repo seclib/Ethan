@@ -6,7 +6,6 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
-
 from openjarvis.agents._stubs import (
     AgentContext,
     AgentResult,
@@ -50,9 +49,7 @@ class _ToolChatAgent(ToolUsingAgent):
     agent_id = "tool_chat_agent"
 
     def run(self, input, context: AgentContext | None = None, **kwargs):
-        result = self._executor.execute(
-            ToolCall(id="chat", name="dangerous_chat", arguments="{}")
-        )
+        result = self._executor.execute(ToolCall(id="chat", name="dangerous_chat", arguments="{}"))
         return AgentResult(content=result.content, tool_results=[result], turns=1)
 
 

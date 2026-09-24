@@ -64,9 +64,7 @@ def test_scheduler_tracks_tick_count_for_learning(tmp_path):
         scheduler._on_tick_completed(agent["id"])
 
     # Should have triggered learning
-    learning_events = [
-        e for e in bus.history if e.event_type == EventType.AGENT_LEARNING_STARTED
-    ]
+    learning_events = [e for e in bus.history if e.event_type == EventType.AGENT_LEARNING_STARTED]
     assert len(learning_events) == 1
     assert learning_events[0].data["agent_id"] == agent["id"]
 
@@ -98,8 +96,6 @@ def test_scheduler_no_learning_when_disabled(tmp_path):
     for _ in range(5):
         scheduler._on_tick_completed(agent["id"])
 
-    learning_events = [
-        e for e in bus.history if e.event_type == EventType.AGENT_LEARNING_STARTED
-    ]
+    learning_events = [e for e in bus.history if e.event_type == EventType.AGENT_LEARNING_STARTED]
     assert len(learning_events) == 0
     mgr.close()

@@ -45,18 +45,14 @@ def test_handles_missing_state_dir(tmp_path: Path, monkeypatch) -> None:
     """When ~/.openjarvis doesn't exist at all, route to init."""
     fresh_home = tmp_path / "fresh"
     monkeypatch.setattr("openjarvis.core.config.DEFAULT_CONFIG_DIR", fresh_home)
-    monkeypatch.setattr(
-        "openjarvis.core.config.DEFAULT_CONFIG_PATH", fresh_home / "config.toml"
-    )
+    monkeypatch.setattr("openjarvis.core.config.DEFAULT_CONFIG_PATH", fresh_home / "config.toml")
     ctx = _ctx_with_invocation(None)
     _first_run.check_and_route(ctx)
     invoked_cmd = ctx.invoke.call_args[0][0]
     assert invoked_cmd.name == "init"
 
 
-def test_root_group_invokes_guard_on_bare_jarvis(
-    tmp_openjarvis_home: Path, monkeypatch
-) -> None:
+def test_root_group_invokes_guard_on_bare_jarvis(tmp_openjarvis_home: Path, monkeypatch) -> None:
     """End-to-end: bare `jarvis` invocation calls the first-run guard.
 
     We monkeypatch check_and_route to a recorder so we can verify it was

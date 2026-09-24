@@ -36,10 +36,7 @@ class TestTimeoutConfigPlumbing:
         path = _write(
             tmp_path,
             BASE.format(
-                run_extra=(
-                    "global_agent_timeout_sec = 1200\n"
-                    "    global_timeout_multiplier = 1.5"
-                ),
+                run_extra=("global_agent_timeout_sec = 1200\n    global_timeout_multiplier = 1.5"),
                 bench_extra="",
             ),
         )

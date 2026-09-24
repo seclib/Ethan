@@ -87,9 +87,7 @@ def test_reconcile_detects_stalled_agent(tmp_path):
     updated = mgr.get_agent(agent["id"])
     assert updated["stall_retries"] == 1
 
-    stall_events = [
-        e for e in bus.history if e.event_type == EventType.AGENT_STALL_DETECTED
-    ]
+    stall_events = [e for e in bus.history if e.event_type == EventType.AGENT_STALL_DETECTED]
     assert len(stall_events) == 1
     mgr.close()
 

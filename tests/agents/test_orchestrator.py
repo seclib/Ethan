@@ -87,9 +87,7 @@ def _make_engine_with_tool_call(
         # First call: tool call
         {
             "content": "",
-            "tool_calls": [
-                {"id": tool_call_id, "name": tool_name, "arguments": arguments}
-            ],
+            "tool_calls": [{"id": tool_call_id, "name": tool_name, "arguments": arguments}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
             "model": "test-model",
             "finish_reason": "tool_calls",
@@ -220,9 +218,7 @@ class TestOrchestratorAgent:
         engine.engine_id = "mock"
         engine.generate.return_value = {
             "content": "",
-            "tool_calls": [
-                {"id": "c1", "name": "calculator", "arguments": '{"expression":"1+1"}'}
-            ],
+            "tool_calls": [{"id": "c1", "name": "calculator", "arguments": '{"expression":"1+1"}'}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
             "model": "test-model",
             "finish_reason": "tool_calls",
@@ -424,9 +420,7 @@ class TestOrchestratorAgent:
         engine.engine_id = "mock"
         engine.generate.return_value = {
             "content": "",
-            "tool_calls": [
-                {"id": "c1", "name": "calculator", "arguments": '{"expression":"1"}'}
-            ],
+            "tool_calls": [{"id": "c1", "name": "calculator", "arguments": '{"expression":"1"}'}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
             "model": "test-model",
             "finish_reason": "tool_calls",
@@ -455,9 +449,7 @@ class TestOrchestratorAgent:
         engine.engine_id = "mock"
         engine.generate.return_value = {
             "content": "partial",
-            "tool_calls": [
-                {"id": "c1", "name": "calculator", "arguments": '{"expression":"1"}'}
-            ],
+            "tool_calls": [{"id": "c1", "name": "calculator", "arguments": '{"expression":"1"}'}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
             "model": "test-model",
             "finish_reason": "tool_calls",
@@ -503,9 +495,7 @@ class TestOrchestratorStructuredMode:
         engine.generate.side_effect = [
             {
                 "content": (
-                    "THOUGHT: Need to calculate.\n"
-                    "TOOL: calculator\n"
-                    'INPUT: {"expression":"2+2"}'
+                    'THOUGHT: Need to calculate.\nTOOL: calculator\nINPUT: {"expression":"2+2"}'
                 ),
                 "usage": {
                     "prompt_tokens": 10,

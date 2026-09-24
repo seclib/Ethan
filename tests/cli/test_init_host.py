@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.config import generate_default_toml, generate_minimal_toml
 
@@ -94,9 +93,7 @@ class TestGenerateTomlHost:
         from openjarvis.core.config import HardwareInfo
 
         hw = HardwareInfo()
-        toml_str = generate_minimal_toml(
-            hw, engine="ollama", host="http://remote:11434"
-        )
+        toml_str = generate_minimal_toml(hw, engine="ollama", host="http://remote:11434")
         assert "http://remote:11434" in toml_str
         assert "[engine.ollama]" in toml_str
 
@@ -111,7 +108,5 @@ class TestGenerateTomlHost:
         from openjarvis.core.config import HardwareInfo
 
         hw = HardwareInfo()
-        toml_str = generate_default_toml(
-            hw, engine="ollama", host="http://remote:11434"
-        )
+        toml_str = generate_default_toml(hw, engine="ollama", host="http://remote:11434")
         assert "http://remote:11434" in toml_str

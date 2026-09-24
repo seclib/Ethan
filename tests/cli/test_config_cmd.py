@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 
@@ -70,9 +69,7 @@ max_turns = 5
 """
         )
 
-        result = CliRunner().invoke(
-            cli, ["config", "show", "loaded", "--path", str(config_file)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "loaded", "--path", str(config_file)])
 
         assert result.exit_code == 0
         assert "ollama" in result.output
@@ -115,9 +112,7 @@ temperature = 0.7
         config_file = tmp_path / "test_config.toml"
         config_file.write_text('[engine]\ndefault = "ollama"\n')
 
-        result = CliRunner().invoke(
-            cli, ["config", "show", "toml", "--path", str(config_file)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "toml", "--path", str(config_file)])
 
         assert result.exit_code == 0
         assert "[engine]" in result.output
@@ -129,9 +124,7 @@ temperature = 0.7
         config_file = tmp_path / "test_config.toml"
         config_file.write_text('[engine]\ndefault = "ollama"\n')
 
-        result = CliRunner().invoke(
-            cli, ["config", "show", "json", "--path", str(config_file)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "json", "--path", str(config_file)])
 
         assert result.exit_code == 0
         # The output should be valid JSON (may have prefix lines)
@@ -168,9 +161,7 @@ temperature = 0.7
         # Create a path for a non-existent config file
         config_file = tmp_path / "nonexistent_config.toml"
 
-        result = CliRunner().invoke(
-            cli, ["config", "show", "toml", "--path", str(config_file)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "toml", "--path", str(config_file)])
 
         # Should exit 0 and show a message about missing config
         assert result.exit_code == 0
@@ -183,15 +174,11 @@ temperature = 0.7
         custom_config.write_text('[engine]\ndefault = "custom-engine"\n')
 
         # Test various subcommands with custom path
-        result = CliRunner().invoke(
-            cli, ["config", "show", "toml", "--path", str(custom_config)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "toml", "--path", str(custom_config)])
         assert result.exit_code == 0
         assert "custom-engine" in result.output
 
-        result = CliRunner().invoke(
-            cli, ["config", "show", "json", "--path", str(custom_config)]
-        )
+        result = CliRunner().invoke(cli, ["config", "show", "json", "--path", str(custom_config)])
         assert result.exit_code == 0
         assert "custom-engine" in result.output
 

@@ -1,10 +1,10 @@
 """Snapshot engine — capture CLI outputs as golden files."""
+
 import hashlib
 import json
 import re
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 
 class SnapshotEngine:
@@ -62,9 +62,7 @@ class SnapshotEngine:
             "<SESSION_ID>",
             output,
         )
-        output = re.sub(
-            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", "<TIMESTAMP>", output
-        )
+        output = re.sub(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", "<TIMESTAMP>", output)
         # Normalize trailing whitespace
         output = "\n".join(line.rstrip() for line in output.split("\n"))
         return output.strip()
@@ -72,10 +70,10 @@ class SnapshotEngine:
     def _format_snapshot(self, **kwargs) -> str:
         """Format snapshot with metadata header."""
         header = f"""# SNAPSHOT
-# Command: {kwargs['command']} {' '.join(kwargs['argv'])}
-# Exit code: {kwargs['exit_code']}
+# Command: {kwargs["command"]} {" ".join(kwargs["argv"])}
+# Exit code: {kwargs["exit_code"]}
 # Captured: <TIMESTAMP>
-# Meta: {json.dumps(kwargs.get('metadata', {}))}
+# Meta: {json.dumps(kwargs.get("metadata", {}))}
 # ===
 
 """

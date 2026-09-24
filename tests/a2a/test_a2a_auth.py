@@ -34,9 +34,7 @@ def test_wrong_token_rejected():
 
 
 def test_correct_token_accepted_and_dispatched():
-    server = A2AServer(
-        AgentCard(name="x"), handler=lambda t: f"echo:{t}", auth_token="sek"
-    )
+    server = A2AServer(AgentCard(name="x"), handler=lambda t: f"echo:{t}", auth_token="sek")
     resp = server.handle_request(_request(), token="sek")
     assert resp.get("error") is None
 

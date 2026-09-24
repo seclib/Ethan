@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.plugins import (
     BUILTIN_PLUGINS,
     PluginRegistry,
@@ -165,28 +164,23 @@ def test_persistence_registre_recharge(registry):
 
 # ── Routage conversation → plugins (resolve_conversation_tools) ────────
 
+
 def test_conversation_tools_injecte_plugins_actifs(registry):
     asyncio.run(registry.install("web-search"))
     asyncio.run(registry.enable("web-search"))
-    accepted, tools = asyncio.run(
-        resolve_conversation_tools(registry, ["web-search"], None)
-    )
+    accepted, tools = asyncio.run(resolve_conversation_tools(registry, ["web-search"], None))
     assert accepted == ["web-search"]
     assert "builtin_web_search" in tools  # tool référencé injecté
 
 
 def test_conversation_tools_ignore_inactifs_et_inconnus(registry):
     # jamais installé → disponible → ignoré
-    accepted, tools = asyncio.run(
-        resolve_conversation_tools(registry, ["github", "ghost"], None)
-    )
+    accepted, tools = asyncio.run(resolve_conversation_tools(registry, ["github", "ghost"], None))
     assert accepted == []
     assert tools == []
     # installé mais inactif → ignoré
     asyncio.run(registry.install("github"))
-    accepted, tools = asyncio.run(
-        resolve_conversation_tools(registry, ["github"], ["existing"])
-    )
+    accepted, tools = asyncio.run(resolve_conversation_tools(registry, ["github"], ["existing"]))
     assert accepted == []
     assert tools == ["existing"]
 
@@ -212,6 +206,7 @@ def test_conversation_tools_inactive_apres_disable(registry):
 
 
 # ── Cycle de vie complet : uninstall / update ─────────────────────────────
+
 
 def test_uninstall_deux_niveaux(registry):
     """Uninstall conserve la configuration ; Uninstall+data la supprime.

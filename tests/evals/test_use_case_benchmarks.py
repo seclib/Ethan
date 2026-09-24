@@ -443,9 +443,7 @@ class TestSavings:
         # FLOPs = 2*P*T (linear), so 10x tokens => 10x FLOPs => 10x energy
         for p1, p10 in zip(s1.per_provider, s10.per_provider):
             ratio = p10.energy_wh / p1.energy_wh
-            assert 9 < ratio < 11, (
-                f"{p1.provider}: energy ratio {ratio:.1f}, expected ~10"
-            )
+            assert 9 < ratio < 11, f"{p1.provider}: energy ratio {ratio:.1f}, expected ~10"
 
     def test_energy_wh_matches_direct_formula(self) -> None:
         """Energy must equal flops * wh_per_flop for known constants.

@@ -6,11 +6,11 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.channels._stubs import ChannelStatus
 from openjarvis.channels.telegram import TelegramChannel
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import ChannelRegistry
+
 from tests.channels.channel_test_helpers import make_common_channel_tests
 
 
@@ -175,9 +175,7 @@ class TestAllowedChatIds:
         )
         # Directly exercise the allow-list logic (mirrors _handle_msg body)
         if ch._allowed_chat_ids:
-            _allowed = {
-                cid.strip() for cid in ch._allowed_chat_ids.split(",") if cid.strip()
-            }
+            _allowed = {cid.strip() for cid in ch._allowed_chat_ids.split(",") if cid.strip()}
             if cm.conversation_id not in _allowed:
                 return False  # would return inside _handle_msg
         for handler in ch._handlers:

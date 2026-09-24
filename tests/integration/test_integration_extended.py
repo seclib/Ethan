@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.agents._stubs import AgentContext, AgentResult
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.registry import AgentRegistry, ToolRegistry
@@ -116,9 +115,7 @@ class TestReActPipeline:
                 "Action: think\n"
                 'Action Input: {"thought":"Step 1: analyze"}'
             ),
-            _simple_response(
-                "Thought: I have my analysis.\nFinal Answer: The answer is clear."
-            ),
+            _simple_response("Thought: I have my analysis.\nFinal Answer: The answer is clear."),
         ]
         engine = _make_engine(responses)
         agent = NativeReActAgent(
@@ -135,9 +132,7 @@ class TestReActPipeline:
         _register_all()
         from openjarvis.agents.native_react import NativeReActAgent
 
-        engine = _make_engine(
-            _simple_response("Thought: This is simple.\nFinal Answer: Hello!")
-        )
+        engine = _make_engine(_simple_response("Thought: This is simple.\nFinal Answer: Hello!"))
         agent = NativeReActAgent(engine, "test-model")
         result = agent.run("Say hello")
         assert result.content == "Hello!"
@@ -363,9 +358,7 @@ class TestCrossEngineConsistency:
         for engine_name in ["vllm", "ollama"]:
             responses = [
                 _simple_response(
-                    "Thought: calc.\n"
-                    "Action: calculator\n"
-                    'Action Input: {"expression":"3*3"}'
+                    'Thought: calc.\nAction: calculator\nAction Input: {"expression":"3*3"}'
                 ),
                 _simple_response("Thought: got 9.\nFinal Answer: 9"),
             ]
@@ -531,9 +524,7 @@ class TestAgentRoutingMatrix:
         from openjarvis.agents.native_react import NativeReActAgent
 
         engine = _make_engine(
-            _simple_response(
-                "Thought: I see the system message.\nFinal Answer: Got context."
-            )
+            _simple_response("Thought: I see the system message.\nFinal Answer: Got context.")
         )
         conv = Conversation()
         conv.add(

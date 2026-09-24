@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 
 import pytest
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine.cloud import CloudEngine

@@ -1,14 +1,16 @@
 """Benchmark runner — core benchmarking engine."""
+
+import statistics
 import time
 import tracemalloc
-import statistics
 from dataclasses import dataclass, field
-from typing import List, Callable, Dict, Any, Optional
+from typing import Any, Callable, Dict, List
 
 
 @dataclass
 class BenchmarkResult:
     """Result of a single benchmark run."""
+
     name: str
     execution_time_ms: float
     memory_rss_mb: float
@@ -20,6 +22,7 @@ class BenchmarkResult:
 @dataclass
 class BenchmarkSummary:
     """Aggregated benchmark statistics."""
+
     name: str
     iterations: int
     mean_ms: float
@@ -38,22 +41,12 @@ class BenchmarkSummary:
 class BenchmarkRunner:
     """Execute benchmarks with precision timing."""
 
-    def __init__(
-        self,
-        warmup_iterations: int = 3,
-        benchmark_iterations: int = 100
-    ):
+    def __init__(self, warmup_iterations: int = 3, benchmark_iterations: int = 100):
         self.warmup_iterations = warmup_iterations
         self.benchmark_iterations = benchmark_iterations
         self.results: List[BenchmarkResult] = []
 
-    def measure(
-        self,
-        name: str,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> BenchmarkSummary:
+    def measure(self, name: str, func: Callable, *args, **kwargs) -> BenchmarkSummary:
         """Run benchmark with warmup and multiple iterations.
 
         Args:
@@ -79,7 +72,7 @@ class BenchmarkRunner:
             t0 = time.perf_counter()
 
             try:
-                result = func(*args, **kwargs)
+                func(*args, **kwargs)
                 success = True
             except Exception:
                 success = False
@@ -88,13 +81,15 @@ class BenchmarkRunner:
                 current, peak = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
 
-            self.results.append(BenchmarkResult(
-                name=name,
-                execution_time_ms=(t1 - t0) * 1000,
-                memory_rss_mb=peak / 1024 / 1024,
-                memory_heap_mb=current / 1024 / 1024,
-                success=success,
-            ))
+            self.results.append(
+                BenchmarkResult(
+                    name=name,
+                    execution_time_ms=(t1 - t0) * 1000,
+                    memory_rss_mb=peak / 1024 / 1024,
+                    memory_heap_mb=current / 1024 / 1024,
+                    success=success,
+                )
+            )
 
         return self._summarize(name)
 

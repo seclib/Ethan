@@ -27,9 +27,7 @@ def test_messages_to_dicts_omits_images_for_text() -> None:
 
 def test_messages_to_dicts_forwards_images() -> None:
     b64 = "aGVsbG8="  # "hello"
-    dicts = messages_to_dicts(
-        [Message(role=Role.USER, content="what is this?", images=[b64])]
-    )
+    dicts = messages_to_dicts([Message(role=Role.USER, content="what is this?", images=[b64])])
     assert dicts[0]["role"] == "user"
     assert dicts[0]["content"] == "what is this?"
     assert dicts[0]["images"] == [b64]

@@ -1,7 +1,6 @@
 """Tests for the JSON Schema generator (core/config/jsonschema.py)."""
 
 import pytest
-
 from core.config.jsonschema import config_to_json_schema, get_domains
 
 
@@ -66,7 +65,7 @@ def test_nested_dataclass_schema():
 
 def test_config_router_schema_routes():
     """Les routes /config/schema existent dans le router FastAPI."""
-    fastapi = pytest.importorskip("fastapi")
+    pytest.importorskip("fastapi")
     from interfaces.api.routers.config import router
 
     paths = {route.path for route in router.routes}
@@ -76,8 +75,6 @@ def test_config_router_schema_routes():
     # Les routes /schema doivent être déclarées avant /{domain}
     # pour ne pas être capturées par le routeur générique.
     route_order = [
-        route.path
-        for route in router.routes
-        if getattr(route, "path", "").startswith("/config")
+        route.path for route in router.routes if getattr(route, "path", "").startswith("/config")
     ]
     assert route_order.index("/config/schema") < route_order.index("/config/{domain}")

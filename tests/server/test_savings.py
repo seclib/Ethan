@@ -45,9 +45,7 @@ class TestPromptTokensEvaluatedFallback:
 
         # The fallback path should NOT silently use the inflated
         # prompt_tokens sum as the FLOPs denominator.
-        for missing_p, known_p in zip(
-            without_evaluated.per_provider, with_evaluated.per_provider
-        ):
+        for missing_p, known_p in zip(without_evaluated.per_provider, with_evaluated.per_provider):
             assert missing_p.flops <= known_p.flops + 1, (
                 f"Fallback inflated FLOPs for {missing_p.provider}: "
                 f"missing_evaluated={missing_p.flops}, "

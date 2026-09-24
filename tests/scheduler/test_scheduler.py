@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.scheduler.scheduler import ScheduledTask, TaskScheduler
 from openjarvis.scheduler.store import SchedulerStore
 
@@ -151,9 +150,7 @@ class TestPauseResumeCancel:
 
 class TestComputeNextRun:
     def test_interval(self, scheduler):
-        task = ScheduledTask(
-            id="t", prompt="p", schedule_type="interval", schedule_value="300"
-        )
+        task = ScheduledTask(id="t", prompt="p", schedule_type="interval", schedule_value="300")
         next_run = scheduler._compute_next_run(task)
         assert next_run is not None
         # Should be roughly 300 seconds from now
@@ -195,9 +192,7 @@ class TestComputeNextRun:
         assert next_run is not None
 
     def test_unknown_type(self, scheduler):
-        task = ScheduledTask(
-            id="t", prompt="p", schedule_type="unknown", schedule_value="x"
-        )
+        task = ScheduledTask(id="t", prompt="p", schedule_type="unknown", schedule_value="x")
         assert scheduler._compute_next_run(task) is None
 
 

@@ -1,9 +1,6 @@
 """Tests for cli/core/streaming.py — streaming output."""
+
 from __future__ import annotations
-
-from unittest import mock
-
-import pytest
 
 
 class TestStreamer:
@@ -11,12 +8,14 @@ class TestStreamer:
 
     def test_streamer_init(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         assert streamer.text == ""
         assert not streamer._cancelled
 
     def test_streamer_start(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start("Thinking...")
         assert "Thinking..." in streamer.text
@@ -24,6 +23,7 @@ class TestStreamer:
 
     def test_streamer_write(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start()
         streamer.write("Hello")
@@ -32,6 +32,7 @@ class TestStreamer:
 
     def test_streamer_write_multiple(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start()
         streamer.write("Hello ")
@@ -41,12 +42,14 @@ class TestStreamer:
 
     def test_streamer_done(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start("test")
         streamer.done()
 
     def test_streamer_cancel(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start("test")
         streamer.cancel()
@@ -54,6 +57,7 @@ class TestStreamer:
 
     def test_streamer_write_after_cancel(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start()
         streamer.cancel()
@@ -63,12 +67,14 @@ class TestStreamer:
 
     def test_streamer_fallback(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start("test")
         streamer.fallback("Something went wrong")
 
     def test_streamer_start_time_recorded(self) -> None:
         from cli.core.streaming import Streamer
+
         streamer = Streamer()
         streamer.start()
         assert streamer._start_time > 0

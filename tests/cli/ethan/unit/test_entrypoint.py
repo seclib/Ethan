@@ -1,9 +1,6 @@
 """Tests for cli/ethan — entrypoint script."""
+
 from __future__ import annotations
-
-from unittest import mock
-
-import pytest
 
 
 def test_help_command_registered() -> None:
@@ -40,6 +37,7 @@ def test_version_command_output() -> None:
 def test_discover_commands_does_not_crash() -> None:
     """Ensuring discover_commands is called without error."""
     import cli.registry as reg
+
     reg.discover_commands()
 
 
@@ -59,7 +57,6 @@ def test_unknown_command_falls_back_to_run(monkeypatch) -> None:
 
 def test_help_on_empty_argv() -> None:
     """When argv is empty, --help or -h should map to help."""
-    import cli.registry as reg
 
     # Simulate entrypoint logic
     argv = []
@@ -70,7 +67,6 @@ def test_help_on_empty_argv() -> None:
 
 def test_help_flag_maps_to_help() -> None:
     """--help flag should dispatch to help."""
-    import cli.registry as reg
 
     for flag in ("-h", "--help"):
         argv = [flag]
@@ -81,7 +77,7 @@ def test_help_flag_maps_to_help() -> None:
 
 def test_dispatch_through_ethan_main() -> None:
     """Simulate the full __main__ flow."""
-    from cli.registry import COMMAND_HANDLERS, register, dispatch
+    from cli.registry import dispatch, register
 
     results = []
 

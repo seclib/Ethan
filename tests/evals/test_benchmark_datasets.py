@@ -341,7 +341,6 @@ class TestCLIFactories:
 
     def test_build_dataset_unknown(self) -> None:
         import click
-
         from openjarvis.evals.cli import _build_dataset
 
         with pytest.raises(click.ClickException, match="Unknown benchmark"):
@@ -349,7 +348,6 @@ class TestCLIFactories:
 
     def test_build_scorer_unknown(self) -> None:
         import click
-
         from openjarvis.evals.cli import _build_scorer
 
         with pytest.raises(click.ClickException, match="Unknown benchmark"):

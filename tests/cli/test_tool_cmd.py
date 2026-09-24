@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 from openjarvis.core.registry import ToolRegistry
 
@@ -79,11 +78,7 @@ class TestToolCmd:
         assert result.exit_code == 0
         # Should either show tools or indicate no tools are registered
         output = result.output
-        assert (
-            "Registered Tools" in output
-            or "No tools registered" in output
-            or "Total:" in output
-        )
+        assert "Registered Tools" in output or "No tools registered" in output or "Total:" in output
 
     def test_tool_list_handles_instantiation_error(self) -> None:
         """Test that tool list handles tool instantiation errors gracefully."""
@@ -127,9 +122,7 @@ class TestToolCmd:
         from unittest.mock import patch
 
         # Mock ToolRegistry.keys to raise an exception
-        with patch.object(
-            ToolRegistry, "keys", side_effect=Exception("Registry error")
-        ):
+        with patch.object(ToolRegistry, "keys", side_effect=Exception("Registry error")):
             result = CliRunner().invoke(cli, ["tool", "list"])
             assert result.exit_code == 0
             # Should catch exception and display error message
@@ -140,9 +133,7 @@ class TestToolCmd:
         from unittest.mock import patch
 
         # Mock ToolRegistry.contains to raise an exception
-        with patch.object(
-            ToolRegistry, "contains", side_effect=Exception("Registry error")
-        ):
+        with patch.object(ToolRegistry, "contains", side_effect=Exception("Registry error")):
             result = CliRunner().invoke(cli, ["tool", "inspect", "mock_tool"])
             assert result.exit_code == 0
             # Should catch exception and display error message

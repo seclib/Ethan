@@ -193,9 +193,6 @@ class TestDockerCheck:
     @requires_docker_stack
     def test_docker_check_timeout_on_ghost_service(self):
         """Un service inexistant ne doit jamais être considéré prêt."""
-        result = _run_wait(
-            "--timeout", "3", "--interval", "1", "docker:ghost-service-xyz"
-        )
+        result = _run_wait("--timeout", "3", "--interval", "1", "docker:ghost-service-xyz")
         assert result.returncode == 1
         assert "docker:ghost-service-xyz" in result.stdout
-

@@ -15,7 +15,6 @@ from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import pytest
-
 from openjarvis.evals.core.environment import TaskEnvironmentError
 from openjarvis.evals.execution.terminalbench_env import TerminalBenchTaskEnv
 

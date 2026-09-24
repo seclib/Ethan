@@ -23,16 +23,12 @@ async def manager(store):
 
 @pytest_asyncio.fixture
 async def project_a(manager):
-    return await manager.create_project(
-        user_id="user-a", name="Project A", description="Test A"
-    )
+    return await manager.create_project(user_id="user-a", name="Project A", description="Test A")
 
 
 @pytest_asyncio.fixture
 async def project_b(manager):
-    return await manager.create_project(
-        user_id="user-b", name="Project B", description="Test B"
-    )
+    return await manager.create_project(user_id="user-b", name="Project B", description="Test B")
 
 
 @pytest.mark.asyncio
@@ -56,12 +52,18 @@ async def test_record_document_upload(manager, project_a):
 async def test_list_project_documents_isolated(manager, project_a, project_b):
     """Les documents d'un projet ne sont pas visibles dans un autre."""
     await manager.record_document_upload(
-        project_id=project_a["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project_a["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
     await manager.record_document_upload(
-        project_id=project_b["id"], file_id="/tmp/b.txt", filename="b.txt",
-        mime_type="text/plain", user_id="user-b",
+        project_id=project_b["id"],
+        file_id="/tmp/b.txt",
+        filename="b.txt",
+        mime_type="text/plain",
+        user_id="user-b",
     )
     docs_a = await manager.list_project_documents(project_a["id"], user_id="user-a")
     docs_b = await manager.list_project_documents(project_b["id"], user_id="user-b")
@@ -75,8 +77,11 @@ async def test_list_project_documents_isolated(manager, project_a, project_b):
 async def test_list_documents_scope_denied(manager, project_b):
     """Un utilisateur hors scope ne peut pas lister les documents (ValueError)."""
     await manager.record_document_upload(
-        project_id=project_b["id"], file_id="/tmp/b.txt", filename="b.txt",
-        mime_type="text/plain", user_id="user-b",
+        project_id=project_b["id"],
+        file_id="/tmp/b.txt",
+        filename="b.txt",
+        mime_type="text/plain",
+        user_id="user-b",
     )
     with pytest.raises(ValueError, match="access denied"):
         await manager.list_project_documents(project_b["id"], user_id="user-a")
@@ -93,8 +98,11 @@ async def test_general_project_has_no_documents(manager):
 async def test_update_document_status(manager, project_a):
     """Mise à jour du statut d'un document (processing → ready)."""
     doc = await manager.record_document_upload(
-        project_id=project_a["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project_a["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
     await manager.update_document_status(doc["id"], "ready", chunk_count=5)
     docs = await manager.list_project_documents(project_a["id"], user_id="user-a")
@@ -106,12 +114,13 @@ async def test_update_document_status(manager, project_a):
 async def test_delete_project_document(manager, project_a):
     """Suppression d'un document du projet."""
     doc = await manager.record_document_upload(
-        project_id=project_a["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project_a["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
-    deleted = await manager.delete_project_document(
-        project_a["id"], doc["id"], user_id="user-a"
-    )
+    deleted = await manager.delete_project_document(project_a["id"], doc["id"], user_id="user-a")
     assert deleted is True
     docs = await manager.list_project_documents(project_a["id"], user_id="user-a")
     assert len(docs) == 0
@@ -121,12 +130,13 @@ async def test_delete_project_document(manager, project_a):
 async def test_delete_document_wrong_project(manager, project_a, project_b):
     """Impossible de supprimer un document d'un autre projet."""
     doc = await manager.record_document_upload(
-        project_id=project_a["id"], file_id="/tmp/a.txt", filename="a.txt",
-        mime_type="text/plain", user_id="user-a",
+        project_id=project_a["id"],
+        file_id="/tmp/a.txt",
+        filename="a.txt",
+        mime_type="text/plain",
+        user_id="user-a",
     )
-    deleted = await manager.delete_project_document(
-        project_b["id"], doc["id"], user_id="user-a"
-    )
+    deleted = await manager.delete_project_document(project_b["id"], doc["id"], user_id="user-a")
     assert deleted is False
 
 
@@ -135,8 +145,11 @@ async def test_record_upload_access_denied(manager, project_b):
     """Impossible d'uploader dans un projet dont on n'a pas accès."""
     with pytest.raises(ValueError, match="access denied"):
         await manager.record_document_upload(
-            project_id=project_b["id"], file_id="/tmp/x.txt", filename="x.txt",
-            mime_type="text/plain", user_id="user-a",
+            project_id=project_b["id"],
+            file_id="/tmp/x.txt",
+            filename="x.txt",
+            mime_type="text/plain",
+            user_id="user-a",
         )
 
 
@@ -203,6 +216,7 @@ async def test_ingestion_with_service(manager, project_a):
 @pytest.mark.asyncio
 async def test_ingestion_failure_handled(manager, project_a):
     """Si l'ingestion échoue, le statut est 'error' avec le message."""
+
     class FailingIngestion:
         async def ingest(self, *args, **kwargs):
             raise RuntimeError("Embedding service unavailable")
@@ -262,9 +276,7 @@ async def test_delete_removes_from_ingestion(manager, project_a):
     )
     assert doc["status"] == "ready"
 
-    deleted = await manager.delete_project_document(
-        project_a["id"], doc["id"], user_id="user-a"
-    )
+    deleted = await manager.delete_project_document(project_a["id"], doc["id"], user_id="user-a")
     assert deleted is True
     assert ingestion.get_document(doc["id"]) is None
 
@@ -280,9 +292,7 @@ async def test_unauthorized_delete_returns_false(manager, project_a, project_b):
         user_id="user-a",
     )
     # user-b tries to delete from project_a
-    deleted = await manager.delete_project_document(
-        project_a["id"], doc["id"], user_id="user-b"
-    )
+    deleted = await manager.delete_project_document(project_a["id"], doc["id"], user_id="user-b")
     assert deleted is False
 
 

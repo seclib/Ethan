@@ -7,7 +7,6 @@ import json
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -62,9 +61,7 @@ class TestLlamaCppGenerate:
                 200, json=_openai_response(content="Test reply", model=model_id)
             )
         )
-        result = engine.generate(
-            [Message(role=Role.USER, content="Hello")], model=model_id
-        )
+        result = engine.generate([Message(role=Role.USER, content="Hello")], model=model_id)
         assert result["content"] == "Test reply"
         assert result["model"] == model_id
         assert result["usage"]["total_tokens"] == 15
@@ -110,13 +107,9 @@ class TestLlamaCppGenerate:
             body = json.loads(request.content)
             if "tools" in body:
                 return httpx.Response(400, json={"error": "unsupported"})
-            return httpx.Response(
-                200, json=_openai_response(content="Fallback", model=model_id)
-            )
+            return httpx.Response(200, json=_openai_response(content="Fallback", model=model_id))
 
-        respx_mock.post(f"{LLAMACPP_HOST}/v1/chat/completions").mock(
-            side_effect=handler
-        )
+        respx_mock.post(f"{LLAMACPP_HOST}/v1/chat/completions").mock(side_effect=handler)
         result = engine.generate(
             [Message(role=Role.USER, content="Hello")],
             model=model_id,
@@ -138,9 +131,7 @@ class TestLlamaCppGenerate:
 
         async def collect():
             tokens = []
-            async for tok in engine.stream(
-                [Message(role=Role.USER, content="Hi")], model=model_id
-            ):
+            async for tok in engine.stream([Message(role=Role.USER, content="Hi")], model=model_id):
                 tokens.append(tok)
             return tokens
 
@@ -175,9 +166,7 @@ class TestLlamaCppModelDiscovery:
 
     def test_health_unhealthy(self, respx_mock) -> None:
         engine = _make_engine()
-        respx_mock.get(f"{LLAMACPP_HOST}/v1/models").mock(
-            side_effect=httpx.ConnectError("refused")
-        )
+        respx_mock.get(f"{LLAMACPP_HOST}/v1/models").mock(side_effect=httpx.ConnectError("refused"))
         assert engine.health() is False
 
 
@@ -194,9 +183,7 @@ class TestLlamaCppErrors:
                 side_effect=httpx.ConnectError("refused")
             )
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
 
     def test_default_host_is_8080(self) -> None:
         """LlamaCppEngine defaults to port 8080."""

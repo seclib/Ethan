@@ -56,9 +56,7 @@ def test_toolmanager_with_secure_enforcer_rejects_uncategorized() -> None:
     async def _run() -> None:
         enforcer = build_secure_enforcer()
         manager = ToolManager(policy_enforcer=enforcer)
-        result = await manager.executor.execute(
-            _tool("generic", name="noop"), {"x": 1}, _context()
-        )
+        result = await manager.executor.execute(_tool("generic", name="noop"), {"x": 1}, _context())
         # Aucune règle n'autorise explicitement cette catégorie/action :
         # fail-closed, l'exécution est refusée même pour un tool « inoffensif ».
         assert result.status == "rejected"
@@ -81,7 +79,7 @@ def test_toolmanager_with_secure_enforcer_allows_workspace_read() -> None:
             resource="/workspace/**",
             scope="self",
             ttl_seconds=3600,
-                        risk_level=RiskLevel.LOW,
+            risk_level=RiskLevel.LOW,
         )
         manager = ToolManager(policy_enforcer=enforcer)
         result = await manager.executor.execute(
@@ -104,20 +102,27 @@ def test_toolmanager_capability_scope_cannot_exceed() -> None:
     async def _run() -> None:
         enforcer = build_secure_enforcer()
         enforcer._capabilities.grant(  # noqa: SLF001
-            subject="user:alice", category="filesystem", operation="read",
-            resource="/workspace/**", scope="self", ttl_seconds=3600, risk_level=RiskLevel.LOW,
+            subject="user:alice",
+            category="filesystem",
+            operation="read",
+            resource="/workspace/**",
+            scope="self",
+            ttl_seconds=3600,
+            risk_level=RiskLevel.LOW,
         )
         manager = ToolManager(policy_enforcer=enforcer)
         # /workspace/notes.txt : OK (policy + capability)
         ok = await manager.executor.execute(
-            _tool("filesystem", name="reader"), {"action": "read", "path": "/workspace/notes.txt"},
+            _tool("filesystem", name="reader"),
+            {"action": "read", "path": "/workspace/notes.txt"},
             _context(user="alice"),
         )
         assert ok.status == "success"
         # ../../.ssh/id_rsa → refus (capability ne couvre pas, policy non matchante,
         # resolve_safe_path / capability scope => DENY)
         bad = await manager.executor.execute(
-            _tool("filesystem", name="reader"), {"action": "read", "path": "/workspace/../../.ssh/id_rsa"},
+            _tool("filesystem", name="reader"),
+            {"action": "read", "path": "/workspace/../../.ssh/id_rsa"},
             _context(user="alice"),
         )
         assert bad.status == "rejected"
@@ -134,8 +139,13 @@ def test_toolmanager_capability_lower_than_constitution_deny() -> None:
         enforcer = build_secure_enforcer()
         # On tente d'accorder une capability pour rm -rf (elle doit être ignorée).
         enforcer._capabilities.grant(  # noqa: SLF001
-            subject="*", category="shell", operation="execute",
-            resource="rm -rf*", scope="self", ttl_seconds=3600, risk_level=RiskLevel.CRITICAL,
+            subject="*",
+            category="shell",
+            operation="execute",
+            resource="rm -rf*",
+            scope="self",
+            ttl_seconds=3600,
+            risk_level=RiskLevel.CRITICAL,
         )
         manager = ToolManager(policy_enforcer=enforcer)
         result = await manager.executor.execute(

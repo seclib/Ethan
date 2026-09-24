@@ -98,9 +98,7 @@ class TestTeacherAgentLive:
 class TestDiagnosisRunnerLive:
     """Test DiagnosisRunner with real CloudEngine + real traces."""
 
-    def test_diagnosis_produces_output(
-        self, cloud_engine, real_trace_store, tmp_path
-    ) -> None:
+    def test_diagnosis_produces_output(self, cloud_engine, real_trace_store, tmp_path) -> None:
         from openjarvis.learning.spec_search.diagnose.runner import (
             DiagnosisRunner,
         )
@@ -116,9 +114,7 @@ class TestDiagnosisRunnerLive:
             teacher_model="claude-sonnet-4-6",
             trace_store=real_trace_store,
             benchmark_samples=[],
-            student_runner=lambda q, **kw: type(
-                "R", (), {"content": "mock", "score": 0.5}
-            )(),
+            student_runner=lambda q, **kw: type("R", (), {"content": "mock", "score": 0.5})(),
             judge=type("J", (), {"score_trace": lambda self, t: (0.5, "mock")})(),
             session_dir=session_dir,
             session_id="live-test-001",
@@ -167,9 +163,7 @@ class TestColdStartLive:
         print(f"  Trace readiness: {trace_ready.ready} ({trace_ready.message})")
 
         # Check benchmark readiness
-        bench_ready = check_benchmark_ready(
-            real_trace_store, min_feedback=0.7, min_samples=10
-        )
+        bench_ready = check_benchmark_ready(real_trace_store, min_feedback=0.7, min_samples=10)
         print(f"  Benchmark readiness: {bench_ready.ready} ({bench_ready.message})")
 
         # With 373 traces but 0 feedback: traces ready, benchmark not ready

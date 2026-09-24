@@ -8,7 +8,6 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
-
 from openjarvis.core.events import EventBus, EventType
 from openjarvis.core.types import Message, Role, TelemetryRecord
 from openjarvis.telemetry.aggregator import TelemetryAggregator
@@ -153,9 +152,7 @@ class TestStreamTelemetry:
 
         async def run():
             tokens = []
-            async for tok in ie.stream(
-                [Message(role=Role.USER, content="hi")], model="m"
-            ):
+            async for tok in ie.stream([Message(role=Role.USER, content="hi")], model="m"):
                 tokens.append(tok)
             return tokens
 
@@ -178,9 +175,7 @@ class TestStreamTelemetry:
         )
 
         async def run():
-            async for _ in ie.stream(
-                [Message(role=Role.USER, content="hi")], model="m"
-            ):
+            async for _ in ie.stream([Message(role=Role.USER, content="hi")], model="m"):
                 pass
 
         asyncio.run(run())
@@ -205,9 +200,7 @@ class TestStreamTelemetry:
         )
 
         async def run():
-            async for _ in ie.stream(
-                [Message(role=Role.USER, content="hi")], model="m"
-            ):
+            async for _ in ie.stream([Message(role=Role.USER, content="hi")], model="m"):
                 pass
 
         asyncio.run(run())
@@ -227,9 +220,7 @@ class TestStreamTelemetry:
         )
 
         async def run():
-            async for _ in ie.stream(
-                [Message(role=Role.USER, content="hi")], model="m"
-            ):
+            async for _ in ie.stream([Message(role=Role.USER, content="hi")], model="m"):
                 pass
 
         asyncio.run(run())
@@ -250,9 +241,7 @@ class TestStreamTelemetry:
         )
 
         async def run():
-            async for _ in ie.stream(
-                [Message(role=Role.USER, content="hi")], model="m"
-            ):
+            async for _ in ie.stream([Message(role=Role.USER, content="hi")], model="m"):
                 pass
 
         asyncio.run(run())

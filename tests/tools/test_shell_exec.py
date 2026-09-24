@@ -14,7 +14,6 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from openjarvis.core import get_python_executable
 from openjarvis.tools.shell_exec import ShellExecTool
 
@@ -218,10 +217,7 @@ class TestShellExecTool:
         """Stdout exceeding 100 KB is truncated."""
         tool = ShellExecTool()
         result = tool.execute(
-            command=(
-                f"{shlex.quote(get_python_executable())} "
-                "-c \"print('A' * 200000)\""
-            ),
+            command=(f"{shlex.quote(get_python_executable())} -c \"print('A' * 200000)\""),
         )
         assert "truncated" in result.content
         assert len(result.content) < 200_000

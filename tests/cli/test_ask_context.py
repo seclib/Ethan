@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 
 from click.testing import CliRunner
-
 from openjarvis.cli import cli
 
 

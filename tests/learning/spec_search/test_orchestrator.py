@@ -99,9 +99,7 @@ class TestSpecSearchOrchestrator:
             benchmark_version="personal_v1",
         )
 
-        with patch(
-            "openjarvis.learning.spec_search.orchestrator.DiagnosisRunner"
-        ) as MockDiag:
+        with patch("openjarvis.learning.spec_search.orchestrator.DiagnosisRunner") as MockDiag:
             MockDiag.return_value.run.return_value = _make_diagnosis_result()
             session = orch.run(OnDemandTrigger())
 
@@ -165,9 +163,7 @@ class TestSpecSearchOrchestrator:
             benchmark_version="personal_v1",
         )
 
-        with patch(
-            "openjarvis.learning.spec_search.orchestrator.DiagnosisRunner"
-        ) as MockDiag:
+        with patch("openjarvis.learning.spec_search.orchestrator.DiagnosisRunner") as MockDiag:
             MockDiag.return_value.run.return_value = _make_diagnosis_result()
             orch.run(OnDemandTrigger())
 

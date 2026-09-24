@@ -5,7 +5,6 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from openjarvis.core.registry import EngineRegistry
 from openjarvis.core.types import Message, Role
 from openjarvis.engine._base import EngineConnectionError
@@ -40,9 +39,7 @@ class TestOpenAICompatGenerate:
                     },
                 )
             )
-            result = engine.generate(
-                [Message(role=Role.USER, content="2+2")], model="qwen3:8b"
-            )
+            result = engine.generate([Message(role=Role.USER, content="2+2")], model="qwen3:8b")
         assert result["content"] == "4"
         assert result["usage"]["total_tokens"] == 9
 
@@ -78,9 +75,7 @@ class TestOpenAICompatGenerate:
                 side_effect=httpx.ConnectError("refused")
             )
             with pytest.raises(EngineConnectionError):
-                engine.generate(
-                    [Message(role=Role.USER, content="Hi")], model="qwen3:8b"
-                )
+                engine.generate([Message(role=Role.USER, content="Hi")], model="qwen3:8b")
 
 
 class TestOpenAICompatListModels:
@@ -124,8 +119,6 @@ class TestOpenAICompatStream:
                 return_value=httpx.Response(200, text=sse_lines)
             )
             tokens = []
-            async for tok in engine.stream(
-                [Message(role=Role.USER, content="Hello")], model="m"
-            ):
+            async for tok in engine.stream([Message(role=Role.USER, content="Hello")], model="m"):
                 tokens.append(tok)
         assert tokens == ["Hi", " there"]

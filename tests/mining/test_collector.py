@@ -12,10 +12,7 @@ import pytest
 async def test_collector_collect_once_returns_stats(written_sidecar):
     from openjarvis.mining._collector import MiningTelemetryCollector
 
-    sample = (
-        "pearl_gateway_shares_submitted_total 50\n"
-        "pearl_gateway_shares_accepted_total 49\n"
-    )
+    sample = "pearl_gateway_shares_submitted_total 50\npearl_gateway_shares_accepted_total 49\n"
     with patch("openjarvis.mining._collector.httpx.get") as get:
         get.return_value.status_code = 200
         get.return_value.text = sample
