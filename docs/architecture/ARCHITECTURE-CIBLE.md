@@ -272,12 +272,12 @@ ne pas recréer.
 | **G-01** | `core/config/store.py` lit/écrit encore la table `ethan_config` | Configuration écrite à deux endroits → valeurs divergentes possibles entre onglets Settings et managers | ADR-3001 à implémenter : `ConfigStore` devient façade sur `CoreRecordStore`, migration `ethan_config` → `core_domain_records` |
 | **G-02** | `CoreWebUIStore` (`core/state/webui_store.py`) subsiste et est injecté dans `v1.py` / `interfaces/api/main.py` | Dernier chemin de vérité parallèle côté records WebUI | Suppression progressive, domaine par domaine (ADR-3001/3002) |
 | **G-03** | `core/memory/{chromadb_backend,qdrant_backend}.py` + `core/rag/vector_store.py` coexistent | Risque de double écriture d'index | ADR-3004 : trancher le backend de vecteurs unique |
-| **G-04** | `interfaces/api/routers/v1.py` : 2031 lignes, 96 routes | Maintenabilité, revues difficiles (pas de logique métier en cause) | ADR-3008 : découpage par domaine, sans changer les URLs |
+| **G-04** | `interfaces/api/routers/v1.py` : 2031 lignes, 96 routes | Maintenabilité, revues difficiles (pas de logique métier en cause) | ADR-3008 : découpage par domaine, sans changer les URLs — **partie doublons résolue (V1.5)** : les 5 paires (GET+POST `/users`, GET `/diagnostics{,/metrics}`, GET `/v1/tools`) supprimées, contrat à zéro doublon |
 | **G-05** | ADR-3005 : divergence `FolderManager` (fail-closed) / `DomainManager` (permissif) | Relations « fantômes » possibles côté domains | RFC produit → aligner Domain sur fail-closed (`docs/hardening.md` §3.1) |
-| **G-06** | Contrats API non généralisés (ADR-3006) | Régressions silencieuses côté WebUI | ✅ **Traité (V1)** — `tests/test_api_contract_p0.py` : 6 contrats figés (92 routes P0, RBAC 401 sans token sauf `/health*`, zéro doublon nouveau, couverture OpenAPI, santé publique, plafond `response_model`) |
+| **G-06** | Contrats API non généralisés (ADR-3006) | Régressions silencieuses côté WebUI | ✅ **Traité (V1)** — `tests/test_api_contract_p0.py` : 6 contrats figés (92 routes P0, RBAC 401 sans token sauf `/health*`, **zéro doublon** — les 5 doublons G-04/ADR-3008 ont été supprimés le 24/09/2026, couverture OpenAPI, santé publique, plafond `response_model`) |
 | **G-07** | 31 documents d'architecture, plusieurs propositions non tranchées | Décisions ambiguës, doublons de débat | §0 de ce document (hiérarchie) + requalification des ADR |
 | **G-08** | `docs/hardening.md` : `example_usage.py` (`SafetyValidator` disparu) et `tests/test_web_search.py` (module non committé) | Bruit CI sur clone vierge | ✅ **Traité (V1)** — `64c9b546` modules web + `92d0c396` `core/network` committés, `e648454b` exemple safety réécrit, `9fe0f638` import mort `ContentFilter` retiré |
-| **G-09** | Ruff structurellement rouge : 1130 erreurs `ruff check` + 432 fichiers à reformater → job « Lint & Static Analysis » de la CI en échec depuis 3 pushes (jobs aval jamais exécutés) | CI rouge permanente masque tests/builds | RFC dédiée : pinner la version de ruff, `ruff check --fix` + `ruff format` sur branche gelée (gros diff, conflit WIP à éviter) — décision produit requise |
+| **G-09** | Ruff structurellement rouge : 1130 erreurs `ruff check` + 432 fichiers à reformater → job « Lint & Static Analysis » de la CI en échec depuis 3 pushes (jobs aval jamais exécutés) | CI rouge permanente masque tests/builds | ✅ **Traité (V1.5)** — CI pinnée `ruff==0.15.1` / `import-linter==2.13`, puis big-bang `ruff check --fix` + `ruff format` sur worktree détaché (`5ee65c47`..`cc74225e`, 992 fichiers) : **0 erreur `ruff check` / 0 écart `ruff format`** ; effectué sans committer le WIP local (ports ciblés vérifiés par la suite complète) |
 
 ---
 
@@ -461,7 +461,7 @@ Redis (cache)                          ✅      inchangé (jamais source de vér
 
 | Vague | Contenu | Prérequis | Critère de sortie |
 |---|---|---|---|
-| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | ✅ **Atteint hors G-09** : clone vierge à `9fe0f638` → `lint-imports` 5 kept/0 broken, collecte 0 erreur (1093 tests), sous-ensemble CI 26/26, suite locale 1368 verte ; CI globale encore rouge à cause de G-09 (ruff, préexistant — voir §4) |
+| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | ✅ **Atteint (V1.5)** : clone vierge à `cc74225e` → `lint-imports` 5 kept/0 broken, `ruff check` **0** + `ruff format --check` **0** (ruff pinné), collecte 0 erreur, sous-ensemble CI 26/26, suite complète **1092 passed / 7 skipped / 0 failed** (les 46 échecs préexistants corrigés) ; CI globale **verte** |
 | **V2 — Unifier la persistance** | G-01 (ADR-3001), G-02 discipline | V1 | Une seule source config ; `CoreWebUIStore` sans nouvel usage |
 | **V3 — Unifier Conversations** | ADR-3007 (modèle unique, `/v1/conversations` + alias) | V2 | Un seul modèle de conversation, E2E chat vert |
 | **V4 — Décider les vecteurs** | ADR-3004 (mesures puis bascule) | V2 | Un seul backend d'index, réindexation validée |
@@ -527,6 +527,7 @@ make -n bootstrap              # séquence preflight → pull → up → wait �
 |---|---|---|
 | 2026-09-24 | 1.0 | Création : audit `676403a3`, architecture cible, requalification des ADR, écarts G-01..G-08, décisions D-00..D-07, vagues V1..V6 |
 | 2026-09-24 | 1.1 | Vague V1 exécutée : G-08 clos (`64c9b546`, `92d0c396`, `e648454b`, `9fe0f638`), G-06 contrat P0 livré (`cfe60b31`+`a0844b2f`, 6 tests), G-09 identifié (ruff/CI rouge préexistant) |
+| 2026-09-24 | 1.2 | V1.5 : **G-09 clos** (pin CI ruff `0.15.1` + big-bang `--fix`/`format`, 992 fichiers, 0 erreur), **doublons G-04/ADR-3008 supprimés** (contrat à zéro doublon), **46 échecs préexistants corrigés** (ports ciblés du WIP : CLI/knowledge/boot/technology/ssrf), imports legacy `ethan.*` éliminés — SHAs `5ee65c47`..`cc74225e` |
 
 ### C. Documents de référence
 

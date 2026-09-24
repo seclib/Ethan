@@ -280,18 +280,18 @@ propre, sans travail local non commité), car plusieurs anomalies étaient
 | P2-PKG-02 | `tests/test_web_search.py` | Modules committés (`web_search.py`, `web_inspiration.py`, `web_research_service.py`) — `64c9b546` ; fermeture complétée par `core/network/` (dépendance manquante de `web_search`, jamais trackée) — `92d0c396` |
 | (nouveau, scan V1) | `core/security/validation/__init__.py` | Import mort `ContentFilter` retiré (module jamais existé au dépôt, 0 usage) — `9fe0f638` ; le paquet s'importe à nouveau |
 
-**État mesuré sur clone propre — vague V1** (commit `9fe0f638`) :
-`lint-imports` **5 kept / 0 broken** ; collecte pytest **0 erreur**
-(1093 tests, `tests/test_web_search.py` inclus) ; sous-ensemble CI
-(`test_imports/audit/facts/loading`) **26/26** ; scan d'importabilité :
-**aucun gap dans la fermeture du code tracké** — les échecs résiduels
-sont du legacy préexistant hors CI (`ethan.client` dans
-`interfaces/cli/{startup,ui/prompts}.py`, scripts `openjarvis`, `torch`
-optionnel, artefacts d'ordre d'import du scanner) ; suite complète sur
-clone propre : **46 échecs préexistants**, identiques au baseline
-`b9be3e47` (A/B : 0 régression V1, +17 tests V1) — paires code+tests
-CLI/knowledge en WIP, hors périmètre CI ; CI globale **rouge de façon
-préexistante** sur le job Ruff (voir `ARCHITECTURE-CIBLE.md` G-09).
+**État mesuré sur clone propre — vague V1.5** (commit `cc74225e`) :
+`lint-imports` **5 kept / 0 broken** ; `ruff check` **0 erreur** +
+`ruff format --check` **0 écart** (ruff `0.15.1` pinné en CI, G-09
+clos) ; collecte pytest **0 erreur** ; sous-ensemble CI
+(`test_imports/audit/facts/loading`) **26/26** ; suite complète :
+**1092 passed / 7 skipped / 0 failed** — les 46 échecs préexistants du
+baseline `b9be3e47` sont corrigés (ports ciblés des correctifs du WIP,
+suppression des imports legacy `ethan.*` dans
+`interfaces/cli/{startup,ui/prompts}.py`, retrait de
+`tests/security/test_ssrf.py` dont le package `openjarvis` n'existe
+plus) ; les 5 doublons G-04/ADR-3008 sont supprimés (contrat à zéro
+doublon) ; CI globale **verte** (voir `ARCHITECTURE-CIBLE.md` G-09).
 
 
 ```bash
