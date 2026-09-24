@@ -84,11 +84,7 @@ class KnowledgeCollectionManager:
             raise ValueError("Collection name must not be empty")
         if parent_id is not None:
             await self._require_collection(parent_id)
-        strategy = (
-            validate_strategy(retrieval_strategy)
-            if retrieval_strategy is not None
-            else None
-        )
+        strategy = validate_strategy(retrieval_strategy) if retrieval_strategy is not None else None
         collection = {
             "id": str(uuid4()),
             "name": normalized,
@@ -105,7 +101,9 @@ class KnowledgeCollectionManager:
             "updated_at": _utc_now(),
         }
         await self._store.save(_DOMAIN_COLLECTIONS, collection["id"], collection)
-        await self._publish(EventType.KNOWLEDGE_CREATED, "knowledge.collection.created", {"collection": collection})
+        await self._publish(
+            EventType.KNOWLEDGE_CREATED, "knowledge.collection.created", {"collection": collection}
+        )
         return collection
 
     async def get_collection(self, collection_id: str) -> dict[str, Any] | None:
@@ -145,7 +143,9 @@ class KnowledgeCollectionManager:
             collection["parent_id"] = new_parent
         collection["updated_at"] = _utc_now()
         await self._store.save(_DOMAIN_COLLECTIONS, collection_id, collection)
-        await self._publish(EventType.KNOWLEDGE_UPDATED, "knowledge.collection.updated", {"collection": collection})
+        await self._publish(
+            EventType.KNOWLEDGE_UPDATED, "knowledge.collection.updated", {"collection": collection}
+        )
         return collection
 
     async def delete_collection(self, collection_id: str) -> bool:
@@ -164,12 +164,18 @@ class KnowledgeCollectionManager:
                 child["updated_at"] = _utc_now()
                 await self._store.save(_DOMAIN_COLLECTIONS, child["id"], child)
         await self._store.delete(_DOMAIN_COLLECTIONS, collection_id)
-        await self._publish(EventType.KNOWLEDGE_DELETED, "knowledge.collection.deleted", {"collection_id": collection_id})
+        await self._publish(
+            EventType.KNOWLEDGE_DELETED,
+            "knowledge.collection.deleted",
+            {"collection_id": collection_id},
+        )
         return True
 
     # ── Hierarchy (user-organizable folders) ────────────────────────────
 
-    async def move_collection(self, collection_id: str, new_parent_id: str | None) -> dict[str, Any]:
+    async def move_collection(
+        self, collection_id: str, new_parent_id: str | None
+    ) -> dict[str, Any]:
         """Move a collection under another one (or to the root with ``None``).
 
         Raises ``ValueError`` for unknown collections and for moves that
@@ -180,10 +186,14 @@ class KnowledgeCollectionManager:
         collection["parent_id"] = new_parent_id
         collection["updated_at"] = _utc_now()
         await self._store.save(_DOMAIN_COLLECTIONS, collection_id, collection)
-        await self._publish(EventType.KNOWLEDGE_UPDATED, "knowledge.collection.moved", {
-            "collection_id": collection_id,
-            "parent_id": new_parent_id,
-        })
+        await self._publish(
+            EventType.KNOWLEDGE_UPDATED,
+            "knowledge.collection.moved",
+            {
+                "collection_id": collection_id,
+                "parent_id": new_parent_id,
+            },
+        )
         return collection
 
     async def list_tree(self, user_id: str | None = None) -> list[dict[str, Any]]:
@@ -248,10 +258,14 @@ class KnowledgeCollectionManager:
         collection["access_grants"] = validated
         collection["updated_at"] = _utc_now()
         await self._store.save(_DOMAIN_COLLECTIONS, collection_id, collection)
-        await self._publish(EventType.KNOWLEDGE_UPDATED, "knowledge.collection.shared", {
-            "collection_id": collection_id,
-            "grants_count": len(validated),
-        })
+        await self._publish(
+            EventType.KNOWLEDGE_UPDATED,
+            "knowledge.collection.shared",
+            {
+                "collection_id": collection_id,
+                "grants_count": len(validated),
+            },
+        )
         return collection
 
     async def list_accessible(
@@ -266,9 +280,7 @@ class KnowledgeCollectionManager:
         if is_admin:
             return collections
         user_groups = await self._user_group_ids(user_id)
-        return [
-            c for c in collections if self._grants_allow(c, user_id, user_groups, "read")
-        ]
+        return [c for c in collections if self._grants_allow(c, user_id, user_groups, "read")]
 
     def require_read(
         self,
@@ -376,7 +388,6 @@ class KnowledgeCollectionManager:
             logger.warning("Impossible de résoudre les groupes de %s : %s", user_id, exc)
         return group_ids
 
-
     # ── Document membership ─────────────────────────────────────────────
 
     async def add_document(self, collection_id: str, document_id: str) -> dict[str, Any] | None:
@@ -455,9 +466,7 @@ class KnowledgeCollectionManager:
         if collection is None:
             raise ValueError(f"Collection {collection_id} not found")
         effective = strategy or await self.get_effective_strategy(collection_id)
-        return await self.retrieve_multi(
-            query, [collection_id], top_k=top_k, strategy=effective
-        )
+        return await self.retrieve_multi(query, [collection_id], top_k=top_k, strategy=effective)
 
     async def retrieve_multi(
         self,
@@ -512,9 +521,7 @@ class KnowledgeCollectionManager:
         strategy: str | None = None,
     ) -> str:
         """Build a bounded RAG context scoped to several collections."""
-        results = await self.retrieve_multi(
-            query, collection_ids, top_k=top_k, strategy=strategy
-        )
+        results = await self.retrieve_multi(query, collection_ids, top_k=top_k, strategy=strategy)
         if not results:
             return ""
         parts = []
@@ -584,9 +591,7 @@ class KnowledgeCollectionManager:
         strategy: str | None = None,
     ) -> str:
         """Build a bounded RAG context scoped to several collections."""
-        results = await self.retrieve(
-            query, collection_id, top_k=top_k, strategy=strategy
-        )
+        results = await self.retrieve(query, collection_id, top_k=top_k, strategy=strategy)
         if not results:
             return ""
         parts = []
@@ -636,7 +641,9 @@ class KnowledgeCollectionManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="knowledge-collections", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="knowledge-collections", payload=payload)
+        )
 
 
 def _utc_now() -> str:

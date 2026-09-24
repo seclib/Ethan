@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DocumentChunk:
     """Chunk de document avec son embedding."""
+
     id: str
     document_id: str
     content: str
@@ -53,6 +54,7 @@ class DocumentChunk:
 @dataclass
 class IngestedDocument:
     """Document ingéré avec ses chunks."""
+
     id: str
     title: str
     source: str = ""
@@ -203,8 +205,7 @@ class RAGIngestion:
         for i, emb in enumerate(embeddings):
             if not emb:
                 raise ValueError(
-                    f"dimension mismatch: chunk {i} returned an empty embedding "
-                    f"for '{title}'"
+                    f"dimension mismatch: chunk {i} returned an empty embedding for '{title}'"
                 )
             if i > 0 and len(emb) != len(embeddings[0]):
                 raise ValueError(
@@ -292,11 +293,7 @@ class RAGIngestion:
         """Découpage par phrases : regroupe les phrases jusqu'à ``chunk_size``."""
         import re as _re
 
-        sentences = [
-            s.strip()
-            for s in _re.split(r"(?<=[.!?])\s+", text)
-            if s.strip()
-        ]
+        sentences = [s.strip() for s in _re.split(r"(?<=[.!?])\s+", text) if s.strip()]
         chunks: list[str] = []
         current = ""
         for sentence in sentences:
@@ -322,11 +319,7 @@ class RAGIngestion:
         découpage par taille si trop long."""
         import re as _re
 
-        paragraphs = [
-            p.strip()
-            for p in _re.split(r"\n\s*\n", text)
-            if p.strip()
-        ]
+        paragraphs = [p.strip() for p in _re.split(r"\n\s*\n", text) if p.strip()]
         if not paragraphs:
             return []
         chunks: list[str] = []

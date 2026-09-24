@@ -280,20 +280,13 @@ class RAGPipeline:
         embeddings = self._ingestion._embeddings
         documents = self._ingestion.list_documents()
         chunks = sum(len(doc.chunks) for doc in documents)
-        has_real_embeddings = (
-            embeddings._llm_client is not None
-            and any(
-                any(v != 0.0 for v in chunk.embedding)
-                for doc in documents
-                for chunk in doc.chunks
-            )
+        has_real_embeddings = embeddings._llm_client is not None and any(
+            any(v != 0.0 for v in chunk.embedding) for doc in documents for chunk in doc.chunks
         )
         return {
             "documents": len(documents),
             "chunks": chunks,
-            "embedding_mode": (
-                "llm" if embeddings._llm_client is not None else "textual-fallback"
-            ),
+            "embedding_mode": ("llm" if embeddings._llm_client is not None else "textual-fallback"),
             "indexed_embeddings": has_real_embeddings,
             "embedding_model": embeddings._model,
             "vector_backend": self._vector_backend,

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -68,7 +68,9 @@ class KnowledgeManager:
                 )
             )
         await self._persist(node)
-        await self._publish(EventType.KNOWLEDGE_CREATED, "knowledge.created", {"node": node.to_dict()})
+        await self._publish(
+            EventType.KNOWLEDGE_CREATED, "knowledge.created", {"node": node.to_dict()}
+        )
         return node
 
     async def get(self, node_id: str) -> KnowledgeNode | None:
@@ -102,7 +104,9 @@ class KnowledgeManager:
             node.metadata.update(dict(data["metadata"]))
         node.updated_at = datetime.utcnow()
         await self._persist(node)
-        await self._publish(EventType.KNOWLEDGE_UPDATED, "knowledge.updated", {"node": node.to_dict()})
+        await self._publish(
+            EventType.KNOWLEDGE_UPDATED, "knowledge.updated", {"node": node.to_dict()}
+        )
         return node
 
     async def delete(self, node_id: str) -> bool:
@@ -111,7 +115,9 @@ class KnowledgeManager:
         if not existed:
             return False
         for node in await self.list():
-            kept = [connection for connection in node.connections if connection.to_node_id != node_id]
+            kept = [
+                connection for connection in node.connections if connection.to_node_id != node_id
+            ]
             if len(kept) != len(node.connections):
                 node.connections = kept
                 node.updated_at = datetime.utcnow()
@@ -155,8 +161,7 @@ class KnowledgeManager:
             connection
             for connection in node.connections
             if not (
-                connection.to_node_id == to_node_id
-                and connection.relation_type == relation_type
+                connection.to_node_id == to_node_id and connection.relation_type == relation_type
             )
         ]
         node.connections.append(
@@ -171,7 +176,9 @@ class KnowledgeManager:
         )
         node.updated_at = datetime.utcnow()
         await self._persist(node)
-        await self._publish(EventType.KNOWLEDGE_UPDATED, "knowledge.updated", {"node": node.to_dict()})
+        await self._publish(
+            EventType.KNOWLEDGE_UPDATED, "knowledge.updated", {"node": node.to_dict()}
+        )
         return node
 
     async def ingest_into_rag(self, node_id: str, rag: "RAGPipeline") -> str:
@@ -193,4 +200,6 @@ class KnowledgeManager:
     async def _publish(self, event_type: EventType, subject: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
-        await self._bus.publish(subject, Event(type=event_type, source="knowledge-manager", payload=payload))
+        await self._bus.publish(
+            subject, Event(type=event_type, source="knowledge-manager", payload=payload)
+        )

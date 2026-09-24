@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RetrievedChunk:
     """Chunk récupéré avec son score de pertinence."""
+
     chunk: DocumentChunk
     score: float
     document_title: str = ""
@@ -156,7 +157,10 @@ class RAGRetrieval:
 
         if strategy == "hybrid":
             return await self._hybrid_retrieve(
-                query, query_embedding, has_real_embeddings, k,
+                query,
+                query_embedding,
+                has_real_embeddings,
+                k,
                 document_ids=document_ids,
             )
 
@@ -168,9 +172,7 @@ class RAGRetrieval:
                     "— falling back to keyword retrieval"
                 )
             return self._textual_retrieve(query, k, document_ids=document_ids)
-        return await self._semantic_retrieve(
-            query_embedding, k, document_ids=document_ids
-        )
+        return await self._semantic_retrieve(query_embedding, k, document_ids=document_ids)
 
     async def _semantic_retrieve(
         self,
@@ -190,13 +192,12 @@ class RAGRetrieval:
             scored: list[RetrievedChunk] = []
             try:
                 hits = await self._vector_store.search(
-                    query_embedding, k,
+                    query_embedding,
+                    k,
                     document_ids=document_ids,
                 )
             except Exception as exc:
-                logger.warning(
-                    "Vector store indisponible (%s) — fallback cosinus mémoire", exc
-                )
+                logger.warning("Vector store indisponible (%s) — fallback cosinus mémoire", exc)
                 hits = None
             if hits is not None:
                 for chunk_id, score in hits:
@@ -204,17 +205,19 @@ class RAGRetrieval:
                     if entry is None:
                         continue  # chunk inconnu du catalogue (index stale)
                     chunk, doc_title, doc_source = entry
-                    scored.append(RetrievedChunk(
-                        chunk=chunk, score=score,
-                        document_title=doc_title, document_source=doc_source,
-                    ))
+                    scored.append(
+                        RetrievedChunk(
+                            chunk=chunk,
+                            score=score,
+                            document_title=doc_title,
+                            document_source=doc_source,
+                        )
+                    )
                 scored.sort(key=lambda x: x.score, reverse=True)
                 return scored[:k]
 
         # Calculer les scores de similarité cosinus (chemin mémoire)
-        allowed: set[str] | None = (
-            set(document_ids) if document_ids is not None else None
-        )
+        allowed: set[str] | None = set(document_ids) if document_ids is not None else None
         scored = []
         for doc in self._documents.values():
             if allowed is not None and doc.id not in allowed:
@@ -223,12 +226,14 @@ class RAGRetrieval:
                 if not chunk.embedding:
                     continue
                 score = self._cosine_similarity(query_embedding, chunk.embedding)
-                scored.append(RetrievedChunk(
-                    chunk=chunk,
-                    score=score,
-                    document_title=doc.title,
-                    document_source=doc.source,
-                ))
+                scored.append(
+                    RetrievedChunk(
+                        chunk=chunk,
+                        score=score,
+                        document_title=doc.title,
+                        document_source=doc.source,
+                    )
+                )
 
         # Trier par score décroissant
         scored.sort(key=lambda x: x.score, reverse=True)
@@ -253,8 +258,7 @@ class RAGRetrieval:
         keyword = self._textual_retrieve(query, candidates, document_ids=document_ids)
         if not has_real_embeddings:
             logger.warning(
-                "RAG strategy 'hybrid' requested but embeddings are mock "
-                "— keyword component only"
+                "RAG strategy 'hybrid' requested but embeddings are mock — keyword component only"
             )
             return keyword[:k]
         semantic = await self._semantic_retrieve(
@@ -312,9 +316,7 @@ class RAGRetrieval:
         q_lower = query.lower()
         scored: list[RetrievedChunk] = []
 
-        allowed: set[str] | None = (
-            set(document_ids) if document_ids is not None else None
-        )
+        allowed: set[str] | None = set(document_ids) if document_ids is not None else None
         for doc in self._documents.values():
             if allowed is not None and doc.id not in allowed:
                 continue
@@ -326,12 +328,14 @@ class RAGRetrieval:
                     if word in content_lower:
                         score += 1.0
                 if score > 0:
-                    scored.append(RetrievedChunk(
-                        chunk=chunk,
-                        score=score,
-                        document_title=doc.title,
-                        document_source=doc.source,
-                    ))
+                    scored.append(
+                        RetrievedChunk(
+                            chunk=chunk,
+                            score=score,
+                            document_title=doc.title,
+                            document_source=doc.source,
+                        )
+                    )
 
         scored.sort(key=lambda x: x.score, reverse=True)
         return scored[:k]

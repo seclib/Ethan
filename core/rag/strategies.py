@@ -106,8 +106,7 @@ def get_strategy(strategy_id: str) -> RAGStrategy:
     candidate = str(strategy_id).strip().lower()
     if candidate not in _STRATEGIES:
         raise ValueError(
-            f"Stratégie RAG inconnue : {strategy_id!r} "
-            f"(disponibles : {', '.join(_STRATEGIES)})"
+            f"Stratégie RAG inconnue : {strategy_id!r} (disponibles : {', '.join(_STRATEGIES)})"
         )
     return _STRATEGIES[candidate]
 
@@ -136,8 +135,7 @@ def validate_strategy(value: str) -> str:
     candidate = str(value).strip().lower()
     if candidate not in _STRATEGY_IDS:
         raise ValueError(
-            f"Stratégie RAG inconnue : {value!r} "
-            f"(disponibles : {', '.join(_STRATEGY_IDS)})"
+            f"Stratégie RAG inconnue : {value!r} (disponibles : {', '.join(_STRATEGY_IDS)})"
         )
     return candidate
 

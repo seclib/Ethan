@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AsyncIterator, Callable
+from typing import Any, Callable
 
 from core.ethan_types.event import Event
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReplayResult:
     """Résultat d'un replay."""
+
     replayed: int
     errors: list[tuple[str, str]]
     duration_ms: float
@@ -48,7 +49,7 @@ class ReplayFilter:
 
 class EventReplayer:
     """Rejoue des événements.
-    
+
     Responsabilités :
     - Replay depuis un point dans le temps
     - Filtres
@@ -99,7 +100,9 @@ class EventReplayer:
 
         duration_ms = (time.time() - start) * 1000
 
-        logger.info(f"Replay complete: {replayed} events, {len(errors)} errors, {duration_ms:.1f}ms")
+        logger.info(
+            f"Replay complete: {replayed} events, {len(errors)} errors, {duration_ms:.1f}ms"
+        )
 
         return ReplayResult(
             replayed=replayed,

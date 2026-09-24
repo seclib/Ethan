@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 _PDF_EXTENSIONS = (".pdf",)
 _DOCX_EXTENSIONS = (".docx",)
 _PDF_CONTENT_TYPES = ("application/pdf",)
-_DOCX_CONTENT_TYPES = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-)
+_DOCX_CONTENT_TYPES = ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",)
 
 
 def extract_text(raw: bytes, filename: str = "", content_type: str = "") -> str:
@@ -49,8 +47,11 @@ def extract_text(raw: bytes, filename: str = "", content_type: str = "") -> str:
         return _extract_pdf(raw)
     if is_docx:
         return _extract_docx(raw)
-    # Fichiers texte / type inconnu : pas d'extraction nécessaire.
-    return ""
+    # Fichiers texte / type inconnu : décodage UTF-8 tolérant. Les formats
+    # binaires non supportés sont déjà rejetés en amont par la validation
+    # d'extension du Core ; ici un fichier supporté doit TOUJOURS produire
+    # un texte indexable (sinon le RAG rejette un contenu vide).
+    return raw.decode("utf-8", errors="replace").strip()
 
 
 def _extract_pdf(raw: bytes) -> str:
@@ -130,9 +131,7 @@ def _extract_docx(raw: bytes) -> str:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             xml_bytes = archive.read("word/document.xml")
     except (zipfile.BadZipFile, KeyError) as exc:
-        raise ValueError(
-            "Fichier DOCX invalide (archive word/document.xml introuvable)"
-        ) from exc
+        raise ValueError("Fichier DOCX invalide (archive word/document.xml introuvable)") from exc
 
     W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
     try:

@@ -44,6 +44,7 @@ class ExtractedText:
 
 try:  # noqa: SIM110
     import pypdf  # type: ignore[import-untyped]
+
     _HAS_PYPDF = True
     logger.debug("pypdf available for PDF extraction")
 except ImportError:  # pragma: no cover
@@ -52,6 +53,7 @@ except ImportError:  # pragma: no cover
 
 try:
     import docx  # type: ignore[import-untyped]
+
     _HAS_DOCX = True
     logger.debug("python-docx available for DOCX extraction")
 except ImportError:  # pragma: no cover

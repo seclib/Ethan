@@ -14,10 +14,10 @@ import logging
 from typing import Any
 
 from core.agents.base import Agent, AgentConfig
-from core.executive.goal_manager import ExecutiveGoalManager
-from core.executive.types import Goal, GoalPriority
-from core.ethan_types.event import Event, EventType
+from core.ethan_types.event import Event
 from core.ethan_types.result import Result
+from core.executive.goal_manager import ExecutiveGoalManager
+from core.executive.types import Goal, GoalPriority, GoalState
 
 logger = logging.getLogger(__name__)
 

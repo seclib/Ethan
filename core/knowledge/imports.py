@@ -74,6 +74,21 @@ def _sanitize_name(filename: str) -> str:
     return normalized
 
 
+def _display_name(filename: str) -> str:
+    """Nom affichable SÛR — ne lève JAMAIS (records de résultats/erreurs).
+
+    ``_sanitize_name`` valide et peut lever ; dans un record d'erreur on
+    affiche un repli sûr au lieu de lever DEPUIS un bloc ``except`` — sinon
+    l'erreur isolée par fichier devient une panne globale du job (dette
+    corrigée : le handler 422 rappelait la validation et re-levait).
+    """
+    try:
+        return _sanitize_name(filename)
+    except Exception:
+        fallback = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+        return fallback or "<unnamed>"
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -125,9 +140,7 @@ class KnowledgeImportManager:
         if not raw:
             raise ImportValidationError("Empty file")
         if len(raw) > _MAX_FILE_SIZE:
-            raise ImportValidationError(
-                f"File too large ({len(raw)} bytes, max {_MAX_FILE_SIZE})"
-            )
+            raise ImportValidationError(f"File too large ({len(raw)} bytes, max {_MAX_FILE_SIZE})")
         name = _sanitize_name(filename)
         ext = f".{name.rsplit('.', 1)[-1].lower()}" if "." in name else ""
         expected = SUPPORTED_EXTENSIONS.get(ext)
@@ -154,7 +167,7 @@ class KnowledgeImportManager:
             mime = self._validate(filename, raw, None)
         except ImportValidationError as exc:
             job["errors"].append(
-                {"filename": _sanitize_name(filename), "code": 422, "detail": str(exc)}
+                {"filename": _display_name(filename), "code": 422, "detail": str(exc)}
             )
             job["done"] += 1
             job["progress"] = job["done"] / max(job["total"], 1)
@@ -171,7 +184,7 @@ class KnowledgeImportManager:
             )
         except Exception as exc:  # FileStore échoue (disque plein…)
             job["errors"].append(
-                {"filename": _sanitize_name(filename), "code": 500, "detail": str(exc)}
+                {"filename": _display_name(filename), "code": 500, "detail": str(exc)}
             )
             job["done"] += 1
             job["progress"] = job["done"] / max(job["total"], 1)
@@ -196,13 +209,11 @@ class KnowledgeImportManager:
             document_id = ingested.id
             if mime not in _IMAGE_MIME:
                 # 3. Attache le document RAG à la collection.
-                attached = await self._collections.add_document(
-                    collection_id, document_id
-                )
+                attached = await self._collections.add_document(collection_id, document_id)
                 if attached is None:
                     raise RuntimeError("Collection not found")
             result = {
-                "filename": _sanitize_name(filename),
+                "filename": _display_name(filename),
                 "id": document_id,
                 "status": "imported" if mime in _IMAGE_MIME else "ready",
             }
@@ -210,7 +221,7 @@ class KnowledgeImportManager:
         except Exception as exc:  # extraction/embedding/collection
             job["errors"].append(
                 {
-                    "filename": _sanitize_name(filename),
+                    "filename": _display_name(filename),
                     "code": 500,
                     "detail": str(exc)[:300],
                 }
@@ -254,9 +265,7 @@ class KnowledgeImportManager:
                     return
                 job["step"] = "importing"
                 for filename, raw in files:
-                    await self._import_one(
-                        user_id, filename, raw, collection_id, job=job
-                    )
+                    await self._import_one(user_id, filename, raw, collection_id, job=job)
                 job["status"] = "done"
                 job["step"] = "done"
                 job["progress"] = 1.0
@@ -265,9 +274,7 @@ class KnowledgeImportManager:
                 job["status"] = "failed"
                 job["step"] = "failed"
                 job["progress"] = 1.0
-                job["errors"].append(
-                    {"filename": None, "code": 500, "detail": str(exc)[:300]}
-                )
+                job["errors"].append({"filename": None, "code": 500, "detail": str(exc)[:300]})
             finally:
                 job["updated_at"] = _utc_now()
 

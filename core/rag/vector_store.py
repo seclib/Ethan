@@ -172,8 +172,7 @@ class ChromaDBVectorStore(RAGVectorStore):
             ids=[r["chunk_id"] for r in records],
             embeddings=[r["embedding"] for r in records],
             metadatas=[
-                {"document_id": r["document_id"], **(r.get("metadata") or {})}
-                for r in records
+                {"document_id": r["document_id"], **(r.get("metadata") or {})} for r in records
             ],
             documents=[r.get("content", "") for r in records],
         )
@@ -351,9 +350,7 @@ def create_vector_store(
             collection_name=config.get("collection_name", "ethan_rag"),
             vector_size=config.get("vector_size"),
         )
-    raise ValueError(
-        f"Backend vectoriel inconnu : {backend!r} (memory, chromadb ou qdrant)"
-    )
+    raise ValueError(f"Backend vectoriel inconnu : {backend!r} (memory, chromadb ou qdrant)")
 
 
 __all__ = [

@@ -1,7 +1,6 @@
 """Example: Utilisation de la couche d'orchestration"""
 
 from core.capabilities import CapabilityContext, CapabilityStatus
-from core.context.intent import Intent
 from core.orchestrator import CapabilityRegistry, Executor, Observer, Planner
 from core.safety import (
     DefaultRoleRegistry,
@@ -25,10 +24,10 @@ async def main():
     planner = Planner()
     executor = Executor(registry)
     observer = Observer()
-    safety = SafetyValidator()
 
     # 4. Exécuter un flux complet
     from core.context.intent import IntentRouter
+
     router = IntentRouter()
 
     user_input = "Analyze this code and suggest improvements"
@@ -42,9 +41,7 @@ async def main():
         Role(
             name="operator",
             permissions=[
-                Permission(
-                    resource="orchestration", action="execute", effect=Effect.ALLOW
-                )
+                Permission(resource="orchestration", action="execute", effect=Effect.ALLOW)
             ],
         )
     )
@@ -77,4 +74,5 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())

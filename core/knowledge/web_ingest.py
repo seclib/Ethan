@@ -33,7 +33,6 @@ import re
 import socket
 import time
 import uuid
-from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Any, Awaitable, Callable
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -58,9 +57,31 @@ USER_AGENT = "ETHAN-WebIngest/1.0 (+knowledge-import; respects robots.txt)"
 
 # Extensions non-HTML : jamais explorées ni ingérées par ce pipeline.
 _NON_HTML_EXTENSIONS = (
-    ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico",
-    ".css", ".js", ".json", ".xml", ".zip", ".gz", ".tar", ".mp3", ".mp4",
-    ".woff", ".woff2", ".ttf", ".eot", ".doc", ".docx", ".xls", ".xlsx",
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".ico",
+    ".css",
+    ".js",
+    ".json",
+    ".xml",
+    ".zip",
+    ".gz",
+    ".tar",
+    ".mp3",
+    ".mp4",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
 )
 
 _SKIPPED_TAGS = frozenset({"script", "style", "noscript", "template"})
@@ -122,7 +143,7 @@ def _validate_public_url(url: str, resolver: HostnameResolver) -> str:
         raise ValueError(f"Hostname local interdit : {host}")
     try:
         literal = ipaddress.ip_address(host)
-        if not literal.is_global:
+        if not _is_safe_public_ip(literal):
             raise ValueError(f"Adresse IP non publique interdite : {host}")
     except ValueError as exc:
         if "interdit" in str(exc):
@@ -137,7 +158,7 @@ def _validate_public_url(url: str, resolver: HostnameResolver) -> str:
         raise ValueError(f"Aucune adresse résolue pour {host!r}")
     for address in addresses:
         ip = ipaddress.ip_address(address)
-        if not ip.is_global:
+        if not _is_safe_public_ip(ip):
             raise ValueError(f"Adresse non publique interdite : {address} ({host})")
 
     # Normalisation : fragment retiré (jamais significatif pour le contenu).
@@ -157,6 +178,26 @@ def _is_html_url(url: str) -> bool:
     """True si l'URL peut raisonnablement être une page HTML (extension)."""
     path = urlsplit(url).path.lower()
     return not any(path.endswith(ext) for ext in _NON_HTML_EXTENSIONS)
+
+
+def _is_safe_public_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Une adresse est une destination web publique sûre ?  (fail-closed)
+
+    ``ipaddress.is_global`` couvre RFC1918, loopback, link-local, broadcast
+    et IPv4-mapped privés, mais deux trous historiques demeurent en Python
+    < 3.12 :
+    - le multicast IPv4 (239.0.0.1) est reporté ``is_global == True`` ;
+    - les formes IPv4-compatibles ``::a.b.c.d`` (hors ::ffff:0:0/96) sont
+      aussi reportées ``is_global == True`` et ne sont PAS liées à un
+      ``ipv4_mapped`` (contournement IPv4 possible).
+    """
+    if ip.is_multicast or ip.is_unspecified:
+        return False
+    # IPv4-compatible : les 96 bits hauts sont à zéro et ce n'est pas une
+    # forme IPv4-mapped (::ffff:0:0/96 vue via ``ipv4_mapped``).
+    if ip.version == 6 and ip.ipv4_mapped is None and (int(ip) >> 32) == 0:
+        return False
+    return ip.is_global
 
 
 class _PageParser(HTMLParser):
@@ -215,6 +256,7 @@ def _parse_page(html: str, base_url: str) -> tuple[str, list[str], str]:
 
 # ── (SUITE 2) ────────────────────────────────────────────────────────────────
 
+
 class WebIngestionManager:
     """Pipeline d'ingestion web contrôlé (scan → preview → validation → index).
 
@@ -245,6 +287,7 @@ class WebIngestionManager:
         self._knowledge = knowledge
         self._collections = collections
         self._folders = folders
+        self._projects: Any | None = None
         self._resolver = resolver or _default_resolver
         self._request_delay = max(0.0, float(request_delay))
         self._request_timeout = float(request_timeout)
@@ -264,12 +307,18 @@ class WebIngestionManager:
     def _validate_url(self, url: str) -> str:
         return _validate_public_url(url, self._resolver)
 
+    def set_projects(self, projects: Any | None) -> None:
+        """Branche le ProjectManager (destination ``target="project"``).
+
+        Injection différée : le ProjectManager du Core est construit après ce
+        manager au démarrage ; le Runtime le branche dès qu'il est prêt.
+        """
+        self._projects = projects
+
     async def _fetch_page(self, url: str) -> tuple[FetchResult | None, str | None]:
         """Fetch borné (timeout + taille max). Retourne (résultat, erreur)."""
         try:
-            result = await asyncio.wait_for(
-                self._fetch(url), timeout=self._request_timeout + 5.0
-            )
+            result = await asyncio.wait_for(self._fetch(url), timeout=self._request_timeout + 5.0)
         except asyncio.TimeoutError:
             return None, "timeout"
         except Exception as exc:
@@ -361,11 +410,7 @@ class WebIngestionManager:
             for child_sitemap in locs:
                 if len(urls) >= limit:
                     break
-                urls.extend(
-                    await self._load_sitemap_urls(
-                        child_sitemap, robots, limit - len(urls)
-                    )
-                )
+                urls.extend(await self._load_sitemap_urls(child_sitemap, robots, limit - len(urls)))
             return urls
         for loc in locs:
             if len(urls) >= limit:
@@ -379,9 +424,7 @@ class WebIngestionManager:
 
     def _public_view(self, scan: dict[str, Any]) -> dict[str, Any]:
         """Vue API du preview : les textes complets restent en mémoire."""
-        pages = [
-            {k: v for k, v in page.items() if k != "text"} for page in scan["pages"]
-        ]
+        pages = [{k: v for k, v in page.items() if k != "text"} for page in scan["pages"]]
         view = dict(scan)
         view["pages"] = pages
         return view
@@ -390,9 +433,7 @@ class WebIngestionManager:
         """Les previews non validés expirent (jamais persistés)."""
         now = time.time()
         for scan_id in [
-            sid
-            for sid, scan in self._scans.items()
-            if now - scan["created_at"] > SCAN_TTL_SECONDS
+            sid for sid, scan in self._scans.items() if now - scan["created_at"] > SCAN_TTL_SECONDS
         ]:
             self._scans.pop(scan_id, None)
 
@@ -401,7 +442,7 @@ class WebIngestionManager:
     ) -> list[str]:
         """URLs du/des sitemaps (directive robots.txt ou /sitemap.xml)."""
         sitemap_locs = list(robots.get("sitemap_urls") or [])
-        sitemap_locs = (sitemap_locs[:3] if sitemap_locs else [f"{origin}/sitemap.xml"])
+        sitemap_locs = sitemap_locs[:3] if sitemap_locs else [f"{origin}/sitemap.xml"]
         found: list[str] = []
         for sitemap_url in sitemap_locs:
             found.extend(await self._load_sitemap_urls(sitemap_url, robots, max_pages * 2))
@@ -485,7 +526,9 @@ class WebIngestionManager:
             ):
                 pages.append(
                     self._page_entry(
-                        current_url, depth, "skipped",
+                        current_url,
+                        depth,
+                        "skipped",
                         error=f"contenu non textuel ({content_type})",
                     )
                 )
@@ -501,7 +544,9 @@ class WebIngestionManager:
 
             pages.append(
                 self._page_entry(
-                    current_url, depth, "ok",
+                    current_url,
+                    depth,
+                    "ok",
                     title=title or current_url,
                     excerpt=text[:300],
                     text=text,
@@ -563,9 +608,7 @@ class WebIngestionManager:
         candidates: list[tuple[str, int]] = [(root, 0)]
         sitemap_used = False
         if use_sitemap:
-            sitemap_page_urls = await self._collect_sitemap_candidates(
-                origin, robots, max_pages
-            )
+            sitemap_page_urls = await self._collect_sitemap_candidates(origin, robots, max_pages)
             if sitemap_page_urls:
                 sitemap_used = True
                 known = {root}
@@ -646,6 +689,7 @@ class WebIngestionManager:
         new_collection_name: str | None = None,
         retrieval_strategy: str | None = None,
         embedding_model: str | None = None,
+        project_id: str | None = None,
         user_id: str = "anonymous",
     ) -> dict[str, Any]:
         """Indexe les pages **sélectionnées par l'utilisateur** d'un preview.
@@ -659,10 +703,13 @@ class WebIngestionManager:
             page_ids: Pages choisies par l'utilisateur.
             folder_id / new_folder_name: Dossier de destination (existant ou
                 créé à la volée) ; optionnel — aucun dossier n'est imposé.
-            target: ``"collection"`` (documents RAG) ou ``"knowledge"``
-                (nœuds de Knowledge).
+            target: ``"collection"`` (documents RAG), ``"knowledge"``
+                (nœuds de Knowledge) ou ``"project"`` (documents du projet).
             collection_id / new_collection_name: RAG Collection cible
                 (existante ou créée) — requis si ``target="collection"``.
+            project_id: Projet cible — requis si ``target="project"`` ; la
+                ingestion réutilise le pipeline documentaire du projet
+                (ProjectManager.record_document_upload → pipeline RAG Core).
             retrieval_strategy: Stratégie RAG appliquée à la collection
                 (création ou mise à jour de la collection cible).
             embedding_model: Modèle d'embedding appliqué au moteur RAG
@@ -691,12 +738,15 @@ class WebIngestionManager:
 
         folder = await self._resolve_folder(folder_id, new_folder_name)
         target_normalized = (target or "").strip().lower()
-        if target_normalized not in ("collection", "knowledge"):
-            raise ValueError(f"Cible inconnue : {target!r} (collection|knowledge)")
+        if target_normalized not in ("collection", "knowledge", "project"):
+            raise ValueError(f"Cible inconnue : {target!r} (collection|knowledge|project)")
+        if target_normalized == "project" and not (project_id or "").strip():
+            raise ValueError("Cible project : fournir project_id")
 
         created_documents: list[dict[str, Any]] = []
         created_nodes: list[dict[str, Any]] = []
         collection: dict[str, Any] | None = None
+        project: dict[str, Any] | None = None
 
         # ── (SUITE 8) ────────────────────────────────────────────────────
         if target_normalized == "collection":
@@ -715,9 +765,7 @@ class WebIngestionManager:
                     retrieval_strategy=retrieval_strategy,
                 )
             else:
-                raise ValueError(
-                    "Cible collection : fournir collection_id ou new_collection_name"
-                )
+                raise ValueError("Cible collection : fournir collection_id ou new_collection_name")
 
             if embedding_model:
                 await self._rag.configure(embedding_model=embedding_model)
@@ -739,10 +787,8 @@ class WebIngestionManager:
                     {"document_id": document.id, "url": page["url"], "title": page.get("title")}
                 )
             if folder is not None:
-                await self._folders.attach_resource(
-                    folder["id"], "collection", collection["id"]
-                )
-        else:
+                await self._folders.attach_resource(folder["id"], "collection", collection["id"])
+        elif target_normalized == "knowledge":
             for page in selected:
                 node = await self._knowledge.create(
                     page.get("title") or page["url"],
@@ -760,18 +806,45 @@ class WebIngestionManager:
                 created_nodes.append(
                     {"node_id": node.id, "url": page["url"], "title": page.get("title")}
                 )
+        else:  # project
+            # Destination "projet" : réutilise le pipeline documentaire
+            # existant (ProjectManager.record_document_upload → extraction,
+            # chunking, embedding via le pipeline RAG Core). Aucun pipeline
+            # parallèle n'est introduit.  Le ProjectManager est injecté par
+            # le Runtime (set_projects) — jamais importé depuis une interface.
+            if self._projects is None:
+                raise ValueError(
+                    "ProjectManager non branché : impossible d'importer vers un projet"
+                )
+            project = {"id": str(project_id).strip()}
+            for page in selected:
+                doc = await self._projects.record_document_upload(
+                    project_id=project["id"],
+                    file_id=page["url"],
+                    filename=(page.get("title") or page["url"])[:200],
+                    mime_type="text/plain",
+                    size_bytes=len(page["text"].encode("utf-8")),
+                    user_id=user_id,
+                    contents=page["text"].encode("utf-8"),
+                )
+                created_documents.append(
+                    {
+                        "document_id": doc["id"],
+                        "url": page["url"],
+                        "title": page.get("title"),
+                        "status": doc.get("status"),
+                        "error": doc.get("error"),
+                    }
+                )
 
         return {
             "scan_id": scan_id,
             "target": target_normalized,
-            "folder": (
-                {"id": folder["id"], "name": folder.get("name")} if folder else None
-            ),
+            "folder": ({"id": folder["id"], "name": folder.get("name")} if folder else None),
             "collection": (
-                {"id": collection["id"], "name": collection.get("name")}
-                if collection
-                else None
+                {"id": collection["id"], "name": collection.get("name")} if collection else None
             ),
+            "project": project,
             "indexed": created_documents or created_nodes,
             "indexed_count": len(created_documents) or len(created_nodes),
             "skipped_duplicates": skipped_duplicates,

@@ -10,6 +10,7 @@ from typing import Any
 
 class KnowledgeType(str, Enum):
     """Types de nœuds de connaissance."""
+
     CONCEPT = "concept"
     FACT = "fact"
     RULE = "rule"
@@ -21,6 +22,7 @@ class KnowledgeType(str, Enum):
 @dataclass
 class KnowledgeConnection:
     """Connexion entre deux nœuds de connaissance."""
+
     id: str
     from_node_id: str
     to_node_id: str
@@ -60,6 +62,7 @@ class KnowledgeConnection:
 @dataclass
 class KnowledgeNode:
     """Nœud de connaissance persistante."""
+
     id: str
     label: str
     node_type: KnowledgeType = KnowledgeType.CONCEPT
@@ -96,10 +99,7 @@ class KnowledgeNode:
             node_type=KnowledgeType(data.get("node_type", "concept")),
             content=data.get("content", ""),
             source=data.get("source", ""),
-            connections=[
-                KnowledgeConnection.from_dict(c)
-                for c in data.get("connections", [])
-            ],
+            connections=[KnowledgeConnection.from_dict(c) for c in data.get("connections", [])],
             metadata=data.get("metadata", {}),
             created_at=datetime.fromisoformat(data["created_at"])
             if data.get("created_at")

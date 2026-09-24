@@ -12,7 +12,7 @@ depuis l'environnement (env / Vault / Docker secrets).
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 class SecretNotFoundError(Exception):
@@ -30,17 +30,18 @@ class Secrets:
 # Loader bas niveau (production) — récupère un "blob" de secrets connus
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _load_from_vault() -> Secrets | None:
     addr = os.getenv("VAULT_ADDR")
     token = os.getenv("VAULT_TOKEN")
     if not addr or not token:
         return None
     try:
-        import requests
+        import json as _json
+        import time
+        import urllib.request
     except ImportError:
         return None
-
-    import time
 
     max_retries = 5
     retry_delay = 2
@@ -49,14 +50,14 @@ def _load_from_vault() -> Secrets | None:
         try:
             secrets: dict[str, str] = {}
             for path in ("secret/ethan/postgres", "secret/ethan/openai", "secret/ethan/anthropic"):
-                resp = requests.get(
+                request = urllib.request.Request(
                     f"{addr}/v1/{path}",
                     headers={"X-Vault-Token": token},
-                    timeout=2,
                 )
-                if resp.ok:
-                    data = resp.json().get("data", {})
-                    secrets.update(data)
+                with urllib.request.urlopen(request, timeout=2) as resp:
+                    if 200 <= resp.status < 300:
+                        data = _json.loads(resp.read().decode("utf-8")).get("data", {})
+                        secrets.update(data)
             if secrets:
                 return Secrets(
                     postgres_password=secrets.get("postgres_password", ""),
@@ -96,6 +97,7 @@ def get_secrets() -> Secrets:
 #   3. Vault (si ``VAULT_ADDR`` + ``VAULT_TOKEN`` fournis)
 #   4. Valeur par défaut ou ``SecretNotFoundError``
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class SecretManager:
     """Gestionnaire de secrets avec cache mémoire.
