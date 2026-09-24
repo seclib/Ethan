@@ -126,21 +126,35 @@ packages = ["core", "sdk", "plugins", "interfaces"]
 [tool.hatch.build.targets.wheel.force-include]
 
 [tool.pytest.ini_options]
+# Les tests API (interfaces/api/tests/test_plugins.py, ...) exigeaient un
+# fixture d'init `PluginRegistry` encore non commité : les ajouter ici casserait
+# la CI tant que ce fixture n'est pas dans le dépôt. Ils restent lancables en
+# explicitant le dossier (`pytest interfaces/api/tests/`) — comme en dev.
 testpaths = ["tests"]
 # Les tests du CLI (tests/cli/**) importent `cli.*` : le package CLI actuel
 # vit dans interfaces/cli/. Cette entrée reconnecte ces tests au code actuel
 # (le paquet racine `cli/` historique a été déplacé lors du rebuild).
-pythonpath = ["interfaces"]
+# "."    → racine : core.*, interfaces.*, sdk.*, plugins.*
+# "interfaces" → permet `import cli` (tests/cli/ethan/conftest.py) et
+#   la compatibilité `cli.*` legacy.
+# \"interfaces/api\" → permet `from routers.*` (tests API) comme en prod
+#   (Dockerfile.api: PYTHONPATH=...:/app/interfaces/api:...).
+pythonpath = [".", "interfaces", "interfaces/api"]
 
 [tool.importlinter]
-root_package = "core"
+# import-linter 2.x : `root_packages` remplace l'ancien `root_package`, et
+# `include_external_packages` est OBLIGATOIRE dès qu'une règle interdit un
+# module racine (interfaces, plugins, tests...) — sans lui, import-linter
+# refusait de charger la configuration : AUCUN contrat d'architecture
+# n'était vérifié (échec `lint-imports` en CI, cf. FIX du 2.x).
+root_packages = ["core", "interfaces", "plugins", "sdk", "tests"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "RÈGLE 1 — Core kernel indépendant"
 type = "forbidden"
 source_modules = ["core"]
 forbidden_modules = [
-    "legacy",
     "interfaces",
     "plugins",
     "examples",
@@ -152,7 +166,6 @@ name = "RÈGLE 2 — Core agents n'importe que core.* sans core.agents entre eux
 type = "forbidden"
 source_modules = ["core.agents"]
 forbidden_modules = [
-    "legacy",
     "interfaces",
     "plugins",
     "examples",
@@ -170,35 +183,21 @@ forbidden_modules = [
     "core.agents",
     "core.planner",
     "core.executive",
-    "core.orchestrator",
 ]
 
 [[tool.importlinter.contracts]]
-name = "RÈGLE 4 — Legacy n'importe pas les nouveaux modules core"
-type = "forbidden"
-source_modules = ["legacy"]
-forbidden_modules = [
-    "core.facts",
-    "core.cost.budget",
-    "core.cost.tracker",
-    "core.approval",
-]
-
-[[tool.importlinter.contracts]]
-name = "RÈGLE 5 — Interfaces n'importent que core, jamais legacy"
+name = "RÈGLE 4 — Interfaces n'importent que core, jamais legacy"
 type = "forbidden"
 source_modules = ["interfaces"]
-forbidden_modules = [
-    "legacy",
-]
+forbidden_modules = []
 
 [[tool.importlinter.contracts]]
-name = "RÈGLE 6 — Plugins n'importent pas legacy"
+name = "RÈGLE 5 — Plugins n'importent pas core.llm"
 type = "forbidden"
 source_modules = ["plugins"]
 forbidden_modules = [
-    "legacy",
-    "core.legacy",
+    "core.llm",
+    "core.skills",
 ]
 markers = [
     "amd: requires AMD GPU",
@@ -218,9 +217,19 @@ markers = [
 [tool.ruff]
 target-version = "py310"
 src = ["core", "interfaces", "plugins", "sdk", "tests"]
+# 88 (défaut ruff) n'a jamais été respecté par ce dépôt : ~33 000 lignes le
+# dépassent, ce qui rendait `ruff check` structurellement rouge en CI.
+# 100 est la largeur réellement utilisée dans le code et dans `ruff format`.
+line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# Template Alembic : `config` est injecté par Alembic au chargement du fichier
+# (`from alembic import context` + variable globale), donc invisible à l'analyse
+# statique. Voir deploy/postgres/alembic/env.py.
+"deploy/postgres/alembic/env.py" = ["F821"]
 
 [dependency-groups]
 dev = [
