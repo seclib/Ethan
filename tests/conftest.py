@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -152,3 +154,31 @@ collect_ignore = [
     "cli/ethan/integration/test_failure_scenarios.py",
     "cli/ethan/unit/test_daemon.py",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Fixtures partagées des tests de contrat API (ADR-3006 / G-06).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def contract_client():
+    """TestClient de contrat : lifespan actif, état global restauré après coup.
+
+    Le lifespan de `interfaces/api/main.py` peuple deux singletons plugin
+    (`core.plugins.registry._registry` + `interfaces.api.routers.v1
+    ._plugin_registry`). `tests/test_plugins_api.py::test_routes_sans_
+    registry_503` exige leur absence : on snapshot l'état initial et on le
+    restaure en teardown pour ne pas polluer le reste de la suite.
+    """
+    import core.plugins.registry as core_plugin_registry
+    from fastapi.testclient import TestClient
+    from interfaces.api.main import app
+    from interfaces.api.routers import v1
+
+    saved_core_registry = core_plugin_registry._registry
+    saved_v1_registry = v1._plugin_registry
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        yield test_client
+    core_plugin_registry.set_plugin_registry(saved_core_registry)
+    v1.set_plugin_registry(saved_v1_registry)

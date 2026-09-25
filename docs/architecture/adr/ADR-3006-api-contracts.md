@@ -2,7 +2,17 @@
 
 **Statut** : Proposition (brouillon)
 **Date** : 2026-09-07
-**État audité (2026-09-24)** : 🟡 **Partiel** — `tests/cli/ethan/regression/test_api_contracts.py` + `APIResponseValidator` existent et couvrent un sous-ensemble ; la généralisation (snapshot OpenAPI + un contrat par domaine) est planifiée en vague V1 (`ARCHITECTURE-CIBLE.md` §9.2, G-06). Conventions de contrat formalisées au §7.1 du même document.
+**État audité (2026-09-25)** : 🟡 **En cours d'implémentation** — décision §2 généralisée :
+[`tests/test_api_contract_p0.py`](/tests/test_api_contract_p0.py) (92 routes) +
+[`tests/test_api_contract_domains.py`](/tests/test_api_contract_domains.py) (90 routes, 9 domaines, 7 tests),
+catalogue [`docs/api/CONTRACTS-API.md`](/docs/api/CONTRACTS-API.md), outils partagés `tests/contract_kit.py`.
+Décision §1 **implémentée** : snapshot [`docs/api/openapi.v1.json`](/docs/api/openapi.v1.json)
+(258 chemins, généré sur le code committé `22fad583`) — vérifié par
+`test_snapshot_v1_aucune_route_supprimee` (ajout = compatible, suppression = rupture).
+Reste à faire : couverture `response_model` (175 routes sans schéma, plafonds non régressifs
+en place), décision §3 (types TS générés — DEF-07).
+Note : le fichier de référence `interfaces/api/tests/test_contracts.py` cité en §2 est remplacé
+par les deux contrats ci-dessus, placés dans `tests/` pour être exécutés en CI (`testpaths = ["tests"]`).
 **Contexte** : La consolidation active du dépôt a déjà cassé des contrats (ex. providers/models),
 et le WebUI consomme une surface `/v1/*` large sans garde-fou formel. Le risque de régression
 silencieuse entre Core et WebUI est élevé.

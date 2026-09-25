@@ -26,24 +26,21 @@ Invariants couverts :
 Emplacement : `tests/` et non `interfaces/api/tests/` car
 ``testpaths = ["tests"]`` (pyproject.toml) : hors de `tests/`, le contrat
 ne serait pas execute en CI.
+
+Outils partagés (introspection de surface, client de contrat) : voir
+`tests/contract_kit.py` et la fixture `contract_client` (`tests/conftest.py`).
 """
 
 from __future__ import annotations
 
-import os
-import re
-import secrets
-from collections import Counter
-
-import pytest
 from fastapi.testclient import TestClient
 
-# Fail-safe auto-suffisant : cle generee en memoire (jamais en dur dans le
-# code — regle "no secrets"), pour que le test fonctionne meme si
-# l'hote definit ETHAN_ENV=production.
-os.environ.setdefault("JWT_SECRET", secrets.token_urlsafe(48))
-
-from interfaces.api.main import app  # noqa: E402
+from tests.contract_kit import (
+    declared_routes,
+    duplicate_pairs,
+    resolve_path,
+    routes_sans_response_model,
+)
 
 # Exemptions auth verifiees par audit : les seules routes P0 qui ne
 # renvoient pas 401 sans token.
@@ -176,47 +173,15 @@ P0_ROUTES: set[tuple[str, str]] = {
 }
 
 
-def _resolve(path: str) -> str:
-    """Remplace les parametres de chemin par un jeton inoffensif."""
-    return re.sub(r"\{[^}]+\}", "x", path)
-
-
-@pytest.fixture(scope="module")
-def client() -> TestClient:
-    """Client de contrat : lifespan actif, etat global restaure apres coup.
-
-    Le lifespan de main.py peuple deux singletons plugin
-    (`core.plugins.registry._registry` + `interfaces.api.routers.v1
-    ._plugin_registry`). `tests/test_plugins_api.py::test_routes_sans_
-    registry_503` exige leur absence : on snapshot l'etat initial et on le
-    restaure en teardown pour ne pas polluer le reste de la suite.
-    """
-    import core.plugins.registry as core_plugin_registry
-    from interfaces.api.routers import v1
-
-    saved_core_registry = core_plugin_registry._registry
-    saved_v1_registry = v1._plugin_registry
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
-    core_plugin_registry.set_plugin_registry(saved_core_registry)
-    v1.set_plugin_registry(saved_v1_registry)
-
-
-def _declared_routes() -> set[tuple[str, str]]:
-    declared: set[tuple[str, str]] = set()
-    for route in app.routes:
-        methods = getattr(route, "methods", None)
-        if not methods:
-            continue
-        for method in methods:
-            if method in ("GET", "POST", "PUT", "PATCH", "DELETE"):
-                declared.add((method, route.path))
-    return declared
+# `resolve_path`, la fixture `contract_client` et l'introspection de surface
+# (`declared_routes`, `duplicate_pairs`, `routes_sans_response_model`) sont
+# partagés avec `tests/test_api_contract_domains.py` — voir `contract_kit.py`
+# (kit) et `conftest.py` (fixture) : zéro duplication entre les deux contrats.
 
 
 def test_surface_p0_complete() -> None:
     """Chaque route P0 declaree existe encore sur l'application reelle."""
-    missing = P0_ROUTES - _declared_routes()
+    missing = P0_ROUTES - declared_routes()
     assert not missing, (
         f"{len(missing)} route(s) P0 disparue(s) de l'API — regression de "
         f"surface : {sorted(missing)}"
@@ -225,35 +190,27 @@ def test_surface_p0_complete() -> None:
 
 def test_aucune_route_dupliquee() -> None:
     """Aucune paire (methode, chemin) en doublon (collision de routeurs)."""
-    pairs: list[tuple[str, str]] = []
-    for route in app.routes:
-        methods = getattr(route, "methods", None)
-        if not methods:
-            continue
-        for method in methods:
-            if method not in ("HEAD", "OPTIONS"):
-                pairs.append((method, route.path))
-    duplicates = {pair: n for pair, n in Counter(pairs).items() if n > 1}
+    duplicates = duplicate_pairs()
     new_duplicates = set(duplicates) - KNOWN_DOUBLONS
     assert not new_duplicates, f"nouveaux doublons (methode, chemin) : {sorted(new_duplicates)}"
 
 
-def test_rbac_p0_sans_token(client: TestClient) -> None:
+def test_rbac_p0_sans_token(contract_client: TestClient) -> None:
     """Sans token, toute route P0 hors /health* est refusee (401)."""
     protected = P0_ROUTES - PUBLIC_P0_ROUTES
     assert len(protected) == 87, f"population inattendue : {len(protected)}"
     refused: dict[tuple[str, str], int] = {}
     for method, path in sorted(protected):
-        response = client.request(method, _resolve(path))
+        response = contract_client.request(method, resolve_path(path))
         if response.status_code != 401:
             refused[(method, path)] = response.status_code
     assert not refused, f"routes P0 accessibles sans authentification (regression C-08) : {refused}"
 
 
-def test_health_publique(client: TestClient) -> None:
+def test_health_publique(contract_client: TestClient) -> None:
     """Les endpoints de sante restent publics (liveness/readiness)."""
     for method, path in sorted(PUBLIC_P0_ROUTES):
-        response = client.request(method, _resolve(path))
+        response = contract_client.request(method, resolve_path(path))
         if path == "/health/detailed":
             # 503 tant que les dependances (NATS/Redis/PG) sont absentes.
             assert response.status_code in (200, 503), f"{path} -> {response.status_code}"
@@ -261,9 +218,9 @@ def test_health_publique(client: TestClient) -> None:
             assert response.status_code == 200, f"{path} -> {response.status_code}"
 
 
-def test_openapi_couvre_les_chemins_p0(client: TestClient) -> None:
+def test_openapi_couvre_les_chemins_p0(contract_client: TestClient) -> None:
     """/openapi.json reste public et documente chaque chemin P0."""
-    response = client.get("/openapi.json")
+    response = contract_client.get("/openapi.json")
     assert response.status_code == 200
     documented = set(response.json().get("paths", {}))
     missing = {path for _, path in P0_ROUTES} - documented
@@ -272,17 +229,7 @@ def test_openapi_couvre_les_chemins_p0(client: TestClient) -> None:
 
 def test_dette_sans_schema_ne_regresse_pas() -> None:
     """Le nombre de routes P0 sans response_model ne peut que baisser."""
-    without_schema = sum(
-        1
-        for route in app.routes
-        if getattr(route, "methods", None)
-        and any(
-            (method, route.path) in P0_ROUTES
-            for method in route.methods
-            if method in ("GET", "POST", "PUT", "PATCH", "DELETE")
-        )
-        and not getattr(route, "response_model", None)
-    )
+    without_schema = routes_sans_response_model(P0_ROUTES)
     assert without_schema <= MAX_SANS_RESPONSE_MODEL, (
         f"{without_schema} routes P0 sans response_model > plafond "
         f"{MAX_SANS_RESPONSE_MODEL} : nouvelle route exposee sans schema "
