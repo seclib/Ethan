@@ -461,7 +461,7 @@ Redis (cache)                          ✅      inchangé (jamais source de vér
 
 | Vague | Contenu | Prérequis | Critère de sortie |
 |---|---|---|---|
-| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | ✅ **Atteint (V1.5)** : clone vierge à `cc74225e` → `lint-imports` 5 kept/0 broken, `ruff check` **0** + `ruff format --check` **0** (ruff pinné), collecte 0 erreur, sous-ensemble CI 26/26, suite complète **1092 passed / 7 skipped / 0 failed** (les 46 échecs préexistants corrigés) ; CI globale **verte** |
+| **V1 — Solder le socle** | G-08 (nettoyage), G-06 (contrats des domaines P0) | — | ✅ **Atteint (V1.5)** : clone vierge à `cc74225e` → `lint-imports` 5 kept/0 broken, `ruff check` **0** + `ruff format --check` **0** (ruff pinné), collecte 0 erreur, sous-ensemble CI 26/26, suite complète **1092 passed / 7 skipped / 0 failed** (les 46 échecs préexistants corrigés) ; CI **10/10 verte** — run [`36101046156`](https://github.com/seclib/Ethan/actions/runs/36101046156) (2026-09-25) : lint 0 erreur, unit 3.11/3.12/3.13, security, 4 builds, intégration `6 passed / 6 skipped` (guards stack partielle) |
 | **V2 — Unifier la persistance** | G-01 (ADR-3001), G-02 discipline | V1 | Une seule source config ; `CoreWebUIStore` sans nouvel usage |
 | **V3 — Unifier Conversations** | ADR-3007 (modèle unique, `/v1/conversations` + alias) | V2 | Un seul modèle de conversation, E2E chat vert |
 | **V4 — Décider les vecteurs** | ADR-3004 (mesures puis bascule) | V2 | Un seul backend d'index, réindexation validée |
@@ -528,6 +528,7 @@ make -n bootstrap              # séquence preflight → pull → up → wait �
 | 2026-09-24 | 1.0 | Création : audit `676403a3`, architecture cible, requalification des ADR, écarts G-01..G-08, décisions D-00..D-07, vagues V1..V6 |
 | 2026-09-24 | 1.1 | Vague V1 exécutée : G-08 clos (`64c9b546`, `92d0c396`, `e648454b`, `9fe0f638`), G-06 contrat P0 livré (`cfe60b31`+`a0844b2f`, 6 tests), G-09 identifié (ruff/CI rouge préexistant) |
 | 2026-09-24 | 1.2 | V1.5 : **G-09 clos** (pin CI ruff `0.15.1` + big-bang `--fix`/`format`, 992 fichiers, 0 erreur), **doublons G-04/ADR-3008 supprimés** (contrat à zéro doublon), **46 échecs préexistants corrigés** (ports ciblés du WIP : CLI/knowledge/boot/technology/ssrf), imports legacy `ethan.*` éliminés — SHAs `5ee65c47`..`cc74225e` |
+| 2026-09-25 | 1.3 | **CI 10/10 verte** (run `36101046156`) — chaîne de correctifs CI : permissions `packages: write` (`0d33fc4f`), build-args `BASE_IMAGE` vers ghcr + retrait `prometheus` du job intégration (`64f05a74`), `pytest-timeout` en deps dev (`ff5c3b31`), skip hérité `openjarvis` (`42f29474`), guards « stack partielle » (`2a933cda`) et `_service_running` en `--format {{.Service}}` — sans header (sinon `ps` tabulaire renvoie l'en-tête à 0 résultat → faux positif) (`68ac88c3`) |
 
 ### C. Documents de référence
 

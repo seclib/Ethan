@@ -291,7 +291,10 @@ suppression des imports legacy `ethan.*` dans
 `interfaces/cli/{startup,ui/prompts}.py`, retrait de
 `tests/security/test_ssrf.py` dont le package `openjarvis` n'existe
 plus) ; les 5 doublons G-04/ADR-3008 sont supprimés (contrat à zéro
-doublon) ; CI globale **verte** (voir `ARCHITECTURE-CIBLE.md` G-09).
+doublon) ; CI globale **verte** (run `36101046156`, 2026-09-25 : 10 jobs
+success — lint 0, unit 3.11/3.12/3.13, security, 4 builds, intégration
+`6 passed / 6 skipped` par guards stack partielle) — voir
+`ARCHITECTURE-CIBLE.md` G-09.
 
 
 ```bash
@@ -371,11 +374,21 @@ echo "OK: backup réussi ($(wc -c < /tmp/test_backup.sql) bytes)"
 
 ## 5. Prochaines Étapes
 
-1. **S2** : Intégrer `PluginValidator` dans `PluginLoader` + tests sandbox
-2. **S3** : Timeouts bootstrap + circuit breaker + unification registry
-3. **S4** : Pipeline CI/CD + tests unitaires
-4. **S5** : Observabilité (Grafana, Loki, alerting)
-5. **S6** : Authentification WebUI + finalisation
+> **État au 2026-09-25** : tous les items S2–S6 sont livrés et vérifiés
+> (preuves en regard). Liste conservée pour historique.
+
+1. ✅ **S2** : `PluginValidator` intégré — `plugins/loader.py` l'importe,
+   `PluginRegistry.install_custom` valide (P1-PLUGIN-01)
+2. ✅ **S3** : timeouts + retries (`_connect_with_retries`,
+   `CONNECT_ATTEMPTS` dans `core/ethan_bootstrap.py`) + circuit breaker
+   (`core/safety/circuit_breaker.py`) + fusion CLI `plugin` ; unification
+   registry résiduelle = P1-ARCH-01 (RFC)
+3. ✅ **S4** : pipeline CI/CD + tests — CI **10/10 verte** (run
+   `36101046156`)
+4. ✅ **S5** : observabilité (`infrastructure/grafana/dashboards/ethan-dashboard.json`,
+   `docker-compose.observability.yml`)
+5. ✅ **S6** : auth WebUI (`interfaces/webui/src/app/(auth)/login`,
+   `interfaces/webui/src/middleware.ts`)
 
 ---
 
