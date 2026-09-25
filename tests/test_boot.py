@@ -164,7 +164,11 @@ class TestBoot:
             assert pattern not in result.stdout, f"Kernel logs contain crash pattern '{pattern}'"
 
     def _service_running(self, service: str) -> bool:
-        """Le service compose tourne-t-il actuellement ? (tests d'intégration)"""
+        """Le service compose tourne-t-il actuellement ? (tests d'intégration)
+
+        --format {{.Service}} : sans header, contrairement à ps tabulaire qui
+        affiche l'en-tête même à 0 résultat et ferait toujours True.
+        """
         result = run_cmd(
             [
                 "docker",
@@ -174,6 +178,8 @@ class TestBoot:
                 "ps",
                 "--status",
                 "running",
+                "--format",
+                "{{.Service}}",
                 service,
             ]
         )
