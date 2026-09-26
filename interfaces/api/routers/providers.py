@@ -65,6 +65,23 @@ async def list_providers():
     return [ProviderResponse(**p) for p in providers]
 
 
+# ── GET /providers/catalog ─────────────────────────────────────────────────
+# ⚠️ Déclaré AVANT /{provider_id} : FastAPI matche dans l'ordre de
+# déclaration et « catalog » serait sinon interprété comme un provider id.
+
+
+@router.get("/catalog")
+async def get_provider_catalog():
+    """Catalogue Core des types de providers supportés.
+
+    Source de vérité unique pour les interfaces : types acceptés par la
+    factory Core, URL de base par défaut, méthodes d'authentification et
+    capacités canoniques. Les interfaces ne dupliquent jamais cette liste.
+    """
+    manager = get_manager()
+    return manager.get_catalog()
+
+
 # ── GET /providers/{id} ────────────────────────────────────────────────────
 
 
