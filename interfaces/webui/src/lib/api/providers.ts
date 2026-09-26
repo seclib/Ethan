@@ -135,29 +135,30 @@ export async function getProviderCapabilities(id: string): Promise<ProviderCapab
 	return apiFetch<ProviderCapabilities>(`/providers/${id}/capabilities`);
 }
 
-/** Supported provider types for the create dialog */
-export const SUPPORTED_PROVIDER_TYPES = [
-	'ollama',
-	'openai',
-	'azure',
-	'anthropic',
-	'vllm',
-	'llamacpp',
-	'lmstudio',
-	'gemini',
-	'openai-compatible',
-	'openrouter',
-	'custom',
-] as const;
+/**
+ * Catalogue des types de providers — renvoyé par ETHAN Core
+ * (GET /providers/catalog). Le WebUI ne maintient AUCUNE liste parallèle :
+ * types, URLs par défaut, méthodes d'authentification et capacités
+ * proviennent du Core.
+ */
+export interface ProviderTypeCatalogEntry {
+	id: string;
+	/** URL par défaut du type ("" si aucun endpoint imposé — providers cloud). */
+	default_base_url: string;
+	/** Méthodes d'authentification déclarées par le Core (api_key, …). */
+	auth_methods: string[];
+	/** Capacités canoniques déclarées par le Core pour ce type. */
+	capabilities: string[];
+}
 
-export type ProviderType = (typeof SUPPORTED_PROVIDER_TYPES)[number];
+export interface ProviderCatalog {
+	types: ProviderTypeCatalogEntry[];
+	/** Vocabulaire canonique des capacités provider (ProviderCapability). */
+	provider_capabilities: string[];
+}
 
-/** Default base URLs per provider type */
-export const PROVIDER_DEFAULT_URLS: Record<string, string> = {
-	ollama: 'http://localhost:11434',
-	vllm: 'http://localhost:8000',
-	llamacpp: 'http://localhost:8080',
-	lmstudio: 'http://localhost:1234',
-	'openai-compatible': 'http://localhost:8000/v1',
-};
+/** Get the Core provider catalog (types, default URLs, auth, capabilities) */
+export async function getProviderCatalog(): Promise<ProviderCatalog> {
+	return apiFetch<ProviderCatalog>('/providers/catalog');
+}
 
