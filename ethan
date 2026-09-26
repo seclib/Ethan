@@ -34,6 +34,7 @@ usage() {
     echo "  down         Arrêter les services Docker"
     echo "  restart      Redémarrer les services Docker"
     echo "  status       Afficher l'état des services"
+    echo "  smoke        Vérifier la stack de bout en bout (health, auth, chat, projects)"
     echo "  preflight    Vérifier les prérequis système avant démarrage"
     echo "  pull-images  Pré-télécharger les images Docker (séquentiel)"
     echo "  doctor       Diagnostiquer l'installation"
@@ -65,6 +66,7 @@ case "$CMD" in
     down)         exec "${ETHAN_ROOT}/scripts/cmd-down.sh"       "$@" ;;
     restart)      exec "${ETHAN_ROOT}/scripts/cmd-restart.sh"    "$@" ;;
     status)       exec "${ETHAN_ROOT}/scripts/cmd-status.sh"     "$@" ;;
+    smoke)        exec "${ETHAN_ROOT}/scripts/cmd-smoke.sh"      "$@" ;;
     preflight)    exec "${ETHAN_ROOT}/scripts/cmd-preflight.sh" "$@" ;;
     pull-images)  exec "${ETHAN_ROOT}/scripts/cmd-pull-images.sh" "$@" ;;
     wait-for-services) exec "${ETHAN_ROOT}/scripts/cmd-wait-for-services.sh" "$@" ;;

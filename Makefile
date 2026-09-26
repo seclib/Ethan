@@ -1,4 +1,4 @@
-.PHONY: help install dev build up down logs test lint clean shell bootstrap doctor preflight pull-images wait-for-services status ci
+.PHONY: help install dev build up down logs test lint clean shell bootstrap doctor preflight pull-images wait-for-services status smoke ci
 
 help:
 	@echo "Ethan Cognitive OS — Makefile"
@@ -17,6 +17,8 @@ help:
 	@echo "  make doctor     Diagnostiquer l'installation"
 	@echo "  make preflight  Vérifier les prérequis système"
 	@echo "  make pull-images Pré-télécharger les images Docker"
+	@echo "  make status    Afficher l'état des services"
+	@echo "  make smoke     Vérifier la stack de bout en bout (health, auth, chat, projects)"
 
 install:
 	pip install -e ".[server,dev]"
@@ -70,6 +72,9 @@ wait-for-services:
 
 status:
 	./ethan status
+
+smoke:
+	./ethan smoke
 
 ci: lint test
 	docker compose build --parallel
