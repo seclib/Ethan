@@ -17,7 +17,11 @@ import os
 from typing import Any, AsyncIterator
 
 from core.llm.client import LLMClient
-from core.llm.provider_factory import create_provider_from_config
+from core.llm.provider_factory import (
+    SUPPORTED_PROVIDER_TYPES,
+    create_provider_from_config,
+    default_base_url,
+)
 from core.llm.providers.base import LLMProvider
 from core.llm.registry import LLMProviderRegistry
 from core.llm.router import LLMRouter
@@ -279,6 +283,36 @@ class ProviderManager:
             except Exception as exc:
                 logger.debug("Error closing provider store: %s", exc)
         logger.info("ProviderManager closed")
+
+    # ── Catalogue (source de vérité pour les interfaces) ────────────────
+
+    def get_catalog(self) -> dict[str, Any]:
+        """Catalogue des types de providers supportés par ETHAN Core.
+
+        Exposé tel quel aux interfaces (API/CLI/WebUI) : types acceptés par la
+        factory, URL de base par défaut, méthodes d'authentification et
+        capacités canoniques par type. Aucune instance n'est requise et aucun
+        secret n'est renvoyé — une interface ne doit jamais maintenir sa
+        propre liste de types ou d'endpoints.
+
+        Returns:
+            Dict ``{types: [...], provider_capabilities: [...]}``.
+        """
+        return {
+            "types": [
+                {
+                    "id": provider_type,
+                    "default_base_url": default_base_url(provider_type),
+                    "auth_methods": _auth_methods_for_type(provider_type),
+                    "capabilities": _caps_for_type(provider_type),
+                }
+                for provider_type in sorted(SUPPORTED_PROVIDER_TYPES)
+            ],
+            # Vocabulaire canonique des capacités provider
+            # (core/llm/types.py::ProviderCapability) — utilisé par les
+            # interfaces pour l'affichage, jamais pour en inventer.
+            "provider_capabilities": [cap.value for cap in ProviderCapability],
+        }
 
     # ── Enregistrement / suppression ────────────────────────────────────
 

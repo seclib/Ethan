@@ -38,6 +38,31 @@ SUPPORTED_PROVIDER_TYPES = {
     "custom",
 }
 
+# URLs de base par défaut des providers locaux — source unique Core.
+# Utilisées par ``create_provider_from_config`` ET exposées aux interfaces via
+# ``ProviderManager.get_catalog()`` : aucune interface ne doit dupliquer cette
+# connaissance (règle AGENTS.md — pas de registre parallèle côté WebUI).
+DEFAULT_BASE_URLS: dict[str, str] = {
+    "ollama": "http://localhost:11434",
+    "vllm": "http://localhost:8000",
+    "llamacpp": "http://localhost:8080",
+    "lmstudio": "http://localhost:1234",
+    "openai-compatible": "http://localhost:8000/v1",
+}
+
+
+def default_base_url(provider_type: str) -> str:
+    """URL de base par défaut d'un type de provider.
+
+    Args:
+        provider_type: Type de provider (ex: ``ollama``).
+
+    Returns:
+        L'URL par défaut, ou ``""`` si le type n'impose aucun endpoint
+        (providers cloud : openai, anthropic, gemini, …).
+    """
+    return DEFAULT_BASE_URLS.get((provider_type or "").lower(), "")
+
 
 def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
     """Crée une instance LLMProvider depuis un dict de config.
@@ -71,25 +96,25 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
 
     # Providers locaux (pas de clé API requise)
     if provider_type == "ollama":
-        provider: LLMProvider = OllamaProvider(base_url=base_url or "http://localhost:11434")
+        provider: LLMProvider = OllamaProvider(base_url=base_url or DEFAULT_BASE_URLS["ollama"])
         if default_model:
             provider.default_model = default_model
         return provider
 
     if provider_type == "vllm":
-        provider = VLLMProvider(base_url=base_url or "http://localhost:8000")
+        provider = VLLMProvider(base_url=base_url or DEFAULT_BASE_URLS["vllm"])
         if default_model:
             provider.default_model = default_model
         return provider
 
     if provider_type == "llamacpp":
-        provider = LlamaCppProvider(base_url=base_url or "http://localhost:8080")
+        provider = LlamaCppProvider(base_url=base_url or DEFAULT_BASE_URLS["llamacpp"])
         if default_model:
             provider.default_model = default_model
         return provider
 
     if provider_type == "lmstudio":
-        provider = LMStudioProvider(base_url=base_url or "http://localhost:1234")
+        provider = LMStudioProvider(base_url=base_url or DEFAULT_BASE_URLS["lmstudio"])
         if default_model:
             provider.default_model = default_model
         return provider
@@ -101,8 +126,15 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
         return provider
 
     if provider_type == "azure":
-        # Azure typically requires api_version in config. We fallback to default if not provided.
-        api_version = config.get("api_version", "2023-05-15")
+        # Azure requires api_version. Elle peut être fournie au niveau racine
+        # (config historique) ou dans ``options`` (format exposé aux interfaces
+        # qui ne peuvent pas écrire de clé racine inconnue du schéma API).
+        options = config.get("options") or {}
+        api_version = (
+            config.get("api_version")
+            or (options.get("api_version") if isinstance(options, dict) else None)
+            or "2023-05-15"
+        )
         provider = AzureOpenAIProvider(
             api_key=api_key,
             base_url=base_url,
@@ -139,7 +171,7 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
 
     # openai-compatible / custom → générique
     provider = OpenAICompatibleProvider(
-        base_url=base_url or "http://localhost:8000/v1",
+        base_url=base_url or DEFAULT_BASE_URLS["openai-compatible"],
         api_key=api_key,
         default_model=default_model or "gpt-4",
     )
