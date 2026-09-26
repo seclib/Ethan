@@ -67,7 +67,7 @@ if [[ ${#SERVICES[@]} -eq 0 ]]; then
         "docker:redis"
         "docker:kernel"
         "docker:modules"
-        "http://localhost:8000/health/ready"
+        "http://localhost:${ETHAN_API_PORT}/health/ready"
     )
 fi
 

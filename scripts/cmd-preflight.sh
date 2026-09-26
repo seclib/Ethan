@@ -175,16 +175,17 @@ if [[ "$_stack_existing" == "true" ]]; then
     fi
 else
     # CAS 1 : première install — vérifier les ports libres
-    # Ports requis par les services ETHAN
+    # Ports requis par les services ETHAN (host — résolus par ethan-lib.sh,
+    # mêmes clés que docker-compose.yml).
     declare -A REQUIRED_PORTS=(
-    [4222]="NATS (messaging)"
-    [6222]="NATS (cluster)"
-    [8222]="NATS (monitoring)"
-    [5432]="PostgreSQL"
-    [6379]="Redis"
-    [8000]="API Gateway"
-    [8080]="Kernel"
-    [3001]="WebUI"
+    ["${NATS_PORT}"]="NATS (messaging)"
+    ["${NATS_ROUTE_PORT}"]="NATS (cluster)"
+    ["${NATS_MONITOR_PORT}"]="NATS (monitoring)"
+    ["${POSTGRES_PORT}"]="PostgreSQL"
+    ["${REDIS_PORT}"]="Redis"
+    ["${ETHAN_API_PORT}"]="API Gateway"
+    ["${ETHAN_KERNEL_PORT}"]="Kernel"
+    ["${ETHAN_WEBUI_PORT}"]="WebUI"
 )
 
 _port_in_use() {

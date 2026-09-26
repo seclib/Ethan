@@ -357,14 +357,15 @@ check_docker() {
 check_docker_services() {
     section "4. Services Docker"
 
+    # Ports host résolus par ethan-lib.sh (mêmes clés que docker-compose.yml).
     local services=(
-        "ethan-nats:NATS:4222"
-        "ethan-redis:Redis:6379"
-        "ethan-postgres:PostgreSQL:5432"
-        "ethan-api:API Gateway:8000"
-        "ethan-kernel:Core Kernel:8080"
+        "ethan-nats:NATS:${NATS_PORT}"
+        "ethan-redis:Redis:${REDIS_PORT}"
+        "ethan-postgres:PostgreSQL:${POSTGRES_PORT}"
+        "ethan-api:API Gateway:${ETHAN_API_PORT}"
+        "ethan-kernel:Core Kernel:${ETHAN_KERNEL_PORT}"
         "ethan-modules:Cognitive Modules:—"
-        "ethan-ui:WebUI:3001"
+        "ethan-ui:WebUI:${ETHAN_WEBUI_PORT}"
         "ethan-pg_backup:PostgreSQL Backup:—"
     )
 
@@ -432,8 +433,10 @@ check_docker_services() {
 check_http_connectivity() {
     section "5. Connectivité HTTP"
 
-    local API_PORT="${API_PORT:-8000}"
-    local WEBUI_PORT="${PORT:-3001}"
+    # Ports host résolus par ethan-lib.sh (API_PORT/PORT restent prioritaires
+    # si l'appelant les exporte).
+    local API_PORT="${API_PORT:-${ETHAN_API_PORT:-8000}}"
+    local WEBUI_PORT="${PORT:-${ETHAN_WEBUI_PORT:-3001}}"
 
     # API Gateway
     # NB : `/` n'existe pas comme route publique (401 via middleware JWT) —

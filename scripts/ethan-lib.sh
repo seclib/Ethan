@@ -61,6 +61,29 @@ _env_get() {
         | tail -1 | cut -d= -f2- | tr -d '"'"'" || true
 }
 
+# ── Ports host (mappings 127.0.0.1 — surchargeurs via .env) ──────────────
+# Source de vérité : mêmes clés que docker-compose.yml (interpolation
+# `${VAR:-défaut}`) — un écart entre la lib et le compose ferait mentir
+# status/preflight/doctor. Les ports INTERNES des conteneurs (ex. 3001
+# dans ui, 8000 dans api) restent fixes : seule la côté host est variable.
+# Priorité : variable d'environnement > .env > défaut.
+_resolve_port() { # $1 = clé, $2 = défaut
+    local val="${!1:-}"
+    [[ -z "$val" ]] && val="$(_env_get "$1")"
+    echo "${val:-$2}"
+}
+
+NATS_PORT="$(_resolve_port NATS_PORT 4222)"
+NATS_MONITOR_PORT="$(_resolve_port NATS_MONITOR_PORT 8222)"
+NATS_ROUTE_PORT="$(_resolve_port NATS_ROUTE_PORT 6222)"
+REDIS_PORT="$(_resolve_port REDIS_PORT 6379)"
+POSTGRES_PORT="$(_resolve_port POSTGRES_PORT 5432)"
+ETHAN_API_PORT="$(_resolve_port ETHAN_API_PORT 8000)"
+ETHAN_KERNEL_PORT="$(_resolve_port ETHAN_KERNEL_PORT 8080)"
+ETHAN_WEBUI_PORT="$(_resolve_port ETHAN_WEBUI_PORT 3001)"
+export NATS_PORT NATS_MONITOR_PORT NATS_ROUTE_PORT REDIS_PORT POSTGRES_PORT \
+    ETHAN_API_PORT ETHAN_KERNEL_PORT ETHAN_WEBUI_PORT
+
 # ── Docker helpers ───────────────────────────────────────────────
 
 # Support multi-compose-files : si COMPOSE_FILES est défini (tableau),

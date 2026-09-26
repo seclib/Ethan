@@ -25,15 +25,16 @@ fi
 
 echo
 
-# Détailler chaque service
+# Détailler chaque service — ports host résolus par ethan-lib.sh
+# (mêmes clés/ défauts que docker-compose.yml).
 SERVICES_LIST=(
-    "ethan-nats:NATS:4222"
-    "ethan-redis:Redis:6379"
-    "ethan-postgres:PostgreSQL:5432"
-    "ethan-api:API Gateway:8000"
-    "ethan-kernel:Core Kernel:8080"
+    "ethan-nats:NATS:${NATS_PORT}"
+    "ethan-redis:Redis:${REDIS_PORT}"
+    "ethan-postgres:PostgreSQL:${POSTGRES_PORT}"
+    "ethan-api:API Gateway:${ETHAN_API_PORT}"
+    "ethan-kernel:Core Kernel:${ETHAN_KERNEL_PORT}"
     "ethan-modules:Cognitive Modules:—"
-    "ethan-ui:WebUI:3001"
+    "ethan-ui:WebUI:${ETHAN_WEBUI_PORT}"
     "ethan-pg_backup:PostgreSQL Backup:—"
 )
 
@@ -57,14 +58,14 @@ for svc_info in "${SERVICES_LIST[@]}"; do
 
         # Test de connectivité pour les services HTTP
         if [ "$port" != "—" ]; then
-            if [ "$port" = "4222" ]; then
+            if [ "$port" = "$NATS_PORT" ]; then
                 # NATS : port TCP
-                if nc -z localhost 4222 2>/dev/null || (echo > /dev/tcp/localhost/4222) 2>/dev/null; then
+                if nc -z localhost "$NATS_PORT" 2>/dev/null || (echo > /dev/tcp/localhost/"$NATS_PORT") 2>/dev/null; then
                     success "$label : port $port répond"
                 else
                     error "$label : port $port fermé"
                 fi
-            elif [ "$port" = "6379" ]; then
+            elif [ "$port" = "$REDIS_PORT" ]; then
                 # Redis : PING (mot de passe lu dans .env ; sans redis-cli sur le
                 # host → fallback via le conteneur, test réel).
                 _redis_pass="${REDIS_PASSWORD:-$(_env_get REDIS_PASSWORD)}"
@@ -87,7 +88,7 @@ for svc_info in "${SERVICES_LIST[@]}"; do
                 else
                     error "$label : PING échoue"
                 fi
-            elif [ "$port" = "5432" ]; then
+            elif [ "$port" = "$POSTGRES_PORT" ]; then
                 # PostgreSQL : connexion (mot de passe lu dans .env, jamais affiché)
                 if command -v psql &>/dev/null; then
                     _pg_password="${POSTGRES_PASSWORD:-$(_env_get POSTGRES_PASSWORD)}"
@@ -100,7 +101,7 @@ for svc_info in "${SERVICES_LIST[@]}"; do
                 else
                     warn "$label : psql non installé (test limité)"
                 fi
-            elif [ "$port" = "8000" ]; then
+            elif [ "$port" = "$ETHAN_API_PORT" ]; then
                 # API Gateway : health endpoint (contrat public, sans JWT)
                 if curl -sf "http://localhost:${port}/health" >/dev/null 2>&1; then
                     success "$label : /health répond"
@@ -109,7 +110,7 @@ for svc_info in "${SERVICES_LIST[@]}"; do
                 else
                     error "$label : injoignable"
                 fi
-            elif [ "$port" = "3001" ]; then
+            elif [ "$port" = "$ETHAN_WEBUI_PORT" ]; then
                 # WebUI
                 if wait_for_http "http://localhost:${port}/" 3; then
                     success "$label : répond"
