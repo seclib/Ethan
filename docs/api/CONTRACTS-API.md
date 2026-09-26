@@ -83,6 +83,7 @@ Toutes les interfaces (WebUI, CLI, Desktop) consomment les mêmes contrats.
 | Route | Response model | Erreurs |
 |---|---|---|
 | `GET /providers` | `list` | 401 |
+| `GET /providers/catalog` | `dict` (Core `ProviderManager.get_catalog`) | 401/503 — **déclarée avant `/{provider_id}`** (ordre FastAPI) |
 | `POST /providers` | `ProviderResponse` (**201**) | 401/422 |
 | `GET/PUT /providers/{provider_id}` | `ProviderResponse` | 401/404/422 |
 | `DELETE /providers/{provider_id}` | — | 401/404 |
@@ -280,6 +281,7 @@ json.dump(schema, open('docs/api/openapi.v1.json', 'w', encoding='utf-8'), inden
 ```
 
 **Historique** : v1 — 2026-09-25 — création (contrat P0 existant + 90 routes de domaine + snapshot `openapi.v1.json` + 7 tests de domaine ; preuves : `13 passed` sur clone vierge `22fad583`).
+v1 — 2026-09-26 — ajout `GET /providers/catalog` (catalogue Core : types/URLs par défaut/auth/capacités — route déclarée avant `/{provider_id}`) ; snapshot régénéré sur le code committé `0c3991cf` (360 routes).
 
 
 

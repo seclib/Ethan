@@ -4211,6 +4211,26 @@
         ]
       }
     },
+    "/providers/catalog": {
+      "get": {
+        "description": "Catalogue Core des types de providers supportés.\n\nSource de vérité unique pour les interfaces : types acceptés par la\nfactory Core, URL de base par défaut, méthodes d'authentification et\ncapacités canoniques. Les interfaces ne dupliquent jamais cette liste.",
+        "operationId": "get_provider_catalog_providers_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Provider Catalog",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/providers/transcribe": {
       "post": {
         "description": "Transcrit un fichier audio via un provider capable (ex: OpenAI Whisper).\n\nLe fichier audio est lu en mémoire et envoyé au provider.",
@@ -14855,9 +14875,8 @@
     }
   },
   "x-ethan-snapshot": {
-    "generated": "2026-09-25",
-    "generator": "python -c \"from interfaces.api.main import app; json.dump(app.openapi(), ...)\"",
-    "note": "Snapshot de surface versionne (ADR-3006 #1). Genere sur le code COMMITTE. Regression detectee par tests/test_api_contract_domains.py::test_snapshot_v1_aucune_route_supprimee.",
-    "source_commit": "22fad583"
+    "generated": "2026-09-26",
+    "note": "ADR-3006 #1",
+    "source_commit": "0c3991cf"
   }
 }
