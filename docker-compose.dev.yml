@@ -26,8 +26,8 @@ services:
     networks:
       - ethan-core
     ports:
-      - "${QDRANT_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
     volumes:
       - qdrant-data:/qdrant/storage
     depends_on:
@@ -59,7 +59,7 @@ services:
     networks:
       - ethan-core
     ports:
-      - "${CHROMADB_PORT:-8001}:8000"
+      - "127.0.0.1:${CHROMADB_PORT:-8001}:8000"
     volumes:
       - chromadb-data:/chroma/chroma
     depends_on:
@@ -83,10 +83,10 @@ services:
         max-file: "3"
 
   # ===========================================================================
-  # Ollama — LLM local
-  # Note: le service `ollama` est défini dans docker-compose.yml avec le profil `llm`.
-  # Ne pas le redéfinir ici pour éviter les doublons. Utiliser :
-  #   docker compose --profile llm up
+  # Ollama — AUCUN service ollama ni profil `llm` n'existent dans les fichiers
+  # compose racine (docker-compose.yml / docker-compose.dev.yml). ETHAN
+  # consomme un Ollama externe (host-native) via OLLAMA_BASE_URL — défaut
+  # http://host.docker.internal:11434. Voir docs/installation.md.
   # ===========================================================================
 
 # ── Volumes additionnels ──────────────────────────────────────────────────────
@@ -95,7 +95,5 @@ volumes:
     name: ethan-qdrant-data
   chromadb-data:
     name: ethan-chromadb-data
-  ollama-models:
-    name: ethan-ollama-models
 
 # ── Réseau partagé avec docker-compose.yml ────────────────────────────────────
