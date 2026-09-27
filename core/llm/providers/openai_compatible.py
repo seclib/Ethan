@@ -37,6 +37,10 @@ class OpenAICompatibleProvider(LLMProvider):
         self._base_url = base_url
         self._api_key = api_key
         self._default_model = default_model or "gpt-4"
+        # Attribut public cohérent avec tous les autres providers : la config
+        # ``default_model`` doit être lisible via ``provider.default_model``
+        # (utilisé par ProviderManager.describe_provider / get_default_model).
+        self.default_model = self._default_model
         self._client = None
 
     async def initialize(self) -> None:
