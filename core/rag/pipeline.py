@@ -7,7 +7,7 @@ from typing import Any
 
 from core.rag.context import RAGContext
 from core.rag.embeddings import RAGEmbeddings
-from core.rag.ingestion import IngestedDocument, RAGIngestion
+from core.rag.ingestion import SPLITTING_STRATEGIES, IngestedDocument, RAGIngestion
 from core.rag.retrieval import RAGRetrieval, RetrievedChunk
 from core.rag.strategies import (
     DEFAULT_STRATEGY,
@@ -15,7 +15,7 @@ from core.rag.strategies import (
     normalize_strategy,
     recommend_strategy,
 )
-from core.rag.vector_store import create_vector_store
+from core.rag.vector_store import SUPPORTED_VECTOR_BACKENDS, create_vector_store
 from core.state.record_store import CoreRecordStore
 
 logger = logging.getLogger(__name__)
@@ -260,17 +260,24 @@ class RAGPipeline:
         return self.get_config()
 
     def get_config(self) -> dict[str, Any]:
-        """Retourne la configuration courante du moteur."""
+        """Retourne la configuration courante du moteur.
+
+        Inclut les listes de choix réellement supportées (backends
+        vectoriels, stratégies de découpage) : les interfaces les lisent ici
+        au lieu de les dupliquer (règle AGENTS.md).
+        """
         embeddings = self._ingestion._embeddings
         return {
             "chunk_size": self._ingestion._chunk_size,
             "chunk_overlap": self._ingestion._chunk_overlap,
             "splitting_strategy": self._ingestion._splitting_strategy,
+            "splitting_strategies": list(SPLITTING_STRATEGIES),
             "embedding_dim": self._ingestion._embedding_dim,
             "top_k": self._retrieval._top_k,
             "max_context_chars": self._context._max_context_chars,
             "embedding_model": embeddings._model,
             "vector_backend": self._vector_backend,
+            "vector_backends": list(SUPPORTED_VECTOR_BACKENDS),
             "vector_backend_config": self._vector_backend_config,
             "strategy": self._strategy,
         }

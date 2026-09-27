@@ -320,6 +320,12 @@ class QdrantVectorStore(RAGVectorStore):
         )
 
 
+# Backends réellement implémentés par le Core — source unique, exposée aux
+# interfaces via ``RAGPipeline.get_config()["vector_backends"]`` : aucune
+# interface ne doit dupliquer cette liste (règle AGENTS.md).
+SUPPORTED_VECTOR_BACKENDS: tuple[str, ...] = ("memory", "chromadb", "qdrant")
+
+
 def create_vector_store(
     backend: str,
     *,
@@ -350,7 +356,9 @@ def create_vector_store(
             collection_name=config.get("collection_name", "ethan_rag"),
             vector_size=config.get("vector_size"),
         )
-    raise ValueError(f"Backend vectoriel inconnu : {backend!r} (memory, chromadb ou qdrant)")
+    raise ValueError(
+        f"Backend vectoriel inconnu : {backend!r} ({', '.join(SUPPORTED_VECTOR_BACKENDS)})"
+    )
 
 
 __all__ = [
@@ -358,5 +366,6 @@ __all__ = [
     "InMemoryVectorStore",
     "ChromaDBVectorStore",
     "QdrantVectorStore",
+    "SUPPORTED_VECTOR_BACKENDS",
     "create_vector_store",
 ]

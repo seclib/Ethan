@@ -86,7 +86,10 @@ class IngestedDocument:
         )
 
 
-_SPLITTING_STRATEGIES = ("character", "sentence", "paragraph")
+# Stratégies de découpage réellement implémentées — source unique, exposée
+# aux interfaces via ``RAGPipeline.get_config()["splitting_strategies"]``
+# (règle AGENTS.md : aucune interface ne duplique cette liste).
+SPLITTING_STRATEGIES = ("character", "sentence", "paragraph")
 
 
 class RAGIngestion:
@@ -120,10 +123,10 @@ class RAGIngestion:
     @staticmethod
     def _validate_strategy(value: str) -> str:
         candidate = str(value or "character").strip().lower()
-        if candidate not in _SPLITTING_STRATEGIES:
+        if candidate not in SPLITTING_STRATEGIES:
             raise ValueError(
                 f"Splitting strategy inconnue : {value!r} "
-                f"(disponibles : {', '.join(_SPLITTING_STRATEGIES)})"
+                f"(disponibles : {', '.join(SPLITTING_STRATEGIES)})"
             )
         return candidate
 

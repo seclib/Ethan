@@ -153,6 +153,7 @@ Toutes les interfaces (WebUI, CLI, Desktop) consomment les mêmes contrats.
 | RAG recherche/contexte | `POST /v1/rag/retrieve`, `/v1/rag/context`, `GET /v1/rag/status`, `/v1/rag/strategies`, `GET/PUT /v1/rag/config` | retrieval + configuration |
 
 - **Autorisation** : `Permission.MEMORY` sur les écritures RAG (`/v1/rag/documents`), `Permission.ADMIN` sur la configuration sensible.
+- **Listes de choix** : `GET /v1/rag/config` renvoie aussi `vector_backends` (source `SUPPORTED_VECTOR_BACKENDS`, `core/rag/vector_store.py`) et `splitting_strategies` (source `SPLITTING_STRATEGIES`, `core/rag/ingestion.py`). Les interfaces lisent ces listes et ne les dupliquent jamais (Première Loi d'ETHAN). Réponses RAG sans `response_model` typé (dette ADR-3006 §6) → snapshot OpenAPI inchangé.
 - **Tests** : contrat P0 (knowledge) + domaine `rag` (11 routes).
 
 ## 8. Components (surface **non committée** — hors contrat)

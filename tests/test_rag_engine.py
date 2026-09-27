@@ -126,6 +126,10 @@ def test_pipeline_config_roundtrip_and_backend():
         assert config["top_k"] == 3
         assert config["embedding_model"] == "nomic-embed-text"
         assert config["vector_backend"] == "chromadb"
+        # Les listes de choix supportées viennent du Core (les interfaces ne
+        # les dupliquent pas) : sources vector_store.py / ingestion.py.
+        assert config["vector_backends"] == ["memory", "chromadb", "qdrant"]
+        assert config["splitting_strategies"] == ["character", "sentence", "paragraph"]
         # Backend externe indisponible -> fallback mémoire, mais config gardée
         assert p.stats()["vector_backend"] == "chromadb"
 
