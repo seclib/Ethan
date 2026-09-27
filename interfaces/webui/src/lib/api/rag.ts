@@ -32,10 +32,14 @@ export interface RagConfig {
 	embedding_model: string | null;
 	/** Stratégie globale par défaut (auto | keyword | semantic | hybrid). */
 	strategy: string;
-	/** Découpage texte : character | sentence | paragraph. */
+	/** Découpage texte actif — valeur prise dans `splitting_strategies`. */
 	splitting_strategy?: string;
-	/** Backend vectoriel réel du moteur : memory | chromadb | qdrant. */
+	/** Stratégies de découpage réellement implémentées par le Core (source : core/rag/ingestion.py). */
+	splitting_strategies?: string[];
+	/** Backend vectoriel actif du moteur — valeur prise dans `vector_backends`. */
 	vector_backend?: string;
+	/** Backends vectoriels réellement implémentés par le Core (source : core/rag/vector_store.py). */
+	vector_backends?: string[];
 	/** Configuration du backend vectoriel (url, persist_directory, …). */
 	vector_backend_config?: Record<string, unknown> | null;
 }

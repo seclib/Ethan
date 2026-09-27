@@ -31,6 +31,7 @@ import {
   testProviderConnection,
   type Provider,
 } from "@/lib/api/providers";
+import { listModels, type ModelInfo } from "@/lib/api/models";
 import { useUIStore } from "@/store/ui.store";
 
 /* ── Shared scaffold ───────────────────────────────────────────── */
@@ -86,6 +87,18 @@ export function EmbeddingsSection() {
     queryFn: () => getRagConfig(),
   });
 
+  // Suggestions = modèles du catalogue Core déclarant réellement la capacité
+  // « embedding » (GET /models, métadonnées fournies par les providers).
+  // Le champ reste libre : aucune liste n'est imposée ni inventée ici.
+  const { data: catalogModels = [] } = useQuery<ModelInfo[]>({
+    queryKey: ["settings-embedding-catalog"],
+    queryFn: () => listModels({ include_custom: true }),
+    staleTime: 60_000,
+  });
+  const embeddingSuggestions = catalogModels
+    .filter((m) => (m.capabilities ?? []).includes("embedding"))
+    .map((m) => m.model);
+
   const [draft, setDraft] = React.useState<RagConfig | null>(null);
   React.useEffect(() => {
     if (data?.config) setDraft({ ...data.config });
@@ -129,10 +142,18 @@ export function EmbeddingsSection() {
           <Input
             className="w-64 font-mono text-xs"
             placeholder="nomic-embed-text"
+            list="embedding-model-suggestions"
             value={draft.embedding_model ?? ""}
             onChange={(e) => setDraft({ ...draft, embedding_model: e.target.value || null })}
           />
         </Row>
+        {embeddingSuggestions.length > 0 && (
+          <datalist id="embedding-model-suggestions">
+            {embeddingSuggestions.map((model) => (
+              <option key={model} value={model} />
+            ))}
+          </datalist>
+        )}
         {data.stats.embedding_mode === "textual-fallback" && data.config.embedding_model && (
           <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-400">
             ⚠ Modèle configuré mais embeddings non disponibles (provider hors ligne).
@@ -155,11 +176,16 @@ export function EmbeddingsSection() {
 }
 /* ── Vector Database — backend + config + connection status ────── */
 
-const VECTOR_BACKENDS = [
-  { id: "memory", label: "Mémoire (in-process)", hint: "Fallback historique, aucune dépendance." },
-  { id: "chromadb", label: "ChromaDB", hint: "HTTP ou persistant (pip install chromadb)." },
-  { id: "qdrant", label: "Qdrant", hint: "Serveur vectoriel (pip install qdrant-client)." },
-];
+/**
+ * Libellés d'affichage des backends connus. LES CHOIX viennent du Core
+ * (`config.vector_backends`, source `core/rag/vector_store.py`) : toute
+ * valeur inconnue est rendue brute — aucune liste dupliquée ici.
+ */
+const VECTOR_BACKEND_META: Record<string, { label: string; hint?: string }> = {
+  memory: { label: "Mémoire (in-process)", hint: "Fallback historique, aucune dépendance." },
+  chromadb: { label: "ChromaDB", hint: "HTTP ou persistant (pip install chromadb)." },
+  qdrant: { label: "Qdrant", hint: "Serveur vectoriel (pip install qdrant-client)." },
+};
 
 export function VectorDatabaseSection() {
   const queryClient = useQueryClient();
@@ -210,6 +236,12 @@ export function VectorDatabaseSection() {
 
   const active = data.config.vector_backend || "memory";
   const dirty = backend !== active || backendConfig !== JSON.stringify(data.config.vector_backend_config ?? {}, null, 2);
+  // Choix = listes réellement supportées par le Core (jamais un miroir local) ;
+  // le backend courant reste sélectionnable même s'il a été retiré du catalogue.
+  const coreBackends = data.config.vector_backends?.length
+    ? data.config.vector_backends
+    : [active];
+  const backendChoices = coreBackends.includes(backend) ? coreBackends : [...coreBackends, backend];
 
   return (
     <div className="p-6">
@@ -230,13 +262,13 @@ export function VectorDatabaseSection() {
             value={backend}
             onChange={(e) => setBackend(e.target.value)}
           >
-            {VECTOR_BACKENDS.map((b) => (
-              <option key={b.id} value={b.id}>{b.label}</option>
+            {backendChoices.map((id) => (
+              <option key={id} value={id}>{VECTOR_BACKEND_META[id]?.label ?? id}</option>
             ))}
           </select>
         </Row>
         <p className="text-xs text-foreground-tertiary">
-          {VECTOR_BACKENDS.find((b) => b.id === backend)?.hint}
+          {VECTOR_BACKEND_META[backend]?.hint}
         </p>
         <Row title="Configuration (JSON)" description="ex: {&quot;url&quot;: &quot;http://localhost:6333&quot;} pour Qdrant">
           <textarea
@@ -268,11 +300,16 @@ export function VectorDatabaseSection() {
 }
 /* ── Chunking — splitting strategy + preview ───────────────────── */
 
-const SPLITTING_STRATEGIES = [
-  { id: "character", label: "Caractères", hint: "Découpe à taille fixe (chunk_size)." },
-  { id: "sentence", label: "Phrases", hint: "Découpe aux frontières de phrases." },
-  { id: "paragraph", label: "Paragraphes", hint: "Découpe aux sauts de paragraphe." },
-];
+/**
+ * Libellés d'affichage des stratégies connues. LES CHOIX viennent du Core
+ * (`config.splitting_strategies`, source `core/rag/ingestion.py`) : toute
+ * valeur inconnue est rendue brute — aucune liste dupliquée ici.
+ */
+const SPLITTING_META: Record<string, { label: string; hint: string }> = {
+  character: { label: "Caractères", hint: "Découpe à taille fixe (chunk_size)." },
+  sentence: { label: "Phrases", hint: "Découpe aux frontières de phrases." },
+  paragraph: { label: "Paragraphes", hint: "Découpe aux sauts de paragraphe." },
+};
 
 export function ChunkingSection() {
   const queryClient = useQueryClient();
@@ -309,6 +346,14 @@ export function ChunkingSection() {
   }
 
   const strategy = draft.splitting_strategy || "character";
+  // Choix = stratégies réellement implémentées par le Core (jamais un miroir
+  // local) ; la stratégie courante reste sélectionnable même si elle disparaît.
+  const coreStrategies = data.config.splitting_strategies?.length
+    ? data.config.splitting_strategies
+    : [strategy];
+  const splittingChoices = coreStrategies.includes(strategy)
+    ? coreStrategies
+    : [...coreStrategies, strategy];
   const estimatedChunks =
     previewText.length > 0
       ? Math.max(1, Math.ceil((previewText.length - draft.chunk_overlap) / Math.max(1, draft.chunk_size - draft.chunk_overlap)))
@@ -330,13 +375,13 @@ return (
             value={strategy}
             onChange={(e) => setDraft({ ...draft, splitting_strategy: e.target.value })}
           >
-            {SPLITTING_STRATEGIES.map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
+            {splittingChoices.map((id) => (
+              <option key={id} value={id}>{SPLITTING_META[id]?.label ?? id}</option>
             ))}
           </select>
         </Row>
         <p className="text-xs text-foreground-tertiary">
-          {SPLITTING_STRATEGIES.find((s) => s.id === strategy)?.hint}
+          {SPLITTING_META[strategy]?.hint}
         </p>
         <Row title="Chunk size" description="Nombre de caractères par chunk.">
           <Input
