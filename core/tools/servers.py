@@ -15,6 +15,7 @@ from core.bus.interface import EventBus
 from core.ethan_types.event import Event, EventType
 from core.state.record_store import CoreRecordStore
 from core.tools.mcp_client import MCP_AVAILABLE, MCPClient
+from core.tools.server_policy import validate_server_config
 
 logger = logging.getLogger(__name__)
 
@@ -44,18 +45,33 @@ class ToolServerManager:
         enabled: bool = True,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Register a new tool server."""
+        """Register a new tool server.
+
+        La configuration est validée par la politique Core
+        (``core.tools.server_policy``) AVANT tout enregistrement : transport,
+        authentification, destination (SSRF) et — pour stdio — allowlist
+        explicite de commandes.  Une configuration refusée lève
+        ``ServerPolicyError`` (sous-classe de ``ValueError``) : aucun record
+        partiel n'est écrit.
+        """
+        config = validate_server_config(
+            name=name,
+            url=url,
+            auth_type=auth_type,
+            auth_config=auth_config,
+            metadata=metadata,
+        )
         server = {
             "id": str(uuid4()),
-            "name": name.strip(),
-            "url": url,
+            "name": config["name"],
+            "url": config["url"],
             "description": description,
-            "auth_type": auth_type,
-            "auth_config": dict(auth_config or {}),
+            "auth_type": config["auth_type"],
+            "auth_config": dict(config["auth_config"]),
             "enabled": enabled,
             "status": "disconnected",
             "last_connected_at": None,
-            "metadata": dict(metadata or {}),
+            "metadata": dict(config["metadata"]),
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -103,26 +119,43 @@ class ToolServerManager:
         return [self._public_server(s) for s in servers]
 
     async def update(self, server_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
-        """Update a tool server."""
+        """Update a tool server (revalidated by the Core policy after merge).
+
+        La politique Core est appliquée au record **fusionné** : aucun update
+        partiel ne peut introduire un transport/commande/destination refusés,
+        et les métadonnées existantes (transport, command, args) ne sont
+        jamais écrasées silencieusement.
+        """
         server = await self._get_private(server_id)
         if server is None:
             return None
-        for key in (
-            "name",
-            "url",
-            "description",
-            "auth_type",
-            "auth_config",
-            "enabled",
-        ):
+        candidate = dict(server)
+        for key in ("name", "url", "description", "auth_type", "auth_config", "enabled"):
             if key in data:
-                server[key] = data[key]
+                candidate[key] = data[key]
         # Fusion des métadonnées : un update partiel ne doit jamais écraser les
         # métadonnées existantes (transport, command, args, headers configurés).
         if "metadata" in data and data["metadata"] is not None:
             merged = dict(server.get("metadata") or {})
             merged.update(data["metadata"])
-            server["metadata"] = merged
+            candidate["metadata"] = merged
+
+        config = validate_server_config(
+            name=candidate.get("name"),
+            url=candidate.get("url"),
+            auth_type=candidate.get("auth_type", "none"),
+            auth_config=candidate.get("auth_config"),
+            metadata=candidate.get("metadata"),
+        )
+        server["name"] = config["name"]
+        server["url"] = config["url"]
+        server["auth_type"] = config["auth_type"]
+        server["auth_config"] = dict(config["auth_config"])
+        server["metadata"] = dict(config["metadata"])
+        if "description" in data:
+            server["description"] = data["description"]
+        if "enabled" in data:
+            server["enabled"] = bool(data["enabled"])
         server["updated_at"] = datetime.utcnow().isoformat()
         await self._store.save(self._DOMAIN, server_id, server)
         await self._publish(
@@ -157,10 +190,25 @@ class ToolServerManager:
         return self._public_server(server)
 
     async def sync_tools(self, server_id: str) -> list[dict[str, Any]]:
-        """Connect to the tool server via MCP, fetch tools, and register them."""
+        """Connect to the tool server via MCP, fetch tools, and register them.
+
+        Défense en profondeur : la politique Core est **re-vérifiée au moment
+        de la connexion** (un record écrit avant durcissement, ou modifié
+        directement dans le store, ne peut pas être exécuté).  Un serveur
+        désactivé n'est jamais synchronisé.
+        """
         server = await self._get_private(server_id)
         if server is None:
             raise ValueError(f"Server {server_id} not found")
+        if not server.get("enabled", True):
+            raise ValueError(f"Server {server_id} is disabled — enable it before syncing tools")
+        validate_server_config(
+            name=server.get("name"),
+            url=server.get("url"),
+            auth_type=server.get("auth_type", "none"),
+            auth_config=server.get("auth_config"),
+            metadata=server.get("metadata"),
+        )
 
         if not MCP_AVAILABLE:
             logger.warning("MCP client not available. Cannot sync tools.")

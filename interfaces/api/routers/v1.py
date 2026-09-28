@@ -824,7 +824,7 @@ async def get_skill(skill_id: str):
     return skill
 
 
-@router.put("/skills/{skill_id}")
+@router.put("/skills/{skill_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def update_skill(skill_id: str, data: dict[str, Any]):
     _validate_skill_tools(data)
     try:
@@ -836,14 +836,16 @@ async def update_skill(skill_id: str, data: dict[str, Any]):
     return skill
 
 
-@router.delete("/skills/{skill_id}")
+@router.delete("/skills/{skill_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def delete_skill(skill_id: str):
     if not await get_skill_store().delete_skill(skill_id):
         raise HTTPException(404, f"Skill {skill_id} not found")
     return {"status": "deleted"}
 
 
-@router.post("/skills/{skill_id}/toggle")
+@router.post(
+    "/skills/{skill_id}/toggle", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def toggle_skill(skill_id: str):
     skill = await get_skill_store().toggle_skill(skill_id)
     if skill is None:
@@ -1941,7 +1943,7 @@ async def get_plugin_capabilities(plugin_id: str):
     return caps
 
 
-@router.post("/plugins/install")
+@router.post("/plugins/install", dependencies=[Depends(require_permission(Permission.PLUGINS))])
 async def install_plugin(data: dict[str, Any]):
     """Installe un plugin du catalogue (par id) ou, à défaut, un plugin custom.
 
@@ -1964,7 +1966,9 @@ async def install_plugin(data: dict[str, Any]):
         raise HTTPException(422, str(exc)) from exc
 
 
-@router.post("/plugins/{plugin_id}/install")
+@router.post(
+    "/plugins/{plugin_id}/install", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def install_plugin_by_id(plugin_id: str):
     installed = await _plugins().install(plugin_id)
     if installed is None:
@@ -1972,7 +1976,9 @@ async def install_plugin_by_id(plugin_id: str):
     return installed
 
 
-@router.post("/plugins/{plugin_id}/enable")
+@router.post(
+    "/plugins/{plugin_id}/enable", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def enable_plugin(plugin_id: str):
     plugin = await _plugins().enable(plugin_id)
     if plugin is None:
@@ -1980,7 +1986,9 @@ async def enable_plugin(plugin_id: str):
     return plugin
 
 
-@router.post("/plugins/{plugin_id}/disable")
+@router.post(
+    "/plugins/{plugin_id}/disable", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def disable_plugin(plugin_id: str):
     plugin = await _plugins().disable(plugin_id)
     if plugin is None:
@@ -1988,7 +1996,9 @@ async def disable_plugin(plugin_id: str):
     return plugin
 
 
-@router.put("/plugins/{plugin_id}/toggle")
+@router.put(
+    "/plugins/{plugin_id}/toggle", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def toggle_plugin(plugin_id: str):
     plugin = await _plugins().toggle(plugin_id)
     if plugin is None:
@@ -1996,7 +2006,9 @@ async def toggle_plugin(plugin_id: str):
     return plugin
 
 
-@router.post("/plugins/{plugin_id}/update")
+@router.post(
+    "/plugins/{plugin_id}/update", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def update_plugin(plugin_id: str):
     """Met à jour un plugin installé (synchronisation avec le manifest du catalogue).
 
@@ -2008,7 +2020,9 @@ async def update_plugin(plugin_id: str):
     return plugin
 
 
-@router.delete("/plugins/{plugin_id}")
+@router.delete(
+    "/plugins/{plugin_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def uninstall_plugin(plugin_id: str, remove_data: bool = False):
     """Désinstalle un plugin.
 
@@ -2024,7 +2038,9 @@ async def uninstall_plugin(plugin_id: str, remove_data: bool = False):
     return result
 
 
-@router.post("/plugins/{plugin_id}/connect")
+@router.post(
+    "/plugins/{plugin_id}/connect", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
 async def connect_plugin(plugin_id: str, data: dict[str, Any] | None = None):
     """État « connecté » géré par le Core — jamais de secret dans le corps."""
     result = await _plugins().connect(plugin_id, (data or {}).get("config"))
@@ -2033,7 +2049,10 @@ async def connect_plugin(plugin_id: str, data: dict[str, Any] | None = None):
     return result
 
 
-@router.delete("/plugins/{plugin_id}/connection")
+@router.delete(
+    "/plugins/{plugin_id}/connection",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def disconnect_plugin(plugin_id: str):
     result = await _plugins().disconnect(plugin_id)
     if result is None:

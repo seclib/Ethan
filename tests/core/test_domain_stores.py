@@ -315,7 +315,10 @@ async def test_calendar_manager_create_and_list(calendar_manager):
 
 
 @pytest.mark.asyncio
-async def test_tool_server_manager_register_and_list(tool_server_manager):
+async def test_tool_server_manager_register_and_list(tool_server_manager, monkeypatch):
+    # Destination locale : opt-in explicite de la politique Core
+    # (défaut fail-closed = destinations publiques uniquement).
+    monkeypatch.setenv("ETHAN_MCP_ALLOW_PRIVATE_HOSTS", "1")
     server = await tool_server_manager.register("MCP Server", "http://localhost:8080")
     assert server["name"] == "MCP Server"
     assert server["status"] == "disconnected"

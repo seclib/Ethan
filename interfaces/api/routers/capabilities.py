@@ -536,7 +536,7 @@ async def delete_tool(tool_id: str):
     return {"status": "deleted"}
 
 
-@router.get("/tools/pipelines")
+@router.get("/tools/pipelines", dependencies=[Depends(require_permission(Permission.READ))])
 async def list_tool_pipelines():
     manager = _require(_managers.tools, "Tool")
     return await manager.list_pipelines()
@@ -556,7 +556,9 @@ async def create_tool_pipeline(data: dict[str, Any]):
         raise HTTPException(422, str(exc)) from exc
 
 
-@router.get("/tools/pipelines/{pipeline_id}")
+@router.get(
+    "/tools/pipelines/{pipeline_id}", dependencies=[Depends(require_permission(Permission.READ))]
+)
 async def get_tool_pipeline(pipeline_id: str):
     manager = _require(_managers.tools, "Tool")
     pipeline = await manager.get_pipeline(pipeline_id)
@@ -565,7 +567,9 @@ async def get_tool_pipeline(pipeline_id: str):
     return pipeline
 
 
-@router.delete("/tools/pipelines/{pipeline_id}")
+@router.delete(
+    "/tools/pipelines/{pipeline_id}", dependencies=[Depends(require_permission(Permission.WRITE))]
+)
 async def delete_tool_pipeline(pipeline_id: str):
     manager = _require(_managers.tools, "Tool")
     if not await manager.delete_pipeline(pipeline_id):
@@ -573,7 +577,7 @@ async def delete_tool_pipeline(pipeline_id: str):
     return {"status": "deleted"}
 
 
-@router.get("/tools/servers")
+@router.get("/tools/servers", dependencies=[Depends(require_permission(Permission.READ))])
 async def list_tool_servers(enabled: bool | None = None):
     manager = _require(_managers.tool_servers, "ToolServer")
     return await manager.list(enabled=enabled)
@@ -592,7 +596,7 @@ def _merge_transport_metadata(data: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
-@router.post("/tools/servers", dependencies=[Depends(require_permission(Permission.WRITE))])
+@router.post("/tools/servers", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def register_tool_server(data: dict[str, Any]):
     manager = _require(_managers.tool_servers, "ToolServer")
     try:
@@ -608,7 +612,9 @@ async def register_tool_server(data: dict[str, Any]):
         raise HTTPException(422, str(exc)) from exc
 
 
-@router.get("/tools/servers/{server_id}")
+@router.get(
+    "/tools/servers/{server_id}", dependencies=[Depends(require_permission(Permission.READ))]
+)
 async def get_tool_server(server_id: str):
     manager = _require(_managers.tool_servers, "ToolServer")
     server = await manager.get(server_id)
@@ -617,7 +623,9 @@ async def get_tool_server(server_id: str):
     return server
 
 
-@router.put("/tools/servers/{server_id}")
+@router.put(
+    "/tools/servers/{server_id}", dependencies=[Depends(require_permission(Permission.ADMIN))]
+)
 async def update_tool_server(server_id: str, data: dict[str, Any]):
     manager = _require(_managers.tool_servers, "ToolServer")
     data = dict(data)
@@ -633,7 +641,10 @@ async def update_tool_server(server_id: str, data: dict[str, Any]):
     return server
 
 
-@router.put("/tools/servers/{server_id}/status")
+@router.put(
+    "/tools/servers/{server_id}/status",
+    dependencies=[Depends(require_permission(Permission.ADMIN))],
+)
 async def set_tool_server_status(server_id: str, data: dict[str, Any]):
     manager = _require(_managers.tool_servers, "ToolServer")
     try:
@@ -645,7 +656,10 @@ async def set_tool_server_status(server_id: str, data: dict[str, Any]):
     return server
 
 
-@router.post("/tools/servers/{server_id}/sync")
+@router.post(
+    "/tools/servers/{server_id}/sync",
+    dependencies=[Depends(require_permission(Permission.EXECUTE))],
+)
 async def sync_tool_server(server_id: str):
     manager = _require(_managers.tool_servers, "ToolServer")
     try:
@@ -659,7 +673,9 @@ async def sync_tool_server(server_id: str):
         raise HTTPException(500, f"Sync failed: {exc}") from exc
 
 
-@router.delete("/tools/servers/{server_id}")
+@router.delete(
+    "/tools/servers/{server_id}", dependencies=[Depends(require_permission(Permission.ADMIN))]
+)
 async def delete_tool_server(server_id: str):
     manager = _require(_managers.tool_servers, "ToolServer")
     if not await manager.delete(server_id):

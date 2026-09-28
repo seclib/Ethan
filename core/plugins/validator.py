@@ -5,8 +5,15 @@ Capacité unique de validation des plugins pour tout ETHAN :
   - manifest : schéma Core (``id``/``name``/``version``) ou schéma
     legacy (``name``/``version``/``api_version``) conservé pour la
     compatibilité des plugins historiques ;
-  - code : aucun import de module dangereux ni builtin dangereux
-    (analyse AST), appliqué avant tout chargement.
+  - code : contrôle statique AST — imports/builtins interdits, noms et
+    attributs d'échappement (``__builtins__``, ``__globals__``,
+    ``__subclasses__``, ``__code__``) — appliqué avant tout chargement.
+
+Portée honnête : c'est une barrière de **défense en profondeur** contre le
+code accidentellement dangereux, pas un sandbox.  Un plugin est du code Python
+exécuté par le Core ; l'exécution de code non fiable relève du sandbox Docker
+(``PluginSandbox``/SkillLab), pas de ce validateur — la politique d'extension
+est appliquée en amont (permission ``plugins``, provenance, allowlists).
 
 Les interfaces (CLI) et le loader legacy sont des *clients* de cette
 capacité — ``plugins/validator.py`` est un shim de compatibilité qui
@@ -33,6 +40,12 @@ FORBIDDEN_IMPORTS = {
     "multiprocessing",
     "threading",
     "signal",
+    # Modules ouvrant des échappements triviaux des contrôles ci-dessus :
+    # ``importlib`` (import dynamique de n'importe quoi), ``io`` (``io.open``),
+    # ``builtins`` (``builtins.exec``).
+    "importlib",
+    "io",
+    "builtins",
 }
 
 FORBIDDEN_BUILTINS = {
@@ -41,6 +54,18 @@ FORBIDDEN_BUILTINS = {
     "compile",
     "__import__",
     "open",
+}
+
+# Noms/attributs d'échappement d'objets (``__builtins__``, ``f.__globals__``…).
+FORBIDDEN_NAMES = {
+    "__builtins__",
+}
+
+FORBIDDEN_ATTRIBUTES = {
+    "__builtins__",
+    "__globals__",
+    "__subclasses__",
+    "__code__",
 }
 
 # id Core : minuscules/alphanum/tiret, commence par alphanum (uuid inclus).
@@ -111,6 +136,18 @@ class PluginValidator:
                                 False,
                                 f"Forbidden builtin '{node.func.id}' in {py_file.name}",
                             )
+                    elif isinstance(node, ast.Name):
+                        if node.id in FORBIDDEN_NAMES:
+                            return ValidationResult(
+                                False,
+                                f"Forbidden name '{node.id}' in {py_file.name}",
+                            )
+                    elif isinstance(node, ast.Attribute):
+                        if node.attr in FORBIDDEN_ATTRIBUTES:
+                            return ValidationResult(
+                                False,
+                                f"Forbidden attribute '{node.attr}' in {py_file.name}",
+                            )
             except SyntaxError:
                 return ValidationResult(False, f"Syntax error in {py_file.name}")
         return ValidationResult(True)
@@ -124,8 +161,10 @@ class PluginValidator:
 
 
 __all__ = [
+    "FORBIDDEN_ATTRIBUTES",
     "FORBIDDEN_BUILTINS",
     "FORBIDDEN_IMPORTS",
+    "FORBIDDEN_NAMES",
     "PluginValidator",
     "ValidationResult",
 ]

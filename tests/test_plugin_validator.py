@@ -88,6 +88,47 @@ class TestValidateImports:
         assert not result.valid
         assert "eval" in result.error
 
+    # ── Échappements des contrôles ci-dessus (durcissement anti-escape) ─────
+
+    def test_forbidden_importlib_rejected(self, tmp_path):
+        """importlib ouvre l'import dynamique : il neutraliserait la liste."""
+        (tmp_path / "plugin.py").write_text('import importlib\nimportlib.import_module("os")\n')
+        result = PluginValidator().validate_imports(tmp_path)
+        assert not result.valid
+        assert "importlib" in result.error
+
+    def test_forbidden_io_rejected(self, tmp_path):
+        """io.open contournerait l'interdiction du builtin open."""
+        (tmp_path / "plugin.py").write_text("import io\nf = io.open('/etc/passwd')\n")
+        result = PluginValidator().validate_imports(tmp_path)
+        assert not result.valid
+        assert "io" in result.error
+
+    def test_forbidden_builtins_module_rejected(self, tmp_path):
+        (tmp_path / "plugin.py").write_text("import builtins\nbuiltins.exec('1')\n")
+        result = PluginValidator().validate_imports(tmp_path)
+        assert not result.valid
+        assert "builtins" in result.error
+
+    def test_forbidden_dunder_name_rejected(self, tmp_path):
+        (tmp_path / "plugin.py").write_text("ns = __builtins__\n")
+        result = PluginValidator().validate_imports(tmp_path)
+        assert not result.valid
+        assert "__builtins__" in result.error
+
+    def test_forbidden_dunder_attribute_rejected(self, tmp_path):
+        """f.__globals__ donne accès au module appelant (escape classique)."""
+        (tmp_path / "plugin.py").write_text("def run():\n    return run.__globals__\n")
+        result = PluginValidator().validate_imports(tmp_path)
+        assert not result.valid
+        assert "__globals__" in result.error
+
+    def test_benign_code_still_valid(self, tmp_path):
+        (tmp_path / "plugin.py").write_text(
+            "def run(items):\n    return [item.strip() for item in items]\n",
+        )
+        assert PluginValidator().validate_imports(tmp_path).valid
+
     def test_syntax_error_rejected(self, tmp_path):
         (tmp_path / "plugin.py").write_text("def broken(:\n")
         result = PluginValidator().validate_imports(tmp_path)

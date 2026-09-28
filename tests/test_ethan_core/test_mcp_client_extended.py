@@ -90,7 +90,10 @@ class TestInMemoryTokenStorage:
 
 class TestToolServerManager:
     @pytest.mark.asyncio
-    async def test_register(self):
+    async def test_register(self, monkeypatch: pytest.MonkeyPatch):
+        # Destination locale : opt-in explicite de la politique Core
+        # (défaut fail-closed = destinations publiques uniquement).
+        monkeypatch.setenv("ETHAN_MCP_ALLOW_PRIVATE_HOSTS", "1")
         manager = ToolServerManager()
         server = await manager.register(
             name="test-server",
@@ -98,7 +101,9 @@ class TestToolServerManager:
             description="Test server",
         )
         assert server["name"] == "test-server"
-        assert server["url"] == "http://localhost:8080"
+        # Normalisation Core (source unique, identique au mode public) :
+        # fragment retiré, host en minuscules, path implicite → "/".
+        assert server["url"] == "http://localhost:8080/"
         assert server["status"] == "disconnected"
 
 

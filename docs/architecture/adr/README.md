@@ -17,6 +17,7 @@ ligne **« État audité »** datée, qui confronte la décision au code réel.
 | ADR-4002 | Installation à la demande — supported ≠ installed ≠ running ≠ ready | Implémenté | ✅ Confirmé |
 | ADR-4003 | Cycle de vie des données — uninstall ≠ delete data (double confirmation) | Implémenté | ✅ Confirmé |
 | ADR-4004 | Le Core, source de vérité de l'état des composants | Implémenté | ✅ Confirmé |
+| ADR-4005 | Modèle de confiance des extensions (Skills, Plugins, MCP, Integrations) — politique serveur MCP, RBAC extensions, activation Core | Implémenté | ✅ Confirmé |
 
 Règles d'implémentation rappelées (AGENTS.md) :
 

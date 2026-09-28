@@ -151,5 +151,10 @@ Validation : **78/78** tests du périmètre sécurité (phases 04–07) passent.
   existe, exposé via `/v1/internal` uniquement).
 - L'audit est en mémoire ; la persistance `AuditStore` (append-only disque)
   reste à connecter dans `build_secure_enforcer`.
-- Les routes MCP/plugins ne passent pas encore toutes par l'enforcer.
+- Les routes MCP/plugins ne passent pas encore toutes par l'enforcer :
+  **corrigé partiellement (ADR-4005, 2026-09-28)** — toutes les routes
+  extensions (MCP/tool servers, skills, plugins) ont désormais un gate RBAC et
+  les serveurs MCP sont validés par une politique Core fail-closed
+  (`core/tools/server_policy.py`). Reste : l'enforcement par sujet
+  (`SecureToolEnforcer`) sur le chemin de connexion/exécution MCP.
 

@@ -165,6 +165,41 @@ def _validate_public_url(url: str, resolver: HostnameResolver) -> str:
     return urlunsplit((parts.scheme, parts.netloc.lower(), parts.path or "/", parts.query, ""))
 
 
+# ── API publique du garde-fou SSRF (réutilisée par les autres surfaces Core) ──
+#
+# Le garde-fou ci-dessus est la source de vérité SSRF d'ETHAN.  Les autres
+# surfaces Core qui établissent une connexion sortante (ex. serveurs d'outils
+# MCP : core/tools/server_policy.py) DOIVENT réutiliser ces deux points
+# d'entrée au lieu de réimplémenter une vérification d'adresse — une seule
+# politique, un seul comportement (AGENTS.md : éviter les doublons).
+
+
+def validate_public_url(url: str, resolver: HostnameResolver | None = None) -> str:
+    """Point d'entrée public de ``_validate_public_url`` (fail-closed).
+
+    Args:
+        url: URL à valider.
+        resolver: Résolveur DNS injectable (tests) ; ``None`` = résolveur réel.
+
+    Returns:
+        L'URL normalisée (fragment retiré, host en minuscules).
+
+    Raises:
+        ValueError: si l'URL n'est pas une destination web publique sûre.
+    """
+    return _validate_public_url(url.strip(), resolver or _default_resolver)
+
+
+def is_safe_public_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Point d'entrée public de ``_is_safe_public_ip`` (adresse publique sûre ?)."""
+    return _is_safe_public_ip(ip)
+
+
+def resolve_hostname(hostname: str) -> list[str]:
+    """Résolution DNS par défaut (liste d'adresses) — réutilisable par le Core."""
+    return _default_resolver(hostname)
+
+
 def _normalize_url(url: str) -> str:
     """Normalise une URL pour la déduplication (fragment retiré, slash final)."""
     parts = urlsplit(url.strip())

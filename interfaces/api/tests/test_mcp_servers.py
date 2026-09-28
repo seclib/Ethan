@@ -3,6 +3,11 @@
 Aucun mock de protocole : le test de synchronisation utilise un VRAI serveur
 MCP (SDK officiel `mcp`, transport stdio, voir mcp_echo_stdio_server.py).
 
+Depuis le durcissement « extensions non fiables par défaut »
+(core/tools/server_policy.py), l'opt-in de l'opérateur est explicite :
+les fixtures ci-dessous déclarent les destinations privées (loopback) et
+l'interpréteur autorisé en stdio — sans quoi le Core refuse (fail-closed).
+
 Couverture :
   - secrets : token jamais présent dans les réponses ni les events
     (auth_config → {token_set}, headers → header_keys) ; conservé en store
@@ -28,6 +33,13 @@ from core.tools.servers import ToolServerManager
 
 ECHO_SERVER_SCRIPT = str(Path(__file__).parent / "mcp_echo_stdio_server.py")
 SECRET = "super-secret-token-42"
+
+
+@pytest.fixture(autouse=True)
+def mcp_policy_opt_in(monkeypatch):
+    """Opt-in explicite de la politique Core (défauts fail-closed en prod)."""
+    monkeypatch.setenv("ETHAN_MCP_ALLOW_PRIVATE_HOSTS", "1")
+    monkeypatch.setenv("ETHAN_MCP_STDIO_ALLOWLIST", sys.executable)
 
 
 class _RecordingBus(EventBus):

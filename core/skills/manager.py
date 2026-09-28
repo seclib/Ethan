@@ -91,6 +91,18 @@ class SkillManager:
                 error=f"Skill not found: {context.skill_id}",
             )
 
+        # Activation arbitrée par le Core : une skill désactivée n'est jamais
+        # exécutée, quel que soit le chemin d'appel (API, autonomie, planner).
+        # L'interface peut aussi refuser en amont, mais la décision finale
+        # appartient au Core (AGENTS.md : pas de fausse sécurité côté UI).
+        if not getattr(skill, "is_enabled", True):
+            logger.warning("Skill %s is disabled — execution refused by Core", skill.id)
+            return SkillResult(
+                skill_id=context.skill_id,
+                status=SkillStatus.FAILED,
+                error="Skill is disabled — enable it in Core before execution",
+            )
+
         # Valider les dépendances
         if not self._registry.validate_dependencies(context.skill_id):
             return SkillResult(
