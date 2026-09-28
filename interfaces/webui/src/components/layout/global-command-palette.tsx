@@ -15,7 +15,9 @@ import {
   Settings,
   Layers,
   Cpu,
+  Library,
 } from "lucide-react";
+import { formatGSequence } from "./nav-config";
 
 export function GlobalCommandPalette() {
   const router = useRouter();
@@ -31,7 +33,7 @@ export function GlobalCommandPalette() {
       label: "Go to Assistant",
       category: "Navigation",
       icon: <MessageSquare />,
-      shortcut: "G A",
+      shortcut: formatGSequence("a"),
       onSelect: () => handleNavigate("/"),
     },
     {
@@ -39,7 +41,7 @@ export function GlobalCommandPalette() {
       label: "Go to Workspace",
       category: "Navigation",
       icon: <LayoutDashboard />,
-      shortcut: "G D",
+      shortcut: formatGSequence("d"),
       onSelect: () => handleNavigate("/workspace"),
     },
     {
@@ -47,7 +49,7 @@ export function GlobalCommandPalette() {
       label: "Go to Knowledge",
       category: "Navigation",
       icon: <Database />,
-      shortcut: "G K",
+      shortcut: formatGSequence("k"),
       onSelect: () => handleNavigate("/knowledge"),
     },
     {
@@ -55,7 +57,7 @@ export function GlobalCommandPalette() {
       label: "Go to Agents",
       category: "Navigation",
       icon: <Bot />,
-      shortcut: "G E",
+      shortcut: formatGSequence("e"),
       onSelect: () => handleNavigate("/agents"),
     },
             {
@@ -63,6 +65,7 @@ export function GlobalCommandPalette() {
       label: "Go to Tools",
       category: "Navigation",
       icon: <Wrench className="h-4 w-4" />,
+      shortcut: formatGSequence("t"),
       onSelect: () => handleNavigate("/tools"),
     },
     {
@@ -70,7 +73,7 @@ export function GlobalCommandPalette() {
       label: "Go to Providers",
       category: "Navigation",
       icon: <Layers className="h-4 w-4" />,
-      shortcut: "G P",
+      shortcut: formatGSequence("p"),
       onSelect: () => handleNavigate("/providers"),
     },
     {
@@ -78,7 +81,7 @@ export function GlobalCommandPalette() {
       label: "Go to Models",
       category: "Navigation",
       icon: <Cpu className="h-4 w-4" />,
-      shortcut: "G N",
+      shortcut: formatGSequence("n"),
       onSelect: () => handleNavigate("/models"),
     },
     {
@@ -86,8 +89,16 @@ export function GlobalCommandPalette() {
       label: "Go to Missions",
       category: "Navigation",
       icon: <Network />,
-      shortcut: "G M",
+      shortcut: formatGSequence("m"),
       onSelect: () => handleNavigate("/missions"),
+    },
+    {
+      id: "nav-library",
+      label: "Go to Library",
+      category: "Navigation",
+      icon: <Library className="h-4 w-4" />,
+      shortcut: formatGSequence("l"),
+      onSelect: () => handleNavigate("/library"),
     },
     {
       id: "nav-settings",

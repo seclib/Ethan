@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useUIStore } from "@/store/ui.store";
+import { G_SEQUENCE_ROUTES } from "./nav-config";
 
 export function GlobalShortcuts() {
   const router = useRouter();
@@ -86,18 +87,12 @@ export function GlobalShortcuts() {
       }
 
       if (keySequence[0] === "g") {
-        const routes: Record<string, string> = {
-          "d": "/workspace",
-          "a": "/",
-          "m": "/missions",
-          "k": "/knowledge",
-          "e": "/agents",
-          "t": "/tools",
-          "s": "/settings",
-        };
+        // Source unique : G_SEQUENCE_ROUTES (partagée avec l'indicateur
+        // ci-dessous et la palette Ctrl+K) — un raccourci annoncé résout.
+        const target = G_SEQUENCE_ROUTES[key];
 
-        if (routes[key]) {
-          router.push(routes[key]);
+        if (target) {
+          router.push(target.route);
           setKeySequence([]);
           clearTimeout(timeoutId);
           return;
@@ -122,13 +117,19 @@ export function GlobalShortcuts() {
   if (keySequence[0] === "g") {
     return (
       <div
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-toast flex items-center gap-2 rounded-full border border-line-2 bg-bg-2 px-4 py-1.5 shadow-lg pointer-events-none"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-toast flex max-w-[92vw] items-center gap-2 rounded-full border border-line-2 bg-bg-2 px-4 py-1.5 shadow-lg pointer-events-none"
         role="status"
         aria-live="polite"
       >
         <kbd className="text-[10px] font-semibold text-accent-400 bg-elevated rounded px-1.5 py-0.5">G</kbd>
-        <span className="text-[11px] text-foreground-tertiary">
-          Assistant&nbsp;<kbd className="font-mono">A</kbd> · Workspace&nbsp;<kbd className="font-mono">D</kbd> · Missions&nbsp;<kbd className="font-mono">M</kbd> · Knowledge&nbsp;<kbd className="font-mono">K</kbd> · Agents&nbsp;<kbd className="font-mono">E</kbd> · Tools&nbsp;<kbd className="font-mono">T</kbd> · Settings&nbsp;<kbd className="font-mono">S</kbd>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-foreground-tertiary">
+          {/* Généré depuis G_SEQUENCE_ROUTES : l'indicateur ne peut pas
+              annoncer une séquence que le handler ne résout pas. */}
+          {Object.entries(G_SEQUENCE_ROUTES).map(([key, sequence]) => (
+            <span key={key} className="whitespace-nowrap">
+              {sequence.label}&nbsp;<kbd className="font-mono">{key.toUpperCase()}</kbd>
+            </span>
+          ))}
         </span>
       </div>
     );

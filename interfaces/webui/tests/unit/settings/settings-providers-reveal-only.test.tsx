@@ -118,7 +118,7 @@ describe("Settings → Providers — révélation seule (pas de second cerveau)"
 	});
 
 	it("ne duplique aucune action de gestion : lecture seule, zéro mutation", async () => {
-		const { container } = renderWorkspace();
+		renderWorkspace();
 		await openProvidersSection();
 
 		// Actions du workspace absentes de la section Settings.
@@ -128,8 +128,11 @@ describe("Settings → Providers — révélation seule (pas de second cerveau)"
 		expect(screen.queryByRole("button", { name: "Configurer" })).toBeNull();
 		expect(screen.queryByRole("button", { name: "Supprimer" })).toBeNull();
 
-		// Aucun champ de saisie : la section ne configure rien.
-		expect(container.querySelectorAll("input, select, textarea")).toHaveLength(0);
+		// Aucun champ de saisie DANS LA SECTION : la section ne configure rien.
+		// (Le champ de recherche de la rail de navigation — présentation seule —
+		// est hors périmètre : on scope au panneau de contenu.)
+		const content = screen.getByTestId("settings-section-content");
+		expect(content.querySelectorAll("input, select, textarea")).toHaveLength(0);
 
 		// Seule la lecture est appelée — aucune écriture Core.
 		expect(listProviders).toHaveBeenCalled();

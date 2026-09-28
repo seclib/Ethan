@@ -47,8 +47,8 @@ export function LibraryWorkspace() {
       </div>
       <div className="flex flex-1 flex-col min-w-0">
         <div className="flex items-center gap-3 border-b border-line-1 px-4 py-3" style={{ background: "var(--panel)" }}>
-          <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search library..." className="pl-10" /></div>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as LibraryFilters["sort_by"])} className="rounded-md border border-line-1 bg-[var(--panel)] px-3 py-2 text-sm text-foreground"><option value="created_at">Date</option><option value="title">Title</option><option value="type">Type</option></select>
+          <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher dans la bibliothèque…" className="pl-10" /></div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as LibraryFilters["sort_by"])} className="rounded-md border border-line-1 bg-[var(--panel)] px-3 py-2 text-sm text-foreground"><option value="created_at">Date</option><option value="title">Titre</option><option value="type">Type</option></select>
           <Button size="sm" variant="outline" onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}>{sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}</Button>
           <div className="flex rounded-md border border-line-1">
             <button onClick={() => setViewMode("grid")} className={cn("p-2", viewMode === "grid" ? "bg-[var(--accent)]/10 text-foreground" : "text-muted-foreground")}><LayoutGrid className="h-4 w-4" /></button>
@@ -57,10 +57,10 @@ export function LibraryWorkspace() {
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading && <div className="flex h-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
-          {error && <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground"><AlertCircle className="h-8 w-8 text-[var(--red)]" /><p className="text-sm">Failed to load library</p><Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button></div>}
-          {!isLoading && !error && items.length === 0 && <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground"><BookOpen className="h-12 w-12" /><p className="text-sm">No items found</p></div>}
+          {error && <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground"><AlertCircle className="h-8 w-8 text-[var(--red)]" /><p className="text-sm">Impossible de charger la bibliothèque</p><Button size="sm" variant="outline" onClick={() => refetch()}>Réessayer</Button></div>}
+          {!isLoading && !error && items.length === 0 && <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground"><BookOpen className="h-12 w-12" /><p className="text-sm">Aucun élément dans la bibliothèque</p><p className="max-w-md text-center text-xs">Les documents, Knowledge, collections et images exposés par ETHAN Core apparaîtront ici.</p></div>}
           {!isLoading && !error && items.length > 0 && (<>
-            <p className="mb-3 text-xs text-muted-foreground">{items.length} items</p>
+            <p className="mb-3 text-xs text-muted-foreground">{items.length} élément{items.length > 1 ? "s" : ""}</p>
             {viewMode === "grid" ? (<div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{items.map((item) => (<LibraryCard key={item.id} item={item} onClick={() => setSelectedItem(item)} />))}</div>) : (<div className="space-y-2">{items.map((item) => (<LibraryRow key={item.id} item={item} onClick={() => setSelectedItem(item)} />))}</div>)}
           </>)}
         </div>
@@ -110,9 +110,9 @@ function LibraryPreview({ item, onClose }: { item: LibraryItem; onClose: () => v
         <div className="space-y-4">
           <div><label className="text-xs font-medium text-muted-foreground">Type</label><p className="text-sm text-foreground capitalize">{item.type}</p></div>
           {item.description && <div><label className="text-xs font-medium text-muted-foreground">Description</label><p className="text-sm text-foreground">{item.description}</p></div>}
-          {item.content && <div><label className="text-xs font-medium text-muted-foreground">Content</label><p className="mt-1 max-h-40 overflow-y-auto rounded-md bg-[var(--background)] p-2 text-xs text-foreground">{item.content}</p></div>}
-          <div><label className="text-xs font-medium text-muted-foreground">Created</label><p className="text-sm text-foreground">{new Date(item.created_at).toLocaleString()}</p></div>
-          {item.metadata && Object.keys(item.metadata).length > 0 && <div><label className="text-xs font-medium text-muted-foreground">Metadata</label><pre className="mt-1 max-h-32 overflow-y-auto rounded-md bg-[var(--background)] p-2 text-xs text-foreground">{JSON.stringify(item.metadata, null, 2)}</pre></div>}
+          {item.content && <div><label className="text-xs font-medium text-muted-foreground">Contenu</label><p className="mt-1 max-h-40 overflow-y-auto rounded-md bg-[var(--background)] p-2 text-xs text-foreground">{item.content}</p></div>}
+          <div><label className="text-xs font-medium text-muted-foreground">Créé le</label><p className="text-sm text-foreground">{new Date(item.created_at).toLocaleString()}</p></div>
+          {item.metadata && Object.keys(item.metadata).length > 0 && <div><label className="text-xs font-medium text-muted-foreground">Métadonnées</label><pre className="mt-1 max-h-32 overflow-y-auto rounded-md bg-[var(--background)] p-2 text-xs text-foreground">{JSON.stringify(item.metadata, null, 2)}</pre></div>}
         </div>
       </div>
     </div>

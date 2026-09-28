@@ -8,8 +8,9 @@
 # Cache TypeScript
 tsconfig.tsbuildinfo
 
-# Tests de bout en bout (rapports Playwright)
+# Tests de bout en bout (rapports + artefacts Playwright)
 playwright-report/
+test-results/
 
 # Logs / sorties de process
 nohup.out

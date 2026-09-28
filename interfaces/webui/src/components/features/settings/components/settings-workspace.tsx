@@ -126,36 +126,22 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-type Section =
-  | "general"
-  | "chat"
-  | "ai"
-  | "appearance"
-  | "knowledge"
-  | "rag"
-  | "embedding"
-  | "vector-db"
-  | "chunking"
-  | "reranking"
-  | "speech"
-  | "routers"
-  | "providers"
-  | "models"
-  | "skills"
-  | "search"
-  | "integrations"
-  | "reminders"
-      | "shortcuts"
-  | "capabilities"
-  | "library"
-  | "system"
-  | "security"
-  | "advanced";
+import { SETTINGS_GROUPS, type SettingsSectionId } from "../settings-nav";
 
-const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "system" | "user" | "project" | "conversation" }[] = [
-  { id: "general", label: "General", icon: <Settings className="h-4 w-4" />, category: "user" },
+type Section = SettingsSectionId;
+
+/** Sections (libellés + icônes) — ids pilotés par `settings-nav` (testé). */
+export const SECTIONS: {
+  id: Section;
+  label: string;
+  icon: React.ReactNode;
+  category: "system" | "user" | "project" | "conversation";
+}[] = [
+  // Groupe « General » — libellé d'item distinct de l'en-tête (pas de doublon).
+  { id: "general", label: "Preferences", icon: <Settings className="h-4 w-4" />, category: "user" },
   { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
-  { id: "ai", label: "AI", icon: <Cpu className="h-4 w-4" />, category: "system" },
+  // Dans le groupe « AI » : comportement avancé de l'IA (température, etc.).
+  { id: "ai", label: "Advanced", icon: <Cpu className="h-4 w-4" />, category: "system" },
   { id: "providers", label: "Providers", icon: <Layers className="h-4 w-4" />, category: "system" },
   { id: "models", label: "Models", icon: <Bot className="h-4 w-4" />, category: "system" },
   { id: "routers", label: "Model Routers", icon: <Network className="h-4 w-4" />, category: "system" },
@@ -176,7 +162,8 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "
   { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
   { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
   { id: "security", label: "Security", icon: <Shield className="h-4 w-4" />, category: "system" },
-  { id: "advanced", label: "Advanced", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
+  // Groupe « Advanced » — item distinct de l'en-tête (expérience/debug).
+  { id: "advanced", label: "Experimental", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
 ];
 
 export function SettingsWorkspace() {
@@ -195,6 +182,21 @@ export function SettingsWorkspace() {
     return () => window.removeEventListener("hashchange", applyHash);
   }, []);
 
+  // Recherche de section — présentation seule (filtre les libellés de la
+  // taxinomie `settings-nav`). Aucun état métier : la vérité reste dans Core.
+  const query = search.trim().toLowerCase();
+  const filteredGroups = React.useMemo(
+    () =>
+      SETTINGS_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((id) => {
+          const section = SECTIONS.find((s) => s.id === id);
+          return section ? section.label.toLowerCase().includes(query) : false;
+        }),
+      })).filter((group) => group.items.length > 0),
+    [query],
+  );
+
   return (
     <div className="flex h-full min-h-0">
       {/* Left panel: section navigation */}
@@ -202,23 +204,70 @@ export function SettingsWorkspace() {
         <div className="border-b border-line-1 px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Settings</h2>
         </div>
+        {/* Filtre de sections (24 entrées → navigation guidée), fixe au-dessus
+            de la liste : il ne défile pas avec les sections. */}
+        <div className="border-b border-line-1 px-3 py-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-tertiary" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher une section…"
+              aria-label="Rechercher une section Settings"
+              className="pl-7"
+            />
+          </div>
+        </div>
         <nav className="sidebar-inner custom-scrollbar" style={{ padding: "8px" }}>
-          {SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={cn("list-item w-full", activeSection === section.id && "active")}
-              style={{ width: "100%", border: "none", background: "transparent", textAlign: "left" }}
-            >
-              {section.icon}
-              <span>{section.label}</span>
-            </button>
-          ))}
+          {/* Navigation groupée (arborescence cible, taxonomie : settings-nav). */}
+          {filteredGroups.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">
+              Aucune section ne correspond à « {search.trim()} ».
+            </p>
+          ) : (
+            filteredGroups.map((group) => {
+              const sections = group.items
+                .map((id) => SECTIONS.find((s) => s.id === id))
+                .filter((s): s is (typeof SECTIONS)[number] => s !== undefined);
+              // Groupe à section unique rendu sans en-tête (pas de « Skills ›
+              // Skills ») — sauf pendant une recherche, où l'en-tête situe le
+              // résultat dans l'arborescence (toujours sans doublon de libellé).
+              const showHeader =
+                sections.length > 1 ||
+                (query.length > 0 &&
+                  sections.every((s) => s.label.toLowerCase() !== group.label.toLowerCase()));
+              return (
+                <div key={group.id} className="mb-1.5">
+                  {showHeader && (
+                    <div className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-tertiary">
+                      {group.label}
+                    </div>
+                  )}
+                  {sections.map((section) => (
+                    <button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      className={cn("list-item w-full", activeSection === section.id && "active")}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        textAlign: "left",
+                      }}
+                    >
+                      {section.icon}
+                      <span>{section.label}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })
+          )}
         </nav>
       </div>
 
       {/* Right panel: section content */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto" data-testid="settings-section-content">
         {activeSection === "general" && <GeneralSection />}
         {activeSection === "chat" && <ChatSection />}
         {activeSection === "ai" && <AISection />}
@@ -841,7 +890,10 @@ function SkillsSection() {
       )}
 
       <div className="mt-6">
-        <WorkspaceLink href="/skills/lab" label="Ouvrir le Skills Lab" />
+        {/* Lien réel uniquement : la route /skills/lab n'existe pas dans la
+            WebUI (le Skills Lab côté Core reste servi par l'API /v1/skills/lab)
+            — on pointe le workspace Skills existant (règle anti-fantôme). */}
+        <WorkspaceLink href="/skills" label="Ouvrir le workspace Skills" />
       </div>
     </div>
   );

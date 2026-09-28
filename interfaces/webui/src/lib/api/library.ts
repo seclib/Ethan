@@ -9,11 +9,10 @@
  *   Knowledge:  /v1/knowledge, /v1/knowledge/collections
  *   Images:     /files (with image filter)
  *
- * NOTE (ORPHANED) : ce client n'est consommé que par
- * components/features/library/library-workspace.tsx, qui n'est monté sur
- * aucune page actuellement (pas de route /library). Les chemins ci-dessous
- * sont vérifiés contre le backend (routers/domains.py) pour un remontage
- * futur sans régression.
+ * Consommé par components/features/library/library-workspace.tsx, monté sur la
+ * route /library (taxinomie Knowledge, séquence clavier « G L », Ctrl+K).
+ * Aucun stockage parallèle : agrégation en lecture des APIs Core vérifiées
+ * ci-dessus (routers/v1.py et routers/domains.py).
  *   Collections: /v1/knowledge/collections
  */
 

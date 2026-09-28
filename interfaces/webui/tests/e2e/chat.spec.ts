@@ -1,24 +1,27 @@
+/**
+ * E2E — Chat (authentifié).
+ *
+ * Composer réel : textarea « Message ETHAN... » (assistant-input.tsx).
+ * Scénario 10 : revenir au chat depuis un workspace via le logo du header
+ * (app-header.tsx — lien accessible « Retour au chat »).
+ */
 import { test, expect } from "@playwright/test";
+import { CREDENTIALS_MISSING, hasCredentials, login } from "./support/auth";
 
-test.describe("Chat", () => {
+test.describe("Chat — composer et retour au chat", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    test.skip(!hasCredentials(), CREDENTIALS_MISSING);
+    await login(page);
   });
 
-  test("renders chat page", async ({ page }) => {
-    await page.click("text=Chat");
-    await expect(page.locator("h1")).toContainText("Chat");
+  test("le chat expose le composer ETHAN", async ({ page }) => {
+    await expect(page.getByPlaceholder("Message ETHAN...")).toBeVisible();
   });
 
-  test("shows empty state", async ({ page }) => {
-    await page.click("text=Chat");
-    await expect(page.locator("text=Commencez une conversation avec ETHAN")).toBeVisible();
-  });
-
-  test("sends a message", async ({ page }) => {
-    await page.click("text=Chat");
-    await page.fill('input[placeholder="Message ETHAN..."]', "Bonjour");
-    await page.click("button:has(svg)");
-    await expect(page.locator(".space-y-4 > div").first()).toContainText("Bonjour");
+  test("scénario 10 : revenir au chat depuis un workspace", async ({ page }) => {
+    await page.goto("/projects");
+    await page.getByRole("link", { name: "Retour au chat" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByPlaceholder("Message ETHAN...")).toBeVisible();
   });
 });

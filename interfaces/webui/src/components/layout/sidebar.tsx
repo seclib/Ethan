@@ -15,7 +15,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useUIStore } from "@/store/ui.store";
-import { NAV_SECTIONS_PRIMARY, NAV_SECTIONS_ADMIN } from "./nav-config";
+import {
+  NAV_SECTIONS_PRIMARY,
+  NAV_SECTIONS_ADMIN,
+  initialCollapsedGroups,
+  toggleGroupState,
+} from "./nav-config";
 import type { NavItem, NavSection } from "./nav-config";
 import { useExternalServiceHealth } from "./use-external-service";
 import { useAuth } from "@/providers/auth-provider";
@@ -68,7 +73,12 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
     if (chatState.onNewChat) { chatState.onNewChat(); }
     else { window.location.href = "/"; }
   };
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
+  // Sections repliées au premier rendu (data pure : NavSection.defaultCollapsed)
+  // — la sidebar reste « assistant-first », l'administration ne s'ouvre pas
+  // d'office. Tout le reste démarre déployé.
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() =>
+    initialCollapsedGroups(SIDEBAR_SECTIONS),
+  );
   /** Section Projets — collapsible indépendante (Open-WebUI : « Projects »). */
   const [projectsOpen, setProjectsOpen] = React.useState(false);
 
@@ -81,13 +91,13 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
   }, [expanded]);
 
   React.useEffect(() => {
-    if (pathname) {
-      SIDEBAR_SECTIONS.forEach((sec) => {
-        if (sec.items.some((it) => it.href === pathname)) {
-          setOpenGroups((g) => ({ ...g, [sec.id]: true }));
-        }
-      });
-    }
+    if (!pathname) return;
+    const active = SIDEBAR_SECTIONS.find((sec) => sec.items.some((it) => it.href === pathname));
+    if (!active) return;
+    // Déplie le groupe actif (ex. Administration repliée → /monitoring) sans
+    // state update inutile si le groupe est déjà ouvert — et sans écraser le
+    // repli manuel des autres groupes.
+    setOpenGroups((g) => ((g[active.id] ?? true) ? g : { ...g, [active.id]: true }));
   }, [pathname]);
 
   /**
@@ -421,7 +431,7 @@ function NavigationSection({
           <div key={section.id}>
                         <button
               className={cn("sidebar-nav-section-header", section.items.some((it) => it.href === pathname) && "active")}
-              onClick={() => setOpenGroups((g) => ({ ...g, [section.id]: !g[section.id] }))}
+              onClick={() => setOpenGroups((g) => toggleGroupState(g, section.id))}
               aria-expanded={isOpen}
               title={section.description ?? section.label}
             >
