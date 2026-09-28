@@ -16,6 +16,10 @@ import {
   Layers,
   Cpu,
   Library,
+  Workflow,
+  FlaskConical,
+  ScrollText,
+  MessagesSquare,
 } from "lucide-react";
 import { formatGSequence } from "./nav-config";
 
@@ -107,6 +111,34 @@ export function GlobalCommandPalette() {
       icon: <Settings />,
       shortcut: "⌘,",
       onSelect: () => handleNavigate("/settings"),
+    },
+    {
+      id: "nav-automations",
+      label: "Go to Automations",
+      category: "Navigation",
+      icon: <Workflow className="h-4 w-4" />,
+      onSelect: () => handleNavigate("/automations"),
+    },
+    {
+      id: "nav-skills-lab",
+      label: "Open Skill Lab",
+      category: "Navigation",
+      icon: <FlaskConical className="h-4 w-4" />,
+      onSelect: () => handleNavigate("/skills/lab"),
+    },
+    {
+      id: "nav-prompts",
+      label: "Go to Prompts",
+      category: "Navigation",
+      icon: <ScrollText className="h-4 w-4" />,
+      onSelect: () => handleNavigate("/prompts"),
+    },
+    {
+      id: "nav-channels",
+      label: "Go to Channels",
+      category: "Navigation",
+      icon: <MessagesSquare className="h-4 w-4" />,
+      onSelect: () => handleNavigate("/channels"),
     },
     {
       id: "cmd-mission-workspace",

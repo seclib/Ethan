@@ -28,6 +28,7 @@ import {
     Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge,
   GalleryVerticalEnd, UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
+  Workflow, FlaskConical, MessagesSquare,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -84,6 +85,8 @@ export const NAV_SECTIONS_PRIMARY: NavSection[] = [
       { href: "/notes", label: "Notes", icon: StickyNote },
       { href: "/inbox", label: "Inbox", icon: Inbox },
       { href: "/research", label: "Deep Research", icon: Telescope },
+      // Automations = règles réellement servies par le Core (/v1/automations).
+      { href: "/automations", label: "Automations", icon: Workflow },
       { href: "/cookbook", label: "Cookbook", icon: BookOpen },
     ],
   },
@@ -157,9 +160,23 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/skills", label: "Skills", icon: Sparkles },
+      // Skills Lab = sandbox Docker du Core (/v1/skills/lab/test|results).
+      { href: "/skills/lab", label: "Skills Lab", icon: FlaskConical },
       { href: "/tools", label: "Tools", icon: Wrench },
       // Serveurs MCP : page dédiée (séparation capacités / infrastructure).
       { href: "/mcp", label: "MCP", icon: Network },
+      // Prompts prédéfinis : enregistrements Core (/v1/prompts).
+      { href: "/prompts", label: "Prompts", icon: ScrollText },
+    ],
+  },
+  {
+    id: "collaboration",
+    label: "Collaboration",
+    description: "Canaux de discussion persistés par ETHAN Core",
+    collapsible: true,
+    items: [
+      // Channels = canaux + messages du ChannelStore Core (/v1/channels).
+      { href: "/channels", label: "Channels", icon: MessagesSquare },
     ],
   },
   {

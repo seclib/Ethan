@@ -151,6 +151,8 @@ export async function importSkills(
  * 503 si Docker est indisponible ; 422 si `code` est vide.
  */
 export interface SkillLabResult {
+	/** Identifiant Core du résultat (`lab_xxxx`) — présent dans l'historique. */
+	id?: string;
 	skill_name: string;
 	status: string;
 	passed: boolean;
@@ -158,6 +160,8 @@ export interface SkillLabResult {
 	error: string;
 	duration_ms: number;
 	details: Record<string, unknown> | null;
+	/** Horodatage Core du test (ISO 8601) — présent dans l'historique. */
+	timestamp?: string;
 }
 
 export async function testSkillCode(

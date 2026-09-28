@@ -23,6 +23,9 @@ capacité que le Core (ou l'App Router) ne sert pas réellement.
 | 3 | `components/features/library/library-workspace.tsx` + `lib/api/library.ts` orphelins : aucune route `/library`, alors que le raccourci `l` la visait | Page `/library` créée (présentation seule), taxinomie **Knowledge**, entrée palette « Go to Library », textes FR cohérents |
 | 4 | Endpoints du client Library non re-vérifiés depuis l'orphelinat | Vérifiés : `/v1/rag/documents`, `/v1/knowledge`, `/v1/knowledge/collections` (routers/v1.py) et `/files` (routers/domains.py) — aucune donnée simulée, états vide/erreur explicites |
 | 5 | Nav : 29 entrées à re-valider après la refonte | 29/29 résolues vers une route réelle (seul artefact : `//login` dans l'outillage de test, corrigé) |
+| 6 | Gates Core assumés (docs précédentes) : `/automations`, `/channels`, `/prompts` — capacités réelles du Core (`routers/capabilities.py`) sans aucune surface WebUI | **Pages créées** : `/automations` (règles + déclenchement), `/channels` (canaux + messages), `/prompts` (CRUD). Clients minces (`lib/api/{automations,channels,prompts}.ts`) + workspaces FR, états vide/erreur explicites, filtres délégués au Core (`?enabled=`) |
+| 7 | `POST /v1/channels/{id}/messages` **cassé côté gateway** : le contenu HTTP était passé en position `role` et un `metadata` non supporté par `ChannelStore.add_message` — tout appel réel levait `TypeError` (500) alors que l'endpoint était annoncé | Gateway réaligné sur la signature du Core (`role`/`content`) + test API dédié `interfaces/api/tests/test_channels_api.py` (5 tests, vrai ChannelStore sur store mémoire) |
+| 8 | Skills Lab : test unitaire existant (dialog) mais `listSkillLabResults` (historique) **sans consommateur** | Page `/skills/lab` : formulaire candidat + sandbox Docker du Core + historique réel (le 503 Docker est affiché tel quel, aucun repli local) |
 
 ## Garde-fou ajouté
 
@@ -42,6 +45,22 @@ capacité que le Core (ou l'App Router) ne sert pas réellement.
 - `tests/unit/library/library-workspace.test.tsx` (7) : état vide nommant les
   sources Core, erreur + « Réessayer », compteur singulier/pluriel, détail
   (contenu / métadonnées réels), filtres type et recherche **délégués au Core**.
+- `tests/unit/automations/automations-workspace.test.tsx` (10) : états vide/erreur,
+  filtre `?enabled=` délégué au Core, rendu (état, compteur), déclenchement = POST
+  Core, désactivation (`enabled: false`), suppression confirmée, création JSON
+  parsée, JSON invalide → erreur locale sans appel Core.
+- `tests/unit/channels/channels-workspace.test.tsx` (9) : états vide/erreur,
+  messages du Core affichés, canal sans message, envoi (contenu + rôle), rôle
+  choisi transmis, création puis sélection du canal créé, suppression confirmée.
+- `tests/unit/prompts/prompts-workspace.test.tsx` (7) : états vide/erreur, rendu,
+  filtre local (présentation seule — le Core n'est pas rappelé), création avec
+  tags parsés, édition (PUT sur l'id), suppression confirmée.
+- `tests/unit/skills/skills-lab-workspace.test.tsx` (5) : historique vide/affiché,
+  erreur + « Réessayer », test sandboxé (code/nom/entrée/dépendances transmis,
+  résultat affiché, historique rafraîchi), Docker absent → 503 affiché tel quel.
+- `interfaces/api/tests/test_channels_api.py` (5, côté API) : mapping rôle/contenu
+  verrouillé sur le vrai `ChannelStore` — contenu stocké dans `content`, rôle par
+  défaut `user`, fil par canal, 404 pour un canal inconnu.
 
 ## Preuves
 
@@ -51,18 +70,35 @@ capacité que le Core (ou l'App Router) ne sert pas réellement.
 | `npm run build` | **EXIT 0** — route `○ /library` compilée |
 | `npx playwright test` | **EXIT 0** — 3 passed / 11 skipped (specs authentifiées) |
 
-## Gates restants (assumés — aucun lien fantôme)
+## Gates levés (capacités Core désormais révélées)
 
-Capacités **exposées par le Core** mais sans surface WebUI ; aucune entrée de
-nav, de palette ou de raccourci ne les référence (créer leurs pages est une
-décision produit, pas une dette de cohérence) :
+Les pages créées exposent des capacités **réellement servies par le Core** ; la
+WebUI ne fait que présenter et transmettre les actions (jamais de logique
+métier, AGENTS.md) :
 
-- `/automations` — `routers/capabilities.py:84-146`
-- `/channels` — `routers/capabilities.py:366-436`
-- `/prompts`
+| Route | Capacité Core | Endpoints |
+|---|---|---|
+| `/automations` | `AutomationManager` (`core/scheduler/automations.py`) | `GET/POST /v1/automations`, `PUT/DELETE /v1/automations/{id}`, `POST /v1/automations/{id}/trigger` |
+| `/channels` | `ChannelStore` (`core/state/channels.py`) | `GET/POST /v1/channels`, `DELETE /v1/channels/{id}`, `GET/POST /v1/channels/{id}/messages` |
+| `/prompts` | `PromptManager` (`core/config/prompts.py`) | `GET/POST /v1/prompts`, `PUT/DELETE /v1/prompts/{id}` |
+| `/skills/lab` | `SkillLab` (`core/skills/lab.py`) | `POST /v1/skills/lab/test`, `GET /v1/skills/lab/results` |
+
+Navigation : Automation (Pilotage), Skills Lab + Prompts (Skills & Integrations),
+Channels (nouvelle section Collaboration), les quatre également dans Ctrl+K.
+Aucun raccourci « G x » ajouté (les 10 séquences existantes suffisent).
+
+### Décision Library
+
+`/library` reste dans la taxinomie **Knowledge** (et non dans la sidebar
+quotidienne) : la vue unifie documents RAG, Knowledge, collections et images,
+tandis que `/knowledge` porte la taxinomie/ingestion. Doubler l'entrée quotidienne
+créerait la confusion que la règle anti-doublon cherche à éviter ; l'accès reste
+direct (Knowledge, `G L`, palette Ctrl+K).
 
 ## Hors périmètre
 
 - E2E authentifié (identifiants requis) : les specs skippent proprement.
-- Enforcement MCP `SecureToolEnforcer` : sujet Core, non opposable runtime.
-- `core/capability_manager/` : WIP non suivi git.
+- Enforcement MCP `SecureToolEnforcer` / RBAC API : chantier Core committé
+  séparément (`chore(security)` — permissions API, politique des serveurs MCP,
+  garde-fous d'extension).
+- `examples/jarvis-os` (gitlink sans `.gitmodules`) : volontairement non committé.
