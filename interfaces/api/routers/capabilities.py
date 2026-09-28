@@ -415,9 +415,9 @@ async def add_channel_message(channel_id: str, data: dict[str, Any], request: Re
     try:
         return await manager.add_message(
             channel_id,
-            data.get("content", ""),
+            role=str(data.get("role") or "user"),
+            content=str(data.get("content") or ""),
             user_id=current_user_id(request) or data.get("user_id", "anonymous"),
-            metadata=data.get("metadata"),
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
