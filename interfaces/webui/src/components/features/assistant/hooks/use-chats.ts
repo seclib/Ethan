@@ -27,6 +27,8 @@ export interface EthChat {
 	archived: boolean;
 	created_at: string;
 	updated_at: string;
+	/** Project de rattachement (ChatStore Core) — null = hors projet. */
+	project_id?: string | null;
 }
 
 /** Message entry as expected by the assistant page (Open-WebUI style). */
@@ -56,10 +58,10 @@ export interface UseChatsState {
 }
 
 export interface UseChatsActions {
-	loadChats: () => Promise<void>;
+	loadChats: (projectId?: string | null) => Promise<void>;
 	loadChat: (chatId: string) => Promise<void>;
 	selectChat: (chatId: string) => void;
-	createChat: (title?: string) => Promise<EthChat>;
+	createChat: (title?: string, projectId?: string | null) => Promise<EthChat>;
 	deleteChat: (chatId: string) => Promise<void>;
 	renameChat: (chatId: string, title: string) => Promise<void>;
 	togglePin: (chatId: string, currentPinned: boolean) => Promise<void>;
@@ -86,19 +88,30 @@ export function useChats(): UseChatsState & UseChatsActions {
 	const toolStartRef = useRef<Record<string, number>>({});
 	/** Contrôleur du flux en cours — permet l'arrêt réel de la génération. */
 	const abortRef = useRef<AbortController | null>(null);
+	/** Filtre projet courant — réutilisé lors des rechargements (rollback…). */
+	const projectFilterRef = useRef<string | null>(null);
 
 	const pinnedChats = chats.filter((c) => c.pinned && !c.archived);
 	const regularChats = chats.filter((c) => !c.pinned && !c.archived);
 
-	const loadChats = useCallback(async () => {
+	const loadChats = useCallback(async (projectId: string | null = null) => {
+		// Le filtre projet est mémorisé : les rechargements (rollback de
+		// renommage, invalidation) conservent le scope sélectionné.
+		projectFilterRef.current = projectId ?? null;
 		try {
 			// ChatStore Core (/chats) est la source de vérité des conversations.
-			const records = await apiFetch<Array<Record<string, unknown>>>('/chats');
+			// `project_id` isole les conversations du Project actif ; sans projet,
+			// `unassigned` ne retourne que le scope par défaut (hors projet).
+			const url = projectId
+				? `/chats?project_id=${encodeURIComponent(projectId)}`
+				: '/chats?unassigned=true';
+			const records = await apiFetch<Array<Record<string, unknown>>>(url);
 			const mapped: EthChat[] = (records || []).map((r) => ({
 				id: String(r.id || ''),
 				title: String(r.title || 'Conversation'),
 				pinned: Boolean(r.pinned),
 				archived: Boolean(r.archived),
+				project_id: (r.project_id as string | null | undefined) ?? null,
 				created_at: String(r.created_at || new Date().toISOString()),
 				updated_at: String(r.updated_at || r.created_at || new Date().toISOString()),
 			}));
@@ -126,14 +139,18 @@ export function useChats(): UseChatsState & UseChatsActions {
 		}
 	}, []);
 
-	const createChat = useCallback(async (title: string = 'Nouvelle conversation'): Promise<EthChat> => {
+	const createChat = useCallback(async (
+		title: string = 'Nouvelle conversation',
+		projectId: string | null = null,
+	): Promise<EthChat> => {
 		try {
-			const chat = await apiCreateChat(title);
+			const chat = await apiCreateChat(title, 'anonymous', projectId);
 			const ethChat: EthChat = {
 				id: chat.id,
 				title: chat.title,
 				pinned: false,
 				archived: false,
+				project_id: chat.project_id ?? projectId ?? null,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString(),
 			};
@@ -173,8 +190,8 @@ export function useChats(): UseChatsState & UseChatsActions {
 			});
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to rename chat');
-			// Rollback en cas d'échec : on recharge l'état Core.
-			loadChats();
+			// Rollback en cas d'échec : on recharge l'état Core (même scope projet).
+			loadChats(projectFilterRef.current);
 		}
 	}, [loadChats]);
 

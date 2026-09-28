@@ -15,9 +15,17 @@ from core.auth.groups import GroupManager
 from core.auth.users import UserManager
 from core.state.chats import ChatStore
 from core.state.files import FileStore
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
-from interfaces.api.auth import require_permission
+from interfaces.api.auth import current_user_id, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -90,19 +98,28 @@ async def list_chats(
     user_id: str | None = None,
     folder_id: str | None = None,
     archived: bool | None = None,
+    project_id: str | None = None,
+    unassigned: bool = False,
 ):
+    """Liste les conversations — `project_id` isole un Project,
+    `unassigned=true` retourne le scope par défaut (hors projet)."""
     return await _require_chats().list_chats(
-        user_id=user_id, folder_id=folder_id, archived=archived
+        user_id=user_id,
+        folder_id=folder_id,
+        archived=archived,
+        project_id=project_id,
+        unassigned=unassigned,
     )
 
 
 @router.post("/chats", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def create_chat(data: dict[str, Any]):
+async def create_chat(data: dict[str, Any], request: Request = None):
     try:
         return await _require_chats().create_chat(
             title=data.get("title", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             folder_id=data.get("folder_id"),
+            project_id=data.get("project_id"),
             metadata=data.get("metadata"),
         )
     except ValueError as exc:
@@ -140,13 +157,13 @@ async def list_chat_messages(chat_id: str):
 @router.post(
     "/chats/{chat_id}/messages", dependencies=[Depends(require_permission(Permission.WRITE))]
 )
-async def add_chat_message(chat_id: str, data: dict[str, Any]):
+async def add_chat_message(chat_id: str, data: dict[str, Any], request: Request = None):
     try:
         return await _require_chats().add_message(
             chat_id,
             role=data.get("role", "user"),
             content=data.get("content", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             metadata=data.get("metadata"),
         )
     except ValueError as exc:
@@ -167,18 +184,24 @@ async def share_chat(chat_id: str):
 
 
 @router.get("/files")
-async def list_files(user_id: str | None = None):
-    return await _require_files().list(user_id=user_id)
+async def list_files(request: Request = None, user_id: str | None = None):
+    """Liste les fichiers de l'utilisateur courant.
+
+    L'identité vient du JWT validé par ``auth_middleware`` (isolant les
+    fichiers par utilisateur) ; ``user_id`` n'est utilisé qu'en repli pour les
+    clients internes (adaptateur Open WebUI) qui n'envoient pas de JWT.
+    """
+    return await _require_files().list(user_id=current_user_id(request) or user_id)
 
 
 @router.post("/files", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def register_file(data: dict[str, Any]):
+async def register_file(data: dict[str, Any], request: Request = None):
     try:
         return await _require_files().register(
             filename=data.get("filename", ""),
             content_type=data.get("content_type", "application/octet-stream"),
             size=int(data.get("size", 0)),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             storage_path=data.get("storage_path"),
             metadata=data.get("metadata"),
         )
@@ -190,11 +213,16 @@ async def register_file(data: dict[str, Any]):
 async def upload_file(
     file: UploadFile = File(...),
     user_id: str = Form(default="anonymous"),
+    request: Request = None,
 ):
     """Upload a binary file and persist it in Core.
 
     The bytes are stored in the Core FileStore so they can later be
     downloaded or ingested into RAG by ETHAN Core (not the WebUI).
+
+    L'utilisateur propriétaire est déduit du JWT (le WebUI ne déclare jamais
+    l'identité métier) ; le champ de formulaire ``user_id`` ne sert plus que
+    de repli pour les clients internes non authentifiés.
     """
     content = await file.read()
     try:
@@ -202,7 +230,7 @@ async def upload_file(
             filename=file.filename or "unnamed",
             content_type=file.content_type or "application/octet-stream",
             size=len(content),
-            user_id=user_id,
+            user_id=current_user_id(request) or user_id,
             content=content,
         )
     except ValueError as exc:
@@ -241,8 +269,12 @@ async def delete_file(file_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# USERS — routes /users/{user_id} uniquement : les paires GET+POST /users
-# sont possédées par le router `security` (fix doublons G-04/ADR-3008).
+# USERS
+# NOTE : GET/POST /users et PUT/DELETE /users/{x} sont possédés par le
+# router `security` (monté avant celui-ci). Les handlers historiques de ce
+# module étaient masqués (jamais appelables) — ils ont été retirés pour un
+# contrat honnête. Seul GET /users/{user_id} reste servi ici (sans équivalent
+# dans `security`).
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -252,21 +284,6 @@ async def get_user(user_id: str):
     if user is None:
         raise HTTPException(404, f"User {user_id} not found")
     return user
-
-
-@router.put("/users/{user_id}", dependencies=[Depends(require_permission(Permission.ADMIN))])
-async def update_user(user_id: str, data: dict[str, Any]):
-    user = await _require_users().update(user_id, data)
-    if user is None:
-        raise HTTPException(404, f"User {user_id} not found")
-    return user
-
-
-@router.delete("/users/{user_id}", dependencies=[Depends(require_permission(Permission.ADMIN))])
-async def delete_user(user_id: str):
-    if not await _require_users().delete(user_id):
-        raise HTTPException(404, f"User {user_id} not found")
-    return {"status": "deleted"}
 
 
 # ═══════════════════════════════════════════════════════════════════════

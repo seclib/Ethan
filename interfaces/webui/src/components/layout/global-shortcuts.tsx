@@ -6,13 +6,12 @@ import { useUIStore } from "@/store/ui.store";
 
 export function GlobalShortcuts() {
   const router = useRouter();
-  const { 
-    toggleSidebar, 
-    commandPaletteOpen, 
-    openCommandPalette, 
+  const {
+    toggleSidebar,
+    commandPaletteOpen,
+    openCommandPalette,
     closeCommandPalette,
-    toggleInspector,
-    toggleMissionControl
+    toggleInspector
   } = useUIStore();
   
   // Track sequence for "g" commands
@@ -63,10 +62,10 @@ export function GlobalShortcuts() {
         return;
       }
 
-      // ⌘ + M = Toggle Mission Control
+      // ⌘ + M = Mission workspace (page dédiée — plus d'overlay sur le Chat)
       if (isCmdOrCtrl && key === "m") {
         e.preventDefault();
-        toggleMissionControl();
+        router.push("/missions");
         return;
       }
 
@@ -115,7 +114,7 @@ export function GlobalShortcuts() {
       window.removeEventListener("keydown", handleKeyDown);
       clearTimeout(timeoutId);
     };
-  }, [router, toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette, keySequence, toggleInspector, toggleMissionControl]);
+  }, [router, toggleSidebar, commandPaletteOpen, openCommandPalette, closeCommandPalette, keySequence, toggleInspector]);
 
   // Indicateur visuel de séquence « g » (correctif audit UX P2-5) : sans lui,
   // l'attente de la seconde touche était invisible et la fonctionnalité

@@ -27,11 +27,6 @@ interface UIState {
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
 
-    // Mission Control
-  missionControlOpen: boolean;
-  setMissionControlOpen: (open: boolean) => void;
-  toggleMissionControl: () => void;
-
   // Mail floating window (fenêtre superposée)
   mailPanelOpen: boolean;
   setMailPanelOpen: (open: boolean) => void;
@@ -83,11 +78,6 @@ export const useUIStore = create<UIState>()(
       commandPaletteOpen: false,
       openCommandPalette: () => set({ commandPaletteOpen: true }),
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
-
-      // Mission Control
-      missionControlOpen: false,
-      setMissionControlOpen: (open) => set({ missionControlOpen: open }),
-      toggleMissionControl: () => set((state) => ({ missionControlOpen: !state.missionControlOpen })),
 
       // Mail floating window
       mailPanelOpen: false,

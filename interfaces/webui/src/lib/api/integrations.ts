@@ -2,14 +2,14 @@
  * ETHAN WebUI — Integrations API service
  *
  * Maps to ETHAN API endpoints:
- *   GET    /v1/integrations                     → listIntegrations
- *   GET    /v1/integrations/{id}                → getIntegration
- *   POST   /v1/integrations                     → createIntegration
- *   PUT    /v1/integrations/{id}                → updateIntegration
- *   DELETE /v1/integrations/{id}                → deleteIntegration
- *   POST   /v1/integrations/{id}/connect        → connectIntegration
- *   POST   /v1/integrations/{id}/disconnect     → disconnectIntegration
- *   POST   /v1/integrations/{id}/test           → testIntegration
+ *   GET    /integrations                     → listIntegrations
+ *   GET    /integrations/{id}                → getIntegration
+ *   POST   /integrations                     → createIntegration
+ *   PUT    /integrations/{id}                → updateIntegration
+ *   DELETE /integrations/{id}                → deleteIntegration
+ *   POST   /integrations/{id}/connect        → connectIntegration
+ *   POST   /integrations/{id}/disconnect     → disconnectIntegration
+ *   POST   /integrations/{id}/test           → testIntegration
  *
  * The WebUI only manages configuration. Secrets are never displayed.
  */
@@ -87,17 +87,17 @@ export interface IntegrationUpdate {
 
 export async function listIntegrations(kind?: IntegrationKind): Promise<Integration[]> {
   const qs = kind ? `?kind=${encodeURIComponent(kind)}` : '';
-  return apiFetch<Integration[]>(`/v1/integrations${qs}`);
+  return apiFetch<Integration[]>(`/integrations${qs}`);
 }
 
 export async function getIntegration(id: string): Promise<Integration> {
-  return apiFetch<Integration>(`/v1/integrations/${id}`);
+  return apiFetch<Integration>(`/integrations/${id}`);
 }
 
 // ── Mutations ───────────────────────────────────────────────────────
 
 export async function createIntegration(data: IntegrationCreate): Promise<Integration> {
-  return apiFetch<Integration>('/v1/integrations', {
+  return apiFetch<Integration>('/integrations', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -107,14 +107,14 @@ export async function updateIntegration(
   id: string,
   data: IntegrationUpdate,
 ): Promise<Integration> {
-  return apiFetch<Integration>(`/v1/integrations/${id}`, {
+  return apiFetch<Integration>(`/integrations/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteIntegration(id: string): Promise<{ status: string; integration_id: string }> {
-  return apiFetch<{ status: string; integration_id: string }>(`/v1/integrations/${id}`, {
+  return apiFetch<{ status: string; integration_id: string }>(`/integrations/${id}`, {
     method: 'DELETE',
   });
 }
@@ -122,20 +122,20 @@ export async function deleteIntegration(id: string): Promise<{ status: string; i
 // ── Lifecycle ───────────────────────────────────────────────────────
 
 export async function connectIntegration(id: string): Promise<Integration> {
-  return apiFetch<Integration>(`/v1/integrations/${id}/connect`, {
+  return apiFetch<Integration>(`/integrations/${id}/connect`, {
     method: 'POST',
   });
 }
 
 export async function disconnectIntegration(id: string): Promise<Integration> {
-  return apiFetch<Integration>(`/v1/integrations/${id}/disconnect`, {
+  return apiFetch<Integration>(`/integrations/${id}/disconnect`, {
     method: 'POST',
   });
 }
 
 export async function testIntegration(id: string): Promise<{ status: IntegrationStatus; message: string }> {
   return apiFetch<{ status: IntegrationStatus; message: string }>(
-    `/v1/integrations/${id}/test`,
+    `/integrations/${id}/test`,
     { method: 'POST' },
   );
 }

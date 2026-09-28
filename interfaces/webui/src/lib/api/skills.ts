@@ -67,6 +67,8 @@ export async function createSkill(data: {
 	/** Outils requis — validés par le Core au save (422 si inconnus). */
 	required_tools?: string[];
 	valves?: Record<string, unknown>;
+	/** Toujours false pour une skill créée depuis un brouillon — aucune activation auto. */
+	is_active?: boolean;
 }): Promise<Skill> {
 	return apiFetch<Skill>('/v1/skills', {
 		method: 'POST',

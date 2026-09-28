@@ -13,9 +13,11 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
 import nats
 from core.agents import AgentManager
+from core.auth.password_reset import get_password_reset_manager, set_password_reset_pool
 from core.config import ConfigStore, ConfigurationService
 from core.knowledge import KnowledgeManager
 from core.llm.provider_manager import ProviderManager
@@ -43,8 +45,15 @@ from interfaces.api.routers.capabilities import (
 from interfaces.api.routers.capabilities import (
     router as capabilities_router,
 )
+from interfaces.api.routers.component_lifecycle import (
+    router as component_lifecycle_router,
+)
+from interfaces.api.routers.component_lifecycle import (
+    set_component_manager,
+)
 from interfaces.api.routers.config import router as config_router
 from interfaces.api.routers.config import set_configuration_service
+from interfaces.api.routers.connections import router as connections_router
 from interfaces.api.routers.cookbook import router as cookbook_router
 from interfaces.api.routers.cookbook import set_cookbook_manager
 from interfaces.api.routers.core_domains import router as core_domains_router
@@ -98,9 +107,21 @@ from interfaces.api.routers.v1 import (
     router as v1_router,
 )
 from interfaces.api.routers.v1 import (
+    set_plugin_registry as set_v1_plugin_registry,
+)
+from interfaces.api.routers.v1 import (
     set_provider_manager as set_v1_provider_manager,
 )
 from interfaces.api.routers.web_ingest import router as web_ingest_router
+from interfaces.api.routers.web_inspiration import (
+    router as web_inspiration_router,
+)
+from interfaces.api.routers.web_inspiration import (
+    set_web_inspiration_engine,
+)
+from interfaces.api.routers.web_research import router as web_research_router
+from interfaces.api.routers.web_search import router as web_search_router
+from interfaces.api.routers.web_skill_draft import router as web_skill_draft_router
 from slowapi.middleware import SlowAPIMiddleware
 
 try:
@@ -200,6 +221,7 @@ async def lifespan(app: FastAPI):
     # store live in core/ and remain usable by the CLI or another interface.
     domain_store = CoreRecordStore(pg_pool=pg_pool, redis_client=redis_client)
     set_security_pool(pg_pool)
+    set_password_reset_pool(pg_pool)
     core_domains = CoreDomainServices(
         agents=AgentManager(store=domain_store),
         missions=MissionManager(store=domain_store),
@@ -336,6 +358,55 @@ async def lifespan(app: FastAPI):
     app.state.web_ingest_manager = web_ingest_manager
     logger.info("WebIngestionManager ready (Core-owned web import pipeline)")
 
+    # --- Web Search (Core-owned search engine pipeline) ---
+    # Multi-engine search (DuckDuckGo, Bing, Yandex) with proxy/VPN support.
+    # All logic lives in the Core; this is just injection here.
+    from core.knowledge.web_search import WebSearchManager
+    from interfaces.api.routers.web_search import set_web_search_manager
+
+    web_search_manager = WebSearchManager()
+    set_web_search_manager(web_search_manager)
+    app.state.web_search_manager = web_search_manager
+    logger.info("WebSearchManager ready (Core-owned web search pipeline)")
+
+    # --- Web Inspiration (Core-owned orchestration) ---
+    # Orchestration de recherche enrichie : réutilise WebSearchManager et
+    # WebIngestionManager (aucune duplication de logique) ; le ProviderManager
+    # est injecté plus bas dès qu'il est prêt (synthèse LLM optionnelle).
+    from core.knowledge.web_inspiration import WebInspirationEngine
+
+    web_inspiration_engine = WebInspirationEngine(
+        web_search=web_search_manager,
+        web_ingest=web_ingest_manager,
+    )
+    set_web_inspiration_engine(web_inspiration_engine)
+    app.state.web_inspiration_engine = web_inspiration_engine
+    logger.info("WebInspirationEngine ready (Core-owned web inspiration)")
+
+    # --- Web Research (Core-owned recherche -> sélection -> Knowledge) ---
+    # Workflow complet du Core : collecte multi-moteurs (plafond 50),
+    # aperçu transient, import Knowledge/Collection. Réutilise exclusivement
+    # WebSearchManager + WebIngestionManager (aucune nouvelle pipeline).
+    from core.knowledge.web_research_service import WebResearchService
+    from interfaces.api.routers.web_research import set_web_research_service
+
+    web_research_service = WebResearchService(web_search_manager, web_ingest_manager)
+    set_web_research_service(web_research_service)
+    app.state.web_research_service = web_research_service
+    logger.info("WebResearchService ready (Core-owned research -> knowledge)")
+
+    # --- Web Skill Draft (Core-owned Web Inspiration -> brouillon Skill) ---
+    # Récupération contrôlée des sources + synthèse LLM best-effort.
+    # N'écrit JAMAIS dans le SkillStore : brouillon uniquement, la création
+    # passe par POST /v1/skills sur validation humaine (is_active=False).
+    from core.skills.web_draft import WebSkillDraftService
+    from interfaces.api.routers.web_skill_draft import set_web_skill_draft_service
+
+    web_skill_draft_service = WebSkillDraftService(web_ingest=web_ingest_manager)
+    set_web_skill_draft_service(web_skill_draft_service)
+    app.state.web_skill_draft_service = web_skill_draft_service
+    logger.info("WebSkillDraftService ready (Core-owned web -> skill draft)")
+
     # --- Domains (Core-owned functional specialities) ---
     # Spécialités fonctionnelles (OSINT, Recon, Forensic, ...) organisant
     # knowledge / collections RAG / skills / sources par **relation**
@@ -370,6 +441,9 @@ async def lifespan(app: FastAPI):
         ingestion_service=core_domains.rag,
     )
     set_project_manager(project_manager)
+    # Destination "projet" du Web Import : le pipeline d'ingestion web
+    # réutilise le ProjectManager du Core (aucune dépendance interface).
+    web_ingest_manager.set_projects(project_manager)
     app.state.project_manager = project_manager
     logger.info("ProjectManager ready (Core-owned projects)")
 
@@ -422,6 +496,27 @@ async def lifespan(app: FastAPI):
     set_integration_manager(integration_manager)
     app.state.integration_manager = integration_manager
     logger.info("IntegrationManager ready (Core-owned app integrations)")
+
+    # --- User Connections (comptes externes liés PAR UTILISATEUR) ---
+    # OAuth (GitHub, Notion, Medium, Gmail…) : le Core possède le flux,
+    # les tokens (domaine dédié ``connection-tokens``) et l'abstraction
+    # ConnectionProvider consommée par Chat/Knowledge/Skills/Missions.
+    # Les client secrets OAuth restent dans env/Vault (SecretManager).
+    import httpx
+    from core.integrations.connections import ConnectionManager
+    from interfaces.api.routers.connections import set_connection_manager
+
+    connection_manager = ConnectionManager(
+        store=domain_store,
+        event_bus=event_bus,
+        http_factory=lambda: httpx.AsyncClient(timeout=15.0),
+        base_url=str(
+            getattr(app.state, "public_base_url", "") or os.getenv("ETHAN_PUBLIC_BASE_URL", "")
+        ),
+    )
+    set_connection_manager(connection_manager)
+    app.state.connection_manager = connection_manager
+    logger.info("ConnectionManager ready (user connections: email, github, medium, notion)")
 
     # --- Search (unified search across ETHAN domains) ---
     # Delegates to KnowledgeManager, ChatStore, RAGPipeline — no duplication.
@@ -513,9 +608,13 @@ async def lifespan(app: FastAPI):
         set_plugin_registry as _set_core_plugin_registry,
     )
 
-    _set_core_plugin_registry(
-        PluginRegistry(store=domain_store, tool_registry=tool_manager.registry)
-    )
+    plugin_registry = PluginRegistry(store=domain_store, tool_registry=tool_manager.registry)
+    # Source de vérité unique : le singleton Core. Le router v1 reçoit la
+    # MÊME instance — sans cette injection, /v1/plugins* renvoie 503
+    # ("PluginRegistry not initialized") car sa variable module-level
+    # n'est jamais peuplée (cf. interfaces/api/routers/v1.py).
+    _set_core_plugin_registry(plugin_registry)
+    set_v1_plugin_registry(plugin_registry)
     logger.info("PluginRegistry ready (%d builtin plugins)", len(BUILTIN_PLUGINS))
 
     # --- Skill manager (Core-owned skill execution) ---
@@ -577,6 +676,23 @@ async def lifespan(app: FastAPI):
     app.state.tool_manager = tool_manager
     logger.info("Capability managers ready (13 Core capabilities exposed, incl. skills)")
 
+    # --- Component lifecycle (Core-owned : detect/install/uninstall) ---
+    # Le Core est la source de verite du cycle de vie des composants optionnels
+    # (vectordb, runtime, integrations...). L'API n'est qu'une passerelle mince.
+    from core.capability_manager.builtin import build_manager as _build_cap_manager
+
+    component_manager = _build_cap_manager(
+        store=domain_store,
+        audit=_internal.get_audit_store(),
+        bus=event_bus,
+    )
+    set_component_manager(component_manager)
+    app.state.component_manager = component_manager
+    logger.info(
+        "Component lifecycle manager ready (%d supported components)",
+        len(component_manager.list_specs()),
+    )
+
     # --- Cookbook / Email / Research (Core-owned, RFC-0001/2/3) ---
     from core.cookbook.manager import CookbookManager
     from core.mailbox.manager import EmailManager
@@ -611,6 +727,19 @@ async def lifespan(app: FastAPI):
             DeepResearchEngine(provider_manager=provider_manager, tool_manager=tool_manager)
         )
         logger.info("Deep research engine ready")
+        # Branch la synthèse LLM du moteur Web Inspiration (créé plus tôt,
+        # avant que le ProviderManager n'existe).  Lecture via app.state (et
+        # non la variable locale) : si le bloc d'initialisation amont a
+        # échoué, la variable locale n'existerait pas (NameError) — getattr
+        # reste sûr et best-effort.
+        inspiration_engine = getattr(app.state, "web_inspiration_engine", None)
+        if inspiration_engine is not None:
+            inspiration_engine.set_provider_manager(provider_manager)
+        # Brouillons de Skill (web) : synthèse LLM best-effort — repli
+        # déterministe si le ProviderManager est absent.
+        web_skill_draft_service = getattr(app.state, "web_skill_draft_service", None)
+        if web_skill_draft_service is not None:
+            web_skill_draft_service.set_provider_manager(provider_manager)
         # Injecte l'exécuteur d'agents (Core real LLM adapter) : l'AgentManager
         # est créé plus haut sans executor afin de rester testable en isolation ;
         # le runtime fournit maintenant l'adapter de production qui route la
@@ -706,7 +835,8 @@ async def lifespan(app: FastAPI):
             redis_client=redis_client,
             nats_url=nats_url,
             database_url=db_url,
-            kernel_url=os.getenv("ETHAN_KERNEL_URL", "http://localhost:8080"),
+            # kernel_url non passé : résolu par SystemDiagnostics depuis
+            # ETHAN_KERNEL_URL (défini par docker-compose → http://kernel:8080).
             provider_manager=provider_manager,
             rag_pipeline=core_domains.rag,
             tool_manager=tool_manager,
@@ -780,12 +910,17 @@ app.middleware("http")(auth_middleware)
 
 
 # ── API Keys — Core APIKeyManager (wiring) ──────────────────
+# Import tardif : le routeur dépend de l'app déjà construite (wiring FastAPI).
 from interfaces.api.routers.api_keys import router as api_keys_router  # noqa: E402
 
 app.include_router(api_keys_router)
 app.include_router(folders_router)
 app.include_router(projects_router)
 app.include_router(web_ingest_router)
+app.include_router(web_search_router)
+app.include_router(web_inspiration_router)
+app.include_router(web_research_router)
+app.include_router(web_skill_draft_router)
 app.include_router(knowledge_imports_router)
 app.include_router(core_domains_router)
 app.include_router(dedup_router)
@@ -798,12 +933,14 @@ app.include_router(security_router)
 app.include_router(providers_router)
 app.include_router(models_router)
 app.include_router(integrations_router)
+app.include_router(connections_router)
 app.include_router(search_router)
 app.include_router(reminders_router)
 app.include_router(diagnostics_router)
 app.include_router(config_router)
 app.include_router(domains_router)
 app.include_router(capabilities_router)
+app.include_router(component_lifecycle_router)
 app.include_router(cookbook_router)
 app.include_router(email_router)
 app.include_router(research_router)
@@ -829,7 +966,10 @@ async def login(request: Request, response: Response):
     username = body.get("username", "developer")
     password = body.get("password", "")
 
-    role = "user"
+    # Default role for users created without an explicit role. New accounts
+    # get "standard" (FILES|AGENTS|PLUGINS|SETTINGS) — the legacy "user"
+    # role is restricted (read/write/chat/memory only) and kept for compat.
+    role = "standard"
     try:
         import asyncio
 
@@ -842,8 +982,7 @@ async def login(request: Request, response: Response):
         conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
         try:
             row = await conn.fetchrow(
-                "SELECT password_hash, roles, is_active, totp_secret, totp_enabled "
-                "FROM users WHERE username = $1",
+                "SELECT password_hash, roles, is_active, totp_secret, totp_enabled FROM users WHERE username = $1",  # noqa: E501
                 username,
             )
             if not row:
@@ -860,7 +999,7 @@ async def login(request: Request, response: Response):
             if not bcrypt.checkpw(password.encode("utf-8"), row["password_hash"].encode("utf-8")):
                 raise HTTPException(status_code=401, detail="Invalid username or password")
 
-            # 2FA — TOTP verification (Core-owned: core/auth/totp.py)
+                # 2FA — TOTP verification (Core-owned: core/auth/totp.py)
             if row["totp_enabled"]:
                 from core.auth.totp import verify_code
 
@@ -870,7 +1009,7 @@ async def login(request: Request, response: Response):
                 if not verify_code(row["totp_secret"], totp_code):
                     raise HTTPException(status_code=401, detail="Code 2FA invalide.")
 
-            role = row["roles"][0] if row["roles"] else "user"
+            role = row["roles"][0] if row["roles"] else "standard"
         finally:
             await conn.close()
 
@@ -946,7 +1085,7 @@ async def register(request: Request):
                 """,
                 username,
                 password_hash,
-                ["user"],
+                ["standard"],
                 True,
             )
         finally:
@@ -955,14 +1094,61 @@ async def register(request: Request):
         logger.error("Register failed — user %s not persisted: %s", username, exc)
         raise HTTPException(status_code=503, detail="Registration service unavailable")
 
-    token = create_access_token(data={"sub": username, "role": "user"})
+    token = create_access_token(data={"sub": username, "role": "standard"})
     return {
         "access_token": token,
         "token": token,
         "token_type": "bearer",
         "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
-        "user": {"username": username, "email": body.get("email", ""), "role": "user"},
+        "user": {"username": username, "email": body.get("email", ""), "role": "standard"},
     }
+
+
+@app.post("/auth/forgot-password")
+async def forgot_password(request: Request):
+    """Demande de réinitialisation « mot de passe oublié ».
+
+    Passerelle MINCE : toute la logique vit dans Core
+    (core/auth/password_reset.py).  La réponse ne révèle jamais si le
+    compte existe (anti-énumération) — même statut 200 dans tous les cas.
+
+    En développement uniquement (``ETHAN_DEV_PASSWORD_RESET=1``), le token
+    est renvoyé dans la réponse pour permettre le test du flux sans canal
+    email configuré.  Ce champ n'est JAMAIS émis en production.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    username = str(body.get("username", ""))
+    raw_token = await get_password_reset_manager().request_reset(username)
+    payload: dict[str, Any] = {
+        "status": "ok",
+        "message": ("Si ce compte existe, un lien de réinitialisation lui a été envoyé."),
+    }
+    if raw_token and os.getenv("ETHAN_DEV_PASSWORD_RESET") == "1":
+        payload["dev_reset_token"] = raw_token
+    return payload
+
+
+@app.post("/auth/reset-password")
+async def reset_password(request: Request):
+    """Réinitialisation effective avec un token valide (usage unique)."""
+    from core.auth.password_reset import PasswordResetError
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    token = str(body.get("token", ""))
+    new_password = body.get("new_password")
+    if not token or new_password is None:
+        raise HTTPException(422, "token et new_password sont requis.")
+    try:
+        result = await get_password_reset_manager().reset_password(token, str(new_password))
+    except PasswordResetError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return result
 
 
 @app.get("/auth/me")
@@ -986,8 +1172,8 @@ async def auth_refresh(
     request: Request = None,
 ):
     """Issue a new JWT token from a valid existing token."""
-    # We must explicitly read the token since Depends(security) might miss the
-    # cookie if no Bearer header is present.
+    # Read the cookie explicitly: Depends(security) may miss it when no
+    # Bearer header is present.
     token = request.cookies.get("ethan_token")
     if not token:
         auth_header = request.headers.get("Authorization")

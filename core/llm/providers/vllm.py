@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from core.llm.providers.base import LLMProvider
-from core.llm.types import ChatMessage, ChatResponse, ModelInfo
+from core.llm.types import ChatMessage, ChatResponse, ModelInfo, is_embedding_model
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,12 @@ class VLLMProvider(LLMProvider):
                         avg_latency_ms=200.0,  # Rapide (GPU)
                         is_local=True,
                         is_private=True,
-                        capabilities=["chat", "embedding", "code"],
+                        # Un encodeur d'embedding ne peut pas servir au chat.
+                        capabilities=(
+                            ["embedding"]
+                            if is_embedding_model(model_id)
+                            else ["chat", "embedding", "code"]
+                        ),
                     )
                 )
 

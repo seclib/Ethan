@@ -37,14 +37,21 @@ class ChatStore:
         title: str,
         user_id: str = "anonymous",
         folder_id: str | None = None,
+        project_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a new conversation."""
+        """Create a new conversation.
+
+        ``project_id`` rattache la conversation à un Project (scope de
+        connaissance + contexte d'exécution).  Chaque conversation conserve son
+        propre historique : le projet apporte du contexte, jamais des messages.
+        """
         chat = {
             "id": str(uuid4()),
             "title": title.strip() or "New Chat",
             "user_id": user_id,
             "folder_id": folder_id,
+            "project_id": project_id,
             "archived": False,
             "pinned": False,
             "share_id": None,
@@ -66,15 +73,29 @@ class ChatStore:
         user_id: str | None = None,
         folder_id: str | None = None,
         archived: bool | None = None,
+        project_id: str | None = None,
+        unassigned: bool = False,
     ) -> list[dict[str, Any]]:
-        """List conversations, optionally filtered."""
+        """List conversations, optionally filtered.
+
+        ``project_id`` isole les conversations d'un Project : l'historique
+        d'un projet ne fuit jamais vers un autre.  ``unassigned=True`` retourne
+        les conversations hors projet (scope par défaut) — ignoré si
+        ``project_id`` est fourni.
+        """
         chats = await self._store.list(self._DOMAIN)
         if user_id is not None:
             chats = [c for c in chats if c.get("user_id") == user_id]
         if folder_id is not None:
             chats = [c for c in chats if c.get("folder_id") == folder_id]
+        if project_id is not None:
+            chats = [c for c in chats if c.get("project_id") == project_id]
+        elif unassigned:
+            chats = [c for c in chats if not c.get("project_id")]
         if archived is not None:
             chats = [c for c in chats if c.get("archived") == archived]
+        # Tri stable : conversation la plus récemment active en premier.
+        chats.sort(key=lambda c: c.get("updated_at", ""), reverse=True)
         return chats
 
     async def update_chat(self, chat_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
@@ -82,7 +103,7 @@ class ChatStore:
         chat = await self.get_chat(chat_id)
         if chat is None:
             return None
-        for key in ("title", "folder_id", "archived", "pinned", "metadata"):
+        for key in ("title", "folder_id", "project_id", "archived", "pinned", "metadata"):
             if key in data:
                 chat[key] = data[key]
         chat["updated_at"] = datetime.utcnow().isoformat()

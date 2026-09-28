@@ -100,12 +100,10 @@ def test_delete_after_confirm_requires_confirmation():
 
 def test_delete_after_confirm_with_flag_removes_and_deletes():
     async def scenario():
-        files, projects, collections, rag = (
-            _FakeFiles(),
-            _FakeProjects(),
-            _FakeCollections(),
-            _FakeRag(),
-        )
+        files = _FakeFiles()
+        projects = _FakeProjects()
+        collections = _FakeCollections()
+        rag = _FakeRag()
         res = _make_resolver(files=files, projects=projects, collections=collections, rag=rag)
         f1 = _file_item(
             "f1", "a.txt", project_ids=["p1"], collection_ids=["c1"], rag_document_id="r1"

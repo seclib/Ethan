@@ -19,8 +19,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, RefreshCw, TestTube, Globe, Wifi, AlertCircle, LoaderCircle,
-  Search, Server, MoreVertical,
+  Search, Server, MoreVertical, Star,
 } from "lucide-react";
+import { capabilityLabel, capabilityVariant } from "@/lib/llm/capabilities";
 import type { Provider, ProviderCreate, ProviderUpdate } from "@/lib/api/providers";
 
 const STATUS_CONFIG = {
@@ -46,26 +47,11 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 };
 
 /**
- * Labels des capacités normalisées du modèle unifié (ProviderCapability).
- * Ces chaînes proviennent du Core — le frontend ne fait que traduire pour
- * l'affichage.
+ * Les capacités affichées ici sont celles que le Core déclare
+ * (ProviderManager → GET /providers, champ `capabilities`). Le composant ne
+ * fait que traduire l'affichage via `lib/llm/capabilities` — aucune liste de
+ * capacités n'est maintenue ici (règle AGENTS.md : pas de doublon).
  */
-const CAPABILITY_LABELS: Record<string, string> = {
-  llm: "LLM",
-  vision: "Vision",
-  embedding: "Embeddings",
-  speech_to_text: "Speech-to-Text",
-  transcription: "Transcription",
-};
-
-const CAPABILITY_COLORS: Record<string, string> = {
-  llm: "border-accent/40 text-accent",
-  vision: "border-blue-500/40 text-blue-500",
-  embedding: "border-purple-500/40 text-purple-500",
-  speech_to_text: "border-green-500/40 text-green",
-  transcription: "border-amber-500/40 text-amber-600",
-};
-
 function cn(...inputs: (string | false | undefined)[]) {
   return inputs.filter(Boolean).join(" ");
 }
@@ -78,10 +64,15 @@ interface ProviderCardProps {
   onDelete: (id: string) => void;
   onTest: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
+  onSetDefault: (id: string) => void;
   isTesting: boolean;
+  isSettingDefault: boolean;
 }
 
-function ProviderCard({ provider, selected, onSelect, onEdit, onDelete, onTest, onToggle, isTesting }: ProviderCardProps) {
+function ProviderCard({
+  provider, selected, onSelect, onEdit, onDelete, onTest, onToggle,
+  onSetDefault, isTesting, isSettingDefault,
+}: ProviderCardProps) {
   const config = STATUS_CONFIG[provider.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.unknown;
   const StatusIcon = config.icon;
   const TypeIcon = TYPE_ICONS[provider.type] ?? Server;
@@ -158,25 +149,18 @@ function ProviderCard({ provider, selected, onSelect, onEdit, onDelete, onTest, 
           </div>
         )}
 
-        {/* Capacités du modèle unifié — exprimées par le Core
-            (ProviderManager.capabilities()), jamais par le frontend. */}
         {provider.capabilities && provider.capabilities.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">
-            {provider.capabilities.map((cap) => {
-              const label = CAPABILITY_LABELS[cap] ?? cap;
-              return (
-                <span
-                  key={cap}
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] leading-none",
-                    CAPABILITY_COLORS[cap] ?? "border-line-2 text-foreground-tertiary",
-                  )}
-                  title={`Capacité : ${label}`}
-                >
-                  {label}
-                </span>
-              );
-            })}
+            {provider.capabilities.map((cap) => (
+              <Badge
+                key={cap}
+                variant={capabilityVariant(cap)}
+                size="sm"
+                title={`Capacité déclarée par le Core : ${capabilityLabel(cap)}`}
+              >
+                {capabilityLabel(cap)}
+              </Badge>
+            ))}
             {provider.has_api_key && (
               <span
                 className="inline-flex items-center gap-1 rounded-full border border-green-500/40 px-2 py-0.5 text-[11px] leading-none text-green"
@@ -220,6 +204,30 @@ function ProviderCard({ provider, selected, onSelect, onEdit, onDelete, onTest, 
       </CardContent>
 
       <CardFooter className="flex justify-end gap-2 border-t border-line-1 pt-3">
+        {provider.is_default ? (
+          <span className="mr-auto inline-flex items-center gap-1 text-xs text-foreground-tertiary">
+            <Star className="h-3.5 w-3.5 fill-current text-gold" />
+            Moteur par défaut
+          </span>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mr-auto"
+            disabled={isSettingDefault}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetDefault(provider.id);
+            }}
+          >
+            {isSettingDefault ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Star className="h-4 w-4" />
+            )}
+            Définir par défaut
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -272,12 +280,13 @@ function StatusFilterButton({ value, label, active, onClick }: StatusFilterButto
 export function ProvidersWorkspace() {
   const {
     providers, isLoading, error, refetch,
-    isCreating, isTesting, testConnection, toggleEnabled,
+    isCreating, isTesting, testConnection, toggleEnabled, setDefault,
     deleteProviderAsync, createProviderAsync, updateProviderAsync,
   } = useProviders();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "connected" | "offline">("all");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [defaultingId, setDefaultingId] = React.useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">("create");
@@ -315,6 +324,17 @@ export function ProvidersWorkspace() {
       await deleteProviderAsync(pendingDeleteId);
       refetch();
       setPendingDeleteId(null);
+    }
+  };
+
+  /** Moteur par défaut : action Core (PUT /providers/{id}/default), aucun état local. */
+  const handleSetDefault = async (id: string) => {
+    setDefaultingId(id);
+    try {
+      await setDefault(id);
+      refetch();
+    } finally {
+      setDefaultingId(null);
     }
   };
 
@@ -404,6 +424,8 @@ export function ProvidersWorkspace() {
               onSelect={(prov) => setSelectedId(prov.id)}
               onEdit={handleEdit}
               onDelete={() => setPendingDeleteId(p.id)}
+              onSetDefault={handleSetDefault}
+              isSettingDefault={defaultingId === p.id}
               onTest={async (id) => {
                 await testConnection(id);
                 refetch();

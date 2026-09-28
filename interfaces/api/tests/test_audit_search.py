@@ -16,6 +16,25 @@ from fastapi.testclient import TestClient
 from interfaces.api.routers import internal as internal_router
 
 
+def _build_app() -> FastAPI:
+    """App FastAPI minimale exposant le router ``/internal``.
+
+    Les routes ``/internal/*`` sont protégées par ``require_permission`` (RBAC) ;
+    ce stub peuple ``request.state.token_payload`` avec le rôle ``admin`` pour que
+    le sujet du test (la logique de recherche d'audit) reste accessible. Le RBAC
+    lui-même est couvert par les tests d'auth dédiés.
+    """
+    app = FastAPI()
+
+    @app.middleware("http")
+    async def _stub_auth(request, call_next):
+        request.state.token_payload = {"role": "admin"}
+        return await call_next(request)
+
+    app.include_router(internal_router.router)
+    return app
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     """App FastAPI minimale + AuditStore réel isolé dans tmp_path."""
@@ -49,8 +68,7 @@ def client(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(internal_router, "_audit", store)
 
-    app = FastAPI()
-    app.include_router(internal_router.router)
+    app = _build_app()
     with TestClient(app) as c:
         yield c
     monkeypatch.setattr(internal_router, "_audit", None)
@@ -110,8 +128,7 @@ def test_search_requires_q(client):
 def test_search_module_not_initialized(monkeypatch):
     """Régression : module absent doit lever 503, pas sérialiser un tuple."""
     monkeypatch.setattr(internal_router, "_audit", None)
-    app = FastAPI()
-    app.include_router(internal_router.router)
+    app = _build_app()
     with TestClient(app, raise_server_exceptions=False) as c:
         r = c.get("/internal/audit/search", params={"q": "x"})
     assert r.status_code == 503

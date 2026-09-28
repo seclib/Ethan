@@ -11,8 +11,11 @@ import {
 	comparisonValue,
 	DEFAULT_MODEL_FILTERS,
 	filterModelCatalog,
+	hasKnownProvider,
 	isModelActivationEditable,
 	modelAvailabilityLabel,
+	modelProviderLabel,
+	modelStateLabel,
 	sortModelCatalog,
 } from "@/lib/llm/model-catalog";
 import type { ModelInfo } from "@/lib/api/models";
@@ -164,6 +167,94 @@ describe("sortModelCatalog", () => {
 	});
 });
 
+// ── Frontière Provider / Modèle ────────────────────────────────────────────
+// Régression : le Core plaçait autrefois `base_model_id` (un identifiant de
+// MODÈLE) dans le champ `provider`, ce qui rendait une fiche custom
+// infiltrable/imprimable sous un faux nom de service.
+describe("frontière Provider / Modèle", () => {
+	it("le provider d'une fiche custom est un service, pas un nom de modèle", () => {
+		const custom = makeModel({
+			id: "c-1",
+			name: "Mon preset",
+			is_custom: true,
+			source: "custom",
+			provider: "ollama",
+			model: "llama3.2-custom",
+			base_model_id: "llama3.2",
+		});
+		// `provider` = service ; `base_model_id` = modèle de base. Distincts.
+		expect(custom.provider).toBe("ollama");
+		expect(custom.base_model_id).toBe("llama3.2");
+		expect(hasKnownProvider(custom)).toBe(true);
+		expect(modelProviderLabel(custom)).toBe("ollama");
+	});
+
+	it("une fiche custom est filtrable par son VRAI provider", () => {
+		const custom = makeModel({
+			id: "c-1",
+			name: "Mon preset",
+			is_custom: true,
+			source: "custom",
+			provider: "openai",
+			model: "gpt-4o-mini",
+			base_model_id: "gpt-4o",
+		});
+		const discovered = makeModel({ id: "m-1", provider: "ollama" });
+		const all = [discovered, custom];
+
+		expect(
+			filterModelCatalog(all, { ...DEFAULT_MODEL_FILTERS, providerId: "openai" }),
+		).toEqual([custom]);
+		expect(
+			filterModelCatalog(all, { ...DEFAULT_MODEL_FILTERS, providerId: "ollama" }),
+		).toEqual([discovered]);
+	});
+
+	it("provider non déclaré : libellé explicite, aucun service inventé", () => {
+		// Fiche créée avant l'introduction du champ `provider` côté Core.
+		const orphan = makeModel({
+			id: "c-legacy",
+			is_custom: true,
+			source: "custom",
+			provider: "",
+			base_model_id: "llama3.2",
+		});
+		expect(hasKnownProvider(orphan)).toBe(false);
+		expect(modelProviderLabel(orphan)).toBe("Provider non déclaré");
+		// Le nom du modèle de base ne doit surtout pas s'y substituer.
+		expect(modelProviderLabel(orphan)).not.toBe("llama3.2");
+	});
+
+	it("état d'une fiche custom = activation, pas joignabilité inventée", () => {
+		// Le Core ne peut pas tester la joignabilité d'une fiche : il affiche
+		// l'activation administrative plutôt qu'un « Disponible » usurpé.
+		const active = makeModel({ is_custom: true, is_available: true, is_active: true });
+		const inactive = makeModel({ is_custom: true, is_available: false, is_active: false });
+		expect(modelStateLabel(active)).toBe("Actif");
+		expect(modelStateLabel(inactive)).toBe("Inactif");
+
+		// Un modèle découvert, lui, a une joignabilité réellement mesurée.
+		const down = makeModel({ is_custom: false, is_available: false, is_active: null });
+		expect(modelStateLabel(down)).toBe("Indisponible");
+		expect(modelStateLabel(makeModel({ is_available: true }))).toBe("Disponible");
+	});
+
+	it("la comparaison omet 'Provider déclaré' si aucun modèle n'en a", () => {
+		const rows = buildModelComparison([
+			makeModel({ provider: "" }),
+			makeModel({ id: "m-2", provider: "" }),
+		]);
+		expect(rows.find((r) => r.key === "provider_declared")).toBeUndefined();
+		// La ligne « provider » reste : elle porte le modèle de base, mais
+		// « Provider déclaré » ne ment pas sur une absence.
+		const declared = buildModelComparison([
+			makeModel({ provider: "ollama" }),
+			makeModel({ id: "m-2", provider: "" }),
+		]).find((r) => r.key === "provider_declared");
+		expect(declared?.values).toEqual(["ollama", null]);
+	});
+});
+
 describe("buildModelComparison", () => {
 	it("lignes ordonnées, valeurs alignées sur l'ordre des modèles", () => {
 		const rows = buildModelComparison([
@@ -176,6 +267,7 @@ describe("buildModelComparison", () => {
 			"context_length",
 			"capabilities",
 			"availability",
+			"provider_declared",
 			"quality_score",
 			"is_local",
 			"is_private",

@@ -39,6 +39,12 @@ export interface ChatCompletionRequest {
 	/** Routage Chat → Agent (résolu par le Core). */
 	agent_id?: string;
 	/**
+	 * Routage Chat → Projet (résolu par le Core) : le projet apporte son
+	 * contexte (instructions, agent/provider/modèle par défaut) et son scope
+	 * de ressources. La conversation conserve son propre historique.
+	 */
+	project_id?: string;
+	/**
 	 * Mode conversationnel (plan | act | debug) — arbitré par le
 	 * SessionSettingsManager Core (core/chat/modes.py), jamais par l'interface.
 	 */
@@ -134,14 +140,17 @@ export async function getChatMessages(
 /**
  * Create a new chat.
  * Maps to POST /chats
+ *
+ * `projectId` rattache la conversation à un Project (ChatStore Core).
  */
 export async function createChat(
 	title: string,
 	userId: string = 'anonymous',
-): Promise<{ id: string; title: string; user_id: string }> {
-	return apiFetch<{ id: string; title: string; user_id: string }>('/chats', {
+	projectId?: string | null,
+): Promise<{ id: string; title: string; user_id: string; project_id?: string | null }> {
+	return apiFetch<{ id: string; title: string; user_id: string; project_id?: string | null }>('/chats', {
 		method: 'POST',
-		body: JSON.stringify({ title, user_id: userId }),
+		body: JSON.stringify({ title, user_id: userId, project_id: projectId ?? null }),
 	});
 }
 

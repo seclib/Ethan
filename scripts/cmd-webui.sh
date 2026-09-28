@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/ethan-lib.sh"
 timer_start
 require_node
 
-PORT="${PORT:-3001}"
+PORT="${PORT:-${ETHAN_WEBUI_PORT:-3001}}"
 
 # WARNING : le conteneur Docker ethan-ui utilise le port 3001 (mapping 3001:3001).
 # Ne pas lancer ./ethan webui localement en même temps que Docker (conflit de port).
@@ -32,7 +32,7 @@ if [ ! -d "${WEBUI_DIR}/node_modules" ]; then
 fi
 
 # S'assurer que l'API backend est disponible
-API_PORT="${API_PORT:-8000}"
+API_PORT="${API_PORT:-${ETHAN_API_PORT:-8000}}"
 if ! curl -sf "http://localhost:${API_PORT}/health/ready" >/dev/null 2>&1; then
     info "Démarrage de l'API backend sur le port ${API_PORT}..."
     nohup "${ETHAN_ROOT}/scripts/cmd-api.sh" --port="${API_PORT}" > "$LOG_DIR/api.log" 2>&1 &

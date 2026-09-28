@@ -35,18 +35,12 @@ REAL_WORLD_MENTIONS = [
     {
         "id": "3000000000000000001",
         "author": "ml_researcher",
-        "text": (
-            "@OpenJarvisAI does this work with vllm or "
-            "do I need ollama specifically?"
-        ),
+        "text": ("@OpenJarvisAI does this work with vllm or do I need ollama specifically?"),
     },
     {
         "id": "3000000000000000002",
         "author": "indie_hacker",
-        "text": (
-            "@OpenJarvisAI can I run the orchestrator agent "
-            "on a laptop without a gpu?"
-        ),
+        "text": ("@OpenJarvisAI can I run the orchestrator agent on a laptop without a gpu?"),
     },
     {
         "id": "3000000000000000003",
@@ -61,7 +55,6 @@ REAL_WORLD_MENTIONS = [
             "conflicting facts? overwrite or keep both?"
         ),
     },
-
     # === QUESTIONs that should defer (off-topic / unknowable) ===
     {
         "id": "3000000000000000005",
@@ -72,34 +65,24 @@ REAL_WORLD_MENTIONS = [
         "id": "3000000000000000006",
         "author": "specific_specs",
         "text": (
-            "@OpenJarvisAI what's the exact tokens-per-second "
-            "on an M3 Pro with the 70B model?"
+            "@OpenJarvisAI what's the exact tokens-per-second on an M3 Pro with the 70B model?"
         ),
     },
-
     # === BUG / FEATURE / PRAISE / SPAM ===
     {
         "id": "3000000000000000007",
         "author": "devops_dan",
-        "text": (
-            "@OpenJarvisAI getting a segfault on startup "
-            "with the lemonade backend, 0.18.2"
-        ),
+        "text": ("@OpenJarvisAI getting a segfault on startup with the lemonade backend, 0.18.2"),
     },
     {
         "id": "3000000000000000008",
         "author": "enterprise_eng",
-        "text": (
-            "@OpenJarvisAI any plans for SSO support? "
-            "would love to deploy this internally"
-        ),
+        "text": ("@OpenJarvisAI any plans for SSO support? would love to deploy this internally"),
     },
     {
         "id": "3000000000000000009",
         "author": "convert_carl",
-        "text": (
-            "@OpenJarvisAI switched from langchain last week, this is incredible"
-        ),
+        "text": ("@OpenJarvisAI switched from langchain last week, this is incredible"),
     },
     {
         "id": "3000000000000000010",
@@ -134,6 +117,7 @@ def main():
 
     sys.path.insert(0, str(_THIS.parents[1] / "scripts"))
     from index_docs import build_index  # type: ignore
+
     sys.path.pop(0)
 
     model = "gemma4:31b"
@@ -175,30 +159,37 @@ def main():
 
             if mention_type == "QUESTION":
                 prompt, score = _resolve_question_prompt(
-                    backend, tweet["author"], tweet["id"], tweet["text"],
+                    backend,
+                    tweet["author"],
+                    tweet["id"],
+                    tweet["text"],
                 )
                 tools = ["channel_send"]
                 entry["score"] = score
-                entry["ground_state"] = (
-                    "grounded" if score >= SCORE_THRESHOLD else "deferred"
-                )
+                entry["ground_state"] = "grounded" if score >= SCORE_THRESHOLD else "deferred"
                 print(
                     f"   retrieval top-1: {score:.3f}  ->  {entry['ground_state']}",
                     flush=True,
                 )
             elif mention_type == "BUG_REPORT":
                 prompt = _build_bug_prompt(
-                    tweet["author"], tweet["id"], tweet["text"],
+                    tweet["author"],
+                    tweet["id"],
+                    tweet["text"],
                 )
                 tools = ["http_request", "channel_send"]
             elif mention_type == "FEATURE_REQUEST":
                 prompt = _build_feature_prompt(
-                    tweet["author"], tweet["id"], tweet["text"],
+                    tweet["author"],
+                    tweet["id"],
+                    tweet["text"],
                 )
                 tools = ["http_request", "channel_send"]
             else:
                 prompt = _build_praise_prompt(
-                    tweet["author"], tweet["id"], tweet["text"],
+                    tweet["author"],
+                    tweet["id"],
+                    tweet["text"],
                 )
                 tools = ["channel_send"]
 
@@ -243,7 +234,7 @@ def main():
         else:
             v = r["voice"]
             ok = all([v["<=280"], v["lowercase"], v["no_emoji"], v["no_hashtag"]])
-            score_str = f"{r['score']:.2f}" if r['type'] == 'QUESTION' else "-"
+            score_str = f"{r['score']:.2f}" if r["type"] == "QUESTION" else "-"
             state = r["ground_state"] or "-"
             short_reply = r["reply"][:80].replace("\n", " ").replace("|", "/")
             short_text = r["text"][:50].replace("|", "/")

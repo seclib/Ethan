@@ -49,7 +49,10 @@ def test_update_status(sqlite_facts):
 def test_search(sqlite_facts):
     sqlite_facts.insert(
         Fact(
-            subject="marathon", predicate="distance", object="42km", category=FactCategory.KNOWLEDGE
+            subject="marathon",
+            predicate="distance",
+            object="42km",
+            category=FactCategory.KNOWLEDGE,
         )
     )
     sqlite_facts.insert(
@@ -67,10 +70,20 @@ def test_search(sqlite_facts):
 
 def test_find_active(sqlite_facts):
     sqlite_facts.insert(
-        Fact(subject="x", predicate="p", object="o1", category=FactCategory.KNOWLEDGE)
+        Fact(
+            subject="x",
+            predicate="p",
+            object="o1",
+            category=FactCategory.KNOWLEDGE,
+        )
     )
     sqlite_facts.insert(
-        Fact(subject="x", predicate="p", object="o2", category=FactCategory.KNOWLEDGE)
+        Fact(
+            subject="x",
+            predicate="p",
+            object="o2",
+            category=FactCategory.KNOWLEDGE,
+        )
     )
     found = sqlite_facts.find_active("x", "p")
     assert found is not None

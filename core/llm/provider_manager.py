@@ -493,12 +493,23 @@ class ProviderManager:
                 # Tenter d'instancier depuis la config
                 config = self._providers_config.get(provider_id)
                 if config and config.get("enabled", False):
-                    provider = create_provider_from_config({**config, "name": provider_id})
-                    await provider.initialize()
+                    try:
+                        provider = create_provider_from_config({**config, "name": provider_id})
+                        await provider.initialize()
+                    except Exception as e:
+                        # Provider connu mais inutilisable (endpoint mort,
+                        # SDK absent, config invalide) : état honnête « vide »,
+                        # jamais une 500 depuis la route GET /providers/{id}/models.
+                        logger.warning(
+                            "Provider %s inutilisable pour list_models: %s",
+                            provider_id,
+                            e,
+                        )
+                        return []
             if provider is None:
                 raise ValueError(f"Provider '{provider_id}' not found or not active")
             try:
-                return await provider.list_models()
+                return self._stamp_instance_id(await provider.list_models(), provider_id)
             except Exception as e:
                 logger.warning("Failed to list models for %s: %s", provider_id, e)
                 return []
@@ -509,7 +520,7 @@ class ProviderManager:
             if provider is None:
                 continue
             try:
-                models.extend(await provider.list_models())
+                models.extend(self._stamp_instance_id(await provider.list_models(), pid))
             except Exception as e:
                 logger.warning("Failed to list models for %s: %s", pid, e)
         return models
@@ -866,6 +877,29 @@ class ProviderManager:
 
     # ── Helpers privés ──────────────────────────────────────────────────
 
+    @staticmethod
+    def _stamp_instance_id(models: list[ModelInfo], provider_id: str) -> list[ModelInfo]:
+        """Rattache les modèles à l'INSTANCE (clé registry), jamais au type.
+
+        Les adapters stampent ``ModelInfo.provider = adapter.name`` (le type :
+        « azure », « ollama »…) alors que la clé du registry est l'id
+        d'instance (« mon-azure », ou l'une des instances multiples d'un même
+        type). Sans cette réconciliation, la distinction
+        Provider (= service/instance) / Model (= modèle exposé) s'effondre :
+
+        - ``LLMClient`` résout ``registry.get_provider(model.provider)`` →
+          None pour tout id personnalisé (chat en échec) ;
+        - ``core/chat/pipeline.py`` filtre ``preferred_providers=[provider_id]``
+          sans jamais matcher ;
+        - la WebUI ``providers.find(p.id === model.provider)`` échoue → la
+          sélection chat appelle ``PUT /providers/{type}/default`` → 404.
+
+        Idempotent : se fait au fil de l'eau, aucune métadonnée inventée.
+        """
+        for model in models:
+            model.provider = provider_id
+        return models
+
     async def _register(self, provider: LLMProvider, provider_id: str) -> None:
         """Enregistre un provider dans le registry et l'initialise."""
         self._registry._providers[provider_id] = provider
@@ -876,7 +910,7 @@ class ProviderManager:
             if models:
                 try:
                     model_list = await models if hasattr(models, "__await__") else models
-                    for m in model_list:
+                    for m in self._stamp_instance_id(list(model_list), provider_id):
                         self._registry._models[m.id] = m
                 except Exception:
                     pass

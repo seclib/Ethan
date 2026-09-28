@@ -17,8 +17,7 @@ import sys
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Scan a local project directory for secrets, "
-            "vulnerabilities, and security issues."
+            "Scan a local project directory for secrets, vulnerabilities, and security issues."
         ),
     )
     parser.add_argument(
@@ -51,8 +50,7 @@ def main() -> None:
         from openjarvis import Jarvis
     except ImportError:
         print(
-            "Error: openjarvis is not installed. "
-            "Install it with:  uv sync --extra dev",
+            "Error: openjarvis is not installed. Install it with:  uv sync --extra dev",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -120,6 +120,16 @@ export interface ComparisonRow {
 const EMPTY_VALUE = "—";
 
 /**
+ * Libellé de joignabilité réel d'un modèle découvert (vue Liste/Table).
+ *
+ * N'est appliqué qu'aux modèles DÉCOUVERTS : une fiche custom n'a pas de
+ * joignabilité testable par le Core (voir `modelStateLabel`).
+ */
+export function modelAvailabilityLabel(model: ModelInfo): string {
+	return model.is_available ? "Disponible" : "Indisponible";
+}
+
+/**
  * Construit la comparaison de 2+ modèles.
  *
  * Une ligne n'apparaît que si AU MOINS un modèle possède réellement la
@@ -157,15 +167,45 @@ export function buildModelComparison(models: ModelInfo[]): ComparisonRow[] {
 			),
 		},
 		{
+			// La ligne reflète l'état CONNU du Core : joignabilité pour un
+			// modèle découvert, activation pour une fiche custom (le Core ne
+			// peut pas tester la joignabilité d'une fiche).
 			key: "availability",
-			label: "Disponibilité",
-			values: models.map((m) => (m.is_available ? "Disponible" : "Indisponible")),
+			label: "État (Core)",
+			values: models.map((m) => modelStateLabel(m)),
+		},
+		{
+			key: "provider_declared",
+			label: "Provider déclaré",
+			values: models.map((m) => (hasKnownProvider(m) ? m.provider : null)),
 		},
 		{
 			key: "quality_score",
 			label: "Qualité (Core)",
 			values: models.map((m) =>
 				m.quality_score ? `${Math.round(m.quality_score * 100)}%` : null,
+			),
+		},
+		{
+			// Métadonnées réellement déclarées par les adapters Core — la
+			// ligne est filtrée (voir plus bas) si aucun modèle ne les porte.
+			key: "pricing",
+			label: "Tarifs déclarés (Core)",
+			values: models.map((m) =>
+				m.pricing && Object.keys(m.pricing).length > 0
+					? Object.entries(m.pricing)
+							.map(([k, v]) => `${k}=${String(v)}`)
+							.join(", ")
+					: null,
+			),
+		},
+		{
+			key: "avg_latency_ms",
+			label: "Latence déclarée (Core)",
+			values: models.map((m) =>
+				typeof m.avg_latency_ms === "number" && m.avg_latency_ms > 0
+					? `${Math.round(m.avg_latency_ms)} ms`
+					: null,
 			),
 		},
 		{
@@ -198,9 +238,37 @@ export function comparisonValue(value: string | number | null): string {
 	return value === null || value === "" ? EMPTY_VALUE : String(value);
 }
 
-/** Libellé de disponibilité réel d'un modèle (vue Liste/Table). */
-export function modelAvailabilityLabel(model: ModelInfo): string {
-	return model.is_available ? "Disponible" : "Indisponible";
+/**
+ * Libellé du provider d'un modèle.
+ *
+ * `provider` est l'identifiant du SERVICE (jamais un identifiant de modèle).
+ * Une fiche custom dont le Core ne connaît pas de provider renvoie "" : on
+ * affiche alors un libellé explicite plutôt que d'inventer un service ou
+ * d'afficher un nom de modèle dans la colonne « Provider ».
+ */
+export function modelProviderLabel(model: ModelInfo): string {
+	return model.provider || "Provider non déclaré";
+}
+
+/** true si le Core connaît un provider (service) pour ce modèle. */
+export function hasKnownProvider(model: ModelInfo): boolean {
+	return Boolean(model.provider);
+}
+
+/**
+ * Libellé d'état d'un modèle.
+ *
+ * - Modèle découvert : le Core connaît la joignabilité → Disponible /
+ *   Indisponible.
+ * - Fiche custom : le Core ne peut PAS tester la joignabilité ; seul
+ *   l'activation administrative est connue. On affiche donc Actif / Inactif
+ *   plutôt qu'un « Disponible » qui usurperait une information inexistante.
+ */
+export function modelStateLabel(model: ModelInfo): string {
+	if (model.is_custom) {
+		return model.is_active === false ? "Inactif" : "Actif";
+	}
+	return modelAvailabilityLabel(model);
 }
 
 /** Un modèle découvert est géré par son provider (pas d'activation locale). */

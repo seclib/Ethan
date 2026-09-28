@@ -25,10 +25,9 @@ export interface FileRecord {
 	created_at: string;
 }
 
-/** List all files */
-export async function listFiles(userId?: string): Promise<FileRecord[]> {
-	const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
-	return apiFetch<FileRecord[]>(`/files${qs}`);
+/** List all files of the authenticated user (identity comes from the JWT). */
+export async function listFiles(): Promise<FileRecord[]> {
+	return apiFetch<FileRecord[]>('/files');
 }
 
 /** Get a single file metadata */
@@ -37,13 +36,9 @@ export async function getFile(id: string): Promise<FileRecord> {
 }
 
 /** Upload a binary file to ETHAN Core */
-export async function uploadFile(
-	file: File,
-	userId: string = 'anonymous',
-): Promise<FileRecord> {
+export async function uploadFile(file: File): Promise<FileRecord> {
 	const formData = new FormData();
 	formData.append('file', file);
-	formData.append('user_id', userId);
 
 	const response = await fetch('/api/files/upload', {
 		method: 'POST',

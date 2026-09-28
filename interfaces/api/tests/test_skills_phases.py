@@ -13,7 +13,7 @@ import pytest
 from core.skills.lab import SkillLab
 from core.skills.store import SkillStore
 from fastapi import HTTPException
-from routers import v1
+from interfaces.api.routers import v1
 
 
 class _FakeTool:

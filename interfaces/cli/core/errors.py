@@ -3,7 +3,9 @@
 Usage:
     from core.errors import EthanError, format_error, error
 
-    raise EthanError("SYS-001", "API unreachable", "ethan daemon may be stopped", "try: ethan daemon start")
+    raise EthanError(
+        "SYS-001", "API unreachable", "ethan daemon may be stopped", "try: ethan daemon start"
+    )
     print(format_error(e))
     print(error("Something failed", "context here", "try: ethan --help"))
 """

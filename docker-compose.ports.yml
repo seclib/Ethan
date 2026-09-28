@@ -1,5 +1,6 @@
 services:
   grafana:
     ports:
-    - 3001:3000
-version: '3.8'
+      # Ne jamais coller sur 3001 (WebUI) : défaut aligné sur
+      # docker-compose.observability.yml (GRAFANA_PORT, loopback only).
+      - "127.0.0.1:${GRAFANA_PORT:-3002}:3000"

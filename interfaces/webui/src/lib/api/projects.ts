@@ -45,6 +45,16 @@ export interface ProjectSelection {
 	active_project_id: string | null;
 }
 
+/**
+ * Patch partiel d'un projet — `null` efface un champ optionnel côté Core
+ * (ex. retirer le provider/modèle/agent par défaut du projet).
+ */
+export type ProjectPatch = Partial<Omit<Project, "provider_id" | "model" | "agent_id">> & {
+	provider_id?: string | null;
+	model?: string | null;
+	agent_id?: string | null;
+};
+
 /** Résolu par le Core — contexte d'exécution utilisé par ChatPipeline. */
 export interface ProjectContext {
 	id: string;
@@ -129,7 +139,7 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
 }
 
 /** Update an existing project */
-export async function updateProject(id: string, data: Partial<Project>): Promise<Project> {
+export async function updateProject(id: string, data: ProjectPatch): Promise<Project> {
 	return apiFetch<Project>(`/v1/projects/${id}`, {
 		method: 'PATCH',
 		body: JSON.stringify(data),

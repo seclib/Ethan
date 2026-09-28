@@ -84,7 +84,8 @@ class ProjectManager:
         projects = await self._store.list(_DOMAIN_PROJECTS)
         if user_id is not None:
             projects = [p for p in projects if p.get("user_id") == user_id]
-        return projects
+        # Ordre stable pour le sélecteur : tri alphabétique insensible à la casse.
+        return sorted(projects, key=lambda p: p.get("name", "").lower())
 
     async def create_project(
         self,

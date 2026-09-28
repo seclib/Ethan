@@ -57,7 +57,7 @@ export function ChatModeToggle() {
             className={cn(
               "flex h-5 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium",
               active
-                ? cn("bg-accent/15 text-foreground", m.color)
+                ? cn("bg-bg-3", m.color)
                 : "text-foreground-tertiary hover:bg-elevated hover:text-foreground-secondary"
             )}
           >

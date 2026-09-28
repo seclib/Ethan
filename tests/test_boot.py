@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -14,7 +15,11 @@ import requests
 # ── Constants ──────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCKER_COMPOSE_FILE = PROJECT_ROOT / "docker-compose.yml"
-API_URL = "http://localhost:8000"
+# Mêmes surchargeurs que le reste de l'outillage (ethan-lib / docs §7).
+API_URL = os.environ.get(
+    "ETHAN_API_URL",
+    f"http://localhost:{os.environ.get('ETHAN_API_PORT', '8000')}",
+)
 HEALTH_ENDPOINT = f"{API_URL}/health"
 HEALTH_DETAILED = f"{API_URL}/health/detailed"
 TIMEOUT_SECONDS = 120  # 2 minutes max for boot

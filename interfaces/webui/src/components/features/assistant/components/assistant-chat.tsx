@@ -7,6 +7,7 @@ import { AssistantMessageView } from "./assistant-message";
 import { AssistantInput } from "./assistant-input";
 export { AssistantInput } from "./assistant-input";
 import { TypingIndicator } from "./typing-indicator";
+import { ChatGreeting } from "./chat-greeting";
 
 /** Item de sélection d'une capacité dans le composer. */
 export interface ComposerCapabilityItem {
@@ -18,16 +19,41 @@ export interface ComposerCapabilityItem {
 
 interface AssistantChatProps {
   messages: AssistantMessage[];
-  metrics: SessionMetrics;
+  /**
+   * Métriques de session — rendues par la ChatSecondaryBar (header). Optionnel :
+   * le corps du Chat ne les affiche pas ; conservé pour compatibilité appelants.
+   */
+  metrics?: SessionMetrics;
   /** Identifiant de la conversation courante — déclenche le retour en bas au changement. */
   chatId?: string | null;
   /** Chargement d'un historique en cours. */
   isLoading?: boolean;
+  /**
+   * Conversation vierge : bloc hero NON extensible (salutation + composer),
+   * centré verticalement par la page. Ignoré si la conversation contient des
+   * messages ou si un historique est en cours de chargement (sécurité).
+   */
+  hero?: boolean;
+  /**
+   * Invite contextuelle de la section active (ChatGreeting) — présentation pure.
+   * La section appartient au store UI ; le Core reste seul arbitre des
+   * capacités réellement envoyées dans le payload chat.
+   */
+  sectionHint?: string;
   onSend: (message: string) => void;
   onStop?: () => void;
   disabled?: boolean;
-  /** File attachment handler. */
+  /** File attachment handler (legacy : ouverture déléguée à la page). */
   onAttach?: () => void;
+  /**
+   * Fichiers choisis dans le picker natif. L'UPLOAD appartient à la page
+   * propriétaire (Core : POST /files/upload) ; le chat ne fait que relayer.
+   */
+  onFilesSelected?: (files: File[]) => void;
+  /** Fichiers joints (état possédé par la page) — rendus dans le composer. */
+  attachedFiles?: { id: string; name: string }[];
+  /** Retrait d'un fichier joint (état possédé par la page). */
+  onRemoveFile?: (id: string) => void;
   /** Search toggle handler. */
   onSearch?: () => void;
   /** Tools toggle handler. */
@@ -70,10 +96,15 @@ export function AssistantChat({
   metrics,
   chatId,
   isLoading,
+  hero,
+  sectionHint,
   onSend,
   onStop,
   disabled,
   onAttach,
+  onFilesSelected,
+  attachedFiles,
+  onRemoveFile,
   onSearch,
   onTools,
   onVoice,
@@ -150,6 +181,63 @@ export function AssistantChat({
   const waitingForFirstToken =
     !!disabled && (!lastAssistant || (!lastAssistant.content && !lastAssistant.done));
 
+  /**
+   * État vide (hero) : la page centre verticalement le bloc [salutation,
+   * composer, sections]. Le hero n'est honoré QUE pour une conversation
+   * réellement vierge — jamais pendant un chargement d'historique.
+   */
+  const showHero = !!hero && messages.length === 0 && !isLoading;
+
+  /** Bannière d'erreur — non bloquante, partagée par les deux dispositions. */
+  const errorBanner = error ? (
+    <div className="mx-auto mb-1 flex w-full max-w-3xl items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+      <AlertCircle size={15} className="mt-0.5 shrink-0" />
+      <span className="min-w-0 flex-1 break-words">{error}</span>
+      {onDismissError && (
+        <button
+          onClick={onDismissError}
+          className="shrink-0 rounded p-0.5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400"
+          title="Fermer"
+          aria-label="Fermer l'erreur"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  ) : null;
+
+  /**
+   * Composer — MÊME élément dans les deux dispositions (source unique) :
+   * fichiers joints et slots appartiennent à la page ; l'input les rend à leur
+   * place et remonte les actions, sans logique métier propre.
+   */
+  const composer = (
+    <AssistantInput
+      onSend={onSend}
+      onStop={onStop}
+      disabled={disabled}
+      onAttach={onAttach}
+      onFilesSelected={onFilesSelected}
+      attachedFiles={attachedFiles}
+      onRemoveFile={onRemoveFile}
+      onSearch={onSearch}
+      onTools={onTools}
+      onVoice={onVoice}
+      pluginsSlot={pluginsSlot}
+      modeSlot={modeSlot}
+    />
+  );
+
+  if (showHero) {
+    return (
+      <div className="flex w-full flex-col gap-5">
+        <ChatGreeting hint={sectionHint} />
+        {errorBanner}
+        {composer}
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       {/* Messages — wrapper relatif : le bouton « retour en bas » s'ancre à la
@@ -162,17 +250,6 @@ export function AssistantChat({
           {isLoading && (
             <div className="flex justify-center py-6" role="status" aria-label="Chargement de la conversation">
               <Loader2 size={20} className="animate-spin text-muted-foreground" />
-            </div>
-          )}
-          {messages.length === 0 && !isLoading && (
-            <div className="flex flex-col items-center justify-center text-center mt-24 px-4">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10">
-                <span className="text-2xl font-bold text-accent">O</span>
-              </div>
-              <h2 className="text-xl font-semibold text-foreground">ETHAN</h2>
-              <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Posez une question, demandez une analyse, ou lancez une tâche.
-              </p>
             </div>
           )}
           {messages.map((msg) => (
@@ -208,35 +285,10 @@ export function AssistantChat({
       </div>
 
       {/* Bannière d'erreur — non bloquante, dismissable */}
-      {error && (
-        <div className="mx-auto mb-1 flex w-full max-w-3xl items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-          <AlertCircle size={15} className="mt-0.5 shrink-0" />
-          <span className="min-w-0 flex-1 break-words">{error}</span>
-          {onDismissError && (
-            <button
-              onClick={onDismissError}
-              className="shrink-0 rounded p-0.5 text-red-400/70 hover:bg-red-500/10 hover:text-red-400"
-              title="Fermer"
-              aria-label="Fermer l'erreur"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-      )}
+      {errorBanner}
 
-      {/* Input */}
-      <AssistantInput
-        onSend={onSend}
-        onStop={onStop}
-        disabled={disabled}
-        onAttach={onAttach}
-        onSearch={onSearch}
-        onTools={onTools}
-        onVoice={onVoice}
-        pluginsSlot={pluginsSlot}
-        modeSlot={modeSlot}
-      />
+      {/* Composer */}
+      {composer}
     </div>
   );
 }

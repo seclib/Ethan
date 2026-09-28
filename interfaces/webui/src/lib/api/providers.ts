@@ -23,8 +23,6 @@ export interface Provider {
 	is_default: boolean;
 	base_url: string;
 	models: string[];
-	/** true si le Core a une clé/token configurée pour ce provider. */
-	key_exists?: boolean;
 	/** Capacités normalisées du modèle unifié (llm, vision, embedding, speech_to_text, transcription). */
 	capabilities?: string[];
 	/** Méthodes d'authentification supportées ("api_key", "user_account") — source de vérité : Core. */

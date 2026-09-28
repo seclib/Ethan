@@ -84,9 +84,7 @@ class FakeTeacherEngine:
                                     "Prefer this for time-sensitive queries."
                                 ),
                             },
-                            "rationale": (
-                                "Student under-invokes web_search on multi-hop queries."
-                            ),
+                            "rationale": ("Student under-invokes web_search on multi-hop queries."),
                             "expected_improvement": "c1",
                             "risk_tier": "auto",
                             "references": ["t-001"],
@@ -194,15 +192,9 @@ def build_orchestrator(
 def demo_composite_reward(weights: RewardWeights) -> None:
     """Show how the paper Eq. 1 reward ranks Intelligence-edit candidates."""
     candidates = [
-        TrainingSample(
-            accuracy=1.0, energy_joules=200, latency_seconds=5.0, cost_usd=0.0
-        ),
-        TrainingSample(
-            accuracy=1.0, energy_joules=400, latency_seconds=8.0, cost_usd=0.0
-        ),
-        TrainingSample(
-            accuracy=0.0, energy_joules=100, latency_seconds=2.0, cost_usd=0.0
-        ),
+        TrainingSample(accuracy=1.0, energy_joules=200, latency_seconds=5.0, cost_usd=0.0),
+        TrainingSample(accuracy=1.0, energy_joules=400, latency_seconds=8.0, cost_usd=0.0),
+        TrainingSample(accuracy=0.0, energy_joules=100, latency_seconds=2.0, cost_usd=0.0),
     ]
     rewards = score_batch(candidates, weights=weights)
     print("\nComposite reward (paper Eq. 1) — ranking 3 candidates:")
@@ -245,8 +237,7 @@ def main() -> None:
     )
 
     home = Path(
-        os.environ.get("OPENJARVIS_HOME")
-        or tempfile.mkdtemp(prefix="openjarvis-spec-search-")
+        os.environ.get("OPENJARVIS_HOME") or tempfile.mkdtemp(prefix="openjarvis-spec-search-")
     )
     print(f"OPENJARVIS_HOME = {home}")
 
@@ -259,9 +250,7 @@ def main() -> None:
     from unittest.mock import patch
 
     print("\n=== Single session (one diagnose / plan / execute / record) ===")
-    with patch(
-        "openjarvis.learning.spec_search.orchestrator.DiagnosisRunner"
-    ) as MockDiag:
+    with patch("openjarvis.learning.spec_search.orchestrator.DiagnosisRunner") as MockDiag:
         MockDiag.return_value.run.return_value = _fake_diagnosis()
         session = orch.run(OnDemandTrigger())
 
@@ -288,9 +277,7 @@ def main() -> None:
         "\n=== Multi-session loop (stagnation_k = "
         f"{cfg.stagnation_k}, max_total_cost = ${cfg.max_total_cost_usd}) ==="
     )
-    with patch(
-        "openjarvis.learning.spec_search.orchestrator.DiagnosisRunner"
-    ) as MockDiag:
+    with patch("openjarvis.learning.spec_search.orchestrator.DiagnosisRunner") as MockDiag:
         MockDiag.return_value.run.return_value = _fake_diagnosis()
         result = loop.run()
 

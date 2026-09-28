@@ -16,7 +16,8 @@
  *    secondaire : la page Settings (sections + WorkspaceLink) et Ctrl+K.
  *
  * Règle anti-fantôme : seules des fonctionnalités réellement existantes sont
- * référencées — aucun « New Project » (pas de module projets dans ETHAN).
+ * référencées — Projects, Knowledge, Skills, Tools, MCP sont servis par le
+ * Core (core/projects, core/knowledge, core/skills, core/tools, core/mcp).
  * Règle AGENTS.md : aucun logic métier ici — labels, routes, icônes.
  */
 
@@ -24,9 +25,9 @@ import type { ComponentType } from "react";
 import {
   Bot, Cpu, Database, Wrench, Sparkles, Network, Palette, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
-  Layers, BrainCircuit, Settings, FolderTree, Shapes,
+    Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge,
-  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3, ScanSearch,
+  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -62,6 +63,7 @@ export const NAV_SECTIONS_PRIMARY: NavSection[] = [
     collapsible: false,
     items: [
       { href: "/agents", label: "Agents", icon: Bot },
+      { href: "/projects", label: "Projects", icon: FolderKanban },
     ],
   },
   {
@@ -91,12 +93,13 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
     label: "Administration",
     description: "Outils système et diagnostic — réservé à la supervision",
     collapsible: true,
-    items: [
+        items: [
       { href: "/diagnostics", label: "Diagnostics", icon: Activity },
-            { href: "/logs", label: "Logs", icon: ScrollText },
+      { href: "/logs", label: "Logs", icon: ScrollText },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/groups", label: "Groups", icon: UsersRound },
       { href: "/plugins", label: "Plugins", icon: Puzzle },
+      { href: "/connections", label: "Connexions", icon: LifeBuoy },
       { href: "/monitoring", label: "Monitoring", icon: Gauge },
       { href: "/security", label: "Security", icon: ShieldCheck },
     ],

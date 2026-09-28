@@ -214,7 +214,7 @@ def show_session_info(session_id: str):
                 "Created": info["created_at"],
                 "Last active": info["last_activity"],
                 "Messages": str(info["message_count"]),
-                "Context": f"{info['context_tokens']} / {info['context_max']} tokens ({info['context_pct']}%)",
+                "Context": f"{info['context_tokens']} / {info['context_max']} tokens ({info['context_pct']}%)",  # noqa: E501
             }
         )
     )

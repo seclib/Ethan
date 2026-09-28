@@ -12,8 +12,8 @@ from typing import Any
 
 from core.auth import Permission
 from core.knowledge.web_ingest import WebIngestionManager
-from fastapi import APIRouter, Depends, HTTPException
-from interfaces.api.auth import require_permission
+from fastapi import APIRouter, Depends, HTTPException, Request
+from interfaces.api.auth import current_user_id, require_permission
 
 router = APIRouter(prefix="/v1/web-ingest", tags=["web-ingest"])
 
@@ -66,12 +66,13 @@ async def get_web_scan(scan_id: str):
 
 
 @router.post("/ingest", dependencies=[Depends(require_permission(Permission.MEMORY))])
-async def ingest_web(data: dict[str, Any]):
+async def ingest_web(data: dict[str, Any], request: Request = None):
     """Indexe les pages sélectionnées après validation utilisateur.
 
     Corps attendu : scan_id, page_ids, folder_id OU new_folder_name,
-    target ("collection"|"knowledge"), collection_id OU new_collection_name,
-    retrieval_strategy (stratégie RAG de la collection), embedding_model.
+    target ("collection"|"knowledge"|"project"), collection_id OU
+    new_collection_name, retrieval_strategy, embedding_model, project_id
+    (requis si target="project").
     """
     manager = get_web_ingest_manager()
     try:
@@ -85,7 +86,8 @@ async def ingest_web(data: dict[str, Any]):
             new_collection_name=data.get("new_collection_name"),
             retrieval_strategy=data.get("retrieval_strategy"),
             embedding_model=data.get("embedding_model"),
-            user_id=data.get("user_id", "anonymous"),
+            project_id=data.get("project_id"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc

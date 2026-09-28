@@ -19,8 +19,7 @@ import sys
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Route queries to the cheapest capable model "
-            "using OpenJarvis learning/routing."
+            "Route queries to the cheapest capable model using OpenJarvis learning/routing."
         ),
     )
     parser.add_argument(
@@ -68,8 +67,7 @@ def main() -> None:
         )
     except ImportError:
         print(
-            "Error: openjarvis is not installed. "
-            "Install it with:  uv sync --extra dev",
+            "Error: openjarvis is not installed. Install it with:  uv sync --extra dev",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -99,8 +97,7 @@ def main() -> None:
 
     if not available_models:
         print(
-            "Error: no models available. Provide --models or ensure the engine "
-            "has models loaded.",
+            "Error: no models available. Provide --models or ensure the engine has models loaded.",
             file=sys.stderr,
         )
         j.close()

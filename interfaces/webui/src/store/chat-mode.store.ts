@@ -66,7 +66,7 @@ interface ChatModeState {
 
 /**
  * Source unique de vérité pour le mode de chat (front-only).
- * Partagé entre AssistantTopBar, ChatContextBar et la page chat.
+ * Partagé entre ChatModeToggle (ligne de modes du composer) et la page chat.
  * La valeur est envoyée au backend via le payload chat (`mode` / `reasoning_effort`).
  */
 export const useChatModeStore = create<ChatModeState>()(

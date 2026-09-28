@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -118,6 +119,89 @@ class ScoredModel:
     model: ModelInfo
     score: float
     reasoning: str = ""
+
+
+# ── Capacités de tâche d'un modèle ─────────────────────────────────────────
+#
+# ``ModelInfo.capabilities`` utilise le vocabulaire « chat », « code »,
+# « reasoning », « vision », « embedding » — celui qu'écrivent les providers.
+# Les helpers ci-dessous traduisent un ``task_type`` de ``LLMRequirements`` en
+# capacité requise, afin qu'un modèle d'embedding ne soit jamais sélectionné
+# pour une complétion de chat (Ollama renvoie alors une erreur, le circuit
+# breaker s'ouvre et l'API répond 502).
+
+# Marqueurs de nom identifiant une famille de modèles d'embedding dédiés.
+# Les runtimes locaux (Ollama, llama.cpp, LM Studio, vLLM) n'exposent aucune
+# métadonnée de tâche dans leur endpoint de listing : la convention de nommage
+# est la seule information disponible.
+#
+# ``_EMBEDDING_TOKENS`` : le token doit être EXACTEMENT le marqueur
+# (``bge-m3`` → « bge »). ``_EMBEDDING_PREFIXES`` : le token doit COMMENCER par
+# le marqueur — « embed » couvre ``qwen3-embedding``, ``embeddinggemma``,
+# ``text-embedding-3-small``…
+_EMBEDDING_TOKENS: frozenset[str] = frozenset({"bge", "gte", "e5", "nomic", "mxbai", "minilm"})
+_EMBEDDING_PREFIXES: tuple[str, ...] = ("embed",)
+
+# Séparateurs de tokens d'un identifiant de modèle ou d'un chemin HF.
+_MODEL_TOKEN_SPLIT_RE = re.compile(r"[-_/.\s]+")
+
+# Tâches qui exigent un modèle génératif (chat) et non un encodeur.
+_CHAT_TASKS: frozenset[str] = frozenset(
+    {
+        "chat",
+        "code",
+        "reasoning",
+        "summarize",
+        "summarization",
+        "translation",
+    }
+)
+
+
+def is_embedding_model(model_id: str) -> bool:
+    """Indique si ``model_id`` désigne un modèle d'embedding dédié.
+
+    La détection se fait sur le nom du modèle (tag exclu), token par token :
+    ``qwen3-embedding:8b``, ``nomic-embed-text``, ``mxbai-embed-large``,
+    ``bge-m3``, ``all-minilm:l6-v2``, ``intfloat/e5-mistral-7b-instruct``.
+
+    Args:
+        model_id: Identifiant du modèle (``nom:tag`` accepté).
+
+    Returns:
+        True si le modèle est un encodeur d'embedding.
+    """
+    name = (model_id or "").split(":", 1)[0].lower()
+    for token in _MODEL_TOKEN_SPLIT_RE.split(name):
+        if not token:
+            continue
+        if token in _EMBEDDING_TOKENS or token.startswith(_EMBEDDING_PREFIXES):
+            return True
+    return False
+
+
+def model_supports_task(model: ModelInfo, task_type: str | None) -> bool:
+    """Indique si ``model`` peut honorer ``task_type``.
+
+    Un modèle dont ``capabilities`` est vide est réputé compatible : les
+    providers qui ne renseignent pas la métadonnée conservent le comportement
+    historique de sélection.
+
+    Args:
+        model: Modèle candidat.
+        task_type: Type de tâche (``None`` = chat).
+
+    Returns:
+        True si le modèle peut exécuter la tâche.
+    """
+    task = (task_type or "chat").strip().lower()
+    requires_chat = task in _CHAT_TASKS
+    if not model.capabilities:
+        # Aucune métadonnée : seul le nom permet de détecter un encodeur.
+        return not requires_chat or not is_embedding_model(model.id)
+    if requires_chat:
+        return "chat" in model.capabilities
+    return "embedding" in model.capabilities
 
 
 @dataclass

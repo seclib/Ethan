@@ -14,6 +14,7 @@ from core.llm.types import (
     ModelInfo,
     VisionRequest,
     VisionResponse,
+    is_embedding_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -177,7 +178,14 @@ class OllamaProvider(LLMProvider):
                         avg_latency_ms=100.0,  # Local = rapide
                         is_local=True,
                         is_private=True,
-                        capabilities=["chat", "embedding"],
+                        # Ollama liste ses modèles sans métadonnée de tâche :
+                        # sans distinction, un encodeur (ex. « qwen3-embedding »)
+                        # serait sélectionné pour le chat et échouerait.
+                        capabilities=(
+                            ["embedding"]
+                            if is_embedding_model(model_name)
+                            else ["chat", "embedding"]
+                        ),
                     )
                 )
 

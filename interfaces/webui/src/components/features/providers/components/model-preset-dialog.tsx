@@ -18,10 +18,13 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { ModelInfo } from "@/lib/api/models";
+import type { Provider } from "@/lib/api/providers";
 import { ChevronDown, ChevronRight, Save, X } from "lucide-react";
 
 export interface ModelPresetPayload {
 	name: string;
+	/** Provider (service) qui sert ce modèle — routage et filtre par provider. */
+	provider: string;
 	model: string;
 	base_model_id: string;
 	params: Record<string, unknown>;
@@ -34,6 +37,8 @@ interface Props {
 	model: ModelInfo | null;
 	/** Modèle découvert servant de base à un nouveau preset. */
 	basedOn: ModelInfo | null;
+	/** Providers connus du Core — le dialogue n'invente aucun service. */
+	providers: Provider[];
 	onClose: () => void;
 	onSubmit: (payload: ModelPresetPayload) => Promise<void>;
 }
@@ -52,8 +57,16 @@ function parseJsonObject(text: string): { value?: Record<string, unknown>; error
 	}
 }
 
-export function ModelPresetDialog({ open, model, basedOn, onClose, onSubmit }: Props) {
+export function ModelPresetDialog({
+	open,
+	model,
+	basedOn,
+	providers,
+	onClose,
+	onSubmit,
+}: Props) {
 	const [name, setName] = React.useState("");
+	const [provider, setProvider] = React.useState("");
 	const [technicalModel, setTechnicalModel] = React.useState("");
 	const [baseModelId, setBaseModelId] = React.useState("");
 	const [isActive, setIsActive] = React.useState(true);
@@ -69,12 +82,18 @@ export function ModelPresetDialog({ open, model, basedOn, onClose, onSubmit }: P
 		setAdvancedOpen(false);
 		if (model) {
 			setName(model.name ?? "");
+			// Provider déclaré par la fiche (service réel) — jamais le
+			// base_model_id : le champ est le routage, pas une référence.
+			setProvider(model.provider ?? "");
 			setTechnicalModel(model.model ?? "");
 			setBaseModelId(model.base_model_id ?? "");
-			setIsActive(model.is_available);
+			setIsActive(model.is_active ?? model.is_available);
 			setParamsText(JSON.stringify(model.params ?? {}, null, 2));
 		} else {
 			setName(basedOn ? `${basedOn.name} (preset)` : "");
+			// Un preset créé depuis un modèle découvert hérite de SON provider
+			// (le service qui le sert), pas de son nom de modèle.
+			setProvider(basedOn?.provider ?? "");
 			setTechnicalModel(basedOn?.model ?? "");
 			setBaseModelId(basedOn?.model ?? "");
 			setIsActive(true);
@@ -91,6 +110,7 @@ export function ModelPresetDialog({ open, model, basedOn, onClose, onSubmit }: P
 		setParamsError(null);
 		await onSubmit({
 			name: name.trim(),
+			provider: provider,
 			model: technicalModel.trim(),
 			base_model_id: baseModelId.trim(),
 			params: parsed.value ?? {},
@@ -110,6 +130,33 @@ export function ModelPresetDialog({ open, model, basedOn, onClose, onSubmit }: P
 						{source.provider ? ` · ${source.provider}` : ""} (métadonnées ETHAN Core)
 					</p>
 				)}
+
+				<div>
+					<label
+						className="block text-sm font-medium mb-1"
+						htmlFor="preset-provider"
+					>
+						Provider (service qui sert ce modèle)
+					</label>
+					<select
+						id="preset-provider"
+						className="w-full rounded-md border border-line-1 bg-bg-1 px-3 py-2 text-sm text-foreground"
+						value={provider}
+						onChange={(e) => setProvider(e.target.value)}
+					>
+						<option value="">— Non déclaré (fiche non routable) —</option>
+						{providers.map((p) => (
+							<option key={p.id} value={p.id}>
+								{p.name} ({p.id}){p.enabled ? "" : " — désactivé"}
+							</option>
+						))}
+					</select>
+					<p className="mt-1 text-xs text-foreground-tertiary">
+						Le routage, le filtre par provider et la sélection dans le chat
+						reposent sur ce service. Sans provider déclaré, la fiche reste
+						enregistrée mais n’est pas routable.
+					</p>
+				</div>
 
 				<div>
 					<label className="block text-sm font-medium mb-1" htmlFor="preset-name">

@@ -170,10 +170,20 @@ class ChatPipeline:
             chat_record = await self._chats.get_chat(chat_id)
             if chat_record is None:
                 raise ValueError(f"Chat {chat_id} not found")
+            # Le rattachement de la conversation prime : une conversation
+            # existante conserve son Project (isolation des historiques).
+            # La requête ne peut que rattacher une conversation orpheline.
+            if chat_record.get("project_id"):
+                project_id = chat_record["project_id"]
+            elif project_id:
+                updated = await self._chats.update_chat(chat_id, {"project_id": project_id})
+                if updated is not None:
+                    chat_record = updated
         else:
             chat_record = await self._chats.create_chat(
                 title=message[:60] or "New Chat",
                 user_id=user_id,
+                project_id=project_id,
                 metadata=metadata,
             )
             chat_id = chat_record["id"]

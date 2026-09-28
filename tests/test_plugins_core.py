@@ -79,6 +79,31 @@ def test_toggle_compat(registry):
     assert asyncio.run(registry.toggle("ghost")) is None
 
 
+def test_enable_installe_implicitement_avec_version(registry):
+    """enable() sur un plugin non installé : installé + version de référence fixée.
+
+    Le Core considère « enabled » comme impliquant « installed » ; la
+    comptabilité d'installation (manifest_version) doit donc être complétée,
+    sinon la détection de mise à jour resterait définitivement muette.
+    """
+    before = asyncio.run(registry.get("files"))
+    assert before["installed"] is False
+    assert before["status"] == "available"
+
+    enabled = asyncio.run(registry.enable("files"))
+    assert enabled["status"] == "active"
+    assert enabled["installed"] is True
+    assert enabled["manifest_version"] == find_manifest("files").version
+    assert enabled["update_available"] is False
+
+    # La version de référence est persistée : une version antérieure simulée
+    # doit être détectée comme mise à jour disponible.
+    record = asyncio.run(registry._store.get("webui_plugins", "files"))
+    record["manifest_version"] = "0.0.1"
+    asyncio.run(registry._store.save("webui_plugins", "files", record))
+    assert asyncio.run(registry.get("files"))["update_available"] is True
+
+
 def test_connect_exige_installation(registry):
     # plugin non installé → connect refusé (None)
     assert asyncio.run(registry.connect("slack")) is None

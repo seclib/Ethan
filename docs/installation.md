@@ -42,11 +42,15 @@ L'inférence est consommée depuis l'hôte :
 # Installation (script officiel)
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Démarrage du service + téléchargement du modèle par défaut
+# Démarrage du service + téléchargement du modèle actif (.env)
 ollama serve &            # (ou : sudo systemctl enable --now ollama)
-ollama pull llama3.1      # ~4,7 Go
-ollama list               # doit afficher llama3.1:latest
+ollama pull llama3.1      # ~4,7 Go — aligner sur OLLAMA_DEFAULT_MODEL du .env
+ollama list               # doit afficher le modèle demandé par OLLAMA_DEFAULT_MODEL
 ```
+
+> ⚠ Ollama est **externe et partagé** : si ses modèles changent, aligner
+> `.env` (`OLLAMA_DEFAULT_MODEL`) sur `ollama list` puis
+> `docker compose up -d api` — le smoke détecte tout écart (étape 3).
 
 Le conteneur `api` rejoint l'hôte via `host.docker.internal`
 (déclaré en `extra_hosts: host-gateway`). Configuration dans `.env` :
@@ -303,11 +307,21 @@ diagnostic complet : `./ethan doctor`.
    listées dans `.env.example`, et le rapport final de `./ethan up`
    affiche `3001` en dur. Les valeurs par défaut étant inchangées, aucun
    impact tant qu'on ne surcharge pas les ports.
-2. **CI** : `uv.lock`/`package-lock.json` existent mais l'CI installe via
+2. **CI et lockfiles** : `uv.lock` resynchronisé avec `pyproject.toml`
+   (`uv lock --check` vert), mais l'CI installe toujours via
    `pip install -e ".[server,dev]"` (pas de reproducibilité stricte de
    lockfile) — dette tracée, hors périmètre de cette procédure.
 3. `docker-compose.dev.yml` n'ajoute que Qdrant/ChromaDB ; le « profil
    `llm` » mentionné historiquement n'existe pas dans les fichiers
    compose racine — Ollama reste strictement externe (§2).
+4. **Legacy `core/deployment/docker/*` (OpenJarvis)** : compose
+   historiques avec bindings non-loopback (`0.0.0.0`) — hors du chemin
+   d'installation ETHAN ; leur nettoyage/archive est un chantier séparé
+   (RFC).
+5. **Conteneurs non-root** : `api`, `kernel`, `modules`, `ui`
+   s'exécutent sous `ethan` (uid 10001) / `node` (uid 1000) ; `pg_backup`
+   conserve l'utilisateur de l'image officielle `postgres`. Toute
+   écriture future au runtime devra viser `~/.ethan` (home dédié), jamais
+   `/app` (lecture seule pour ces users).
 
 

@@ -29,7 +29,9 @@ export function useActiveModel() {
     queryFn: () => listProviders(),
   });
 
-  const defaultProvider = providers.find((p) => p.is_default) || providers.find((p) => p.enabled);
+  const defaultProvider =
+    providers.find((p) => p.is_default && p.enabled) ||
+    providers.find((p) => p.enabled);
 
   // Résolution du provider par défaut une fois les providers chargés
   // (uniquement si aucune sélection utilisateur valide).
@@ -39,7 +41,13 @@ export function useActiveModel() {
     }
   }, [defaultProvider, selectedProviderId, setSelection]);
 
-  const activeProvider = providers.find((p) => p.id === selectedProviderId) || defaultProvider;
+  // Le moteur actif ne doit JAMAIS résoudre vers un provider désactivé :
+  // le payload chat partirait vers un service inactif. On préfère donc
+  // « défaut ET activé », puis « activé » — Core reste la source de vérité
+  // de l'état (enabled), la sélection reste une préférence utilisateur.
+  const activeProvider =
+    providers.find((p) => p.id === selectedProviderId && p.enabled) ||
+    defaultProvider;
 
   const { data: models = [] } = useQuery<unknown[]>({
     queryKey: ["provider-models", selectedProviderId],
@@ -64,8 +72,11 @@ export function useActiveModel() {
   const setProvider = useCallback(
     (id: string) => {
       const p = providers.find((x) => x.id === id);
-      setSelection(id, p?.default_model || "");
-      if (p && !p.is_default) setDefaultMutation.mutate(id);
+      // Id inconnu (provider retiré / id hors catalogue) : ne jamais
+      // écraser la sélection ni appeler PUT /providers/{id}/default (404).
+      if (!p) return;
+      setSelection(id, p.default_model || "");
+      if (!p.is_default) setDefaultMutation.mutate(id);
     },
     [providers, setSelection, setDefaultMutation],
   );

@@ -143,6 +143,8 @@ export function useSkills() {
 			steps?: Array<Record<string, unknown>>;
 			required_tools?: string[];
 			valves?: Record<string, unknown>;
+			/** Skill créée depuis un brouillon : toujours false (aucune activation auto). */
+			is_active?: boolean;
 		}) => {
 			try {
 				const result = await createMutation.mutateAsync(data);

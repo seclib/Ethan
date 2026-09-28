@@ -17,14 +17,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listProviders,
-  createProvider,
-  updateProvider,
-  deleteProvider,
-  testProviderConnection,
-  setDefaultProvider,
   type Provider,
-  type ProviderCreate,
-  type ProviderUpdate,
 } from "@/lib/api/providers";
 import { listModels, toggleModel, type ModelInfo } from "@/lib/api/models";
 import {
@@ -63,6 +56,8 @@ import {
   SecuritySection,
   AdvancedSection,
 } from "./settings-sections";
+import { CapabilitiesSection } from "./capabilities-section";
+
 import {
   ChunkingSection,
   EmbeddingsSection,
@@ -80,9 +75,11 @@ import {
   getActiveAccentId,
 } from "@/lib/accent";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { capabilityLabel, capabilityVariant } from "@/lib/llm/capabilities";
 import {
   AudioLines,
   Braces,
@@ -99,7 +96,6 @@ import {
   Plus,
   Play,
   Trash2,
-  Edit3,
   Loader2,
   ExternalLink,
   ToggleLeft,
@@ -116,6 +112,18 @@ import {
   Lock,
   Globe,
   Clock,
+  Puzzle,
+  Layers,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Info,
+  Package,
+  Settings2,
+  RotateCcw,
 } from "lucide-react";
 
 type Section =
@@ -131,12 +139,14 @@ type Section =
   | "reranking"
   | "speech"
   | "routers"
+  | "providers"
   | "models"
   | "skills"
   | "search"
   | "integrations"
   | "reminders"
-  | "shortcuts"
+      | "shortcuts"
+  | "capabilities"
   | "library"
   | "system"
   | "security"
@@ -146,6 +156,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "
   { id: "general", label: "General", icon: <Settings className="h-4 w-4" />, category: "user" },
   { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
   { id: "ai", label: "AI", icon: <Cpu className="h-4 w-4" />, category: "system" },
+  { id: "providers", label: "Providers", icon: <Layers className="h-4 w-4" />, category: "system" },
   { id: "models", label: "Models", icon: <Bot className="h-4 w-4" />, category: "system" },
   { id: "routers", label: "Model Routers", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" />, category: "user" },
@@ -161,6 +172,7 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "
   { id: "integrations", label: "Integrations", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "reminders", label: "Reminders", icon: <Bell className="h-4 w-4" />, category: "user" },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" />, category: "user" },
+  { id: "capabilities", label: "Capabilities", icon: <Puzzle className="h-4 w-4" />, category: "system" },
   { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
   { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
   { id: "security", label: "Security", icon: <Shield className="h-4 w-4" />, category: "system" },
@@ -170,7 +182,6 @@ const SECTIONS: { id: Section; label: string; icon: React.ReactNode; category: "
 export function SettingsWorkspace() {
   const [activeSection, setActiveSection] = React.useState<Section>("general");
   const [search, setSearch] = React.useState("");
-  const [selectedProviderId, setSelectedProviderId] = React.useState<string | null>(null);
 
   // Section pilotée par le hash URL (#general, #appearance, …) : la sidebar
   // v3 ouvre directement « Interface » (/settings#appearance).
@@ -220,12 +231,14 @@ export function SettingsWorkspace() {
         {activeSection === "reranking" && <RerankingSection />}
         {activeSection === "speech" && <SpeechToTextSection />}
         {activeSection === "routers" && <ModelRoutersSection />}
+        {activeSection === "providers" && <ProvidersSection />}
         {activeSection === "models" && <ModelsSection />}
         {activeSection === "skills" && <SkillsSection />}
         {activeSection === "search" && <SearchSection />}
         {activeSection === "integrations" && <IntegrationsSection />}
         {activeSection === "reminders" && <RemindersSection />}
         {activeSection === "shortcuts" && <ShortcutsSection />}
+        {activeSection === "capabilities" && <CapabilitiesSection />}
         {activeSection === "library" && <LibrarySection />}
         {activeSection === "system" && <SystemSection />}
         {activeSection === "security" && <SecuritySection />}
@@ -1408,399 +1421,103 @@ function McpServerRow({
   );
 }
 
-/* ── Providers — full CRUD on real providers (/providers) ───────── */
+/* ── Providers — live Core state + workspace link ───────────────── */
 
-function ProvidersSection({
-  selectedProviderId,
-  onSelect,
-}: {
-  selectedProviderId: string | null;
-  onSelect: (id: string | null) => void;
-}) {
-  const queryClient = useQueryClient();
-  const addToast = useUIStore((s) => s.addToast);
-  const [search, setSearch] = React.useState("");
-
-  const [addOpen, setAddOpen] = React.useState(false);
-  const [editOpen, setEditOpen] = React.useState(false);
-  const [newProvider, setNewProvider] = React.useState<Partial<ProviderCreate>>({});
-  const [editProvider, setEditProvider] = React.useState<Provider | null>(null);
-  const [testingId, setTestingId] = React.useState<string | null>(null);
-
+/**
+ * Vue « Providers » des Settings : état live issu de GET /providers et
+ * navigation vers le workspace dédié /providers.
+ *
+ * La gestion complète (création, endpoint, authentification, activation,
+ * test de connexion, découverte des modèles, modèle par défaut, moteur par
+ * défaut) vit exclusivement dans le workspace Providers : cette section n'en
+ * duplique aucune (règle AGENTS.md — l'interface révèle, elle ne redéfinit
+ * pas). Les capacités affichées sont celles déclarées par le Core
+ * (`provider.capabilities`) : elles ne sont jamais déduites du type.
+ */
+function ProvidersSection() {
   const { data: providers = [], isLoading } = useQuery({
     queryKey: ["providers"],
     queryFn: () => listProviders(),
   });
 
-  const selectedProvider = providers.find((p) => p.id === selectedProviderId) || null;
-  const filteredProviders = providers.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      ((p as any).display_name || "").toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const createMutation = useMutation({
-    mutationFn: (data: ProviderCreate) => createProvider(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["providers"] });
-      addToast({ type: "success", message: "Provider créé" });
-    },
-    onError: (err) => addToast({ type: "error", message: err instanceof Error ? err.message : "Échec création" }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ProviderUpdate }) => updateProvider(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["providers"] });
-      addToast({ type: "success", message: "Provider mis à jour" });
-    },
-    onError: (err) => addToast({ type: "error", message: err instanceof Error ? err.message : "Échec mise à jour" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteProvider(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["providers"] });
-      addToast({ type: "success", message: "Provider supprimé" });
-    },
-    onError: (err) => addToast({ type: "error", message: err instanceof Error ? err.message : "Échec suppression" }),
-  });
-
-  const defaultMutation = useMutation({
-    mutationFn: (id: string) => setDefaultProvider(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["providers"] });
-      addToast({ type: "success", message: "Provider défini comme défaut" });
-    },
-    onError: (err) => addToast({ type: "error", message: err instanceof Error ? err.message : "Échec" }),
-  });
-
-  const handleToggle = (p: Provider) =>
-    updateMutation.mutate({ id: p.id, data: { enabled: !p.enabled } });
-
-  const handleTest = async (id: string) => {
-    setTestingId(id);
-    try {
-      const result = await testProviderConnection(id);
-      addToast({
-        type: result.connected ? "success" : "error",
-        message: result.message || (result.connected ? "Connexion OK" : "Connexion échouée"),
-      });
-    } catch (err) {
-      addToast({ type: "error", message: err instanceof Error ? err.message : "Test échoué" });
-    } finally {
-      setTestingId(null);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
-    if (selectedProviderId === id) onSelect(null);
-  };
+  const connected = providers.filter((p) => p.status === "connected").length;
+  const enabled = providers.filter((p) => p.enabled).length;
+  const defaultProvider = providers.find((p) => p.is_default) ?? null;
 
   return (
-    <div className="flex h-full min-h-0">
-      {/* Provider list */}
-      <div className="flex w-80 shrink-0 flex-col border-r border-line-1">
-        <div className="flex items-center justify-between gap-2 px-4 py-3">
-          <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <Button size="sm" variant="primary" onClick={() => setAddOpen(true)} aria-label="Ajouter un provider">
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        <div className="custom-scrollbar flex-1 overflow-y-auto" style={{ padding: "8px" }}>
-          {isLoading ? (
-            <SectionLoading />
-          ) : filteredProviders.length === 0 ? (
-            <p className="px-2 py-4 text-sm text-foreground-tertiary">Aucun provider.</p>
-          ) : (
-            filteredProviders.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => onSelect(p.id)}
-                className={cn("list-item w-full", selectedProviderId === p.id && "active")}
-                style={{ width: "100%", border: "none", background: "transparent", textAlign: "left" }}
-              >
-                <StatusDot ok={p.enabled && p.status !== "disconnected"} />
-                <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                {p.is_default && (
-                  <span className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] uppercase text-accent">default</span>
-                )}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); handleToggle(p); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); handleToggle(p); } }}
-                  aria-label={`Toggle ${p.name}`}
-                  className="shrink-0 text-accent"
-                >
-                  {p.enabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Provider detail */}
-      <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
-        {!selectedProvider ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <Database className="mb-3 h-10 w-10 text-foreground-tertiary" />
-            <p className="text-sm text-muted-foreground">Sélectionnez un provider pour le configurer.</p>
-          </div>
-        ) : (
-          <ProviderDetail
-            provider={selectedProvider}
-            onTest={() => handleTest(selectedProvider.id)}
-            onEdit={() => { setEditProvider(selectedProvider); setEditOpen(true); }}
-            onSetDefault={() => defaultMutation.mutate(selectedProvider.id)}
-            onDelete={() => handleDelete(selectedProvider.id)}
-            testing={testingId === selectedProvider.id}
-            defaulting={defaultMutation.isPending && defaultMutation.variables === selectedProvider.id}
-            deleting={deleteMutation.isPending && deleteMutation.variables === selectedProvider.id}
-          />
-        )}
-      </div>
-
-      {/* Add provider dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen} title="Nouveau provider">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Nom</label>
-            <Input value={newProvider.name || ""} onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })} placeholder="e.g. Ollama" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Type</label>
-            <Input value={newProvider.type || ""} onChange={(e) => setNewProvider({ ...newProvider, type: e.target.value })} placeholder="e.g. ollama" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">URL de base</label>
-            <Input value={newProvider.base_url || ""} onChange={(e) => setNewProvider({ ...newProvider, base_url: e.target.value })} placeholder="e.g. http://localhost:11434" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Modèle par défaut</label>
-            <Input value={newProvider.default_model || ""} onChange={(e) => setNewProvider({ ...newProvider, default_model: e.target.value })} placeholder="e.g. qwen2.5-coder" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Clé API</label>
-            <Input type="password" value={newProvider.api_key || ""} onChange={(e) => setNewProvider({ ...newProvider, api_key: e.target.value })} placeholder="Optionnelle" />
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-line-1 mt-4">
-            <Button variant="ghost" onClick={() => setAddOpen(false)}>Annuler</Button>
-            <Button
-              variant="primary"
-              disabled={!newProvider.name || !newProvider.type || createMutation.isPending}
-              onClick={async () => {
-                await createMutation.mutateAsync(newProvider as ProviderCreate);
-                setNewProvider({});
-                setAddOpen(false);
-              }}
-            >
-              {createMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              <span className="ml-1">Créer</span>
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Edit provider dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen} title="Configurer le provider">
-        {editProvider && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">URL de base</label>
-              <Input value={editProvider.base_url || ""} onChange={(e) => setEditProvider({ ...editProvider, base_url: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Modèle par défaut</label>
-              <Input value={editProvider.default_model || ""} onChange={(e) => setEditProvider({ ...editProvider, default_model: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Clé API</label>
-              <Input type="password" value={(editProvider as any).api_key || ""} onChange={(e) => setEditProvider({ ...editProvider, api_key: e.target.value } as any)} placeholder="Laisser vide pour conserver" />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-foreground-secondary">
-              <input
-                type="checkbox"
-                checked={editProvider.enabled}
-                onChange={(e) => setEditProvider({ ...editProvider, enabled: e.target.checked })}
-                className="accent-accent"
-              />
-              Actif
-            </label>
-            <div className="flex justify-end gap-2 pt-4 border-t border-line-1 mt-4">
-              <Button variant="ghost" onClick={() => { setEditOpen(false); setEditProvider(null); }}>Annuler</Button>
-              <Button
-                variant="primary"
-                disabled={updateMutation.isPending}
-                onClick={async () => {
-                  await updateMutation.mutateAsync({
-                    id: editProvider.id,
-                    data: {
-                      base_url: editProvider.base_url,
-                      default_model: editProvider.default_model,
-                      display_name: (editProvider as any).display_name,
-                      enabled: editProvider.enabled,
-                    },
-                  });
-                  setEditOpen(false);
-                  setEditProvider(null);
-                }}
-              >
-                {updateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                <span className="ml-1">Enregistrer</span>
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-    </div>
-  );
-}
-
-function ProviderDetail({
-  provider,
-  onTest,
-  onEdit,
-  onSetDefault,
-  onDelete,
-  testing,
-  defaulting,
-  deleting,
-}: {
-  provider: Provider;
-  onTest: () => void;
-  onEdit: () => void;
-  onSetDefault: () => void;
-  onDelete: () => void;
-  testing: boolean;
-  defaulting: boolean;
-  deleting: boolean;
-}) {
-  // Derive capabilities from provider type (Core-declared flags)
-  const caps = deriveCapabilities(provider.type);
-
-  return (
-    <div>
+    <div className="p-6">
       <SectionHeader
-        title={provider.name}
-        description={`${provider.type} · ${provider.status}`}
+        title="Providers"
+        description="Fournisseurs réellement configurés dans le Core — état en temps réel"
       />
-      <div className="max-w-xl space-y-3">
-        <InfoRow label="URL de base" value={provider.base_url || "—"} />
-        <InfoRow label="Modèle par défaut" value={provider.default_model || "—"} />
-        <InfoRow label="Défaut système" value={provider.is_default ? "Oui" : "Non"} />
-        <div className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
-          <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Capacités</p>
-          <div className="flex flex-wrap gap-1.5">
-            <CapabilityBadge label="LLM" active />
-            <CapabilityBadge label="Vision" active={caps.vision} />
-            <CapabilityBadge label="Transcription" active={caps.transcription} />
-            <CapabilityBadge label="Embedding" active={caps.embedding} />
-          </div>
-        </div>
-        {provider.models.length > 0 && (
-          <div className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
-            <p className="mb-2 text-xs uppercase tracking-wider text-foreground-tertiary">Modèles</p>
-            <div className="flex flex-wrap gap-1.5">
-              {provider.models.map((model) => (
-                <span key={model} className="rounded-full bg-bg-2 px-2.5 py-0.5 text-xs text-foreground-secondary">
-                  {model}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+
+      <div className="mb-4">
+        <WorkspaceLink href="/providers" label="Ouvrir le workspace Providers" />
       </div>
 
-      <div className="mt-6 flex max-w-xl flex-wrap gap-2">
-        <Button size="sm" variant="secondary" onClick={onTest} disabled={testing}>
-          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          <span className="ml-1">Tester la connexion</span>
-        </Button>
-        <Button size="sm" variant="secondary" onClick={onEdit}>
-          <Edit3 className="h-3.5 w-3.5" />
-          <span className="ml-1">Configurer</span>
-        </Button>
-        <Button size="sm" variant="secondary" onClick={onSetDefault} disabled={defaulting}>
-          {defaulting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          <span className="ml-1">Définir comme défaut</span>
-        </Button>
-        <Button size="sm" variant="destructive" onClick={onDelete} disabled={deleting}>
-          {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-          <span className="ml-1">Supprimer</span>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
-      <span className="text-xs uppercase tracking-wider text-foreground-tertiary">{label}</span>
-      <span className="truncate font-mono text-sm text-foreground-secondary">{value}</span>
-    </div>
-  );
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* ── Provider capability badges ───────────────────────────────────────── */
-
-interface CapabilitySet {
-  vision: boolean;
-  transcription: boolean;
-  embedding: boolean;
-}
-
-/**
- * Derive provider capabilities from the provider type.
- * These match the flags declared in core/llm/providers/* (OpenAIProvider, etc.)
- */
-function deriveCapabilities(type: string): CapabilitySet {
-  switch (type) {
-    case 'openai':
-    case 'azure':
-      return { vision: true, transcription: true, embedding: true };
-    case 'anthropic':
-    case 'gemini':
-      return { vision: true, transcription: false, embedding: false };
-    case 'ollama':
-    case 'vllm':
-    case 'llamacpp':
-    case 'lmstudio':
-      return { vision: true, transcription: false, embedding: true };
-    case 'openrouter':
-      return { vision: true, transcription: false, embedding: false };
-    default:
-      return { vision: false, transcription: false, embedding: true };
-  }
-}
-
-function CapabilityBadge({ label, active }: { label: string; active: boolean }) {
-  return (
-    <span
-      className={cn(
-        'rounded-full px-2.5 py-0.5 text-xs font-medium',
-        active
-          ? 'bg-emerald-500/15 text-emerald-400'
-          : 'bg-bg-2 text-foreground-tertiary opacity-50',
+      {isLoading ? (
+        <SectionLoading />
+      ) : providers.length === 0 ? (
+        <p className="text-sm text-foreground-tertiary">
+          Aucun provider configuré. Ajoutez-le depuis le workspace Providers.
+        </p>
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <StatCard label="Configurés" value={providers.length} />
+            <StatCard label="Actifs" value={enabled} />
+            <StatCard label="Connectés" value={connected} />
+          </div>
+          <div className="space-y-2">
+            {providers.map((p: Provider) => (
+              <div
+                key={p.id}
+                className="rounded-lg border border-line-1 bg-bg-1 px-4 py-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <StatusDot ok={p.status === "connected"} />
+                    <span className="truncate text-sm font-medium text-foreground">{p.name}</span>
+                    <span className="text-xs uppercase text-foreground-tertiary">{p.type}</span>
+                    {p.is_default && (
+                      <Badge variant="solid" size="sm">
+                        moteur par défaut
+                      </Badge>
+                    )}
+                    {!p.enabled && (
+                      <Badge variant="dim" size="sm">
+                        inactif
+                      </Badge>
+                    )}
+                  </div>
+                  {p.default_model && (
+                    <span className="shrink-0 font-mono text-xs text-foreground-tertiary">
+                      {p.default_model}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate font-mono text-xs text-foreground-tertiary">
+                  {p.base_url || p.id}
+                </p>
+                {(p.capabilities?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {(p.capabilities ?? []).map((cap) => (
+                      <Badge key={cap} variant={capabilityVariant(cap)} size="sm">
+                        {capabilityLabel(cap)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-foreground-tertiary">
+            {defaultProvider
+              ? `Moteur actif : ${defaultProvider.name} — défini par le Core (PUT /providers/{id}/default).`
+              : "Aucun moteur par défaut défini — choisissez-le dans le workspace Providers."}
+          </p>
+        </>
       )}
-    >
-      {active ? '✓' : '✗'} {label}
-    </span>
+    </div>
   );
 }

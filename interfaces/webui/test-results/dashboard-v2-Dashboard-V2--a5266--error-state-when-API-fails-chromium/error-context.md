@@ -20,65 +20,38 @@ Timeout: 5000ms
 Error: element(s) not found
 
 Call log:
-  - Expect "toBeVisible" with timeout 5000ms
+  - Expect "toBeVisible" locator('text=Error:') with timeout 5000ms
   - waiting for locator('text=Error:')
 
 ```
 
 ```yaml
-- complementary:
-  - text: Inspector
-  - button:
-    - img
-  - img
-  - paragraph: Select an item (Mission, Agent, Goal) to inspect its details.
-- button "Search (Ctrl+K)":
-  - img
-- link "Chat":
-  - /url: /
-  - img
-- link "Chat":
-  - /url: /
-  - img
-- link "Workspace":
-  - /url: /workspace
-  - img
-- link "Calendar":
-  - /url: /calendar
-  - img
-- link "Notes":
-  - /url: /notes
-  - img
-- link "Knowledge":
-  - /url: /knowledge
-  - img
-- link "Missions":
-  - /url: /missions
-  - img
-- link "Agents":
-  - /url: /agents
-  - img
-- link "Tools":
-  - /url: /tools
-  - img
-- link "Providers":
-  - /url: /providers
-  - img
-- link "Models":
-  - /url: /models
-  - img
-- link "Settings":
-  - /url: /settings
-  - img
 - navigation:
-  - button "Toggle sidebar":
-    - img
   - img "ETHAN"
-  - text: ETHAN Navigation
-  - link "Workspace":
-    - /url: /workspace
+  - text: ETHAN
+  - button "Replier la sidebar":
     - img
-    - text: Workspace
+  - button "Nouveau chat":
+    - text: Nouveau chat
+    - img
+  - button "Rechercher":
+    - img
+    - text: Rechercher… Ctrl K
+  - button "Projets":
+    - img
+    - text: Projets
+    - img
+  - link "Agents":
+    - /url: /agents
+    - img
+    - text: Agents
+  - button "Pilotage" [expanded]:
+    - text: Pilotage
+    - img
+  - link "Missions":
+    - /url: /missions
+    - img
+    - text: Missions
   - link "Calendar":
     - /url: /calendar
     - img
@@ -87,64 +60,67 @@ Call log:
     - /url: /notes
     - img
     - text: Notes
-  - link "Knowledge":
-    - /url: /knowledge
-    - img
-    - text: Knowledge
-  - link "Missions":
-    - /url: /missions
-    - img
-    - text: Missions
-  - link "Agents":
-    - /url: /agents
-    - img
-    - text: Agents
-  - link "Skills":
-    - /url: /skills
-    - img
-    - text: Skills
-  - link "Tools":
-    - /url: /tools
-    - img
-    - text: Tools
   - link "Inbox":
     - /url: /inbox
     - img
     - text: Inbox
-  - link "Research":
+  - link "Deep Research":
     - /url: /research
     - img
-    - text: Research
+    - text: Deep Research
   - link "Cookbook":
     - /url: /cookbook
     - img
     - text: Cookbook
-  - text: Système
-  - link "Providers":
-    - /url: /providers
+  - button "Administration" [expanded]:
+    - text: Administration
     - img
-    - text: Providers
-  - link "Models":
-    - /url: /models
+  - link "Diagnostics":
+    - /url: /diagnostics
     - img
-    - text: Models
-  - link "Settings":
-    - /url: /settings
+    - text: Diagnostics
+  - link "Logs":
+    - /url: /logs
     - img
-    - text: Settings
+    - text: Logs
+  - link "Analytics":
+    - /url: /analytics
+    - img
+    - text: Analytics
+  - link "Groups":
+    - /url: /groups
+    - img
+    - text: Groups
+  - link "Plugins":
+    - /url: /plugins
+    - img
+    - text: Plugins
+  - link "Connexions":
+    - /url: /connections
+    - img
+    - text: Connexions
+  - link "Monitoring":
+    - /url: /monitoring
+    - img
+    - text: Monitoring
   - link "Security":
     - /url: /security
     - img
     - text: Security
-  - text: E User
   - link "Settings":
     - /url: /settings
     - img
+    - text: Settings
+  - text: Utilisateur
+  - button "Déconnexion":
+    - img
 - main:
-  - text: Ethan OS Classified Access
-  - time: 2026-08-26 07:55:15 UTC
-  - main:
+  - link "Retour au chat":
+    - /url: /
     - img "ETHAN"
+  - text: Ethan Ethan Hors ligne Ethan OS Classified Access
+  - time: 2026-09-21 13:08:35 UTC
+  - main:
     - heading "ETHAN" [level=1]
     - paragraph: Cognitive Operating System
     - text: Secure Authentication Terminal Operator ID
@@ -156,15 +132,16 @@ Call log:
     - checkbox "Remember device"
     - text: Remember device
     - button "Forgot credentials"
-    - button "Authenticating" [disabled]:
-      - img
-      - text: Authenticating
+    - button "Login"
     - complementary:
       - text: NETWORK ONLINE AI CORE READY PLUGIN ENGINE ONLINE MEMORY SYNCED VECTOR DATABASE CONNECTED GPU AVAILABLE SECURITY LEVEL OMEGA SYSTEM CLOCK
-      - time: 2026-08-26 07:55:15 UTC
+      - time: 2026-09-21 13:08:35 UTC
       - text: ACTIVE SESSION NONE VERSION 2.4.1
     - paragraph: ETHAN Cognitive Operating System v2.4.1 — Authorized Personnel Only
     - paragraph: Unauthorized access is prohibited and may be prosecuted under applicable law.
+- button "Ouvrir la boîte de réception":
+  - img
+- alert
 ```
 
 # Test source

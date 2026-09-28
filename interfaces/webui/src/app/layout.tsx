@@ -16,7 +16,6 @@ import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { GlobalCommandPalette } from "@/components/layout/global-command-palette";
 import { OverlayEscHandler } from "@/components/ui/overlay-esc-handler";
 import { GlobalInspector } from "@/components/layout/global-inspector";
-import { MissionControlOverlay } from "@/components/layout/mission-control-overlay";
 import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
 import { FloatingWindow } from "@/components/ui/floating-window";
 import { MailPanel } from "@/components/features/flux/components/mail-panel";
@@ -48,7 +47,6 @@ export default function RootLayout({
                   <GlobalCommandPalette />
                   <OverlayEscHandler />
                   <GlobalInspector />
-                  <MissionControlOverlay />
                   <AtmosphereLayer />
 
                                     {/* AppSidebar — LA sidebar unique (chat + nav), repliable */ }

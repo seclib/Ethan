@@ -66,9 +66,11 @@ export async function createNote(data: {
   content: string;
   pinned?: boolean;
 }): Promise<Note> {
+  // L'identité (propriétaire de la note) est déduite du JWT côté Core :
+  // l'interface ne déclare jamais `user_id`.
   return apiFetch<Note>("/v1/notes", {
     method: "POST",
-    body: JSON.stringify({ ...data, user_id: "anonymous" }),
+    body: JSON.stringify(data),
   });
 }
 

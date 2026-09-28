@@ -29,7 +29,6 @@ _DOMAIN_FACTS = "webui_facts"
 _DOMAIN_EVENTS = "webui_events"
 _DOMAIN_CHAT = "webui_chat"
 _DOMAIN_SETTINGS = "webui_settings"
-_DOMAIN_PROVIDERS = "webui_providers"
 _DOMAIN_PLUGINS = "webui_plugins"
 
 
@@ -213,83 +212,6 @@ class CoreWebUIStore:
         current.update(data)
         await self._store.save(_DOMAIN_SETTINGS, "default", current)
         return deepcopy(current)
-
-    # ── Providers ──────────────────────────────────────────────────────
-
-    _DEFAULT_PROVIDERS: list[dict[str, Any]] = [
-        {
-            "id": "openai",
-            "name": "OpenAI",
-            "type": "LLM",
-            "status": "connected",
-            "configured": True,
-        },
-        {
-            "id": "anthropic",
-            "name": "Anthropic",
-            "type": "LLM",
-            "status": "connected",
-            "configured": True,
-        },
-        {
-            "id": "huggingface",
-            "name": "HuggingFace",
-            "type": "LLM",
-            "status": "disconnected",
-            "configured": False,
-        },
-        {
-            "id": "pinecone",
-            "name": "Pinecone",
-            "type": "VectorDB",
-            "status": "connected",
-            "configured": True,
-        },
-    ]
-
-    async def list_providers(self) -> list[dict[str, Any]]:
-        """⚠️ DÉPRÉCIÉ — faux catalogue de providers en dur, NON branché à
-        l'API. La persistance autoritative des providers est ``ProviderStore``
-        (table ``llm_providers``) pilotée par ``ProviderManager``. Conservé
-        uniquement pour compatibilité avec d'anciennes routes internes."""
-        records = await self._store.list(_DOMAIN_PROVIDERS)
-        if not records:
-            # Seed defaults once on first access (idempotent).
-            for idx, provider in enumerate(self._DEFAULT_PROVIDERS):
-                await self._store.save(_DOMAIN_PROVIDERS, provider["id"], provider)
-            return deepcopy(self._DEFAULT_PROVIDERS)
-        return records
-
-    async def get_provider(self, provider_id: str) -> dict[str, Any] | None:
-        """⚠️ DÉPRÉCIÉ — voir ``list_providers``. Remplacez par ``ProviderManager``."""
-        record = await self._store.get(_DOMAIN_PROVIDERS, provider_id)
-        if record is not None:
-            return record
-        # Fall back to the static defaults for backward compatibility.
-        for provider in self._DEFAULT_PROVIDERS:
-            if provider["id"] == provider_id:
-                return deepcopy(provider)
-        return None
-
-    async def update_provider(
-        self, provider_id: str, data: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """⚠️ DÉPRÉCIÉ — voir ``list_providers``. Remplacez par ``ProviderManager``."""
-        record = await self._store.get(_DOMAIN_PROVIDERS, provider_id)
-        if record is None:
-            # Create from defaults if it is a known default.
-            known = None
-            for provider in self._DEFAULT_PROVIDERS:
-                if provider["id"] == provider_id:
-                    known = deepcopy(provider)
-                    break
-            record = known
-            if record is None:
-                return None
-        record.update(data)
-        record["id"] = provider_id
-        await self._store.save(_DOMAIN_PROVIDERS, provider_id, record)
-        return deepcopy(record)
 
     # ── Plugins ────────────────────────────────────────────────────────
     # Délégué au PluginRegistry Core (core/plugins) — source de vérité

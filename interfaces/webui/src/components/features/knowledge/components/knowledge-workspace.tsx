@@ -286,7 +286,7 @@ export function KnowledgeWorkspace() {
     if (files.length === 0 || !selectedCollectionId) return;
     try {
       for (const file of files) {
-        const record = await uploadFile(file, "admin");
+        const record = await uploadFile(file);
         ingestFile(record.id, { collection_id: selectedCollectionId });
       }
       // Rafraîchit la liste des documents après ingestion.

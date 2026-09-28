@@ -14,8 +14,8 @@ import logging
 from typing import Any
 
 from core.auth import Permission
-from fastapi import APIRouter, Depends, HTTPException
-from interfaces.api.auth import require_permission
+from fastapi import APIRouter, Depends, HTTPException, Request
+from interfaces.api.auth import current_user_id, require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -325,12 +325,12 @@ async def add_evaluation_result(eval_id: str, data: dict[str, Any]):
 
 
 @router.post("/analytics/events", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def record_analytics_event(data: dict[str, Any]):
+async def record_analytics_event(data: dict[str, Any], request: Request = None):
     manager = _require(_managers.analytics, "Analytics")
     try:
         return await manager.record_event(
             event_type=data.get("event_type", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             provider=data.get("provider"),
             model=data.get("model"),
             tokens_in=int(data.get("tokens_in", 0)),
@@ -370,13 +370,13 @@ async def list_channels():
 
 
 @router.post("/channels", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def create_channel(data: dict[str, Any]):
+async def create_channel(data: dict[str, Any], request: Request = None):
     manager = _require(_managers.channels, "Channel")
     try:
         return await manager.create_channel(
             name=data.get("name", ""),
             description=data.get("description", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             metadata=data.get("metadata"),
         )
     except ValueError as exc:
@@ -410,13 +410,13 @@ async def delete_channel(channel_id: str):
 
 
 @router.post("/channels/{channel_id}/messages")
-async def add_channel_message(channel_id: str, data: dict[str, Any]):
+async def add_channel_message(channel_id: str, data: dict[str, Any], request: Request = None):
     manager = _require(_managers.channels, "Channel")
     try:
         return await manager.add_message(
             channel_id,
             data.get("content", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             metadata=data.get("metadata"),
         )
     except ValueError as exc:
@@ -429,25 +429,26 @@ async def list_channel_messages(channel_id: str):
     return await manager.list_messages(channel_id)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
 # NOTES
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/notes")
-async def list_notes(user_id: str | None = None, pinned: bool | None = None):
+async def list_notes(request: Request = None, pinned: bool | None = None):
     manager = _require(_managers.notes, "Note")
-    return await manager.list(user_id=user_id, pinned=pinned)
+    # Isolation : l'utilisateur vient du JWT, jamais du query string.
+    return await manager.list(user_id=current_user_id(request), pinned=pinned)
 
 
 @router.post("/notes", dependencies=[Depends(require_permission(Permission.WRITE))])
-async def create_note(data: dict[str, Any]):
+async def create_note(data: dict[str, Any], request: Request = None):
     manager = _require(_managers.notes, "Note")
     try:
         return await manager.create(
             title=data.get("title", ""),
             content=data.get("content", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             pinned=bool(data.get("pinned", False)),
             tags=data.get("tags"),
         )
@@ -492,11 +493,14 @@ async def delete_note(note_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-# NOTE : la route GET /v1/tools est possédée par le router `v1` (monté en
-# premier) — le décorateur ici créait un doublon G-04/ADR-3008. Cette
-# fonction reste l'implémentation de référence du catalogue d'outils.
 async def list_tools():
-    """List the Core-owned builtin, custom and discovered MCP tool catalogue."""
+    """List the Core-owned builtin, custom and discovered MCP tool catalogue.
+
+    NOTE : la route GET /v1/tools est possédée par le router `v1` (monté en
+    premier). Cette fonction reste l'implémentation de référence et est
+    appelée directement par les tests ; elle n'est plus exposée ici pour
+    éviter une route masquée.
+    """
     manager = _require(_managers.tools, "Tool")
     return manager.list_tools()
 
@@ -671,7 +675,7 @@ async def delete_tool_server(server_id: str):
 @router.post(
     "/skills/{skill_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))]
 )
-async def execute_skill(skill_id: str, data: dict[str, Any]):
+async def execute_skill(skill_id: str, data: dict[str, Any], request: Request = None):
     """Execute a Core skill through the SkillManager (not a stub)."""
     from core.skills.types import SkillContext
 
@@ -684,7 +688,7 @@ async def execute_skill(skill_id: str, data: dict[str, Any]):
 
     context = SkillContext(
         skill_id=skill_id,
-        user_id=data.get("user_id", "anonymous"),
+        user_id=current_user_id(request) or data.get("user_id", "anonymous"),
         session_id=data.get("session_id", "default"),
         parameters=data.get("parameters", {}),
         constraints=data.get("constraints", {}),

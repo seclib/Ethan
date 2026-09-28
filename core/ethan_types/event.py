@@ -171,6 +171,8 @@ class EventType(str, Enum):
     USER_CREATED = "ethan.user.created"
     USER_UPDATED = "ethan.user.updated"
     USER_DELETED = "ethan.user.deleted"
+    USER_PASSWORD_RESET_REQUESTED = "ethan.user.password_reset_requested"
+    USER_PASSWORD_RESET_COMPLETED = "ethan.user.password_reset_completed"
 
     # Groups
     GROUP_CREATED = "ethan.group.created"
@@ -206,6 +208,12 @@ class EventType(str, Enum):
     INTEGRATION_CONNECTED = "ethan.integration.connected"
     INTEGRATION_DISCONNECTED = "ethan.integration.disconnected"
     INTEGRATION_STATUS_CHANGED = "ethan.integration.status_changed"
+
+    # User Connections (comptes externes liés PAR UTILISATEUR — OAuth)
+    CONNECTION_CONNECTED = "ethan.connection.connected"
+    CONNECTION_DISCONNECTED = "ethan.connection.disconnected"
+    CONNECTION_STATUS_CHANGED = "ethan.connection.status_changed"
+    CONNECTION_ERROR = "ethan.connection.error"
 
     # Scheduler and Security
     SCHEDULE_TRIGGER = "ethan.schedule.trigger"

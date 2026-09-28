@@ -12,8 +12,8 @@ from typing import Any
 
 from core.auth import Permission
 from core.folders import FolderManager
-from fastapi import APIRouter, Depends, HTTPException
-from interfaces.api.auth import require_permission
+from fastapi import APIRouter, Depends, HTTPException, Request
+from interfaces.api.auth import current_user_id, require_permission
 
 router = APIRouter(prefix="/v1/folders", tags=["folders"])
 
@@ -170,6 +170,7 @@ async def move_resources_to_folder(data: dict[str, Any]):
 async def folder_to_collection(
     folder_id: str,
     data: dict[str, Any] | None = None,
+    request: Request = None,
 ):
     """Convertit un dossier en collection Knowledge (pipeline officiel).
 
@@ -183,7 +184,7 @@ async def folder_to_collection(
         return await get_folder_manager().folder_to_collection(
             folder_id,
             description=str(data.get("description", "")),
-            user_id=str(data.get("user_id", "anonymous")),
+            user_id=str(current_user_id(request) or data.get("user_id", "anonymous")),
         )
     except ValueError as exc:
         raise _not_found(exc) from exc
@@ -193,13 +194,13 @@ async def folder_to_collection(
 
 
 @router.post("", dependencies=[Depends(require_permission(Permission.MEMORY))])
-async def create_folder(data: dict[str, Any]):
+async def create_folder(data: dict[str, Any], request: Request = None):
     """Crée un dossier nommé librement (aucune catégorie imposée)."""
     try:
         return await get_folder_manager().create_folder(
             data.get("name", ""),
             description=data.get("description", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             parent_id=data.get("parent_id"),
             collection_id=data.get("collection_id"),
             icon=data.get("icon"),
@@ -326,11 +327,15 @@ async def list_deleted_items(user_id: str | None = None):
     "/deleted/{deleted_id}/restore",
     dependencies=[Depends(require_permission(Permission.MEMORY))],
 )
-async def restore_item(deleted_id: str, data: dict[str, Any] | None = None):
+async def restore_item(
+    deleted_id: str, data: dict[str, Any] | None = None, request: Request = None
+):
     """Restaure un élément supprimé."""
     data = data or {}
     try:
-        await get_folder_manager().restore_item(deleted_id, user_id=data.get("user_id"))
+        await get_folder_manager().restore_item(
+            deleted_id, user_id=current_user_id(request) or data.get("user_id")
+        )
     except ValueError as exc:
         raise _not_found(exc) from exc
     except PermissionError as exc:
@@ -339,10 +344,12 @@ async def restore_item(deleted_id: str, data: dict[str, Any] | None = None):
 
 
 @router.delete("/deleted/empty", dependencies=[Depends(require_permission(Permission.MEMORY))])
-async def empty_trash(data: dict[str, Any] | None = None):
+async def empty_trash(data: dict[str, Any] | None = None, request: Request = None):
     """Purgé définitif de la corbeille."""
     data = data or {}
-    count = await get_folder_manager().empty_trash(user_id=data.get("user_id"))
+    count = await get_folder_manager().empty_trash(
+        user_id=current_user_id(request) or data.get("user_id")
+    )
     return {"status": "emptied", "count": count}
 
 

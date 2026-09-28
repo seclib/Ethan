@@ -137,9 +137,75 @@ class ToolExecutor:
         if tool.provider == "mcp":
             return await self._run_mcp_tool(tool, params)
 
-        # MVP: simulation pour les outils builtin
+        # Outils builtin natifs : exécution réelle routée vers le Core.
+        if tool.provider == "builtin":
+            return await self._run_builtin_tool(tool, params)
+
+        # MVP: simulation pour les outils custom (code non exécuté ici —
+        # cf. ToolManager.create_tool : l'exécution custom doit passer par un
+        # executor révisé ou un sandbox).
         await asyncio.sleep(0.1)  # Simuler l'exécution
         return {"status": "ok", "params": params}
+
+    async def _run_builtin_tool(self, tool: Tool, params: dict[str, Any]) -> Any:
+        """Exécute un outil builtin natif (routage Core → Core).
+
+        Aucune logique métier ici : chaque outil délègue au manager Core qui
+        en est la source de vérité (ex: web_search → WebSearchManager).
+
+        Args:
+            tool: Outil builtin (ex: builtin_web_search)
+            params: Paramètres d'exécution
+
+        Returns:
+            Résultat sérialisable (dict)
+
+        Raises:
+            NotImplementedError: outil builtin sans implémentation.
+            ValueError: paramètres invalides.
+        """
+        if tool.name == "web_search":
+            return await self._run_web_search(params)
+        raise NotImplementedError(f"Builtin tool {tool.id!r} ({tool.name!r}) has no executor")
+
+    async def _run_web_search(self, params: dict[str, Any]) -> Any:
+        """Exécute web_search via WebSearchManager (Core-owned pipeline).
+
+        Params attendus :
+        - query (str) : termes de recherche (requis) ;
+        - engine (str) : duckduckgo | bing | yandex (défaut: duckduckgo) ;
+        - max_results (int) : nombre de résultats (défaut: 10) ;
+        - network_profile (str) : identifiant de profil réseau
+          optionnel (direct | proxy/VPN enregistré côté Core). Les
+          credentials restent dans le Core (variables d'environnement).
+        """
+        from core.knowledge.web_search import WebSearchManager
+
+        query = str(params.get("query") or "").strip()
+        if not query:
+            raise ValueError("web_search: 'query' est requis")
+        engine = str(params.get("engine") or "duckduckgo")
+        max_results = int(params.get("max_results") or 10)
+
+        if params.get("proxy") is not None:
+            raise ValueError(
+                "web_search: 'proxy' (credentials) interdit — utilisez "
+                "'network_profile' (profil réseau résolu par le Core)"
+            )
+        network_profile = params.get("network_profile")
+        proxy: str | None = str(network_profile).strip() if network_profile else None
+
+        manager = WebSearchManager()
+        response = await manager.search(query, engine=engine, max_results=max_results, proxy=proxy)
+        return {
+            "status": "success",
+            "query": response.query,
+            "engine": response.engine,
+            "total_found": response.total_found,
+            "search_time_ms": response.search_time_ms,
+            "results": [r.to_dict() for r in response.results],
+            "metadata": response.metadata,
+        }
 
     async def _run_mcp_tool(self, tool: Tool, params: dict[str, Any]) -> Any:
         """Exécute un outil MCP via le client MCP.

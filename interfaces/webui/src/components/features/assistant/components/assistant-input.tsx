@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent, type ReactNode } from "react";
+import { useState, useRef, KeyboardEvent, type ChangeEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   Send,
@@ -9,6 +9,7 @@ import {
   Search,
   Wrench,
   Mic,
+  X,
 } from "lucide-react";
 
 
@@ -16,8 +17,18 @@ interface AssistantInputProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   disabled?: boolean;
-  /** File attachment handler */
+  /** File attachment handler (legacy : ouverture déléguée à la page) */
   onAttach?: () => void;
+  /**
+   * Fichiers choisis dans le picker natif. L'UPLOAD appartient à la page
+   * propriétaire (Core : POST /files/upload) — l'input se contente d'ouvrir le
+   * sélecteur natif et de remonter les fichiers. Prioritaire sur `onAttach`.
+   */
+  onFilesSelected?: (files: File[]) => void;
+  /** Fichiers joints (état possédé par la page) — rendus dans le composer. */
+  attachedFiles?: { id: string; name: string }[];
+  /** Retrait d'un fichier joint (état possédé par la page). */
+  onRemoveFile?: (id: string) => void;
   /** Search toggle handler */
   onSearch?: () => void;
   /** Tools toggle handler */
@@ -31,10 +42,11 @@ interface AssistantInputProps {
    */
   pluginsSlot?: ReactNode;
   /**
-   * Slot Mode (ChatModeToggle) — rendu dans la rangée de contrôles du bas du
-   * composer, à côté de l'import de fichiers. Réglage de conversation
-   * (Plan/Act/Debug + reasoning) possédé par la page via le store chat-mode ;
-   * l'input ne fait que l'exposer à sa place.
+   * Slot Mode (ChatModeToggle) — rendu DANS la rangée d'actions du composer,
+   * à la suite des contrôles fichiers/capacités (donc sur la même ligne que le
+   * bouton `+`, comme la référence). Réglage de conversation (Plan/Act/Debug +
+   * reasoning) possédé par la page via le store chat-mode ; l'input ne fait que
+   * l'exposer à sa place.
    */
   modeSlot?: ReactNode;
 }
@@ -44,6 +56,9 @@ export function AssistantInput({
   onStop,
   disabled,
   onAttach,
+  onFilesSelected,
+  attachedFiles,
+  onRemoveFile,
   onSearch,
   onTools,
   onVoice,
@@ -52,6 +67,15 @@ export function AssistantInput({
 }: AssistantInputProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Picker natif → remontée des fichiers à la page (upload Core côté page). */
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    // Reset : permet de re-sélectionner le MÊME fichier juste après.
+    e.target.value = "";
+    if (files.length > 0) onFilesSelected?.(files);
+  };
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -96,6 +120,33 @@ export function AssistantInput({
             "focus-within:border-accent/60",
           )}
         >
+          {/* Fichiers joints (état page) — rendus au-dessus de la saisie, à
+              proximité du bouton d'import de la rangée d'actions ci-dessous. */}
+          {attachedFiles && attachedFiles.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 px-1 pt-0.5">
+              {attachedFiles.map((f) => (
+                <span
+                  key={f.id}
+                  className="flex max-w-[220px] items-center gap-1 rounded-md border border-line-1 bg-bg-3 px-1.5 py-0.5 text-[11px] text-foreground-secondary"
+                  title={f.name}
+                >
+                  <Paperclip size={10} className="shrink-0" />
+                  <span className="truncate">{f.name}</span>
+                  {onRemoveFile && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFile(f.id)}
+                      className="shrink-0 rounded p-0.5 hover:text-foreground"
+                      title={`Retirer ${f.name}`}
+                      aria-label={`Retirer ${f.name}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             value={message}
@@ -109,26 +160,48 @@ export function AssistantInput({
             style={{ maxHeight: "200px" }}
           />
 
+          {/* Rangée d'actions du composer : fichiers/capacités à gauche, envoi à droite */}
           <div className="flex items-center justify-between gap-2">
-            {/* Left: mode conversationnel (Plan/Act/Debug, couleurs Cline
-                conservées) à côté de l'import de fichiers, puis capacités
-                contextuelles (plugins, recherche, outils, voix) */}
+            {/* Left: import de fichiers et capacités contextuelles (plugins, recherche, outils, voix) */}
             <div className="flex items-center gap-1">
-              {modeSlot}
               {pluginsSlot}
-              {onAttach && (
+              {/* Import de fichiers : picker NATIF → upload réel par la page
+                  (Core /files/upload). `onFilesSelected` prioritaire ;
+                  `onAttach` conservé pour compatibilité. */}
+              {onFilesSelected ? (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    aria-label="Joindre un fichier"
+                    data-testid="chat-file-input"
+                    onChange={handleFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-bg-3 hover:text-accent"
+                    title="Attach file"
+                  >
+                    <Paperclip size={14} />
+                  </button>
+                </>
+              ) : onAttach ? (
                 <button
+                  type="button"
                   onClick={onAttach}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-accent/10 hover:text-accent"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-bg-3 hover:text-accent"
                   title="Attach file"
                 >
                   <Paperclip size={14} />
                 </button>
-              )}
+              ) : null}
               {onSearch && (
                 <button
                   onClick={onSearch}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-accent/10 hover:text-accent"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-bg-3 hover:text-accent"
                   title="Search"
                 >
                   <Search size={14} />
@@ -137,7 +210,7 @@ export function AssistantInput({
               {onTools && (
                 <button
                   onClick={onTools}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-accent/10 hover:text-accent"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-bg-3 hover:text-accent"
                   title="Tools"
                 >
                   <Wrench size={14} />
@@ -146,12 +219,16 @@ export function AssistantInput({
               {onVoice && (
                 <button
                   onClick={onVoice}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-accent/10 hover:text-accent"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-foreground-secondary hover:bg-bg-3 hover:text-accent"
                   title="Voice input"
                 >
                   <Mic size={14} />
                 </button>
               )}
+              {/* Plan / Act / Debug + effort de raisonnement — MÊME rangée que
+                  les contrôles (fichiers/plugins), à droite du bouton `+` :
+                  un seul pavé de commandes sous la saisie (référence). */}
+              {modeSlot ? <div className="flex items-center gap-1">{modeSlot}</div> : null}
             </div>
 
             {/* Right: send / stop */}

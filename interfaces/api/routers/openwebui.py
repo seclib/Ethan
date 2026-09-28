@@ -258,13 +258,13 @@ async def ow_signup(request: Request, response: Response):
     user = await users.create(
         username=email,
         email=email,
-        role="user",
+        role="standard",
         password_hash=password_hash,
         profile={"name": name, "profile_image_url": body.get("profile_image_url", "/user.png")},
     )
     expires_at = _now_ts() + 3600 * 8
     token = create_access_token(
-        data={"sub": email, "id": user["id"], "role": "user", "email": email},
+        data={"sub": email, "id": user["id"], "role": "standard", "email": email},
         expires_delta=None,
     )
     return _ow_session(user, token, expires_at)

@@ -13,6 +13,11 @@ COPY sdk/    /app/sdk/
 
 ENV PYTHONPATH=/app/core:/app/sdk:/app
 
+# ── Exécution non-root (hardening) ──────────────────────────────────────────
+# Le kernel écrit son état dans son home (~/.ethan), jamais dans /app.
+RUN useradd --system --create-home --uid 10001 ethan
+USER ethan
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=20s \

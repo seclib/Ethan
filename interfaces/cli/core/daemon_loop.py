@@ -1,14 +1,26 @@
-"""ETHAN daemon loop — extracted subprocess entrypoint for stable daemonisation."""
+"""ETHAN daemon loop — extracted subprocess entrypoint for stable daemonisation.
 
-import json
+Lancé par chemin de fichier (`sys.executable .../daemon_loop.py`), donc sans le
+repo root dans `sys.path` : on l'ajoute explicitement pour réutiliser
+l'implémentation canonique `cli.core.daemon._fetch_state` (pas de duplication).
+"""
+
 import os
-import signal
 import sys
-import time
-from datetime import datetime
-from urllib.request import urlopen, Request
 
-API = os.environ.get("ETHAN_API", "http://localhost:8000")
+_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+import json  # noqa: E402
+import signal  # noqa: E402
+import time  # noqa: E402
+from datetime import datetime  # noqa: E402
+
+from interfaces.cli.core.daemon import _fetch_state  # noqa: E402
+
 CACHE_DIR = os.path.expanduser("~/.ethan")
 CACHE_FILE = os.path.join(CACHE_DIR, "cache.json")
 LOG_FILE = os.path.join(CACHE_DIR, "daemon.log")
@@ -49,21 +61,6 @@ def _cache_write(state):
             os.remove(tmp)
         except OSError:
             pass
-
-
-def _fetch_state():
-    """Fetch state from API with validation."""
-    try:
-        req = Request(f"{API}/state", headers={"Accept": "application/json"})
-        with urlopen(req, timeout=5) as r:
-            if r.status != 200:
-                _log(f"API returned status {r.status}")
-                return None
-            raw = r.read()
-            return json.loads(raw)
-    except Exception as e:
-        _log(f"fetch error: {e}")
-        return None
 
 
 def _heartbeat_write():

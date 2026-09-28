@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { AnimatedBackground } from "./components/animated-background";
 import { TopBar } from "./components/top-bar";
@@ -11,7 +10,6 @@ import { LoginForm } from "./components/login-form";
 import { LoadingOverlay } from "./components/loading-overlay";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login, isLoading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -34,9 +32,12 @@ export default function LoginPage() {
   );
 
   const handleAuthComplete = useCallback(() => {
-    router.push("/");
-    router.refresh();
-  }, [router]);
+    // Navigation pleine : le couple router.push + router.refresh simultanes
+    // peut etre annule par le routeur (course App Router) et laisser la page
+    // de login montee malgre un cookie ethan_token valide. window.location
+    // garantit la navigation et le rechargement du shell.
+    window.location.replace("/");
+  }, []);
 
   const handleAuthError = useCallback((msg: string) => {
     setShowOverlay(false);

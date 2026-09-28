@@ -16,9 +16,12 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/.next/ /app/.next/
-COPY --from=builder /app/node_modules/ /app/node_modules/
-COPY --from=builder /app/package.json /app/
-COPY --from=builder /app/public/ /app/public/
+COPY --from=builder --chown=node:node /app/.next/ /app/.next/
+COPY --from=builder --chown=node:node /app/node_modules/ /app/node_modules/
+COPY --from=builder --chown=node:node /app/package.json /app/
+COPY --from=builder --chown=node:node /app/public/ /app/public/
 EXPOSE 3001
+# ── Exécution non-root (hardening) : l'utilisateur `node` (uid 1000) de
+# l'image officielle possède les sources ; Next écrit ses caches en home.
+USER node
 CMD ["npm", "run", "start"]

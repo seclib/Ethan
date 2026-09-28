@@ -392,7 +392,19 @@ class PluginRegistry:
         record = await self._store.get(_DOMAIN, plugin_id) or {}
         record["id"] = plugin_id
         record["status"] = status
+        # Activer/désactiver un plugin du catalogue l'installe implicitement
+        # (compatibilité : « enabled » implique « installed »).
         record["installed"] = True
+        # Compléter la comptabilité d'installation si elle est absente : sans
+        # `manifest_version`, la détection de mise à jour (manifest_version
+        # comparée à la version du catalogue) resterait définitivement muette,
+        # contrairement au chemin install()/update(). Ne concerne que les
+        # plugins connus du catalogue (les customs n'ont pas de manifest).
+        if not record.get("manifest_version"):
+            manifest = find_manifest(plugin_id)
+            if manifest is not None:
+                record["manifest_version"] = manifest.version
+                record.setdefault("installed_at", _now())
         await self._store.save(_DOMAIN, plugin_id, record)
         return await self.get(plugin_id)
 

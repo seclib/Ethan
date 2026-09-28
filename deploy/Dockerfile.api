@@ -22,6 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
 
+# ── Exécution non-root (hardening) ──────────────────────────────────────────
+# /app reste en lecture seule pour ethan (755) ; le home (/home/ethan) reçoit
+# l'état écrit par le Core (~/.ethan). Aucune écriture n'est attendue dans /app.
+RUN useradd --system --create-home --uid 10001 ethan
+USER ethan
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \

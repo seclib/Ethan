@@ -24,7 +24,7 @@ install:
 	pip install -e ".[server,dev]"
 
 dev:
-	PYTHONPATH=. NATS_URL=nats://localhost:4222 uvicorn api.main:app --reload --port 8000
+	PYTHONPATH=. NATS_URL=nats://localhost:$(NATS_PORT) uvicorn api.main:app --reload --port $(API_PORT)
 
 build:
 	docker compose build
@@ -78,3 +78,7 @@ smoke:
 
 ci: lint test
 	docker compose build --parallel
+
+# ── Ports dev locaux (surchargeurs : env ou `make dev API_PORT=9000`) ──
+API_PORT ?= 8000
+NATS_PORT ?= 4222

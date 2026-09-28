@@ -90,7 +90,7 @@ def _get_docker_info() -> dict[str, Any]:
             text=True,
             timeout=10,
         )
-        lines = [ln for ln in output.stdout.strip().split("\n") if ln.strip()]
+        lines = [line for line in output.stdout.strip().split("\n") if line.strip()]
 
         for line in lines:
             parts = line.split("\t")
@@ -183,7 +183,7 @@ def _render_status(*, json_mode: bool = False) -> None:
     state_color = clr.C.GREEN if runtime["state"] == "running" else clr.C.RED
     print()
     print(
-        f"  {clr.C.BOLD}ETHAN Status{clr.C.RESET}  {state_color}◇ {runtime['state'].upper()}{clr.C.RESET}"
+        f"  {clr.C.BOLD}ETHAN Status{clr.C.RESET}  {state_color}◇ {runtime['state'].upper()}{clr.C.RESET}"  # noqa: E501
     )
     print()
 

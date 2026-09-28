@@ -53,7 +53,21 @@ class RBACEngine:
         self._roles["user"] = Role(
             name="user",
             permissions=[Permission.READ, Permission.WRITE, Permission.CHAT, Permission.MEMORY],
-            description="Standard user access",
+            description="Restricted user (legacy compat) — read/write/chat/memory only.",
+        )
+        self._roles["standard"] = Role(
+            name="standard",
+            permissions=[
+                Permission.READ,
+                Permission.WRITE,
+                Permission.CHAT,
+                Permission.MEMORY,
+                Permission.FILES,
+                Permission.AGENTS,
+                Permission.PLUGINS,
+                Permission.SETTINGS,
+            ],
+            description="Standard user can manage files, agents, plugins and settings.",
         )
         self._roles["viewer"] = Role(
             name="viewer",

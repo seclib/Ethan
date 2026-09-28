@@ -114,7 +114,7 @@ export function ProviderSelector() {
                   )}
                 </div>
                 {p.is_default && (
-                  <span className="shrink-0 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">
+                  <span className="shrink-0 rounded-full bg-bg-3 px-1.5 py-0.5 text-[10px] text-accent">
                     défaut
                   </span>
                 )}

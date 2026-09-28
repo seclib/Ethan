@@ -38,13 +38,16 @@ def get_project_manager() -> ProjectManager:
     return _project_manager
 
 
-def _current_user_id(request: Request) -> str | None:
+def _current_user_id(request: Request | None) -> str | None:
     """Déduit l'utilisateur courant depuis le JWT déjà vérifié par auth_middleware.
 
     `auth_middleware` (interfaces.api.auth) a déjà validé le Bearer token / cookie
     et a stocké `request.state.user` (username = champ `sub` du JWT).
     Nécessite donc une authentification préalable (sauf pour GET /default).
+    Retourne ``None`` si ``request`` est ``None`` (appels directs des tests).
     """
+    if request is None:
+        return None
     return getattr(request.state, "user", None)
 
 
@@ -113,6 +116,37 @@ async def create_project(request: Request, data: dict[str, Any]):
         )
     except ValueError as exc:
         raise _not_found(exc) from exc
+
+
+@router.get("/active", dependencies=[Depends(require_permission(Permission.READ))])
+async def get_active_project(request: Request):
+    """Retourne le projet couramment actif (fallback « General (Default) »).
+
+    Le sélecteur WebUI appelle ``POST /active`` pour changer la sélection ; ce
+    GET sert de fallback côté serveur lorsqu'aucun projet n'est encore actif.
+    """
+    uid = _current_user_id(request)
+    project = await get_project_manager().get_project("general", user_id=uid)
+    return project or {}
+
+
+@router.post("/active", dependencies=[Depends(require_permission(Permission.MEMORY))])
+async def set_active_project(data: dict[str, Any] | None = None, request: Request = None):
+    """Confirme la sélection de projet active côté serveur.
+
+    Reçoit ``{ active_project_id }`` depuis la WebUI et valide l'accès au projet
+    avant de le renvoyer. Le cookie de sélection est géré par l'interface.
+    """
+    data = data or {}
+    uid = _current_user_id(request)
+    project_id = data.get("active_project_id")
+    if project_id is None or project_id == "null":
+        # Réinit vers le fallback général
+        return {"active_project_id": None}
+    project = await get_project_manager().get_project(project_id, user_id=uid)
+    if project is None and project_id != "general":
+        raise HTTPException(404, f"Project {project_id} not found")
+    return {"active_project_id": project_id}
 
 
 @router.get("/{project_id}")

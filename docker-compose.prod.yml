@@ -15,7 +15,9 @@ services:
     environment:
       LOG_LEVEL: WARNING
     deploy:
-      replicas: 2
+      # Le service api conserve `container_name: ethan-api` (docker-compose.yml) :
+      # Compose interdit container_name avec replicas > 1, donc replicas reste à 1.
+      replicas: 1
       resources:
         limits:
           cpus: '1.0'
@@ -23,6 +25,10 @@ services:
         reservations:
           cpus: '0.2'
           memory: 256M
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+        order: stop-first
     healthcheck:
       interval: 30s
       timeout: 5s
@@ -124,13 +130,3 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-
-  # Restart policies — production safety
-  # All services use restart: unless-stopped (set in base compose)
-  # Max restart attempts to prevent crash loops
-  api:
-    deploy:
-      restart_roll:
-        parallelism: 1
-        failure_action: rollback
-        order: stop-first

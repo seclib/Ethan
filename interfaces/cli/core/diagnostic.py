@@ -203,7 +203,7 @@ class BootDiagnostic:
                         return CheckResult(
                             name="Mémoire RAM",
                             passed=False,
-                            detail=f"Seulement {gb:.1f} Go disponible (minimum {self.MIN_MEMORY_GB} Go)",
+                            detail=f"Seulement {gb:.1f} Go disponible (minimum {self.MIN_MEMORY_GB} Go)",  # noqa: E501
                             fix="Libérez de la mémoire ou ajoutez de la RAM",
                         )
             return CheckResult(

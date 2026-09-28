@@ -19,15 +19,40 @@ export interface ModelInfo {
 	name: string;
 	/** Exact identifier sent to the selected provider. */
 	model: string;
+	/**
+	 * Identifiant du PROVIDER (service) qui sert ce modèle — jamais un
+	 * identifiant de modèle. Vide si le Core ne connaît pas de provider
+	 * pour cette entrée (fiche custom sans provider déclaré) : l'interface
+	 * affiche alors « provider non déclaré » au lieu d'inventer un service.
+	 */
 	provider: string;
 	context_length: number;
 	is_local: boolean;
 	is_private: boolean;
 	quality_score: number;
 	capabilities: string[];
+	/**
+	 * Joignabilité. Pour un modèle découvert = réellement servi par le
+	 * provider. Pour une fiche custom = activation administrative
+	 * (le Core ne peut pas tester la joignabilité d'une fiche) : lire
+	 * `is_active` pour la notion d'activation.
+	 */
 	is_available: boolean;
+	/**
+	 * Activation locale. `null` pour un modèle découvert (aucune activation
+	 * locale : l'état suit le provider), `boolean` pour une fiche custom.
+	 */
+	is_active?: boolean | null;
 	is_custom: boolean;
 	source: 'discovered' | 'custom';
+	/** Tarifs déclarés par l'adapter Core (ex: {input, output}) — null si absents. */
+	pricing?: Record<string, unknown> | null;
+	/** Latence moyenne déclarée par l'adapter Core (ms) — null si absente. */
+	avg_latency_ms?: number | null;
+	/**
+	 * Modèle découvert servant de base à une fiche custom. Ce n'est PAS un
+	 * provider : à ne jamais afficher dans la colonne « Provider ».
+	 */
 	base_model_id?: string;
 	params?: Record<string, unknown>;
 	meta?: Record<string, unknown>;
@@ -61,6 +86,8 @@ export async function getModel(id: string): Promise<ModelInfo> {
 /** Create a custom model card */
 export async function createModel(data: {
 	name: string;
+	/** Provider (service) qui sert ce modèle — routage et filtre par provider. */
+	provider?: string;
 	model?: string;
 	base_model_id?: string;
 	params?: Record<string, unknown>;

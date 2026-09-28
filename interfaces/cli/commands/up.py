@@ -66,7 +66,7 @@ def cmd_up(args: list[str]) -> int:
 
     if not json_mode:
         print(
-            f"  {clr.C.GREEN}✓{clr.C.RESET} Tous les prérequis sont satisfaits ({report.passed_count}/{report.total_count})\n"
+            f"  {clr.C.GREEN}✓{clr.C.RESET} Tous les prérequis sont satisfaits ({report.passed_count}/{report.total_count})\n"  # noqa: E501
         )
 
     # ── Build compose args ────────────────────────────────────────

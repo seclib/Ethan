@@ -40,10 +40,11 @@ export interface WebScanPreview {
 
 export interface WebIngestResult {
 	scan_id: string;
-	target: "collection" | "knowledge";
+	target: "collection" | "knowledge" | "project";
 	folder: { id: string; name: string } | null;
 	collection: { id: string; name: string } | null;
-	indexed: Array<{ document_id?: string; node_id?: string; url: string; title?: string }>;
+	project: { id: string } | null;
+	indexed: Array<{ document_id?: string; node_id?: string; url: string; title?: string; status?: string; error?: string | null }>;
 	indexed_count: number;
 	skipped_duplicates: Array<{ page_id: string; url: string; duplicate_of: string }>;
 }
@@ -74,11 +75,12 @@ export async function ingestWebPages(data: {
 	page_ids: string[];
 	folder_id?: string | null;
 	new_folder_name?: string;
-	target: "collection" | "knowledge";
+	target: "collection" | "knowledge" | "project";
 	collection_id?: string | null;
 	new_collection_name?: string;
 	retrieval_strategy?: string | null;
 	embedding_model?: string | null;
+	project_id?: string | null;
 	user_id?: string;
 }): Promise<WebIngestResult> {
 	return apiFetch<WebIngestResult>("/v1/web-ingest/ingest", {

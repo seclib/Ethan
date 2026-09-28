@@ -12,12 +12,13 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useProjectsStore } from '@/lib/store/projects';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { useUIStore } from '@/store/ui.store';
-import { Plus, CheckSquare, Square, ChevronDown } from 'lucide-react';
+import { Plus, CheckSquare, Square, ChevronDown, Settings } from 'lucide-react';
 
 export function ProjectSelector() {
 	const {
@@ -42,11 +43,13 @@ export function ProjectSelector() {
 		if (!newProjectName.trim() || isSubmitting) return;
 		setIsSubmitting(true);
 		try {
+			// Le store Core-backed active automatiquement le projet créé :
+			// l'utilisateur peut immédiatement discuter dans son nouveau scope.
 			await createProject({ name: newProjectName.trim() });
 			await loadProjects();
 			setShowCreateDialog(false);
 			setNewProjectName('');
-			addToast({ type: 'success', message: `Project "${newProjectName.trim()}" created` });
+			addToast({ type: 'success', message: `Project "${newProjectName.trim()}" created and activated` });
 		} catch (err: any) {
 			addToast({ type: 'error', message: err.message || 'Failed to create project' });
 		} finally {
@@ -108,7 +111,24 @@ export function ProjectSelector() {
 								</button>
 							</li>
 						))}
+						{allProjects.length === 0 && (
+							<li className="px-3 py-2 text-muted-foreground">No projects yet</li>
+						)}
 					</ul>
+					{/* Accès direct au workspace projet (instructions, fichiers,
+					    conversations, configuration) — sans passer par l'admin. */}
+					{activeProject?.id && (
+						<div className="border-t border-line-1/60">
+							<Link
+								href={`/projects/${activeProject.id}`}
+								className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
+								onClick={() => setDropdownOpen(false)}
+							>
+								<Settings className="h-4 w-4 opacity-60" />
+								Manage project
+							</Link>
+						</div>
+					)}
 				</div>
 			)}
 

@@ -80,7 +80,7 @@ def cmd_create_admin(args):
                 print(f"Error: User '{username}' already exists.")
                 return 1
             await conn.execute(
-                "INSERT INTO users (username, password_hash, roles, is_active) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO users (username, password_hash, roles, is_active) VALUES ($1, $2, $3, $4)",  # noqa: E501
                 username,
                 password_hash,
                 ["admin"],

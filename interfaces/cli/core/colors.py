@@ -32,7 +32,9 @@ class C:
 # ── Icon Constants ─────────────────────────────────────
 
 
-class I:  # noqa: E742 — identité visuelle ETHAN (I = Icons), utilisée partout
+# noqa: E742 — « I » est le nom public du vocabulaire d'icônes (clr.I.ARROW),
+# utilisé par toutes les commandes CLI : le renommer casserait l'API de sortie.
+class I:  # noqa: E742
     """Unicode icons for CLI output."""
 
     CHECK = "\u2713"  # ✓

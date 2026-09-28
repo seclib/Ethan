@@ -20,9 +20,9 @@ Received string:    "ETHAN"
 Timeout: 5000ms
 
 Call log:
-  - Expect "toContainText" with timeout 5000ms
+  - Expect "toContainText" locator('h1') with timeout 5000ms
   - waiting for locator('h1')
-    14 × locator resolved to <h1 class="text-xl font-semibold tracking-[0.15em] text-white/90 uppercase select-none">ETHAN</h1>
+    13 × locator resolved to <h1 class="text-xl font-semibold tracking-[0.15em] text-white/90 uppercase select-none">ETHAN</h1>
        - unexpected value "ETHAN"
 
 ```

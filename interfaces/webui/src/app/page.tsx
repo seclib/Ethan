@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { AssistantChat } from "@/components/features/assistant/components/assistant-chat";
-import { AssistantTopBar } from "@/components/features/assistant/components/assistant-top-bar";
+import { ChatSecondaryBar } from "@/components/features/assistant/components/chat-secondary-bar";
+import { ChatContextBar, type ChatContextItem } from "@/components/features/assistant/components/chat-context-bar";
+import { ChatSections } from "@/components/features/assistant/components/chat-sections";
+import { ChatModeToggle } from "@/components/features/assistant/components/chat-mode-toggle";
+import { PluginPicker } from "@/components/features/assistant/components/plugin-picker";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useActiveModel } from "@/components/features/assistant/hooks/use-active-model";
 import { useActiveAgent } from "@/components/features/assistant/hooks/use-active-agent";
@@ -11,17 +15,14 @@ import { listCollections } from "@/lib/api/knowledge";
 import { listSkills } from "@/lib/api/skills";
 import { listTools } from "@/lib/api/tools";
 import { listPlugins } from "@/lib/api/plugins";
-import { PluginPicker } from "@/components/features/assistant/components/plugin-picker";
-import { ChatModeToggle } from "@/components/features/assistant/components/chat-mode-toggle";
 import { useChatModeStore } from "@/store/chat-mode.store";
+import { getChatSection, useChatSectionStore } from "@/store/chat-section.store";
+import { useProjectsStore } from "@/lib/store/projects";
 import type { AssistantMessage, SessionMetrics } from "@/types/assistant";
-import {
-  ChatContextBar,
-  type ChatContextItem,
-} from "@/components/features/assistant/components/chat-context-bar";
 import { useRouter } from "next/navigation";
 import { useFacts } from "@/components/features/memory/hooks/use-memory";
-import { ProjectSelector } from "@/components/features/projects/project-selector";
+import { uploadFile } from "@/lib/api/files";
+import { useUIStore } from "@/store/ui.store";
 
 function toDisplayMessage(msg: EthMessage): AssistantMessage {
   const isUser = msg.role === "user";
@@ -54,6 +55,10 @@ export default function ChatHomePage() {
     agentsError,
   } = useActiveAgent();
   const { activeProvider, selectedProviderId, selectedModel, setModel } = useActiveModel();
+  // Project actif (source : store Core-backed) — scope des conversations,
+  // contexte d'exécution (instructions/agent/modèle) résolu par le Core.
+  const { activeProject, loadProjects, restoreActiveProject } = useProjectsStore();
+  const activeProjectId = activeProject?.id ?? null;
   const {
     chats,
     pinnedChats,
@@ -74,8 +79,12 @@ export default function ChatHomePage() {
     error,
     clearError,
   } = useChats();
-  const [attachedFileIds, setAttachedFileIds] = React.useState<string[]>([]);
-  const [attachedFileNames, setAttachedFileNames] = React.useState<string[]>([]);
+  /**
+   * Fichiers joints au composer ({id Core, nom}). Les ids sont envoyés au Core
+   * dans le payload chat (`file_ids`) — l'upload lui-même est fait par le Core.
+   */
+  const [attachedFiles, setAttachedFiles] = React.useState<{ id: string; name: string }[]>([]);
+  const attachedFileIds = React.useMemo(() => attachedFiles.map((f) => f.id), [attachedFiles]);
 
   // ── Catalogues (source : ETHAN Core via l'API) ─────────────────────────
   const [skills, setSkills] = React.useState<{ id: string; name: string }[]>([]);
@@ -91,11 +100,14 @@ export default function ChatHomePage() {
   const [selectedCollectionIds, setSelectedCollectionIds] = React.useState<string[]>([]);
   const [selectedToolIds, setSelectedToolIds] = React.useState<string[]>([]);
 
-  // ── Contexte actif (ChatContextBar rendue sous le header) ────────────────
-  const [modelSelectorOpen, setModelSelectorOpen] = React.useState(false);
+  // ── Contexte actif (ChatContextBar) — sous la barre secondaire ──────
   /** Facts mémoire (hook dédié — cache partagé avec /workspace). */
   const { facts: memoryFacts } = useFacts();
   const router = useRouter();
+  const addToast = useUIStore((s) => s.addToast);
+  /** Section d'usage active (ChatSections) — invite de l'état vide uniquement. */
+  const activeSectionId = useChatSectionStore((s) => s.activeSection);
+  const sectionHint = getChatSection(activeSectionId).hint;
 
   /**
    * Capacités RÉSOLUES pour l'affichage = UNION (agent ∪ sélection composer),
@@ -184,18 +196,54 @@ export default function ChatHomePage() {
     setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  // Load chats on mount
+  // Projets : catalogue Core + restauration de la sélection persistée
+  // (préférence de session uniquement — l'état métier reste au Core ; si le
+  // projet a été supprimé, la préférence locale est purgée par le store).
+  const [projectScopeReady, setProjectScopeReady] = React.useState(false);
   React.useEffect(() => {
-    loadChats();
-  }, [loadChats]);
+    let cancelled = false;
+    void (async () => {
+      await Promise.allSettled([loadProjects(), restoreActiveProject()]);
+      if (!cancelled) setProjectScopeReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadProjects, restoreActiveProject]);
+
+  // Load chats when the project scope changes — les conversations sont isolées
+  // par Project (ChatStore Core) : l'historique d'un projet ne fuit pas.
+  React.useEffect(() => {
+    loadChats(activeProjectId);
+  }, [loadChats, activeProjectId]);
 
   const hasCreatedRef = React.useRef(false);
+  // Changement de scope projet : une nouvelle conversation pourra être créée
+  // dans le scope nouvellement actif.
   React.useEffect(() => {
+    hasCreatedRef.current = false;
+  }, [activeProjectId]);
+
+  React.useEffect(() => {
+    // La création automatique attend la restauration du scope projet : jamais
+    // de conversation orpheline créée avant la résolution de la préférence.
+    if (!projectScopeReady) return;
     if (chats.length === 0 && !hasCreatedRef.current) {
       hasCreatedRef.current = true;
-      createChat("Nouvelle conversation");
+      createChat("Nouvelle conversation", activeProjectId);
     }
-  }, [chats.length, createChat]);
+  }, [chats.length, createChat, activeProjectId, projectScopeReady]);
+
+  /**
+   * La conversation courante doit appartenir au scope affiché : après un
+   * changement de projet, la plus récente du nouveau scope est sélectionnée
+   * (ou une conversation vierge est créée par l'effet ci-dessus).
+   */
+  React.useEffect(() => {
+    if (!currentChatId) return;
+    if (chats.some((c) => c.id === currentChatId)) return;
+    if (chats.length > 0) selectChat(chats[0].id);
+  }, [chats, currentChatId, selectChat]);
 
   /**
    * Au chargement (refresh) : sélectionne automatiquement la conversation
@@ -224,6 +272,13 @@ export default function ChatHomePage() {
     [messages]
   );
 
+  /**
+   * Conversation vierge (hors chargement) : le layout passe en mode HERO —
+   * bloc [salutation, composer, sections] centré verticalement, sans scroll
+   * de fil. Décision de PRÉSENTATION uniquement (aucune logique métier).
+   */
+  const isEmptyConversation = displayMessages.length === 0 && !isLoading;
+
   const agentStatusMap: Record<string, "run" | "idle" | "error"> = {
     running: "run",
     idle: "idle",
@@ -248,8 +303,8 @@ export default function ChatHomePage() {
   const currentChat = chats.find((c) => c.id === currentChatId);
 
   const handleNewChat = React.useCallback(async () => {
-    await createChat("Nouvelle conversation");
-  }, [createChat]);
+    await createChat("Nouvelle conversation", activeProjectId);
+  }, [createChat, activeProjectId]);
 
     // Publie l'état des conversations vers l'AppSidebar du shell (la sidebar du
   // layout affiche les chats sur cette page).
@@ -312,24 +367,27 @@ export default function ChatHomePage() {
       collection_ids: selectedCollectionIds.length > 0 ? selectedCollectionIds : undefined,
       // Routage Chat → Agent : résolu par le Core (provider/model/skills).
       agent_id: selectedAgentId ?? undefined,
+      // Routage Chat → Projet : résolu par le Core (instructions, agent/model
+      // par défaut, scope de ressources). La conversation conserve son projet.
+      project_id: activeProjectId ?? undefined,
       mode: chatModeState.mode,
       reasoning_effort: chatModeState.reasoningEffort,
       metadata: {
         ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
+        ...(activeProjectId ? { project_id: activeProjectId } : {}),
         mode: chatModeState.mode,
         reasoning_effort: chatModeState.reasoningEffort,
       },
     });
 
-    setAttachedFileIds([]);
-    setAttachedFileNames([]);
+    setAttachedFiles([]);
 
     try {
       for await (const event of generator) {
         // Le backend titre la conversation d'après le 1er message :
         // on rafraîchit l'historique à la fin de chaque génération.
         if ((event as Record<string, unknown>).type === "done") {
-          loadChats();
+          loadChats(activeProjectId);
         }
       }
     } catch (error) {
@@ -381,30 +439,49 @@ export default function ChatHomePage() {
   };
 
   const handleFileAttached = (fileId: string, filename: string) => {
-    setAttachedFileIds((prev) => [...prev, fileId]);
-    setAttachedFileNames((prev) => [...prev, filename]);
+    setAttachedFiles((prev) => [...prev, { id: fileId, name: filename }]);
   };
 
-  /** Ouvrir le sélecteur de fichiers. */
-  const handleAttach = () => {
-    // TODO: ouvrir un file picker et uploader le fichier
-    // Pour l'instant, on ne fait rien
+  /**
+   * Fichiers choisis dans le composer : l'UPLOAD appartient au Core
+   * (POST /files/upload via lib/api/files). La page mémorise les identifiants
+   * renvoyés — envoyés ensuite dans le payload chat (`file_ids`).
+   */
+  const handleFilesSelected = async (files: File[]) => {
+    for (const file of files) {
+      try {
+        const record = await uploadFile(file);
+        handleFileAttached(record.id, record.filename);
+        addToast({ type: "success", message: `Fichier joint : ${record.filename}` });
+      } catch (err) {
+        addToast({
+          type: "error",
+          message: err instanceof Error ? err.message : `Échec de l'upload de ${file.name}`,
+        });
+      }
+    }
+  };
+
+  /** Retrait d'une pièce jointe avant envoi (état local, WebUI uniquement). */
+  const handleRemoveFile = (id: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   return (
     <div className="flex h-full min-h-0 w-full">
       <div className="flex h-full min-h-0 flex-1 flex-col">
-        <AssistantTopBar
+        {/* Barre secondaire compacte : titre + model/provider/agent (au-dessus de la conv, mais sobre) */}
+        <ChatSecondaryBar
           title={currentChat?.title || "Nouvelle conversation"}
           metrics={metrics}
           agents={agents}
           agentsLoading={agentsLoading}
           agentsError={agentsError}
           selectedAgentId={selectedAgentId}
-          recentAgentIds={recentAgentIds}          onSelectAgent={selectAgent}
-          modelSelectorOpen={modelSelectorOpen}
-          onModelSelectorOpenChange={setModelSelectorOpen}
+          recentAgentIds={recentAgentIds}
+          onSelectAgent={selectAgent}
         />
+        {/* Contexte actif (capacités résolues Core) — affiché discrètement */}
         <ChatContextBar
           tools={activeTools}
           skills={activeSkills}
@@ -419,28 +496,45 @@ export default function ChatHomePage() {
           memoryFactCount={memoryFacts?.length ?? null}
           onMemoryClick={() => router.push("/workspace")}
         />
-        <AssistantChat
-          messages={displayMessages}
-          metrics={metrics}
-          chatId={currentChatId}
-          isLoading={isLoading}
-          onSend={handleSend}
-          onStop={handleStop}
-          disabled={isStreaming}
-          onAttach={handleAttach}
-          error={error}
-          onDismissError={clearError}
-          onRegenerate={handleRegenerate}
-          onEditMessage={handleEditMessage}
-          pluginsSlot={
-            <PluginPicker
-              selectedIds={selectedPluginIds}
-              onToggle={togglePluginSelection}
-              onManage={() => router.push("/plugins")}
-            />
-          }
-          modeSlot={<ChatModeToggle />}
-        />
+        {/* Zone conversation. Conversation vierge : le bloc
+            [salutation, composer, sections] est centré verticalement (hero) —
+            parité avec la référence. Conversation active : pleine hauteur. */}
+        <div
+          className={`flex flex-1 min-h-0 flex-col ${
+            isEmptyConversation ? "items-center justify-center gap-4 px-4" : ""
+          }`}
+        >
+          <AssistantChat
+            hero={isEmptyConversation}
+            messages={displayMessages}
+            metrics={metrics}
+            chatId={currentChatId}
+            isLoading={isLoading}
+            onSend={handleSend}
+            onStop={handleStop}
+            disabled={isStreaming}
+            onFilesSelected={handleFilesSelected}
+            attachedFiles={attachedFiles}
+            onRemoveFile={handleRemoveFile}
+            error={error}
+            onDismissError={clearError}
+            onRegenerate={handleRegenerate}
+            onEditMessage={handleEditMessage}
+            pluginsSlot={
+              <PluginPicker
+                selectedIds={selectedPluginIds}
+                onToggle={togglePluginSelection}
+                onManage={() => router.push("/plugins")}
+              />
+            }
+            modeSlot={<ChatModeToggle />}
+            sectionHint={sectionHint}
+          />
+          {/* Sections d'usage du Chat — sous la zone de conversation (chips
+              flottants dans l'état vide, barre ancrée une fois la conversation
+              lancée). */}
+          <ChatSections variant={isEmptyConversation ? "floating" : "bar"} />
+        </div>
       </div>
     </div>
   );

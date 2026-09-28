@@ -23,10 +23,7 @@ def main() -> None:
         "--topics",
         type=str,
         default="AI,tech",
-        help=(
-            "Comma-separated list of topics to include "
-            "in the digest (default: AI,tech)."
-        ),
+        help=("Comma-separated list of topics to include in the digest (default: AI,tech)."),
     )
     parser.add_argument(
         "--model",
@@ -59,8 +56,7 @@ def main() -> None:
         from openjarvis import Jarvis
     except ImportError:
         print(
-            "Error: openjarvis is not installed. "
-            "Install it with:  uv sync --extra dev",
+            "Error: openjarvis is not installed. Install it with:  uv sync --extra dev",
             file=sys.stderr,
         )
         sys.exit(1)

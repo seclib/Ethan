@@ -373,7 +373,10 @@ describe("ModelsWorkspace — comparaison", () => {
 		expect(
 			screen.getByText(/Seules les métadonnées réellement fournies/),
 		).toBeInTheDocument();
-		expect(screen.getByText("Disponibilité")).toBeInTheDocument();
+		// Ligne d'état : le libellé distingue ce que le Core connaît réellement
+		// (joignabilité d'un modèle découvert) et ne l'invente pas.
+		expect(screen.getByText("État (Core)")).toBeInTheDocument();
+		expect(screen.getByText("Provider déclaré")).toBeInTheDocument();
 		// qualité absente pour TOUS → ligne omise (aucune valeur inventée)
 		expect(screen.queryByText("Qualité (Core)")).toBeNull();
 		expect(screen.queryByText("Privé")).toBeNull();

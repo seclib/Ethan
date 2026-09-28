@@ -66,9 +66,7 @@ def _print_table(results: list[dict[str, str]]) -> None:
         max(len("Reply"), max((len(r["reply"]) for r in results), default=0)),
     )
 
-    header = (
-        f"  {'#':<3} {'Category':<{cat_w}}  {'Message':<{msg_w}}  {'Reply':<{rep_w}}"
-    )
+    header = f"  {'#':<3} {'Category':<{cat_w}}  {'Message':<{msg_w}}  {'Reply':<{rep_w}}"
     separator = "  " + "-" * (len(header) - 2)
 
     click.echo()
@@ -78,10 +76,7 @@ def _print_table(results: list[dict[str, str]]) -> None:
     for i, r in enumerate(results, 1):
         msg_display = r["message"][:msg_w]
         rep_display = r["reply"][:rep_w]
-        row = (
-            f"  {i:<3} {r['category']:<{cat_w}}"
-            f"  {msg_display:<{msg_w}}  {rep_display:<{rep_w}}"
-        )
+        row = f"  {i:<3} {r['category']:<{cat_w}}  {msg_display:<{msg_w}}  {rep_display:<{rep_w}}"
         click.echo(row)
 
     click.echo(separator)
@@ -94,8 +89,7 @@ def _run_demo(model: str, engine_key: str) -> None:
         from openjarvis import Jarvis
     except ImportError:
         click.echo(
-            "Error: openjarvis is not installed. "
-            "Install it with:  uv sync --extra dev",
+            "Error: openjarvis is not installed. Install it with:  uv sync --extra dev",
             err=True,
         )
         sys.exit(1)
@@ -135,9 +129,7 @@ def _run_demo(model: str, engine_key: str) -> None:
             )
 
             category, reply = _parse_classification(response)
-            results.append(
-                {"message": message, "category": category, "reply": reply}
-            )
+            results.append({"message": message, "category": category, "reply": reply})
             click.echo(f"           -> {category}")
 
         # Print results table
@@ -145,9 +137,7 @@ def _run_demo(model: str, engine_key: str) -> None:
 
         # Generate end-of-day summary
         click.echo("Generating end-of-day summary...\n")
-        triage_log = "\n".join(
-            f"- [{r['category']}] {r['message']}" for r in results
-        )
+        triage_log = "\n".join(f"- [{r['category']}] {r['message']}" for r in results)
         summary_prompt = SUMMARY_PROMPT.format(triage_log=triage_log)
         summary = j.ask(
             summary_prompt,

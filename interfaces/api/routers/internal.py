@@ -1,5 +1,5 @@
-"""Internal API Router — Endpoints pour les nouveaux modules
-(Audit, Budget, Approval, Facts, SkillLab).
+"""Internal API Router — endpoints internes des modules (Audit, Budget,
+Approval, Facts, SkillLab).
 
 Accessible via /internal/* pour le dashboard web et les clients.
 """
@@ -73,7 +73,7 @@ def get_audit_store() -> AuditStore | None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/audit")
+@router.get("/audit", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_audit_entries(
     limit: int = Query(50, ge=1, le=1000),
     category: str | None = None,
@@ -92,7 +92,7 @@ async def get_audit_entries(
     return [e.to_dict() for e in entries]
 
 
-@router.get("/audit/summary")
+@router.get("/audit/summary", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_audit_summary(since: str | None = None):
     """Résumé des entrées d'audit."""
     if _audit is None:
@@ -101,7 +101,7 @@ async def get_audit_summary(since: str | None = None):
     return _audit.summary(since=since_dt)
 
 
-@router.get("/audit/search")
+@router.get("/audit/search", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def search_audit(q: str = Query("", min_length=1)):
     """Recherche dans l'audit."""
     if _audit is None:
@@ -112,7 +112,7 @@ async def search_audit(q: str = Query("", min_length=1)):
     return [e.to_dict() for e in entries]
 
 
-@router.post("/audit/log")
+@router.post("/audit/log", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def log_audit_entry(entry: dict[str, Any]):
     """Crée une entrée d'audit manuellement."""
     if _audit is None:
@@ -133,7 +133,7 @@ async def log_audit_entry(entry: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/budget/status")
+@router.get("/budget/status", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_budget_status():
     """Statut budgétaire complet."""
     if _budget_guard is None:
@@ -180,7 +180,7 @@ async def record_cost(data: dict[str, Any]):
     return {"status": "recorded"}
 
 
-@router.get("/budget/alerts")
+@router.get("/budget/alerts", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_budget_alerts():
     """Alertes budgétaires (limitées, depuis l'audit)."""
     if _audit is None:
@@ -189,7 +189,7 @@ async def get_budget_alerts():
     return [e.to_dict() for e in entries]
 
 
-@router.get("/budget/daily")
+@router.get("/budget/daily", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_daily_costs(days: int = Query(30, ge=1, le=365)):
     """Coûts journaliers."""
     if _cost_tracker is None:
@@ -207,7 +207,7 @@ async def get_daily_costs(days: int = Query(30, ge=1, le=365)):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/facts")
+@router.get("/facts", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def list_facts(
     limit: int = Query(20, ge=1, le=200),
     status: str | None = None,
@@ -225,7 +225,7 @@ async def list_facts(
     return [f.to_dict() for f in facts]
 
 
-@router.get("/facts/search")
+@router.get("/facts/search", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def search_facts(q: str = Query("", min_length=1)):
     """Recherche plein texte dans les faits."""
     if _fact_store is None:
@@ -234,7 +234,7 @@ async def search_facts(q: str = Query("", min_length=1)):
     return [{"fact": r.fact.to_dict(), "score": r.score} for r in results]
 
 
-@router.get("/facts/{fact_id}")
+@router.get("/facts/{fact_id}", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def get_fact(fact_id: str):
     """Récupère un fait par son ID."""
     if _fact_store is None:
@@ -245,7 +245,9 @@ async def get_fact(fact_id: str):
     return fact.to_dict()
 
 
-@router.get("/facts/{fact_id}/relations")
+@router.get(
+    "/facts/{fact_id}/relations", dependencies=[Depends(require_permission(Permission.ADMIN))]
+)
 async def get_fact_relations(fact_id: str):
     """Relations d'un fait."""
     if _fact_store is None:
@@ -253,7 +255,7 @@ async def get_fact_relations(fact_id: str):
     return [r.to_dict() for r in _fact_store.list_relations(fact_id)]
 
 
-@router.post("/facts")
+@router.post("/facts", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def create_fact(data: dict[str, Any]):
     """Crée un nouveau fait."""
     if _fact_store is None:
@@ -278,7 +280,7 @@ async def create_fact(data: dict[str, Any]):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/approval/pending")
+@router.get("/approval/pending", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def list_pending_approvals():
     """Liste les approbations en attente."""
     if _approval_engine is None:
@@ -319,7 +321,7 @@ async def test_skill(data: dict[str, Any]):
     return result.to_dict()
 
 
-@router.post("/skilllab/validate")
+@router.post("/skilllab/validate", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def validate_plugin(data: dict[str, Any]):
     """Valide un dossier de plugin."""
     if _skill_lab is None:
@@ -328,7 +330,7 @@ async def validate_plugin(data: dict[str, Any]):
     return result.to_dict()
 
 
-@router.get("/skilllab/results")
+@router.get("/skilllab/results", dependencies=[Depends(require_permission(Permission.ADMIN))])
 async def list_skilllab_results(skill_name: str | None = None):
     """Liste les résultats SkillLab."""
     if _skill_lab is None:

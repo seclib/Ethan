@@ -506,6 +506,7 @@ export function SkillsWorkspace() {
         destructive
         onConfirm={confirmDeleteSkill}
       />
+
     </div>
   );
 }

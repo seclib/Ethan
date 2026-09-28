@@ -267,7 +267,11 @@ else
         error "Échec de démarrage de l'API pour les migrations"
     else
         wait_for_health "api" 120 || true
-        if [ -f "${ETHAN_ROOT}/deploy/postgres/alembic/alembic.ini" ]; then
+        # Les migrations SQL numérotées (deploy/postgres/migrations/*.sql) sont
+        # la source de vérité du schéma : le script doit tourner même si Alembic
+        # n'a aucune révision (cf. migrations/README.md).
+        if [ -f "${ETHAN_ROOT}/deploy/postgres/alembic/alembic.ini" ] \
+            || [ -n "$(find "${ETHAN_ROOT}/deploy/postgres/migrations" -maxdepth 1 -name '*.sql' -print -quit 2>/dev/null)" ]; then
             "${SCRIPT_DIR}/cmd-migrate.sh" || warn "Les migrations ont retourné une erreur — poursuite du boot"
         else
             info "Aucun fichier de migration détecté. Ignoré."

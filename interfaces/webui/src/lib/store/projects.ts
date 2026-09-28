@@ -20,6 +20,7 @@ import {
 	deleteProject,
 	selectProject,
 	type Project,
+	type ProjectPatch,
 	type ProjectSelection,
 } from '@/lib/api/projects';
 import { ProjectContext } from '@/lib/api/projects';
@@ -35,15 +36,39 @@ export interface ProjectState {
 	/** Create + switch to a new project. */
 	createProject: (data: Partial<Project>) => Promise<Project>;
 	/** Update a project (optimistic on the list). */
-	updateProject: (id: string, data: Partial<Project>) => Promise<Project>;
+	updateProject: (id: string, data: ProjectPatch) => Promise<Project>;
 	/** Delete a project. */
 	deleteProject: (id: string) => Promise<void>;
 	/** Select / switch the active project. */
 	setActiveProject: (id: string | null) => Promise<void>;
 	/** Refresh active project context from Core. */
 	refreshActiveContext: () => Promise<void>;
+	/** Restaure la sélection persistée (refresh navigateur) — no-op si absente. */
+	restoreActiveProject: () => Promise<void>;
 	/** Clear errors. */
 	clearError: () => void;
+}
+
+/** Clé de persistance locale de la sélection (l'état métier reste au Core). */
+const ACTIVE_PROJECT_STORAGE_KEY = 'ethan.activeProjectId';
+
+function persistActiveProjectId(id: string | null): void {
+	if (typeof window === 'undefined') return;
+	try {
+		if (id) window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, id);
+		else window.localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY);
+	} catch {
+		// Stockage indisponible (mode privé…) : la sélection reste en mémoire.
+	}
+}
+
+function readPersistedActiveProjectId(): string | null {
+	if (typeof window === 'undefined') return null;
+	try {
+		return window.localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY);
+	} catch {
+		return null;
+	}
 }
 
 export const useProjectsStore = create<ProjectState>()(
@@ -75,6 +100,9 @@ export const useProjectsStore = create<ProjectState>()(
 						projects: [...s.projects, project],
 						loading: false,
 					}));
+					// Un projet fraîchement créé devient le scope actif (UX chat :
+					// créer un projet puis discuter dedans, sans étape manuelle).
+					await get().setActiveProject(project.id);
 					return project;
 				} catch (err: any) {
 					set({ error: err.message, loading: false });
@@ -102,12 +130,14 @@ export const useProjectsStore = create<ProjectState>()(
 				set({ loading: true, error: null });
 				try {
 					await deleteProject(id);
+					const wasActive = get().activeProject?.id === id;
 					set((s) => ({
 						projects: s.projects.filter((p) => p.id !== id),
 						activeProject: s.activeProject?.id === id ? null : s.activeProject,
 						activeContext: s.activeProject?.id === id ? null : s.activeContext,
 						loading: false,
 					}));
+					if (wasActive) persistActiveProjectId(null);
 				} catch (err: any) {
 					set({ error: err.message, loading: false });
 					throw err;
@@ -121,13 +151,27 @@ export const useProjectsStore = create<ProjectState>()(
 					if (id) {
 						const project = await getProject(id);
 						set({ activeProject: project, loading: false });
+						persistActiveProjectId(project.id);
 						await get().refreshActiveContext();
 					} else {
 						set({ activeProject: null, activeContext: null, loading: false });
+						persistActiveProjectId(null);
 					}
 				} catch (err: any) {
 					set({ error: err.message, loading: false });
 					throw err;
+				}
+			},
+
+			restoreActiveProject: async () => {
+				const stored = readPersistedActiveProjectId();
+				if (!stored) return;
+				if (get().activeProject?.id === stored) return;
+				try {
+					await get().setActiveProject(stored);
+				} catch {
+					// Projet supprimé côté Core : la préférence locale est purgée.
+					persistActiveProjectId(null);
 				}
 			},
 

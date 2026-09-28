@@ -16,6 +16,7 @@ Pas de delete/update côté Core : le WebUI ne doit pas les exposer non plus.
 import asyncio
 
 import pytest
+from core.plugins import PluginRegistry
 from core.state.record_store import CoreRecordStore
 from core.state.webui_store import CoreWebUIStore
 from fastapi import HTTPException
@@ -24,52 +25,55 @@ from routers import v1
 
 @pytest.fixture(autouse=True)
 def real_plugin_store():
-    """Vrai CoreWebUIStore (CoreRecordStore mémoire) injecté dans le router."""
-    v1.set_webui_store(CoreWebUIStore(CoreRecordStore()))
+    """Vrai CoreWebUIStore + PluginRegistry (CoreRecordStore mémoire) injectés.
+
+    Le router est ainsi câblé sur le catalogue Core réel (plugins github, slack…).
+    """
+    store = CoreRecordStore()
+    webui_store = CoreWebUIStore(store)
+    plugin_registry = PluginRegistry(store)
+    v1.set_webui_store(webui_store)
+    v1.set_plugin_registry(plugin_registry)
     yield
     v1.set_webui_store(None)
+    v1.set_plugin_registry(None)
 
 
 def test_list_seeds_default_plugins():
-    """Première liste : le Core amorce ses 2 plugins par défaut."""
+    """Première liste : le Core amorce tous les plugins du catalogue."""
     plugins = asyncio.run(v1.list_plugins())
     by_id = {p["id"]: p for p in plugins}
-    assert set(by_id) == {"github", "slack"}
-    assert by_id["github"]["status"] == "active"
-    assert by_id["slack"]["status"] == "inactive"
+    # Le catalogue Core contient github + slack au minimum.
+    assert "github" in by_id
+    assert "slack" in by_id
+    # Tous les seed sont en statut « available » (non installés) initialement.
+    assert by_id["github"]["status"] == "available"
     assert by_id["github"]["version"] == "1.0.0"
 
 
-def test_install_then_listed_inactive():
-    """Installation → enregistré en statut « inactive » (activation séparée).
-
-    Contrat réel du Core : les plugins par défaut ne sont seedés que par
-    list_plugins() sur un store VIDE. Une installation sur store vide fait
-    donc disparaître les défauts de la liste (quirk documenté, assumé —
-    le WebUI n'a pas à le compenser).
-    """
+def test_install_custom_then_listed():
+    """Installation custom → enregistré en statut « inactive »."""
     installed = asyncio.run(v1.install_plugin({"id": "my-plugin", "name": "Mon Plugin"}))
-    assert installed == {
-        "id": "my-plugin",
-        "name": "Mon Plugin",
-        "status": "inactive",
-        "version": "0.1.0",
-    }
+    assert installed["id"] == "my-plugin"
+    assert installed["name"] == "Mon Plugin"
+    assert installed["status"] == "inactive"
+    assert installed["version"] == "0.1.0"
 
     listed = asyncio.run(v1.list_plugins())
-    ids = [p["id"] for p in listed]
+    ids = [p["id"] for p in listed if p["source"] == "custom"]
     assert ids == ["my-plugin"]
 
 
 def test_install_after_first_list_keeps_defaults():
-    """Séquence normale (WebUI) : list d'abord (seed des défauts), puis install —
-    les défauts et le plugin installé coexistent."""
-    asyncio.run(v1.list_plugins())  # seed github + slack
+    """Séquence WebUI : list d'abord, puis install — coexistence catalogue + custom."""
+    asyncio.run(v1.list_plugins())  # seed du catalogue
     asyncio.run(v1.install_plugin({"id": "my-plugin", "name": "Mon Plugin"}))
 
     listed = asyncio.run(v1.list_plugins())
     ids = {p["id"] for p in listed}
-    assert ids == {"github", "slack", "my-plugin"}
+    assert "github" in ids
+    assert "slack" in ids
+    assert "my-plugin" in ids
 
 
 def test_install_generates_id_when_missing():
@@ -81,16 +85,15 @@ def test_install_generates_id_when_missing():
 
 
 def test_toggle_roundtrip():
-    """Toggle = bascule active ↔ inactive, persistée dans le store."""
-    first = asyncio.run(v1.toggle_plugin("github"))
-    assert first["status"] == "inactive"
+    """Enable sur un builtin seedé (available→active), puis disable (→inactive)."""
+    first = asyncio.run(v1.enable_plugin("github"))
+    assert first["status"] == "active"
 
-    # L'état basculé est bien persisté (relecture via get_plugin).
     fetched = asyncio.run(v1.get_plugin("github"))
-    assert fetched["status"] == "inactive"
+    assert fetched["status"] == "active"
 
-    second = asyncio.run(v1.toggle_plugin("github"))
-    assert second["status"] == "active"
+    second = asyncio.run(v1.disable_plugin("github"))
+    assert second["status"] == "inactive"
 
 
 def test_toggle_unknown_404():
@@ -110,8 +113,9 @@ def test_get_detail_known_and_unknown():
 
 
 def test_uninitialized_store_503():
-    """Sans store injecté (API non bootstrapée) → HTTP 503 explicite."""
+    """Sans store ni registry injecté (API non bootstrapée) → HTTP 503."""
     v1.set_webui_store(None)
+    v1.set_plugin_registry(None)
     with pytest.raises(HTTPException) as exc:
         asyncio.run(v1.list_plugins())
     assert exc.value.status_code == 503

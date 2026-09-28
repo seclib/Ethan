@@ -7,7 +7,13 @@
  * Sources:
  *   Documents:  /v1/rag/documents, /v1/projects/{id}/documents
  *   Knowledge:  /v1/knowledge, /v1/knowledge/collections
- *   Images:     /v1/files (with image filter)
+ *   Images:     /files (with image filter)
+ *
+ * NOTE (ORPHANED) : ce client n'est consommé que par
+ * components/features/library/library-workspace.tsx, qui n'est monté sur
+ * aucune page actuellement (pas de route /library). Les chemins ci-dessous
+ * sont vérifiés contre le backend (routers/domains.py) pour un remontage
+ * futur sans régression.
  *   Collections: /v1/knowledge/collections
  */
 
@@ -111,15 +117,16 @@ export async function listProjectDocuments(projectId: string): Promise<LibraryIt
 // ── Files (Images) ──────────────────────────────────────────────────
 
 export async function listImageFiles(): Promise<LibraryItem[]> {
-  const files = await apiFetch<Array<Record<string, unknown>>>('/v1/files');
+  // Core FileStore record shape: { id, filename, content_type, size, ... }
+  const files = await apiFetch<Array<Record<string, unknown>>>('/files');
   const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
   return files
-    .filter((f) => imageTypes.includes(f.mime_type as string))
+    .filter((f) => imageTypes.includes(f.content_type as string))
     .map((f) => ({
       id: f.id as string,
-      title: (f.name as string) || 'Untitled',
+      title: (f.filename as string) || 'Untitled',
       type: 'image' as const,
-      mime_type: f.mime_type as string,
+      mime_type: f.content_type as string,
       size: f.size as number,
       created_at: f.created_at as string,
     }));

@@ -13,7 +13,13 @@ from typing import Any, AsyncIterator
 
 from core.llm.registry import LLMProviderRegistry
 from core.llm.selector import LLMSelector
-from core.llm.types import ChatMessage, ChatResponse, LLMRequirements, ModelInfo
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    LLMRequirements,
+    ModelInfo,
+    model_supports_task,
+)
 from core.safety.circuit_breaker import CircuitBreaker, CircuitState
 
 logger = logging.getLogger(__name__)
@@ -37,6 +43,51 @@ class LLMClient:
                 timeout=60.0,
             )
         return self._breakers[provider_name]
+
+    def _resolve_default_model(self, provider_name: str, provider: Any) -> ModelInfo | None:
+        """Résout le ``default_model`` d'un provider dans le registre.
+
+        La configuration peut déclarer un modèle sans son tag (« llama3.1 »)
+        alors que le registre référence l'identifiant complet renvoyé par le
+        provider (« llama3.1:latest », « gpt-4o:2024-08-06 », …).  Sans
+        résolution, ``get_model()`` renvoie ``None`` et ``chat()`` échoue.
+
+        Ordre de résolution :
+        1. correspondance exacte de l'identifiant ;
+        2. correspondance par préfixe de tag (``id == default[:] ``) ;
+        3. premier modèle connu du provider (déterministe : ordre du registre).
+        """
+        default_model_id = getattr(provider, "default_model", None)
+        if default_model_id:
+            model = self.registry.get_model(default_model_id)
+            if model is not None:
+                return model
+            for candidate in self.registry.list_models(provider_name):
+                if candidate.id.startswith(f"{default_model_id}:"):
+                    logger.info(
+                        "Default model %r resolved to registry id %r for provider %s",
+                        default_model_id,
+                        candidate.id,
+                        provider_name,
+                    )
+                    return candidate
+
+        provider_models = self.registry.list_models(provider_name)
+        if provider_models:
+            # Repli : privilégier un modèle génératif. Certains runtimes
+            # locaux n'exposent que des encodeurs ou les mélangent aux modèles
+            # de chat ; retourner le premier de la liste donnerait alors un
+            # modèle incapable de répondre (→ circuit breaker OPEN).
+            chat_models = [m for m in provider_models if model_supports_task(m, "chat")]
+            chosen = (chat_models or provider_models)[0]
+            logger.info(
+                "Default model %r not found for provider %s, using %r",
+                default_model_id,
+                provider_name,
+                chosen.id,
+            )
+            return chosen
+        return None
 
     async def initialize(self) -> None:
         """Initialise le client."""
@@ -77,7 +128,13 @@ class LLMClient:
             raise RuntimeError(f"LLM provider {provider_name} failed (circuit breaker)")
 
         if self._cost_tracker and response.usage:
-            self._cost_tracker.track(model.provider, model.id, response.usage)
+            # `model` peut être None si le provider n'expose aucun modèle dans le
+            # registre : on retombe alors sur le provider effectivement appelé.
+            self._cost_tracker.track(
+                model.provider if model else provider_name,
+                model.id if model else "unknown",
+                response.usage,
+            )
 
         return response
 
@@ -123,8 +180,7 @@ class LLMClient:
                 continue
             try:
                 provider = self.registry.get_provider(name)
-                default_model_id = provider.default_model
-                model = self.registry.get_model(default_model_id)
+                model = self._resolve_default_model(name, provider)
                 return model, provider
             except Exception:
                 continue
@@ -135,8 +191,7 @@ class LLMClient:
         if not requirements:
             provider_name = self.registry.list_providers()[0]
             provider = self.registry.get_provider(provider_name)
-            default_model_id = provider.default_model
-            model = self.registry.get_model(default_model_id)
+            model = self._resolve_default_model(provider_name, provider)
             return model, provider
 
         all_models = self.registry.list_models()
@@ -146,8 +201,7 @@ class LLMClient:
             logger.warning("No model matched requirements, using default")
             provider_name = self.registry.list_providers()[0]
             provider = self.registry.get_provider(provider_name)
-            default_model_id = provider.default_model
-            model = self.registry.get_model(default_model_id)
+            model = self._resolve_default_model(provider_name, provider)
             return model, provider
 
         best = scored[0]

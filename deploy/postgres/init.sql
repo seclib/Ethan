@@ -253,8 +253,40 @@ BEGIN
 END;
 $$;
 
+-- ── Users table (migrations 003 + 006 in-linée dans init.sql pour boot neuf) ──
+-- Ces migrations sont normalement dans deploy/postgres/migrations/ mais ne sont
+-- pas orchéstrées par Alembic (voir audit P2-1). Les intégrer ici garantit que
+-- le boot d'un volume vierge crée la table users + TOTP sans étape manuelle.
+CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    username      TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    roles         TEXT[] NOT NULL DEFAULT '{user}',
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    totp_secret   TEXT NOT NULL DEFAULT '',
+    totp_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
+    metadata      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+
+-- Default admin user (password is 'admin' — change immediately in production).
+-- Hash bcrypt $2b$12$ (passlib default rounds).
+INSERT INTO users (id, username, password_hash, roles)
+VALUES (
+    'user_admin_00000000',
+    'admin',
+    '$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK',
+    '{admin}'
+) ON CONFLICT (username) DO NOTHING;
+
 INSERT INTO schema_migrations (version)
-VALUES ('0001_initial_schema')
+VALUES
+    ('0001_initial_schema'),
+    ('0003_create_users_table'),
+    ('006_add_totp_2fa')
 ON CONFLICT (version) DO NOTHING;
 
 DO $$

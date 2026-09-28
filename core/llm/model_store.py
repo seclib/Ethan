@@ -7,8 +7,14 @@ mais configurés manuellement par l'administrateur (ex: un modèle
 déployé sur un provider custom, un modèle local non listé, etc.).
 
 Chaque fiche contient :
+- ``provider`` : identifiant du provider qui sert réellement ce modèle
+  (ex: ``ollama``, ``vllm``). C'est le seul champ qui identifie un
+  *service* : le routage, le filtre par provider et la sélection dans le
+  chat en dépendent.
 - ``model`` : identifiant technique transmis au provider
-- ``base_model_id`` : référence au modèle découvert (ex: ``llama3.1``)
+- ``base_model_id`` : référence au modèle découvert (ex: ``llama3.1``) sur
+  lequel la fiche est bâtie. Ce n'est PAS un provider : une fiche peut
+  référencer un modèle découvert sans service connu.
 - ``params`` : paramètres de génération (temperature, max_tokens, etc.)
 - ``meta`` : métadonnées affichées (icône, description, tags)
 - ``is_active`` : activé pour la sélection automatique
@@ -68,6 +74,13 @@ class ModelStore:
         record: dict[str, Any] = {
             "id": model_id,
             "name": data.get("name", "unnamed"),
+            # Provider qui sert réellement ce modèle. Distingué de
+            # ``base_model_id`` (le modèle de base) : la frontière
+            # Provider / Modèle doit rester explicite dans la persistance,
+            # sinon le routage et le filtre par provider côté interface
+            # ne peuvent pas fonctionner. Une fiche sans provider déclaré
+            # reste exploitable mais NON routable.
+            "provider": data.get("provider", ""),
             "model": data.get("model", data.get("base_model_id", "")),
             "base_model_id": data.get("base_model_id", ""),
             "params": dict(data.get("params", {})),
@@ -88,7 +101,16 @@ class ModelStore:
         record = await self._store.get(_DOMAIN_MODELS, model_id)
         if record is None:
             return None
-        for key in ("name", "model", "base_model_id", "params", "meta", "is_active", "acl"):
+        for key in (
+            "name",
+            "provider",
+            "model",
+            "base_model_id",
+            "params",
+            "meta",
+            "is_active",
+            "acl",
+        ):
             if key in data:
                 record[key] = data[key]
         record["id"] = model_id
@@ -116,13 +138,14 @@ class ModelStore:
     # ── Search ────────────────────────────────────────────────────────
 
     async def search_models(self, q: str) -> list[dict[str, Any]]:
-        """Search custom model cards by name, base_model_id or meta tags."""
+        """Search custom model cards by name, provider, base_model_id or meta tags."""
         q_lower = q.lower()
         models = await self._store.list(_DOMAIN_MODELS)
         return [
             m
             for m in models
             if q_lower in m.get("name", "").lower()
+            or q_lower in m.get("provider", "").lower()
             or q_lower in m.get("base_model_id", "").lower()
             or any(q_lower in str(tag).lower() for tag in m.get("meta", {}).get("tags", []))
         ]

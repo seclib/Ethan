@@ -15,7 +15,7 @@ from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/search", tags=["search"])
+router = APIRouter(prefix="/v1/search", tags=["search"])
 
 _search_manager: SearchManager | None = None
 

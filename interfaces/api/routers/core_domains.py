@@ -12,8 +12,8 @@ from typing import Any
 
 from core.auth import Permission
 from core.domains import DomainManager
-from fastapi import APIRouter, Depends, HTTPException
-from interfaces.api.auth import require_permission
+from fastapi import APIRouter, Depends, HTTPException, Request
+from interfaces.api.auth import current_user_id, require_permission
 
 router = APIRouter(prefix="/v1/domains", tags=["domains"])
 
@@ -67,13 +67,13 @@ async def list_domains_of_resource(resource_type: str, resource_id: str):
 
 
 @router.post("", dependencies=[Depends(require_permission(Permission.MEMORY))])
-async def create_domain(data: dict[str, Any]):
+async def create_domain(data: dict[str, Any], request: Request = None):
     """Crée un domain de spécialité (nom unique, librement choisi)."""
     try:
         return await get_domain_manager().create_domain(
             data.get("name", ""),
             description=data.get("description", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             icon=data.get("icon"),
             color=data.get("color"),
             order=int(data["order"]) if data.get("order") is not None else 0,

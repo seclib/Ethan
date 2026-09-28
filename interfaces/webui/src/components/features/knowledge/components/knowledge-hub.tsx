@@ -4,10 +4,12 @@
  * KnowledgeHub — cockpit unifié d'organisation des connaissances ETHAN.
  *
  * Onglets : Tous les dossiers · Toutes les Knowledge · RAG Collections ·
- * Skills · Web Import.  Chaque panneau réutilise le workspace Core existant
- * (FoldersWorkspace, KnowledgeWorkspace, SkillsWorkspace) ou une vue dédiée
- * (RagCollectionsView, WebImportPanel).  Aucune logique métier ici : chaque
- * vue transmet des intentions au Core et affiche l'état retourné.
+ * Skills · Web Import (fonctionnalité unique : recherche multi-moteurs ou
+ * URL → sélection → destination explicite → indexation).  Chaque panneau
+ * réutilise le workspace Core existant (FoldersWorkspace, KnowledgeWorkspace,
+ * SkillsWorkspace) ou une vue dédiée (RagCollectionsView, WebImportPanel).
+ * Aucune logique métier ici : chaque vue transmet des intentions au Core et
+ * affiche l'état retourné.
  */
 
 import * as React from "react";
@@ -20,13 +22,15 @@ import { KnowledgeBrowser } from "@/components/features/knowledge/components/kno
 import { KnowledgeWorkspace } from "@/components/features/knowledge/components/knowledge-workspace";
 import { RagCollectionsView } from "@/components/features/knowledge/components/rag-collections-view";
 import { WebImportPanel } from "@/components/features/knowledge/components/web-import-panel";
+import { WebSearchPanel } from "@/components/features/knowledge/components/web-search-panel";
 import { SkillsWorkspace } from "@/components/features/skills/components/skills-workspace";
 import { DomainsWorkspace } from "@/components/features/domains/components/domains-workspace";
 
-type HubTab = "browser" | "domains" | "folders" | "knowledge" | "rag" | "skills" | "web";
+type HubTab = "browser" | "domains" | "folders" | "knowledge" | "rag" | "skills" | "web" | "web-search";
 
 const TABS: Array<{ id: HubTab; label: string; icon: React.ComponentType<{ size?: number | string; className?: string }> }> = [
   { id: "browser", label: "Navigateur", icon: FolderTree },
+  { id: "web-search", label: "Recherche Web", icon: Search },
   { id: "domains", label: "Domains", icon: Shapes },
   { id: "folders", label: "Tous les dossiers", icon: FolderTree },
   { id: "knowledge", label: "Toutes les Knowledge", icon: Database },
@@ -76,6 +80,7 @@ export function KnowledgeHub() {
         {tab === "folders" && <FoldersWorkspace />}
         {tab === "knowledge" && <KnowledgeWorkspace />}
         {tab === "rag" && <RagCollectionsView />}
+        {tab === "web-search" && <WebSearchPanel />}
         {tab === "skills" && <SkillsWorkspace />}
         {tab === "web" && <WebImportPanel />}
       </div>

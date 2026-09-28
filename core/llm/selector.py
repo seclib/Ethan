@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from core.llm.types import LLMRequirements, ModelInfo, ScoredModel
+from core.llm.types import LLMRequirements, ModelInfo, ScoredModel, model_supports_task
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,11 @@ class LLMSelector:
         filtered = []
 
         for model in models:
+            # Tâche supportée : un modèle d'embedding ne doit jamais être
+            # proposé pour une complétion de chat (et inversement).
+            if not model_supports_task(model, req.task_type):
+                continue
+
             # Exclure les providers exclus
             if model.provider in req.excluded_providers:
                 continue

@@ -521,16 +521,16 @@ check_infrastructure_services() {
     section "6. Services d'infrastructure"
 
     # NATS
-    info "NATS (port 4222)..."
-    if nc -z localhost 4222 2>/dev/null || (echo > /dev/tcp/localhost/4222) 2>/dev/null; then
-        check_pass "NATS : port 4222 ouvert"
-        if curl -sf "http://localhost:8222/varz" >/dev/null 2>&1; then
-            check_pass "NATS : monitoring HTTP actif (8222)"
+    info "NATS (port ${NATS_PORT})..."
+    if nc -z localhost "$NATS_PORT" 2>/dev/null || (echo > /dev/tcp/localhost/"$NATS_PORT") 2>/dev/null; then
+        check_pass "NATS : port ${NATS_PORT} ouvert"
+        if curl -sf "http://localhost:${NATS_MONITOR_PORT}/varz" >/dev/null 2>&1; then
+            check_pass "NATS : monitoring HTTP actif (${NATS_MONITOR_PORT})"
         else
-            check_warn "NATS : monitoring HTTP inaccessible (8222)"
+            check_warn "NATS : monitoring HTTP inaccessible (${NATS_MONITOR_PORT})"
         fi
     else
-        check_fail "NATS : port 4222 fermé"
+        check_fail "NATS : port ${NATS_PORT} fermé"
         show_fix \
             "NATS n'est pas accessible" \
             "docker compose ps nats && docker compose logs nats --tail 50" \
@@ -539,9 +539,9 @@ check_infrastructure_services() {
     fi
 
     # Redis
-    info "Redis (port 6379)..."
-    if nc -z localhost 6379 2>/dev/null || (echo > /dev/tcp/localhost/6379) 2>/dev/null; then
-        check_pass "Redis : port 6379 ouvert"
+    info "Redis (port ${REDIS_PORT})..."
+    if nc -z localhost "$REDIS_PORT" 2>/dev/null || (echo > /dev/tcp/localhost/"$REDIS_PORT") 2>/dev/null; then
+        check_pass "Redis : port ${REDIS_PORT} ouvert"
         # Le mot de passe vit dans .env (compose le lit) : sans lui, redis-cli
         # répond NOAUTH → faux FAIL.
         local redis_pass redis_ping
@@ -578,7 +578,7 @@ check_infrastructure_services() {
             fi
         fi
     else
-        check_fail "Redis : port 6379 fermé"
+        check_fail "Redis : port ${REDIS_PORT} fermé"
         show_fix \
             "Redis n'est pas accessible" \
             "docker compose ps redis && docker compose logs redis --tail 50" \
@@ -587,9 +587,9 @@ check_infrastructure_services() {
     fi
 
     # PostgreSQL
-    info "PostgreSQL (port 5432)..."
-    if nc -z localhost 5432 2>/dev/null || (echo > /dev/tcp/localhost/5432) 2>/dev/null; then
-        check_pass "PostgreSQL : port 5432 ouvert"
+    info "PostgreSQL (port ${POSTGRES_PORT})..."
+    if nc -z localhost "$POSTGRES_PORT" 2>/dev/null || (echo > /dev/tcp/localhost/"$POSTGRES_PORT") 2>/dev/null; then
+        check_pass "PostgreSQL : port ${POSTGRES_PORT} ouvert"
         if command -v psql &>/dev/null; then
             # Le mot de passe vit dans .env (compose le lit) : le doctor doit
             # le lire de la même façon, sinon faux FAIL d'authentification.
@@ -611,7 +611,7 @@ check_infrastructure_services() {
             check_warn "PostgreSQL : port ouvert mais psql non installé (test limité)"
         fi
     else
-        check_fail "PostgreSQL : port 5432 fermé"
+        check_fail "PostgreSQL : port ${POSTGRES_PORT} fermé"
         show_fix \
             "PostgreSQL n'est pas accessible" \
             "docker compose ps postgres && docker compose logs postgres --tail 50" \

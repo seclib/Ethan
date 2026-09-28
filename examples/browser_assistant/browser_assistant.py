@@ -19,8 +19,7 @@ import sys
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Web browsing agent that searches, navigates, "
-            "and synthesizes information from the web."
+            "Web browsing agent that searches, navigates, and synthesizes information from the web."
         ),
     )
     parser.add_argument(
@@ -53,8 +52,7 @@ def main() -> None:
         from openjarvis import Jarvis
     except ImportError:
         print(
-            "Error: openjarvis is not installed. "
-            "Install it with:  uv sync --extra dev",
+            "Error: openjarvis is not installed. Install it with:  uv sync --extra dev",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -74,10 +72,7 @@ def main() -> None:
     )
 
     print(f"Query: {args.query}")
-    print(
-        f"Model: {args.model}  |  Engine: {args.engine}"
-        f"  |  Max turns: {args.max_turns}"
-    )
+    print(f"Model: {args.model}  |  Engine: {args.engine}  |  Max turns: {args.max_turns}")
     print("-" * 60)
 
     try:

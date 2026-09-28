@@ -40,13 +40,22 @@ from core.skills.store import SkillStore
 from core.skills.validation import collect_unknown_tools
 from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
-from fastapi import APIRouter, Depends, HTTPException
-from interfaces.api.auth import require_permission
+from fastapi import APIRouter, Depends, HTTPException, Request
+from interfaces.api.auth import current_user_id, require_permission
 from interfaces.api.routers.folders import get_folder_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["v1"])
+
+# Convention d'isolation utilisateur : les handlers qui doivent connaître
+# l'identité de l'appelant reçoivent `request: Request = None`. L'annotation
+# DOIT être exactement `Request` (jamais `Request | None`) : FastAPI ne reconnaît
+# le paramètre spécial `Request` que dans ce cas (`lenient_issubclass`), sinon il
+# tente de le valider comme champ Pydantic et lève `FastAPIError: Invalid args
+# for response field`. Le défaut `None` n'est jamais utilisé en HTTP (FastAPI
+# injecte toujours la requête) ; il n'existe que pour les tests qui appellent les
+# handlers directement. `interfaces.api.auth.current_user_id` tolère `None`.
 
 # Format d'appel d'outil émis par le LLM lorsque des outils sont sélectionnés
 # dans le chat :  <tool name="nom">{"param": "valeur"}</tool>
@@ -868,7 +877,7 @@ async def update_skill_valves(skill_id: str, data: dict[str, Any]):
 @router.post(
     "/skills/{skill_id}/run", dependencies=[Depends(require_permission(Permission.EXECUTE))]
 )
-async def run_skill(skill_id: str, data: dict[str, Any]):
+async def run_skill(skill_id: str, data: dict[str, Any], request: Request = None):
     """Exécute une skill du catalogue via le ChatPipeline Core (moteur réel).
 
     Contrairement à ``/skills/{id}/execute`` (moteur à étapes des builtins,
@@ -894,7 +903,7 @@ async def run_skill(skill_id: str, data: dict[str, Any]):
         result = await pipeline.run(
             message=input_text,
             chat_id=data.get("chat_id"),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             provider_id=data.get("provider_id"),
             model=data.get("model"),
             skill_ids=[skill_id],
@@ -934,17 +943,25 @@ async def search_knowledge(q: str = ""):
 
 
 @router.get("/knowledge/collections")
-async def list_collections(user_id: str | None = None):
-    return await get_knowledge_collections().list_collections(user_id=user_id)
+async def list_collections(request: Request = None, user_id: str | None = None):
+    """Collections de l'utilisateur courant (identité issue du JWT).
+
+    ``user_id`` n'est qu'un repli pour les clients internes sans JWT : les
+    collections sont isolées par utilisateur, un client ne peut pas lister
+    celles d'un autre compte.
+    """
+    return await get_knowledge_collections().list_collections(
+        user_id=current_user_id(request) or user_id
+    )
 
 
 @router.post("/knowledge/collections")
-async def create_collection(data: dict[str, Any]):
+async def create_collection(data: dict[str, Any], request: Request = None):
     try:
         return await get_knowledge_collections().create_collection(
             name=data.get("name", ""),
             description=data.get("description", ""),
-            user_id=data.get("user_id", "anonymous"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
             metadata=data.get("metadata"),
             parent_id=data.get("parent_id"),
             icon=data.get("icon"),
@@ -956,9 +973,13 @@ async def create_collection(data: dict[str, Any]):
 
 
 @router.get("/knowledge/collections/tree")
-async def list_collections_tree(user_id: str | None = None):
-    """Liste les collections en arborescence (dossiers organisables)."""
-    return await get_knowledge_collections().list_tree(user_id=user_id)
+async def list_collections_tree(request: Request = None, user_id: str | None = None):
+    """Liste les collections en arborescence (dossiers organisables).
+
+    Identité issue du JWT (isolation par utilisateur) ; ``user_id`` ne sert
+    que de repli pour les clients internes.
+    """
+    return await get_knowledge_collections().list_tree(user_id=current_user_id(request) or user_id)
 
 
 @router.post("/knowledge/collections/retrieve-multi")
@@ -1413,7 +1434,7 @@ async def update_settings(data: dict[str, Any]):
 
 
 @router.post("/chat/completions/stream")
-async def chat_completions_stream(data: dict[str, Any]):
+async def chat_completions_stream(data: dict[str, Any], request: Request = None):
     """Chat completion streaming via le ChatPipeline Core (SSE).
 
     Le frontend envoie le provider_id, le modèle et le message. Le backend
@@ -1431,7 +1452,7 @@ async def chat_completions_stream(data: dict[str, Any]):
     provider_id = data.get("provider_id") or data.get("provider")
     model = data.get("model")
     chat_id: str | None = data.get("chat_id")
-    user_id = data.get("user_id", "anonymous")
+    user_id = current_user_id(request) or data.get("user_id", "anonymous")
     skill_ids = data.get("skill_ids") or None
     tool_ids = data.get("tool_ids") or None
     plugin_ids = data.get("plugin_ids") or None
@@ -1455,7 +1476,8 @@ async def chat_completions_stream(data: dict[str, Any]):
             tool_ids, \
             reasoning_effort, \
             request_metadata, \
-            agent_id
+            agent_id, \
+            project_id
         try:
             # 1. Créer ou réutiliser la conversation.
             cid = chat_id
@@ -1463,10 +1485,18 @@ async def chat_completions_stream(data: dict[str, Any]):
                 chat_record = await pipeline._chats.get_chat(cid)
                 if chat_record is None:
                     raise HTTPException(404, f"Chat {cid} not found")
+                # Le rattachement de la conversation prime : une conversation
+                # existante conserve son Project (isolation des historiques).
+                # La requête ne peut que rattacher une conversation orpheline.
+                if chat_record.get("project_id"):
+                    project_id = chat_record["project_id"]
+                elif project_id:
+                    await pipeline._chats.update_chat(cid, {"project_id": project_id})
             else:
                 chat_record = await pipeline._chats.create_chat(
                     title=user_message[:60] or "New Chat",
                     user_id=user_id,
+                    project_id=project_id,
                     metadata=request_metadata,
                 )
                 cid = chat_record["id"]
@@ -1609,11 +1639,7 @@ async def chat_completions_stream(data: dict[str, Any]):
             if pipeline._manager is None:
                 # Fallback écho.
                 content = f"[ECHO] {user_message}"
-                yield (
-                    "data: "
-                    + json.dumps({"type": "content", "chat_id": cid, "content": content})
-                    + "\n\n"
-                )
+                yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': content})}\n\n"  # noqa: E501
                 await pipeline._chats.add_message(
                     cid,
                     role="assistant",
@@ -1686,11 +1712,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                         if chunk:
                             round_content += chunk
                             full_content += chunk
-                            yield (
-                                "data: "
-                                + json.dumps({"type": "content", "chat_id": cid, "content": chunk})
-                                + "\n\n"
-                            )
+                            yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"  # noqa: E501
 
                     calls = _parse_tool_calls(round_content)
                     if not calls or round_index == MAX_TOOL_ROUNDS:
@@ -1702,18 +1724,7 @@ async def chat_completions_stream(data: dict[str, Any]):
                     result_lines: list[str] = []
                     for call in calls:
                         name = call["name"]
-                        yield (
-                            "data: "
-                            + json.dumps(
-                                {
-                                    "type": "tool_call",
-                                    "chat_id": cid,
-                                    "tool": name,
-                                    "params": call["params"],
-                                }
-                            )
-                            + "\n\n"
-                        )
+                        yield f"data: {json.dumps({'type': 'tool_call', 'chat_id': cid, 'tool': name, 'params': call['params']})}\n\n"  # noqa: E501
                         outcome = await pipeline.execute_tool_call(
                             name,
                             call["params"],
@@ -1728,30 +1739,12 @@ async def chat_completions_stream(data: dict[str, Any]):
                             f"[Résultat outil « {name} » ({outcome.get('status')})]\n{summary}"
                         )
                         notes[name] = f"_[Outil « {name} » exécuté ({outcome.get('status')})]_"
-                        yield (
-                            "data: "
-                            + json.dumps(
-                                {
-                                    "type": "tool_result",
-                                    "chat_id": cid,
-                                    "tool": name,
-                                    "status": outcome.get("status"),
-                                    "output": str(summary)[:2000],
-                                }
-                            )
-                            + "\n\n"
-                        )
+                        yield f"data: {json.dumps({'type': 'tool_result', 'chat_id': cid, 'tool': name, 'status': outcome.get('status'), 'output': str(summary)[:2000]})}\n\n"  # noqa: E501
 
                     # Les blocs bruts sont remplacés par une note lisible
                     # dans le contenu affiché puis persisté.
                     full_content = _strip_tool_blocks(full_content, notes)
-                    yield (
-                        "data: "
-                        + json.dumps(
-                            {"type": "content_replace", "chat_id": cid, "content": full_content}
-                        )
-                        + "\n\n"
-                    )
+                    yield f"data: {json.dumps({'type': 'content_replace', 'chat_id': cid, 'content': full_content})}\n\n"  # noqa: E501
 
                     # Continuation : réponse intermédiaire + résultats
                     # d'outils injectés dans le contexte du tour suivant.
@@ -1819,7 +1812,7 @@ async def chat_completions_stream(data: dict[str, Any]):
 
 
 @router.post("/chat/completions")
-async def chat_completions(data: dict[str, Any]):
+async def chat_completions(data: dict[str, Any], request: Request = None):
     """Chat completion non-streaming via le ChatPipeline Core.
 
     Le frontend envoie le provider_id, le modèle et le message. Le backend
@@ -1831,20 +1824,26 @@ async def chat_completions(data: dict[str, Any]):
     """
     pipeline = get_chat_pipeline()
 
-    result = await pipeline.run(
-        message=data.get("message", ""),
-        chat_id=data.get("chat_id"),
-        user_id=data.get("user_id", "anonymous"),
-        provider_id=data.get("provider_id") or data.get("provider"),
-        model=data.get("model"),
-        parent_id=data.get("parent_id"),
-        skill_ids=data.get("skill_ids"),
-        tool_ids=data.get("tool_ids"),
-        knowledge_ids=data.get("knowledge_ids") or data.get("collection_ids"),
-        file_ids=data.get("file_ids"),
-        agent_id=(data.get("metadata") or {}).get("agent_id") or data.get("agent_id"),
-        metadata=data.get("metadata"),
-    )
+    try:
+        result = await pipeline.run(
+            message=data.get("message", ""),
+            chat_id=data.get("chat_id"),
+            user_id=current_user_id(request) or data.get("user_id", "anonymous"),
+            provider_id=data.get("provider_id") or data.get("provider"),
+            model=data.get("model"),
+            parent_id=data.get("parent_id"),
+            skill_ids=data.get("skill_ids"),
+            tool_ids=data.get("tool_ids"),
+            knowledge_ids=data.get("knowledge_ids") or data.get("collection_ids"),
+            file_ids=data.get("file_ids"),
+            agent_id=(data.get("metadata") or {}).get("agent_id") or data.get("agent_id"),
+            project_id=data.get("project_id") or (data.get("metadata") or {}).get("project_id"),
+            metadata=data.get("metadata"),
+        )
+    except RuntimeError as exc:
+        # Provider indisponible / circuit breaker ouvert (même convention que
+        # le endpoint streaming : 502 explicite, pas un 500 brut).
+        raise HTTPException(502, f"Provider unavailable: {exc}") from exc
 
     return {
         "id": str(uuid.uuid4()),
@@ -1860,14 +1859,16 @@ async def chat_completions(data: dict[str, Any]):
     }
 
 
-@router.get("/chat/history")
-async def chat_history(limit: int = 50):
-    """Historique des conversations Core (ChatStore), plus le store WebUI.
+@router.get("/chat/history", dependencies=[Depends(require_permission(Permission.READ))])
+async def chat_history(limit: int = 50, request: Request = None):
+    """Historique des conversations Core (ChatStore) de l'utilisateur courant.
 
-    Retourne les messages de toutes les conversations du ChatStore Core.
+    L'utilisateur est déduit du JWT (request.state.user) — jamais depuis le query
+    string — pour garantir l'isolation entre utilisateurs.
     """
+    uid = current_user_id(request)
     chat_store = get_chat_store()
-    chats = await chat_store.list_chats()
+    chats = await chat_store.list_chats(user_id=uid)
     messages: list[dict[str, Any]] = []
     for chat_record in chats:
         messages.extend(await chat_store.list_messages(chat_record["id"]))
@@ -1890,7 +1891,17 @@ def set_plugin_registry(registry: PluginRegistry | None) -> None:
 
 def _plugins() -> PluginRegistry:
     if _plugin_registry is None:
-        raise HTTPException(503, "PluginRegistry not initialized")
+        # Filet de sécurité : si l'injection du lifespan de main.py est
+        # manquée, retomber sur le singleton Core (la MÊME instance, pas un
+        # second registre) puis mémoïser, au lieu de renvoyer 503 à vie.
+        from core.plugins import get_plugin_registry
+
+        try:
+            registry = get_plugin_registry()
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        set_plugin_registry(registry)
+        return registry
     return _plugin_registry
 
 
@@ -1932,13 +1943,21 @@ async def get_plugin_capabilities(plugin_id: str):
 
 @router.post("/plugins/install")
 async def install_plugin(data: dict[str, Any]):
-    """Compatibilité : installe par id catalogue, sinon enregistre un custom."""
+    """Installe un plugin du catalogue (par id) ou, à défaut, un plugin custom.
+
+    Si ``id`` est fourni mais absent du catalogue, le Core enregistre un plugin
+    custom portant cet ``id`` (l'identifiant est preservé — pas de uuid4 forcé)
+    : le WebUI peut ainsi créer un plugin custom nommé.
+    """
     plugin_id = data.get("id")
     try:
         if plugin_id:
             installed = await _plugins().install(str(plugin_id))
             if installed is not None:
                 return installed
+            # id fourni mais absent du catalogue → plugin custom portant cet id.
+            name = str(data.get("name", "Unknown Plugin"))
+            return await _plugins().install_custom(name, plugin_id=str(plugin_id))
         return await _plugins().install_custom(str(data.get("name", "Unknown Plugin")))
     except ValueError as exc:
         # Validation Core du manifest (PluginValidator) rejetée.

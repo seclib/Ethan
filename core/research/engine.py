@@ -59,24 +59,37 @@ class DeepResearchEngine:
 
     async def _search(self, query: str) -> list[dict[str, Any]]:
         try:
-            context = self._make_context()
+            context = self._make_context(query)
             result = await self._tools.execute_by_capability("search", {"query": query}, context)
             if getattr(result, "status", "") != "success":
                 return []
-            data = getattr(result, "result", None) or getattr(result, "data", None) or []
+            # ToolResult expose la charge utile dans ``output`` (cf.
+            # core.tools.types) ; ``result``/``data`` ne sont jamais peuplés
+            # par ToolExecutor — l'ancien code ne trouvait donc JAMAIS de
+            # sources. Compat ascendante : on garde les anciens champs en
+            # fallback.
+            data = (
+                getattr(result, "output", None)
+                or getattr(result, "result", None)
+                or getattr(result, "data", None)
+                or []
+            )
             return self._normalize_sources(data)
         except Exception as exc:  # noqa: BLE001 — la recherche est best-effort
             logger.warning("DeepResearch: search failed for %r: %s", query, exc)
             return []
 
     @staticmethod
-    def _make_context() -> Any:
+    def _make_context(query: str) -> Any:
+        """Construit le ToolContext d'exécution.
+
+        ``ToolContext.query`` est requis (cf. core.tools.types) : l'ancien
+        code l'omettait — TypeError systématique, fallback ``ToolContext()`
+        lui aussi invalide, donc AUCUNE recherche ne pouvait s'exécuter.
+        """
         from core.tools.types import ToolContext
 
-        try:
-            return ToolContext(user_id="deep-research")
-        except TypeError:
-            return ToolContext()
+        return ToolContext(query=query, user_id="deep-research")
 
     @staticmethod
     def _normalize_sources(data: Any) -> list[dict[str, Any]]:

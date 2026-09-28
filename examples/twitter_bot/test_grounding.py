@@ -41,7 +41,10 @@ MENTION = {
 
 def _ask_once(j, demo_channel, backend):
     prompt, top_score = _resolve_question_prompt(
-        backend, MENTION["author"], MENTION["id"], MENTION["text"],
+        backend,
+        MENTION["author"],
+        MENTION["id"],
+        MENTION["text"],
     )
     demo_channel.last_sent = None
     response = j.ask(
@@ -60,6 +63,7 @@ def main():
 
     sys.path.insert(0, str(_THIS.parents[1] / "scripts"))
     from index_docs import build_index  # type: ignore
+
     sys.path.pop(0)
 
     model = "gemma4:31b"
@@ -91,10 +95,7 @@ def main():
     hits = backend.retrieve(MENTION["text"], top_k=3)
     for i, h in enumerate(hits, 1):
         preview = h.content.replace("\n", " ")[:180]
-        print(
-            f"  [{i}] score={h.score:.3f}  src={h.source}"
-            f"  bc={h.metadata.get('breadcrumb', '')}"
-        )
+        print(f"  [{i}] score={h.score:.3f}  src={h.source}  bc={h.metadata.get('breadcrumb', '')}")
         print(f"      {preview}{'...' if len(h.content) > 180 else ''}")
     print()
 
@@ -111,9 +112,19 @@ def main():
     print()
 
     grounding_terms = [
-        "llama.cpp", "llama cpp", "4b", "metal", "apple silicon",
-        "cpu-only", "cpu only", "rocm", "quantization", "ollama",
-        "vllm", "sglang", "mlx",
+        "llama.cpp",
+        "llama cpp",
+        "4b",
+        "metal",
+        "apple silicon",
+        "cpu-only",
+        "cpu only",
+        "rocm",
+        "quantization",
+        "ollama",
+        "vllm",
+        "sglang",
+        "mlx",
     ]
     r2_lower = reply_2.lower()
     mentioned = [t for t in grounding_terms if t in r2_lower]

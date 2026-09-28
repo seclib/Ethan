@@ -41,7 +41,8 @@ import {
 	DEFAULT_MODEL_FILTERS,
 	filterModelCatalog,
 	isModelActivationEditable,
-	modelAvailabilityLabel,
+	modelStateLabel,
+	modelProviderLabel,
 	sortModelCatalog,
 	type ModelCatalogFilters,
 	type ModelSortKey,
@@ -564,6 +565,7 @@ export function ModelsWorkspace() {
 				open={presetTarget !== null}
 				model={presetTarget?.model ?? null}
 				basedOn={presetTarget?.basedOn ?? null}
+				providers={providers}
 				onClose={() => setPresetTarget(null)}
 				onSubmit={handlePresetSubmit}
 			/>
@@ -591,7 +593,7 @@ export function ModelsWorkspace() {
 										<th key={modelKey(model)} className="px-2 py-2 text-foreground">
 											{model.name}
 											<span className="block font-mono text-[10px] text-foreground-tertiary">
-												{model.provider}
+												{modelProviderLabel(model)}
 											</span>
 										</th>
 									))}
@@ -759,7 +761,7 @@ function ModelCard({
 			</div>
 
 			<div className="mt-2 flex items-center gap-2 text-xs text-foreground-tertiary">
-				<span className="truncate">{model.provider}</span>
+				<span className="truncate">{modelProviderLabel(model)}</span>
 				{model.is_custom && (
 					<Badge variant="accent" size="sm">
 						custom
@@ -783,11 +785,11 @@ function ModelCard({
 				<span>Qualité : {Math.round((model.quality_score || 0) * 100)}%</span>
 				{model.is_available ? (
 					<Badge variant="success" size="sm">
-						{modelAvailabilityLabel(model)}
+						{modelStateLabel(model)}
 					</Badge>
 				) : (
 					<Badge variant="error" size="sm">
-						{modelAvailabilityLabel(model)}
+						{modelStateLabel(model)}
 					</Badge>
 				)}
 			</div>
@@ -842,7 +844,7 @@ function ModelListRow({
 					)}
 				</div>
 				<p className="truncate font-mono text-xs text-foreground-tertiary">
-					{model.provider} · {model.model}
+					{modelProviderLabel(model)} · {model.model}
 					{model.context_length ? ` · ${model.context_length.toLocaleString()} ctx` : ""}
 				</p>
 			</div>
@@ -1001,7 +1003,7 @@ function ModelTable({
 								{model.model}
 							</span>
 						</td>
-						<td className="px-2 py-2 text-foreground-secondary">{model.provider}</td>
+						<td className="px-2 py-2 text-foreground-secondary">{modelProviderLabel(model)}</td>
 						<td className="px-2 py-2 text-foreground-secondary">
 							{model.context_length ? model.context_length.toLocaleString() : "—"}
 						</td>
@@ -1018,7 +1020,7 @@ function ModelTable({
 								variant={model.is_available ? "success" : "error"}
 								size="sm"
 							>
-								{modelAvailabilityLabel(model)}
+								{modelStateLabel(model)}
 							</Badge>
 						</td>
 						<td className="px-2 py-2">
@@ -1078,7 +1080,7 @@ function ModelConfigPanel({
 				<div className="min-w-0">
 					<p className="text-sm font-medium text-foreground">{model.name}</p>
 					<p className="truncate font-mono text-xs text-foreground-tertiary">
-						{model.model} · {model.provider}
+						{model.model} · {modelProviderLabel(model)}
 						{model.is_local ? " · local" : ""}
 					</p>
 				</div>
@@ -1132,7 +1134,7 @@ function ModelConfigPanel({
 				</div>
 				<div>
 					<p className="text-foreground-tertiary">Disponibilité</p>
-					<p className="text-foreground">{modelAvailabilityLabel(model)}</p>
+					<p className="text-foreground">{modelStateLabel(model)}</p>
 				</div>
 			</div>
 

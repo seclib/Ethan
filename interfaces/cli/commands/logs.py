@@ -21,13 +21,13 @@ def cmd_logs(args):
     if args[0] == "--errors":
         for e in logs.query_errors(20):
             print(
-                f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"
+                f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"  # noqa: E501
             )
         return 0
 
     # text search
     for e in logs.query_text(args[0], 20):
         print(
-            f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"
+            f"  {e['ts']} {e['command']} -> {e['status']} ({e['latency_ms']}ms) {e.get('error', '')}"  # noqa: E501
         )
     return 0

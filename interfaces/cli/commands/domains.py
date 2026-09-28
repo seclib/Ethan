@@ -59,7 +59,7 @@ def cmd_agents(args: list[str]) -> int:
         _print(_request("GET", f"/v1/agents/{args[1]}/executions"))
     else:
         print(
-            "usage: ethan agents [list|create <name> [capability...]|start|pause|stop|executions <id>]"
+            "usage: ethan agents [list|create <name> [capability...]|start|pause|stop|executions <id>]"  # noqa: E501
         )
         return 1
     return 0
@@ -83,7 +83,7 @@ def cmd_missions(args: list[str]) -> int:
         _print(_request("POST", f"/v1/missions/{args[1]}/steps/{args[2]}/{action}"))
     else:
         print(
-            "usage: ethan missions [list|create <title>|show <id>|verify <mission> <step>|approve <mission> <step>]"
+            "usage: ethan missions [list|create <title>|show <id>|verify <mission> <step>|approve <mission> <step>]"  # noqa: E501
         )
         return 1
     return 0

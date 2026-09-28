@@ -43,14 +43,21 @@ def show_system_check():
     print(clr.section("Checking system..."))
     print()
 
-    # API check
+    # API check — port host surchargeur (ETHAN_API_PORT, docs/installation.md §7)
+    _api_port = os.getenv("ETHAN_API_PORT", "8000")
     if alive():
-        print(f"  {clr.C.GREEN}{clr.I.CHECK} API reachable{clr.C.RESET}           localhost:8000")
+        print(
+            f"  {clr.C.GREEN}{clr.I.CHECK} API reachable{clr.C.RESET}           localhost:{_api_port}"
+        )
     else:
-        print(f"  {clr.C.YELLOW}{clr.I.WARN} API unreachable{clr.C.RESET}        localhost:8000")
+        print(
+            f"  {clr.C.YELLOW}{clr.I.WARN} API unreachable{clr.C.RESET}        localhost:{_api_port}"
+        )
 
     # Event bus (simplified check)
-    print(f"  {clr.C.GREEN}{clr.I.CHECK} Event bus connected{clr.C.RESET}    nats://localhost:4222")
+    print(
+        f"  {clr.C.GREEN}{clr.I.CHECK} Event bus connected{clr.C.RESET}    nats://localhost:{os.getenv('NATS_PORT', '4222')}"
+    )
 
     # Memory
     mem_dir = os.path.expanduser("~/.ethan")

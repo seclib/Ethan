@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/ethan-lib.sh"
 timer_start
 require_python
 
-PORT="${PORT:-8000}"
+PORT="${PORT:-${ETHAN_API_PORT:-8000}}"
 RELOAD=false
 
 for arg in "$@"; do
@@ -43,7 +43,7 @@ if [ "$RELOAD" = true ]; then
 fi
 
 info "Démarrage sur http://localhost:${PORT}"
-info "NATS : ${NATS_URL:-nats://localhost:4222}"
+info "NATS : ${NATS_URL:-nats://localhost:${NATS_PORT}}"
 
 PYTHONPATH="${ETHAN_ROOT}/core:${API_DIR}:${ETHAN_ROOT}" \
     uvicorn api.main:app \

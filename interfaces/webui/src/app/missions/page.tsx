@@ -52,15 +52,7 @@ export default function MissionsPage() {
   return (
     <div className="h-full min-h-0 overflow-y-auto">
       <div className="mx-auto max-w-5xl space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-              <Target className="text-accent" size={22} /> Missions
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Workflow missions autonomes exécutées par ETHAN Core.
-            </p>
-          </div>
+        <div className="flex items-center justify-end">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
             <RefreshCw size={14} /> Rafraîchir
           </Button>

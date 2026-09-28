@@ -125,8 +125,7 @@ def _register_task(gym: str) -> None:
         click.echo("  Schedule: MWF at 6:00 AM UTC")
         click.echo(f"  Next run: {task.next_run}")
         click.echo(
-            "\nStart the scheduler daemon to execute tasks automatically:\n"
-            "  jarvis scheduler start"
+            "\nStart the scheduler daemon to execute tasks automatically:\n  jarvis scheduler start"
         )
     except Exception as exc:
         click.echo(f"Error registering task: {exc}", err=True)

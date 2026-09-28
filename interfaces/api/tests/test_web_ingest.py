@@ -16,13 +16,13 @@ from core.knowledge.web_ingest import WebIngestionManager
 from core.rag import RAGPipeline
 from core.state import CoreRecordStore
 from fastapi import HTTPException
+from interfaces.api.routers import v1
 from interfaces.api.routers import web_ingest as routes
 from interfaces.api.routers.folders import set_folder_manager
 from interfaces.api.routers.web_ingest import (
     get_web_ingest_manager,
     set_web_ingest_manager,
 )
-from routers import v1
 
 HOST = "https://docs.example.com"
 

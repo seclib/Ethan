@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: ethan-webui
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://localhost:8080
@@ -27,7 +27,7 @@ services:
     image: ethan/kernel:latest
     container_name: ethan-kernel
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - DATABASE_URL=postgres://ethan:ethan@postgres:5432/ethan
       - REDIS_URL=redis://redis:6379
@@ -54,7 +54,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ethan"]
       interval: 10s
@@ -72,7 +72,7 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -88,7 +88,7 @@ services:
     container_name: ethan-nats
     command: -js
     ports:
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "4222"]
       interval: 10s
