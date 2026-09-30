@@ -32,7 +32,6 @@ from core.projects import ProjectManager
 from core.state import CoreRecordStore
 from core.state.chats import ChatStore
 
-
 # ── Doubles de test (aucun appel réseau) ────────────────────────────────
 
 
@@ -79,7 +78,9 @@ class _FakeProviderManager:
 
     async def chat(self, messages: list[Any], requirements: Any = None, **_: Any) -> _FakeLLMResult:
         preferred = list(getattr(requirements, "preferred_providers", None) or [])
-        self.chat_calls.append({"messages": list(messages), "provider": preferred[0] if preferred else None})
+        self.chat_calls.append(
+            {"messages": list(messages), "provider": preferred[0] if preferred else None}
+        )
         return _FakeLLMResult("auto")
 
 
@@ -142,7 +143,6 @@ def projects(store: CoreRecordStore) -> ProjectManager:
 @pytest.fixture()
 def chats(store: CoreRecordStore) -> ChatStore:
     return ChatStore(store=store)
-
 
 
 # ── 1-3. Cycle de vie du Project ────────────────────────────────────────
@@ -322,7 +322,6 @@ async def test_unassigned_scope_excludes_project_chats(chats: ChatStore, project
     assert {c["id"] for c in all_chats} == {in_project["id"], orphan["id"]}
 
 
-
 # ── 7-9. Contexte projet dans le ChatPipeline ───────────────────────────
 
 
@@ -389,7 +388,9 @@ async def test_pipeline_inherits_project_context(chats: ChatStore, projects: Pro
 
 
 @pytest.mark.asyncio
-async def test_pipeline_request_overrides_project_defaults(chats: ChatStore, projects: ProjectManager):
+async def test_pipeline_request_overrides_project_defaults(
+    chats: ChatStore, projects: ProjectManager
+):
     """8. L'appel explicite du chat gagne sur les défauts du projet."""
     project = await projects.create_project(user_id="alice", name="Défauts")
     project = await projects.update_project(
@@ -409,7 +410,6 @@ async def test_pipeline_request_overrides_project_defaults(chats: ChatStore, pro
     assert call["model"] == "request-model"
     # Le provider par défaut du projet n'a pas été appelé.
     assert manager.provider("fake-provider").calls == []
-
 
 
 @pytest.mark.asyncio
@@ -477,7 +477,6 @@ async def test_pipeline_agent_default_from_project(chats: ChatStore, projects: P
     # La requête explicite gagne sur le défaut du projet.
     await pipeline.run(message="m2", user_id="alice", project_id=project["id"], agent_id="agent-2")
     assert "Tu es l'agent « Writer »." in _system_prompt(manager)
-
 
 
 # ── 11. Persistance après redémarrage applicatif ────────────────────────

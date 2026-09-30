@@ -27,13 +27,13 @@
 | Unification `plugins/sandbox` | `sandbox.py` → `sandbox/core.py`, `__init__.py` mis à jour pour exporter `PluginSandbox`, `PluginRuntime` |
 | Unification `colors.py` | `interfaces/cli/ui/colors.py` supprimé, `config_cmd.py` mis à jour vers `core/colors.py` |
 
-### Phase 2 — Reporté
+### Phase 2 — Reporté → clôturé le 29/09/2026
 
-| Action | Raison |
-|--------|--------|
-| Unification `core/skills/` + `core/tools/` | `core/skills/` importe `ToolManager` depuis `core.tools.manager` — unification nécessite un refactoring plus approfondi |
-| Correction `nats_bus.py` Event type | `nats_bus.py` définit sa propre classe `Event` — nécessite de vérifier la compatibilité avec `kernel.py` |
-| Consolidation commandes plugin | `plugin.py` vs `plugin_cmd.py` vs `plugins.py` — chargement dynamique, nécessite analyse du registry |
+| Action | Raison initiale (22/07/2026) | Résolution (29/09/2026) |
+|--------|--------|--------|
+| Unification `core/skills/` + `core/tools/` | `core/skills/` importe `ToolManager` depuis `core.tools.manager` — unification nécessite un refactoring plus approfondi | **Merge rejeté (décision architecturale)** : la dépendance skills→tools est un layering unidirectionnel correct (Skill = étapes d'outils), pas un doublon. `core.tools` porte la frontière de sécurité (ToolExecutor enforcer P0-2, MCP, egress) — fusionner flouterait cette frontière et casserait ~40 consommateurs. Résolu par : note de layering dans `core/skills/__init__.py`, déduplication de la construction `ToolContext` (`SkillExecutor._to_tool_context`) |
+| Correction `nats_bus.py` Event type | `nats_bus.py` définit sa propre classe `Event` — nécessite de vérifier la compatibilité avec `kernel.py` | **Déjà résolu** : `nats_bus.py` (comme `memory_bus.py` et le contrat `interface.py`) importe `core.ethan_types.event.Event` (canonique) ; `core/kernel.py` utilise le contrat `EventBus`. Nettoyé : `core/bus/__init__.py` ré-exporte désormais `Event` depuis la source canonique (plus via `nats_bus`). Test garde-fou : `tests/core/test_events.py::TestCanonicalEvent` |
+| Consolidation commandes plugin | `plugin.py` vs `plugin_cmd.py` vs `plugins.py` — chargement dynamique, nécessite analyse du registry | **Déjà résolue** par commit `5820a527` (24/09/2026) : `plugin_cmd.py` + `plugins.py` supprimés, `plugin.py` unifié (`validate|install|remove|list|info`), `discover_commands()` en chargeur unique, `tests/test_cli_plugin_cmd.py` (12 tests) |
 
 ---
 
@@ -424,12 +424,12 @@ La structure actuelle ne correspond pas à l'architecture cible `core/ | runtime
 7. Supprimer `interfaces/mcp/` (section 19)
 
 ### Phase 2 — Résolution de duplications (risque modéré)
-1. Unifier `core/bus/nats.py` + `nats_bus.py` → garder `nats_bus.py`, corriger l'Event type
-2. Unifier `core/bus/memory.py` + `memory_bus.py` → garder `memory_bus.py`
-3. Migrer `core/events/__init__.py` vers `core.bus.memory_bus`
-4. Unifier `core/skills/` + `core/tools/` → garder `core/skills/`
+1. ✅ Unifier `core/bus/nats.py` + `nats_bus.py` → garder `nats_bus.py`, corriger l'Event type *(fait — Event canonique, garde-fou `TestCanonicalEvent`)*
+2. ✅ Unifier `core/bus/memory.py` + `memory_bus.py` → garder `memory_bus.py`
+3. ✅ Migrer `core/events/__init__.py` vers `core.bus.memory_bus`
+4. ~~Unifier `core/skills/` + `core/tools/` → garder `core/skills/`~~ **Cible remplacée** : ne pas fusionner (layering skills→tools, voir table « Reporté → clôturé »)
 5. Unifier `interfaces/cli/core/colors.py` + `interfaces/cli/ui/colors.py`
-6. Consolider `interfaces/cli/commands/plugin.py` + `plugin_cmd.py` + `plugins.py`
+6. ✅ Consolider `interfaces/cli/commands/plugin.py` + `plugin_cmd.py` + `plugins.py` *(fait — commit `5820a527`)*
 7. Supprimer `core/cognition/planner/` (section 13)
 8. Unifier `plugins/sandbox.py` + `plugins/sandbox/` (section 18)
 

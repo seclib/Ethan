@@ -148,9 +148,7 @@ class TestProviderIndisponible:
         assert result["status"] == "error"
         assert result["message"]
 
-    async def test_describe_sans_crash_et_capacites_reelles(
-        self, manager: ProviderManager
-    ) -> None:
+    async def test_describe_sans_crash_et_capacites_reelles(self, manager: ProviderManager) -> None:
         manager._providers_config["custom"] = dict(_UNAVAILABLE_CONFIG)
         desc = await manager.describe_provider("custom")
         assert desc["status"] == "error"  # honnête : injoignable
@@ -167,9 +165,7 @@ class TestProviderIndisponible:
         # La vue globale reste vide sans lever (registry vide)
         assert await manager.list_models() == []
 
-    async def test_describe_desactive_sans_healthcheck(
-        self, manager: ProviderManager
-    ) -> None:
+    async def test_describe_desactive_sans_healthcheck(self, manager: ProviderManager) -> None:
         manager._providers_config["anthropic"] = {
             "name": "anthropic",
             "type": "anthropic",
@@ -259,9 +255,7 @@ class TestProviderDisponible:
 
 # ── Modèle par défaut (provider = service exposant des modèles) ───────────
 class TestDefaultModel:
-    async def test_default_model_declare_et_resolu(
-        self, manager: ProviderManager
-    ) -> None:
+    async def test_default_model_declare_et_resolu(self, manager: ProviderManager) -> None:
         manager._providers_config["custom"] = {
             "name": "custom",
             "type": "openai-compatible",

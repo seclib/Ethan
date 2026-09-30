@@ -250,3 +250,37 @@ class TestEventTypes:
     def test_event_type_is_string(self):
         """Test that EventType is a string enum."""
         assert isinstance(EventType.SYSTEM_BOOT, str)
+
+
+class TestCanonicalEvent:
+    """Dette « Event nats_bus » close — un seul type Event dans tout ETHAN.
+
+    Toutes les surfaces d'export (paquet core.bus, memory_bus, nats_bus,
+    contrat interface, rétrocompat core.events) doivent référencer EXACTEMENT
+    le même objet Event que core.ethan_types.event — aucune copie parallèle.
+    """
+
+    def test_canonical_source(self):
+        from core.ethan_types.event import Event as CanonicalEvent
+
+        assert Event is CanonicalEvent
+
+    def test_package_export_is_canonical(self):
+        import core.bus as bus_pkg
+
+        assert bus_pkg.Event is Event
+
+    def test_nats_bus_is_canonical(self):
+        from core.bus import nats_bus
+
+        assert nats_bus.Event is Event
+
+    def test_memory_bus_is_canonical(self):
+        from core.bus import memory_bus
+
+        assert memory_bus.Event is Event
+
+    def test_contract_is_canonical(self):
+        from core.bus import interface
+
+        assert interface.Event is Event
