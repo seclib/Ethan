@@ -305,11 +305,44 @@ def build_secure_enforcer(
     aucune capability accordée : aucune action sensible n'est donc autorisée tant
     qu'aucune capability explicite n'a été accordée. Cela préserve le deny-by-default
     tout en activant le contrôle granulaire du sujet × ressource × opération × portée.
+
+    **Seed de base (CTO P0 / Red Team F2)** : les seules actions déjà autorisées
+    par le PolicyEngine (règles ALLOW « permissions de base » — lecture
+    ``/workspace/**`` et mémoire ``user:*``) reçoivent leur capability équivalente.
+    Sans ce seed, la couche capability rejetait systématiquement ce que la
+    couche policy autorisait (aucun ``grant()`` n'était jamais appelé : aucun
+    outil ne pouvait s'exécuter). Tout le reste — écriture, shell, docker,
+    réseau, MCP, transmission externe — reste **refusé par défaut** et exige un
+    grant explicite (Capability Broker, RFC Phase 02).
     """
     if capabilities is None:
-        from core.security.policy.capabilities import CapabilityManager as _CM
+        from core.security.policy.capabilities import (
+            FILESYSTEM as _FS,
+        )
+        from core.security.policy.capabilities import (
+            MEMORY as _MEM,
+        )
+        from core.security.policy.capabilities import (
+            CapabilityManager as _CM,
+        )
 
         capabilities = _CM(allowed_roots=["/workspace"])
+        # Permissions de base, strictement alignées sur les ALLOW du
+        # PolicyEngine (rules.py) : read seul, aucune inférence (A5).
+        capabilities.grant(
+            subject="*",
+            category=_FS,
+            operation="read",
+            resource="/workspace/**",
+            origin="system",
+        )
+        capabilities.grant(
+            subject="*",
+            category=_MEM,
+            operation="read",
+            resource="user:*",
+            origin="system",
+        )
     return SecureToolEnforcer(
         engine=engine,
         capabilities=capabilities,

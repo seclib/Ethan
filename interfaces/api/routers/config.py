@@ -16,12 +16,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from core.auth import Permission
 from core.config import DOMAINS, ConfigurationService, config_to_json_schema
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/config", tags=["config"])
+
+# Écriture de la configuration = gate ``SETTINGS`` (et ``ADMIN`` pour
+# l'import, qui remplace plusieurs domaines d'un coup).  Sans gate, n'importe
+# quel rôle authentifié — y compris un rôle « lecture seule » — réécrivait la
+# source de vérité d'ETHAN : modèle actif, routing RAG, comportement des
+# agents.  La lecture reste ouverte aux rôles authentifiés (GET ... READ).
 
 # Instance globale du ConfigurationService — injectée au démarrage
 _service: ConfigurationService | None = None
@@ -94,7 +102,10 @@ async def get_domain(domain: str):
 # ── PUT /config/{domain} ────────────────────────────────────────────────────
 
 
-@router.put("/{domain}")
+@router.put(
+    "/{domain}",
+    dependencies=[Depends(require_permission(Permission.SETTINGS))],
+)
 async def set_domain(domain: str, data: dict[str, Any]):
     """Remplace complètement la configuration d'un domaine."""
     service = get_service()
@@ -109,7 +120,10 @@ async def set_domain(domain: str, data: dict[str, Any]):
 # ── PATCH /config/{domain} ──────────────────────────────────────────────────
 
 
-@router.patch("/{domain}")
+@router.patch(
+    "/{domain}",
+    dependencies=[Depends(require_permission(Permission.SETTINGS))],
+)
 async def patch_domain(domain: str, data: dict[str, Any]):
     """Met à jour partiellement un domaine (fusion récursive)."""
     service = get_service()
@@ -127,7 +141,10 @@ async def patch_domain(domain: str, data: dict[str, Any]):
 # ── DELETE /config/{domain}/{key} ───────────────────────────────────────────
 
 
-@router.delete("/{domain}/{key}")
+@router.delete(
+    "/{domain}/{key}",
+    dependencies=[Depends(require_permission(Permission.SETTINGS))],
+)
 async def delete_key(domain: str, key: str):
     """Supprime une clé de configuration dans un domaine."""
     service = get_service()
@@ -143,9 +160,18 @@ async def delete_key(domain: str, key: str):
 # ── POST /config/import ─────────────────────────────────────────────────────
 
 
-@router.post("/import")
+@router.post(
+    "/import",
+    dependencies=[Depends(require_permission(Permission.ADMIN))],
+)
 async def import_config(data: dict[str, Any]):
-    """Importe une configuration (remplace les domaines fournis)."""
+    """Importe une configuration (remplace les domaines fournis).
+
+    Gate ``ADMIN`` (et non ``SETTINGS``) : l'import remplace **plusieurs**
+    domaines d'un seul coup — un import ciblé peut donc éteindre une
+    compétence entière du système.  C'est une opération d'administration, pas
+    un réglage.
+    """
     service = get_service()
     if not isinstance(data, dict):
         raise HTTPException(status_code=422, detail="Body must be a dict")

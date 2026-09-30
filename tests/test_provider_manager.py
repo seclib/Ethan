@@ -154,7 +154,11 @@ def test_default_provider_configs_shape():
 
 
 def test_inject_secrets_enables_openai(monkeypatch=None):
-    """Une clé env OPENAI_API_KEY active openai ET injecte la clé en mémoire."""
+    """Une clé env OPENAI_API_KEY active openai ET alimente ``_api_keys``.
+
+    La clé ne doit JAMAIS être écrite dans ``_providers_config`` (qui est
+    sérialisée/persistée) : elle vit dans ``_api_keys``, mémoire de processus.
+    """
 
     async def run():
         os.environ["OPENAI_API_KEY"] = "sk-test-123"
@@ -164,7 +168,9 @@ def test_inject_secrets_enables_openai(monkeypatch=None):
             await manager._inject_secrets()
             openai = manager._providers_config["openai"]
             assert openai["enabled"] is True
-            assert openai["api_key"] == "sk-test-123"
+            assert "api_key" not in openai
+            assert manager._api_keys["openai"] == "sk-test-123"
+            assert "api_key" not in manager._public_config("openai")
             # Anthropic reste désactivé tant qu'il n'a pas de clé
             assert manager._providers_config["anthropic"]["enabled"] is False
         finally:

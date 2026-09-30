@@ -147,9 +147,22 @@ class MCPClient:
                 if transport == "stdio":
                     if not command:
                         raise ValueError("command is required for stdio transport")
+                    # CTO Phase 1.3 / Red Team F4 (Tier 3) : tout serveur
+                    # stdio est du code tiers — il tourne dans un conteneur
+                    # Docker durci (core.tools.sandbox_runner). Mode `off` =
+                    # opt-out explicite de l'opérateur, jamais de repli
+                    # silencieux : SandboxError ⇒ connexion refusée.
+                    from core.tools.sandbox_runner import wrap_stdio_command
+
+                    safe_command, safe_args = wrap_stdio_command(
+                        command,
+                        [str(a) for a in (args or [])],
+                        env=env,
+                        cwd=cwd,
+                    )
                     server_params = StdioServerParameters(
-                        command=command,
-                        args=args or [],
+                        command=safe_command,
+                        args=safe_args,
                         env=env,
                         cwd=cwd,
                     )

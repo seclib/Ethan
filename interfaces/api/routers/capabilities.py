@@ -114,7 +114,10 @@ async def get_automation(automation_id: str):
     return rule
 
 
-@router.put("/automations/{automation_id}")
+@router.put(
+    "/automations/{automation_id}",
+    dependencies=[Depends(require_permission(Permission.EXECUTE))],
+)
 async def update_automation(automation_id: str, data: dict[str, Any]):
     manager = _require(_managers.automations, "Automation")
     rule = await manager.update(automation_id, data)
@@ -123,7 +126,10 @@ async def update_automation(automation_id: str, data: dict[str, Any]):
     return rule
 
 
-@router.delete("/automations/{automation_id}")
+@router.delete(
+    "/automations/{automation_id}",
+    dependencies=[Depends(require_permission(Permission.EXECUTE))],
+)
 async def delete_automation(automation_id: str):
     manager = _require(_managers.automations, "Automation")
     if not await manager.delete(automation_id):
@@ -131,8 +137,17 @@ async def delete_automation(automation_id: str):
     return {"status": "deleted"}
 
 
-@router.post("/automations/{automation_id}/trigger")
+@router.post(
+    "/automations/{automation_id}/trigger",
+    dependencies=[Depends(require_permission(Permission.EXECUTE))],
+)
 async def trigger_automation(automation_id: str):
+    """Déclenche une automatisation — gate ``EXECUTE``.
+
+    C'est l'action la plus sensible de la ressource : elle exécute les actions
+    enregistrées (outils, envois, écritures).  Elle ne pouvait pas être moins
+    protégée que la création de la règle elle-même.
+    """
     manager = _require(_managers.automations, "Automation")
     result = await manager.trigger(automation_id)
     if result is None:

@@ -1155,6 +1155,8 @@ class TestNodePackageBackend:
                 str(tmp_path),
                 "--no-audit",
                 "--no-fund",
+                # Red Team Attaque 18 : jamais de hooks postinstall exécutés.
+                "--ignore-scripts",
                 "@scope/pkg@1.2.3",
             ]
         ]

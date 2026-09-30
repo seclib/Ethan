@@ -65,21 +65,10 @@ class SkillExecutor:
                 # Le SkillContext est traduit en ToolContext (type attendu par
                 # ToolManager.select_and_execute) sans logique métier dans l'UI.
                 logger.debug(f"Executing step: {step.name} (tool: {step.tool_id})")
-                tool_context = ToolContext(
-                    query=step.name,
-                    source="skill",
-                    user_id=context.user_id,
-                    session_id=context.session_id,
-                    trust_level="default",
-                    max_cost=context.max_cost,
-                    max_duration_ms=context.max_duration_ms,
-                    required_capabilities=[step.tool_id] if step.tool_id else [],
-                    constraints=context.constraints,
-                )
                 result = await self._tool_manager.select_and_execute(
                     query=step.name,
                     params=step.parameters,
-                    context=tool_context,
+                    context=self._to_tool_context(step, context),
                 )
 
                 # Stocker le résultat
@@ -126,6 +115,26 @@ class SkillExecutor:
             duration_ms=duration_ms,
         )
 
+    @staticmethod
+    def _to_tool_context(step: SkillStep, context: SkillContext) -> ToolContext:
+        """Traduit SkillContext + étape en ToolContext.
+
+        Type attendu par ToolManager.select_and_execute. La traduction vit
+        dans Core (et non dans l'interface) : c'est la même règle que le
+        reste du pipeline skills → tools.
+        """
+        return ToolContext(
+            query=step.name,
+            source="skill",
+            user_id=context.user_id,
+            session_id=context.session_id,
+            trust_level="default",
+            max_cost=context.max_cost,
+            max_duration_ms=context.max_duration_ms,
+            required_capabilities=[step.tool_id] if step.tool_id else [],
+            constraints=context.constraints,
+        )
+
     def _check_dependencies(self, step: SkillStep, results: dict[str, Any]) -> bool:
         """Vérifie les dépendances d'une étape.
 
@@ -151,20 +160,9 @@ class SkillExecutor:
         Returns:
             Résultat
         """
-        tool_context = ToolContext(
-            query=step.name,
-            source="skill",
-            user_id=context.user_id,
-            session_id=context.session_id,
-            trust_level="default",
-            max_cost=context.max_cost,
-            max_duration_ms=context.max_duration_ms,
-            required_capabilities=[step.tool_id] if step.tool_id else [],
-            constraints=context.constraints,
-        )
         result = await self._tool_manager.select_and_execute(
             query=step.name,
             params=step.parameters,
-            context=tool_context,
+            context=self._to_tool_context(step, context),
         )
         return result.output

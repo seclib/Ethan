@@ -26,11 +26,32 @@ from core.llm.provider_manager import ProviderManager
 from core.llm.types import ChatMessage as LLMChatMessage
 from core.llm.types import LLMRequirements
 from core.rag import RAGPipeline
+from core.security.prompt_guard import sanitize_external_content, wrap_data_block
 from core.skills.store import SkillStore
 from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
 
 logger = logging.getLogger(__name__)
+
+
+def build_skill_system_block(skill: dict[str, Any]) -> str | None:
+    """Bloc système d'une skill — contenu sanitisé enclos dans ``<data>``.
+
+    Un skill est un contenu **externe** (imports, Web Draft, SkillLab) :
+    il reste des DONNÉES, jamais des instructions (Constitution CT-4,
+    Red Team Attaques 1/15 — même traitement que ``core.agents.executor``).
+    """
+    content = (skill.get("content") or "").strip()
+    if not content:
+        return None
+    name = str(skill.get("name") or skill.get("id") or "skill")
+    safe_name = name.replace("<", "").replace(">", "").replace("\n", " ").strip()
+    return wrap_data_block(
+        sanitize_external_content(content),
+        source=f"skill:{skill.get('id', safe_name)}",
+        kind="skill",
+        header=f"[Skill: {safe_name}]",
+    )
 
 
 class ChatPipeline:
@@ -644,9 +665,12 @@ class ChatPipeline:
             for skill_id in skill_ids:
                 skill = await self._skills.get_skill(skill_id)
                 if skill and skill.get("is_active", True):
-                    content = skill.get("content", "").strip()
-                    if content:
-                        system_parts.append(f"[Skill: {skill.get('name', skill_id)}]\n{content}")
+                    # CT-4 / Attaques 1/15 : skill = donnée sanitisée dans
+                    # <data> (source unique build_skill_system_block), jamais
+                    # du texte instructions injecté tel quel.
+                    block = build_skill_system_block(skill)
+                    if block:
+                        system_parts.append(block)
 
         # Catalogue d'outils sélectionnés (Chat → Tools/MCP) : le LLM peut
         # émettre des appels <tool> que le pipeline exécute réellement.

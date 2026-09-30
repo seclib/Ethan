@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import tempfile
 from datetime import datetime
 from enum import StrEnum
@@ -22,6 +23,46 @@ from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
+
+# Politique des dépendances du Skill Lab : seuls des noms de paquets
+# PEP 508 simples (nom, extras, contrainte de version) sont acceptés —
+# aucun espace ni métacaractère shell.  Les requirements sont ensuite passés
+# en arguments positionnels du shell, jamais concaténés dans la commande
+# exécutée.
+_REQUIREMENT_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*"  # nom du paquet (PEP 508 simplifié)
+    r"(\[[A-Za-z0-9_,.-]+\])?"  # extras optionnels (ex. django[argon2])
+    r"([<>=!~]=?[A-Za-z0-9.*+!<>~_.,-]+)?"  # contrainte de version optionnelle
+    r"$"
+)
+
+# Caractères autorisés dans un nom de conteneur Docker dérivé de l'entrée.
+_CONTAINER_NAME_UNSAFE_RE = re.compile(r"[^A-Za-z0-9_.-]+")
+
+
+def _validate_requirements(requirements: list[str]) -> list[str]:
+    """Normalise et valide les dépendances pip du sandbox (fail-closed).
+
+    Raises:
+        ValueError: si une entrée n'est pas un requirement PEP 508 simple
+            (protection contre l'injection de commandes via ``sh -c``).
+    """
+    cleaned: list[str] = []
+    for requirement in requirements:
+        candidate = str(requirement).strip()
+        if not candidate or not _REQUIREMENT_RE.match(candidate):
+            raise ValueError(
+                f"Requirement refusé par la politique Skill Lab : {requirement!r} "
+                "(nom de paquet PEP 508 simple attendu)"
+            )
+        cleaned.append(candidate)
+    return cleaned
+
+
+def _safe_container_name(skill_name: str) -> str:
+    """Nom de conteneur Docker sûr — jamais dérivé brut de l'entrée."""
+    slug = _CONTAINER_NAME_UNSAFE_RE.sub("-", str(skill_name)).strip("-.") or "skill"
+    return f"ethan-lab-{slug[:40]}-{uuid4().hex[:6]}"
 
 
 class LabStatus(StrEnum):
@@ -168,6 +209,53 @@ class SkillLab:
 
         return result
 
+    def _build_docker_command(
+        self, container_name: str, temp_path: str, requirements: list[str]
+    ) -> list[str]:
+        """Commande ``docker run`` complète — dépendances validées en argv.
+
+        Les requirements sont transmis en arguments positionnels du shell
+        (``"$@"``) : même sans la validation amont, ils ne peuvent jamais
+        devenir des commandes.  L'absence de dépendances exécute Python
+        directement (aucun shell intermédiaire).
+        """
+        validated = _validate_requirements(requirements)
+        cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "--name",
+            container_name,
+            "--network",
+            "none",  # Pas d'accès réseau
+            "--memory",
+            "256m",  # Limite mémoire
+            "--cpus",
+            "0.5",  # Limite CPU
+            # Durcissement Red Team (F4 / Attaques 12-13) : aucune capacité
+            # Linux supplémentaire et pas d'élévation de privilèges (setuid).
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--pids-limit",
+            "64",  # Limitation du fork bomb
+            "-v",
+            f"{temp_path}:/tmp/skill.py:ro",
+            self._image,
+        ]
+        if validated:
+            cmd += [
+                "sh",
+                "-c",
+                'pip install --no-input "$@" && python /tmp/skill.py',
+                "ethan-lab",  # $0 du shell
+                *validated,
+            ]
+        else:
+            cmd += ["python", "/tmp/skill.py"]
+        return cmd
+
     async def _run_in_docker(
         self,
         skill_code: str,
@@ -186,34 +274,10 @@ class SkillLab:
             temp_path = f.name
 
         try:
-            # Construire la commande Docker
-            container_name = f"ethan-lab-{skill_name}-{uuid4().hex[:6]}"
-
-            # Installer les dépendances si nécessaire
-            setup_cmd = ""
-            if requirements:
-                deps = " ".join(requirements)
-                setup_cmd = f"pip install {deps} && "
-
-            cmd = [
-                "docker",
-                "run",
-                "--rm",
-                "--name",
-                container_name,
-                "--network",
-                "none",  # Pas d'accès réseau
-                "--memory",
-                "256m",  # Limite mémoire
-                "--cpus",
-                "0.5",  # Limite CPU
-                "-v",
-                f"{temp_path}:/tmp/skill.py:ro",
-                self._image,
-                "sh",
-                "-c",
-                f"{setup_cmd}python /tmp/skill.py",
-            ]
+            # Construire la commande Docker (requirements validés et passés en
+            # argv — aucune interpolation dans la ligne de commande shell).
+            container_name = _safe_container_name(skill_name)
+            cmd = self._build_docker_command(container_name, temp_path, requirements)
 
             # Exécuter avec timeout
             proc = await asyncio.create_subprocess_exec(

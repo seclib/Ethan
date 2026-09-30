@@ -117,6 +117,11 @@ class ProviderManager:
         self._router = LLMRouter(self._selector)
         self._client = LLMClient(self._registry, self._selector)
         self._providers_config: dict[str, dict[str, Any]] = {}
+        # Clés API résolues (secret manager/env ou saisie d'un rôle privilégié) :
+        # mémoire de processus UNIQUEMENT.  Les configs publiques
+        # (``_providers_config``, store) n'en contiennent jamais — un secret ne
+        # doit jamais pouvoir être sérialisé (store PG/Redis, logs, réponses).
+        self._api_keys: dict[str, str] = {}
         self._default_provider: str | None = None
 
     # ── Initialisation ──────────────────────────────────────────────────
@@ -160,7 +165,13 @@ class ProviderManager:
         for provider_id, config in self._providers_config.items():
             if config.get("enabled", False):
                 try:
-                    provider = create_provider_from_config({**config, "name": provider_id})
+                    provider = create_provider_from_config(
+                        {
+                            **config,
+                            "name": provider_id,
+                            "api_key": self._api_keys.get(provider_id, ""),
+                        }
+                    )
                     await self._register(provider, provider_id)
                 except Exception as e:
                     logger.error("Failed to instantiate provider %s: %s", provider_id, e)
@@ -262,7 +273,9 @@ class ProviderManager:
             ptype = config.get("type", "")
             key = keys.get(ptype)
             if ptype in keys and key:
-                config["api_key"] = key
+                # Hors config : la clé vit dans ``_api_keys`` et ne peut donc
+                # jamais être écrite dans le store par une sauvegarde.
+                self._api_keys[provider_id] = key
                 config["enabled"] = True
                 logger.info("Auto-enabled provider %s (%s) from secret/env", provider_id, ptype)
 
@@ -343,6 +356,12 @@ class ProviderManager:
 
         provider_id = config.get("name", provider.name) if config else provider.name
 
+        # Clé fournie par l'appelant : mémorisée hors config (mémoire de
+        # processus).  La config persistée juste après est nettoyée — un secret
+        # ne doit jamais pouvoir être sérialisé dans le store.
+        if config and config.get("api_key"):
+            self._api_keys[provider_id] = str(config["api_key"])
+
         # Enregistrer dans le registry uniquement si activé
         enabled = bool(config.get("enabled", True)) if config else True
         if enabled:
@@ -385,6 +404,7 @@ class ProviderManager:
         )
         self._registry._providers.pop(provider_id, None)
         self._providers_config.pop(provider_id, None)
+        self._api_keys.pop(provider_id, None)
 
         if self._default_provider == provider_id:
             self._default_provider = None
@@ -392,6 +412,29 @@ class ProviderManager:
         await self._store.delete(provider_id)
         logger.info("Provider unregistered: %s", provider_id)
         return existed
+
+    # ── Clés API (mémoire de processus UNIQUEMENT) ──────────────────────
+
+    def remember_api_key(self, provider_id: str, api_key: str | None) -> None:
+        """Mémorise une clé fournie par un appelant privilégié (session only).
+
+        La clé n'est jamais placée dans ``_providers_config`` ni écrite dans le
+        store : elle ne survit pas au processus, par conception — les secrets
+        durables vivent dans le secret manager (env/Vault), jamais dans une
+        config persistée (cf. AGENTS.md, règle « secret »).
+        """
+        if api_key:
+            self._api_keys[provider_id] = str(api_key)
+
+    def api_key_for(self, provider_id: str) -> str:
+        """Clé API résolue d'un provider ("" si absente) — jamais persistée."""
+        return self._api_keys.get(provider_id, "")
+
+    def _public_config(self, provider_id: str) -> dict[str, Any]:
+        """Copie sérialisable d'une config — sans clé API (défense en profondeur)."""
+        config = dict(self._providers_config.get(provider_id, {}))
+        config.pop("api_key", None)
+        return config
 
     # ── Activation / désactivation ──────────────────────────────────────
 
@@ -412,13 +455,21 @@ class ProviderManager:
             raise ValueError(f"Provider '{provider_id}' not found")
 
         self._providers_config[provider_id]["enabled"] = enabled
-        await self._store.save(provider_id, self._providers_config[provider_id])
+        # Persister une copie sans secret : la clé API (secret manager/env ou
+        # saisie) vit dans ``_api_keys`` — jamais dans le store.
+        await self._store.save(provider_id, self._public_config(provider_id))
 
         if enabled:
             # Ré-instancier et ré-enregistrer
             config = self._providers_config[provider_id]
             try:
-                provider = create_provider_from_config({**config, "name": provider_id})
+                provider = create_provider_from_config(
+                    {
+                        **config,
+                        "name": provider_id,
+                        "api_key": self._api_keys.get(provider_id, ""),
+                    }
+                )
                 await self._register(provider, provider_id)
                 await provider.initialize()
                 logger.info("Provider enabled: %s", provider_id)
@@ -452,7 +503,13 @@ class ProviderManager:
             if not config:
                 raise ValueError(f"Provider '{provider_id}' not found")
             try:
-                provider = create_provider_from_config({**config, "name": provider_id})
+                provider = create_provider_from_config(
+                    {
+                        **config,
+                        "name": provider_id,
+                        "api_key": self._api_keys.get(provider_id, ""),
+                    }
+                )
                 await provider.initialize()
             except Exception as e:
                 return {
@@ -494,7 +551,13 @@ class ProviderManager:
                 config = self._providers_config.get(provider_id)
                 if config and config.get("enabled", False):
                     try:
-                        provider = create_provider_from_config({**config, "name": provider_id})
+                        provider = create_provider_from_config(
+                            {
+                                **config,
+                                "name": provider_id,
+                                "api_key": self._api_keys.get(provider_id, ""),
+                            }
+                        )
                         await provider.initialize()
                     except Exception as e:
                         # Provider connu mais inutilisable (endpoint mort,
@@ -669,7 +732,9 @@ class ProviderManager:
             # le WebUI conditionne son formulaire « Connection method » dessus.
             "auth_methods": _auth_methods_for_type(config.get("type", provider_id)),
             # Booléen uniquement — la clé API n'est JAMAIS sérialisée.
-            "has_api_key": bool(config.get("api_key")),
+            # (``_api_keys`` = clés en mémoire ; ``config`` = résidus éventuels
+            # d'anciennes versions, tolérés en lecture pour ne pas mentir.)
+            "has_api_key": bool(self._api_keys.get(provider_id) or config.get("api_key")),
         }
 
     async def list_providers(self) -> list[dict[str, Any]]:

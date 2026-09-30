@@ -20,6 +20,26 @@ from core.state.record_store import CoreRecordStore
 
 logger = logging.getLogger(__name__)
 
+# Clés jamais exposées ni persistées par ``get_config()`` / ``persist_config()`` :
+# leur valeur est un secret (ex. clé API d'un backend vectoriel).  Les
+# interfaces reçoivent un booléen de présence — un GET→PUT (édition WebUI) ne
+# peut donc ni lire ni écraser le secret existant.  Règle repo : un secret vit
+# dans le secret manager ou en mémoire Core, jamais dans un store ni une API.
+_SECRET_CONFIG_KEYS = frozenset({"api_key", "apikey", "token", "secret", "password"})
+
+
+def redact_backend_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Copie d'une config backend sans valeurs secrètes (présence booléenne)."""
+    public: dict[str, Any] = {}
+    for key, value in config.items():
+        public[key] = bool(value) if key.lower() in _SECRET_CONFIG_KEYS else value
+    return public
+
+
+def persistable_backend_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Copie d'une config backend sans aucune trace de secret (store/logs)."""
+    return {key: value for key, value in config.items() if key.lower() not in _SECRET_CONFIG_KEYS}
+
 
 class RAGPipeline:
     """Core API for sourced documents and retrieval-augmented LLM context.
@@ -254,10 +274,27 @@ class RAGPipeline:
             self._strategy = normalize_strategy(strategy)
         if vector_backend is not None:
             self._vector_backend = (vector_backend or "memory").strip().lower()
-            self._vector_backend_config = vector_backend_config or {}
+            self._vector_backend_config = self._merge_backend_config(vector_backend_config or {})
             if self._loaded:
                 await self._load_vector_store()
         return self.get_config()
+
+    def _merge_backend_config(self, incoming: dict[str, Any]) -> dict[str, Any]:
+        """Fusionne une config backend sans perdre ni écraser les secrets mémorisés.
+
+        Les interfaces reçoivent ``api_key: true`` (présence) et non la valeur :
+        un round-trip GET→PUT ne doit ni exposer ni écraser le secret existant.
+        Une chaîne vide reste une intention explicite d'effacement.
+        """
+        merged = {
+            key: value
+            for key, value in incoming.items()
+            if not (key.lower() in _SECRET_CONFIG_KEYS and isinstance(value, bool))
+        }
+        for key, value in self._vector_backend_config.items():
+            if key.lower() in _SECRET_CONFIG_KEYS and key not in merged:
+                merged[key] = value
+        return merged
 
     def get_config(self) -> dict[str, Any]:
         """Retourne la configuration courante du moteur.
@@ -278,7 +315,7 @@ class RAGPipeline:
             "embedding_model": embeddings._model,
             "vector_backend": self._vector_backend,
             "vector_backends": list(SUPPORTED_VECTOR_BACKENDS),
-            "vector_backend_config": self._vector_backend_config,
+            "vector_backend_config": redact_backend_config(self._vector_backend_config),
             "strategy": self._strategy,
         }
 
@@ -314,8 +351,14 @@ class RAGPipeline:
     _CONFIG_DOMAIN = "rag-config"
 
     async def persist_config(self) -> None:
-        """Persiste la configuration courante (survit aux redémarrages)."""
-        await self._store.save(self._CONFIG_DOMAIN, "global", self.get_config())
+        """Persiste la configuration courante (survit aux redémarrages).
+
+        Les valeurs secrètes (ex. clé API du backend vectoriel) ne sont jamais
+        écrites : elles vivent en mémoire de processus (règle « secret »).
+        """
+        config = self.get_config()
+        config["vector_backend_config"] = persistable_backend_config(self._vector_backend_config)
+        await self._store.save(self._CONFIG_DOMAIN, "global", config)
 
     async def load_persisted_config(self) -> dict[str, Any] | None:
         """Applique la configuration persistée si elle existe."""

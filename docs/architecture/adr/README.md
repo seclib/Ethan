@@ -13,6 +13,7 @@ ligne **« État audité »** datée, qui confronte la décision au code réel.
 | ADR-3004 | Back-end de vecteurs unique | Proposition | ❌ Non tranché |
 | ADR-3005 | Folders (arborescence) vs Domains (étiquettes transverses) — pas de fusion | Proposition | 🟡 Partiel |
 | ADR-3006 | Contrats API versionnés (OpenAPI + tests de contrat) | Proposition | 🟡 Partiel |
+| ADR-3007 | Dépréciation du record `settings` hérité (`/v1/settings`, sans consommateur) — suppression différée à RFC | Accepté | ✅ Déprécié (2026-09-30) |
 | ADR-4001 | Capability Manager centralisé dans le Core (cycle de vie des composants optionnels) | Implémenté | ✅ Confirmé |
 | ADR-4002 | Installation à la demande — supported ≠ installed ≠ running ≠ ready | Implémenté | ✅ Confirmé |
 | ADR-4003 | Cycle de vie des données — uninstall ≠ delete data (double confirmation) | Implémenté | ✅ Confirmé |

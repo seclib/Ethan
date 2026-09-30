@@ -17,6 +17,7 @@ initialisation du ProviderManager.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -27,8 +28,12 @@ from core.security.prompt_guard import (
     sanitize_external_content,
     wrap_data_block,
 )
+from core.tools.call_protocol import parse_tool_calls, strip_tool_blocks
 
 logger = logging.getLogger(__name__)
+
+# Budget de la boucle d'outils (aligné sur la boucle de chat — v1.py).
+MAX_TOOL_ROUNDS = 3
 
 
 class _NoOpSkillStore:
@@ -66,6 +71,122 @@ class _NoOpKnowledgeCollections:
         self, query: str, collection_ids: list[str], *, top_k: int | None = None
     ) -> str:
         return ""
+
+
+async def _execute_agent_tool(
+    tools: Any,
+    executor: Any,
+    tool_ref: str,
+    params: dict[str, Any],
+    agent_name: str,
+) -> dict[str, Any]:
+    """Exécute un appel d'outil agent via le ToolExecutor (enforcer obligatoire).
+
+    Chemin identique au chat (ToolManager → ToolExecutor → SecureToolEnforcer)
+    : l'agent ne bénéficie d'aucun contournement (CTO Phase 0.3).
+    """
+    registry = getattr(tools, "registry", None)
+    if registry is None:
+        return {"status": "failed", "error": "tool registry unavailable"}
+
+    tool = registry.get(tool_ref)
+    if tool is None:
+        for candidate in registry.list_all():
+            if candidate.name == tool_ref:
+                tool = candidate
+                break
+    if tool is None:
+        return {"status": "failed", "error": f"Unknown tool: {tool_ref}"}
+    if not tool.is_available:
+        return {"status": "rejected", "error": f"Tool {tool.name} is disabled"}
+
+    from core.tools.types import ToolContext
+
+    context = ToolContext(
+        query=str(params.get("query", "")),
+        user_id=f"agent:{agent_name}",
+        source="agent",
+    )
+    result = await executor.execute(tool, params, context)
+    output = result.output
+    if not isinstance(output, str):
+        try:
+            output = json.dumps(output, ensure_ascii=False, default=str)
+        except Exception:
+            output = str(output)
+    return {
+        "status": result.status,
+        "tool": tool.name,
+        "output": output if result.status == "success" else None,
+        "error": result.error,
+    }
+
+
+async def run_agent_chat(
+    provider: Any,
+    messages: list[ChatMessage],
+    *,
+    model: str | None,
+    tools: Any | None,
+    agent_name: str,
+    max_rounds: int = MAX_TOOL_ROUNDS,
+) -> str:
+    """Conversation agent avec appels d'outils bornés — fail-closed.
+
+    CTO Phase 0.3 (SecureToolEnforcer dans le flux) + base de la Phase 3.1
+    (boucle d'outils Atreus-ready) :
+
+    - chaque appel ``<tool>`` passe par ``ToolExecutor`` — donc par le
+      ``SecureToolEnforcer`` (P0-2) : PolicyEngine + Capability + ExfilGuard ;
+    - **aucun ToolManager** ou **aucun enforcer** ⇒ l'appel est REFUSÉ
+      (jamais de repli implicite, Red Team Attaque 20) ;
+    - la boucle est bornée (``max_rounds``) puis les blocs bruts restants
+      sont remplacés par des notes lisibles.
+    """
+    content = ""
+    for round_index in range(max_rounds + 1):
+        response = await provider.chat(messages, model=model, temperature=0.7)
+        content = response.content or ""
+        calls = parse_tool_calls(content)
+        if not calls:
+            return content
+        if round_index == max_rounds:
+            # Budget épuisé : ne jamais rendre un bloc <tool> cru.
+            return strip_tool_blocks(content)
+
+        if tools is None:
+            logger.warning(
+                "Agent %s emitted a tool call but no ToolManager is wired — refused",
+                agent_name,
+            )
+            return (
+                "[Tool] Refus (fail-closed) : aucun ToolManager sécurisé "
+                "n'est branché sur cet agent."
+            )
+
+        executor = getattr(tools, "executor", None)
+        if executor is None or getattr(executor, "_policy_enforcer", None) is None:
+            logger.error(
+                "Agent %s tool loop without SecureToolEnforcer — refused (fail-closed)",
+                agent_name,
+            )
+            return "[Tool] Refus (fail-closed) : SecureToolEnforcer absent."
+
+        messages.append(ChatMessage(role="assistant", content=content))
+        result_lines: list[str] = []
+        for call in calls:
+            outcome = await _execute_agent_tool(
+                tools, executor, call["name"], call["params"], agent_name
+            )
+            summary = (
+                outcome.get("output") or outcome.get("error") or outcome.get("status", "failed")
+            )
+            result_lines.append(
+                f"[Résultat outil « {call['name']} » ({outcome.get('status')})]\n{summary}"
+            )
+        messages.append(ChatMessage(role="user", content="\n\n".join(result_lines)))
+
+    return content
 
 
 def create_agent_executor(
@@ -292,13 +413,19 @@ def create_agent_executor(
 
         # Tools / MCP : le runtime ne reçoit que la liste des outils
         # explicitement autorisés (sélection directe ou via dossiers).
-        # Aucun tool global n'est exposé par défaut.
+        # Aucun tool global n'est exposé par défaut. Le protocole d'appel
+        # balisé est communiqué au LLM (même format que le chat).
         if allowed_tools:
             tool_lines = "\n".join(
                 f"- {t['name']} ({t.get('provider') or 'tool'})" for t in allowed_tools
             )
             system_parts.append(
-                "Outils autorisés — le runtime n'expose QUE ces tools/MCP :\n" + tool_lines
+                "Outils autorisés — le runtime n'expose QUE ces tools/MCP :\n"
+                + tool_lines
+                + "\nPour appeler un outil, émis exactement : "
+                '<tool name="nom_outil">{"parametre": "valeur"}</tool>\n'
+                "Un résultat te sera renvoyé après chaque appel ; conclus "
+                "ensuite en texte clair."
             )
 
         if agent.capabilities:
@@ -318,7 +445,14 @@ def create_agent_executor(
         else:
             messages.append(ChatMessage(role="user", content=task))
 
-        response = await provider.chat(messages, model=model, temperature=0.7)
-        return response.content
+        # Boucle d'outils bornée avec SecureToolEnforcer obligatoire
+        # (CTO Phase 0.3) — sans outil, c'est une conversation simple.
+        return await run_agent_chat(
+            provider,
+            messages,
+            model=model,
+            tools=tools if allowed_tools else None,
+            agent_name=agent.name,
+        )
 
     return execute

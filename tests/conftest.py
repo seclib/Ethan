@@ -7,6 +7,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# ── MCP stdio : opt-out explicite du sandbox Docker (mode `off`) ─────────────
+# Le sandboxing stdio (core.tools.sandbox_runner) est fail-closed par défaut
+# (mode `docker`, image requise). La suite de tests lance de VRAIS serveurs
+# stdio (tests/test_ethan_core/, interfaces/api/tests/) : ni image ni Docker
+# ne sont garantis en CI, et le wrap docker est couvert par les unit tests
+# dédiés (tests/security/test_runtime_isolation.py). `off` est donc un
+# opt-out délibéré, tracé par un warning — jamais un défaut de prod.
+os.environ.setdefault("ETHAN_MCP_STDIO_SANDBOX", "off")
+
 # ---------------------------------------------------------------------------
 # QUARANTAINE DES TESTS LEGACY (correctif minimal — test-infra uniquement).
 #
@@ -25,7 +34,12 @@ if ROOT not in sys.path:
 #   - tests/cli/**  : reconnecté au code CLI actuel via pythonpath
 #     ["interfaces"] (pyproject.toml) ;
 #   - tests/core/** : seuls les fichiers hérités listés sont exclus, les
-#     tests du code actuel restent actifs.
+#     tests du code actuel restent actifs ;
+#   - tests/security/** : quarantaine locale et automatique, définie par
+#     tests/security/conftest.py (détection des fichiers important
+#     `openjarvis`). Les tests de sécurité du code actuel (core.security.*,
+#     core.tools.*) restent ainsi collectés — seule la quarantaine des
+#     fichiers legacy est déléguée à ce conftest, pour ne pas la figer ici.
 # ---------------------------------------------------------------------------
 collect_ignore = [
     "a2a",
@@ -51,7 +65,6 @@ collect_ignore = [
     "sandbox",
     "scheduler",
     "sdk",
-    "security",
     "server",
     "sessions",
     "skills",

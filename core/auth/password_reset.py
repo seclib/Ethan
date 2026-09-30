@@ -110,11 +110,7 @@ class PasswordResetManager:
 
             # Une nouvelle demande révoque les tokens précédents du compte
             # (cohérence avec la branche PostgreSQL).
-            self._memory = {
-                h: e
-                for h, e in self._memory.items()
-                if e["username"] != username
-            }
+            self._memory = {h: e for h, e in self._memory.items() if e["username"] != username}
             self._memory[token_hash] = {
                 "username": username,
                 "expires_at": time.monotonic() + self._ttl,

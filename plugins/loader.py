@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from plugins.validator import PluginValidator
+from plugins.versioning import PluginVersion
 
 logger = logging.getLogger(__name__)
 
@@ -226,8 +227,14 @@ class PluginLoader:
         """Returns True if this version should replace existing."""
         if existing is None:
             return True
-        # Higher version wins
-        return version > existing.version
+        # Comparaison sémantique (semver) : une comparaison de chaînes ferait
+        # passer « 1.9.0 » pour plus récent que « 1.10.0 » et permettrait à une
+        # version antérieure de remplacer la version chargée.
+        try:
+            return PluginVersion.parse(version) > PluginVersion.parse(existing.version)
+        except ValueError:
+            # Version non semver : repli lexical (comportement historique).
+            return version > existing.version
 
     def load(self, name: str) -> PluginMeta | None:
         """Load a single plugin by name from any discovery path."""
@@ -237,6 +244,14 @@ class PluginLoader:
                 continue
             manifest = self._load_manifest(plugin_dir)
             if manifest is None:
+                continue
+
+            # Provenance : si le plugin embarque une signature d'intégrité
+            # (``manifest.json.sha256``), elle doit être valide — un manifest
+            # altéré ne doit jamais être chargé. Sans fichier de signature, le
+            # plugin est considéré « unsigned » (chemin développement).
+            if not self._verify_signature(plugin_dir, manifest):
+                logger.warning(f"Plugin '{name}' rejeté : signature manifest.json invalide")
                 continue
 
             # Validation du plugin avant chargement

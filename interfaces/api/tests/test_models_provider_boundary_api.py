@@ -141,20 +141,15 @@ def _required_permissions(func) -> set:
             return {
                 permission
                 for dep in route.dependencies
-                for permission in getattr(getattr(dep, "dependency", None), "permissions", ())
-                or ()
+                for permission in getattr(getattr(dep, "dependency", None), "permissions", ()) or ()
             }
     return set()
 
 
-@pytest.mark.parametrize(
-    "name", ["create_model", "update_model", "delete_model", "toggle_model"]
-)
+@pytest.mark.parametrize("name", ["create_model", "update_model", "delete_model", "toggle_model"])
 def test_write_routes_require_permission(name: str):
     """Toute écriture sur /models exige la même permission que la création."""
-    assert Permission.PLUGINS in _required_permissions(
-        getattr(models_router, name)
-    ), (
+    assert Permission.PLUGINS in _required_permissions(getattr(models_router, name)), (
         f"{name} écrit une fiche modèle sans exiger Permission.PLUGINS : "
         "asymétrie d'autorisation sur le même objet que POST /models."
     )

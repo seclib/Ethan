@@ -20,6 +20,7 @@ from core.llm.providers.openai import OpenAIProvider
 from core.llm.providers.openai_compatible import OpenAICompatibleProvider
 from core.llm.providers.openrouter import OpenRouterProvider
 from core.llm.providers.vllm import VLLMProvider
+from core.security.egress import assert_literal_destination
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,22 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
             f"Unsupported provider type '{provider_type}'. "
             f"Supported: {sorted(SUPPORTED_PROVIDER_TYPES)}"
         )
+
+    # Egress Core : ``base_url`` peut provenir de l'API, donc d'un appelant.
+    # Une destination « toujours interdite » (métadonnées cloud, link-local)
+    # ne peut pas être choisie comme endpoint LLM — sans ce garde, enregistrer
+    # un provider suffit à faire sortir les conversations du système.
+    # Vérification **littérale** volontaire (pas de résolution DNS) : les
+    # endpoints légitimes sont souvent des noms internes non résolubles
+    # (``ollama``, ``vllm``, ``host.docker.internal``) et le démarrage d'ETHAN
+    # ne doit jamais dépendre du DNS.  L'URL d'origine est conservée telle
+    # quelle (une normalisation ajoutait un « / » et casserait le jointure
+    # des chemins côté provider).
+    if base_url:
+        try:
+            assert_literal_destination(base_url)
+        except ValueError as exc:
+            raise ValueError(f"invalid provider base_url: {exc}") from exc
 
     # Providers locaux (pas de clé API requise)
     if provider_type == "ollama":

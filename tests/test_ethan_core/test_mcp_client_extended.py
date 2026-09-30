@@ -13,6 +13,15 @@ from core.tools.servers import ToolServerManager
 from core.tools.types import Tool, ToolContext
 
 
+class _AllowAllEnforcer:
+    """Enforcer permissif : ces tests ciblent le mécanisme d'exécution MCP,
+    pas la politique (CTO P0-2 : ``ToolExecutor`` exige désormais un
+    enforcer — voir tests/security/ pour l'évaluation elle-même)."""
+
+    async def check(self, tool, params, context):  # noqa: ARG002
+        return None
+
+
 def _mcp_tool():
     return Tool(
         id="test-echo",
@@ -114,7 +123,7 @@ class TestToolExecutorMCP:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that executing an MCP tool without a URL fails."""
-        executor = ToolExecutor()
+        executor = ToolExecutor(policy_enforcer=_AllowAllEnforcer())
         tool = Tool(
             id="test-echo-no-url",
             name="echo",
@@ -134,7 +143,7 @@ class TestToolExecutorMCP:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that executing an MCP tool with mock connection returns success."""
-        executor = ToolExecutor()
+        executor = ToolExecutor(policy_enforcer=_AllowAllEnforcer())
         tool = _mcp_tool()
         # Monkeypatch MCPClient to use our fake
         monkeypatch.setattr("core.tools.mcp_client.MCPClient", FakeMCPClient)

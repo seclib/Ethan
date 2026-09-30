@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from core.auth import Permission
+from fastapi import APIRouter, Depends, HTTPException
+from interfaces.api.auth import require_permission
 
 router = APIRouter(prefix="/v1/cookbook", tags=["cookbook"])
+
+# Installer une recette fait créer des **skills, prompts et automatisations**
+# par le Core (core/cookbook/manager.py).  Sans gate, c'était un contournement
+# direct des permissions de ces ressources : « install » franchissait les gates
+# PLUGINS (skills) et EXECUTE (automatisations).  La route exige donc PLUGINS.
 
 _manager: Any | None = None
 
@@ -50,7 +57,10 @@ async def list_installed():
     return await _require().list_installed()
 
 
-@router.post("/install/{recipe_id}")
+@router.post(
+    "/install/{recipe_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def install_recipe(recipe_id: str):
     try:
         return await _require().install(recipe_id)
@@ -58,7 +68,10 @@ async def install_recipe(recipe_id: str):
         raise HTTPException(409 if "already" in str(exc) else 422, str(exc)) from exc
 
 
-@router.delete("/install/{recipe_id}")
+@router.delete(
+    "/install/{recipe_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def uninstall_recipe(recipe_id: str):
     removed = await _require().uninstall(recipe_id)
     if not removed:

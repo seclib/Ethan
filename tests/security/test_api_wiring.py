@@ -21,12 +21,17 @@ from core.tools.types import Tool, ToolContext
 
 
 def _tool(category: str, name: str = "t", risk: str = "low") -> Tool:
+    # provider="custom" : ces tests portent sur le câblage policy/capability,
+    # pas sur l'exécution d'un builtin natif (routé vers le Core par
+    # ToolExecutor._run_builtin_tool). L'executor simule l'exécution des tools
+    # custom : c'est ce chemin que la policy doit autoriser ou refuser.
     return Tool(
         id=f"{name}-{category}",
         name=name,
         description="test tool",
         category=category,
         risk_level=risk,  # type: ignore[arg-type]
+        provider="custom",
     )
 
 
@@ -87,7 +92,7 @@ def test_toolmanager_with_secure_enforcer_allows_workspace_read() -> None:
             {"action": "read", "path": "/workspace/notes.txt"},
             _context(user="alice"),
         )
-        # Builtin MVP : la simulation d'exécution réussit une fois autorisé.
+        # Tool custom : l'executor simule l'exécution → success une fois autorisé.
         assert result.status == "success"
 
     asyncio.run(_run())

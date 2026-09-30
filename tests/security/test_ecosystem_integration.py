@@ -11,8 +11,10 @@ Vérifie que la sécurité est réellement connectée aux composants :
            devient connaissance fiable qu'après validation.
 - OBSERVABILITÉ : chaque décision policy est audité (append-only).
 
-Rétro-compatibilité : ``ToolExecutor()`` sans enforcer conserve le comportement
-historique (aucune évaluation). La sécurité s'active via ``SecureToolEnforcer``.
+Rétro-compatibilité : **supprimée** (CTO P0-2) — ``ToolExecutor()`` sans
+enforcer ne fournit plus le comportement historique (aucune évaluation) mais
+**rejette toute exécution** (fail-closed). Le composition root injecte
+toujours ``build_secure_enforcer()``.
 """
 
 from __future__ import annotations
@@ -37,12 +39,17 @@ from core.tools.types import Tool, ToolContext
 
 
 def _tool(category: str, name: str = "t", risk: str = "low") -> Tool:
+    # provider="custom" : ces tests portent sur le câblage policy/capability/
+    # ExfilGuard, pas sur l'exécution d'un builtin natif (routé vers le Core par
+    # ToolExecutor._run_builtin_tool). L'executor simule l'exécution des tools
+    # custom : c'est ce chemin que la sécurité doit autoriser ou refuser.
     return Tool(
         id=f"{name}-{category}",
         name=name,
         description="test tool",
         category=category,
         risk_level=risk,  # type: ignore[arg-type]
+        provider="custom",
     )
 
 
@@ -189,13 +196,16 @@ class TestToolIntegration:
 
         asyncio.run(_run())
 
-    def test_default_executor_preserves_legacy_behavior(self) -> None:
-        """Rétro-compat : sans enforcer, le comportement historique est intact."""
+    def test_default_executor_fails_closed_without_enforcer(self) -> None:
+        """CTO P0-2 / Attaque 20 : sans enforcer, AUCUNE exécution (fail-closed)."""
 
         async def _run() -> None:
             tool = _tool("docker", risk="critical")
             result = await self._exec(tool, {"command": "run nginx"}, enforcer=None)
-            assert result.status == "success"
+            assert result.status == "rejected"
+            assert "fail-closed" in (result.error or "").lower()
+            # Jamais exécuté : pas de marqueur de succès.
+            assert result.metadata.get("enforcer_missing") is True
 
         asyncio.run(_run())
 

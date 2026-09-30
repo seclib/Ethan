@@ -30,6 +30,10 @@ Fichiers :
 - `core/security/status.py` — exposition de l'état sécurité
 - `interfaces/api/routers/security.py` — API `/v1/security/*`
 - `interfaces/webui/src/app/security/page.tsx` — page WebUI Security
+- `core/security/egress.py` — politique unique de destination sortante
+  (`assert_literal_destination` / `validate_egress_url`), partagée par les
+  serveurs MCP, les providers LLM et l'ingestion web
+  → voir `08-control-plane-hardening.md`
 
 ---
 

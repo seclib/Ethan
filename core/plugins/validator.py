@@ -119,7 +119,12 @@ class PluginValidator:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import):
                         for alias in node.names:
-                            if alias.name in FORBIDDEN_IMPORTS:
+                            # Un import pointé (``import os.path``) lie le module
+                            # racine (``os``) dans l'espace de noms : la
+                            # comparaison porte sur le premier segment, jamais
+                            # sur le nom complet — sinon ``import os.path``
+                            # contournerait la liste des imports interdits.
+                            if alias.name.split(".")[0] in FORBIDDEN_IMPORTS:
                                 return ValidationResult(
                                     False,
                                     f"Forbidden import '{alias.name}' in {py_file.name}",

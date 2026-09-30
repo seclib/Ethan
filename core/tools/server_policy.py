@@ -15,9 +15,10 @@ Règles (fail-closed) :
   présent dans l'allowlist d'exploitation** ``ETHAN_MCP_STDIO_ALLOWLIST``
   (liste séparée par des virgules).  Allowlist vide ⇒ stdio désactivé.
   ``args`` = liste de chaînes ; aucune interpolation shell ;
-- **http** : destination contrôlée (SSRF) — le garde-fou du Core
-  (``core.knowledge.web_ingest``) impose une destination **publique** par
-  défaut ; ``ETHAN_MCP_ALLOW_PRIVATE_HOSTS=1`` autorise explicitement
+- **http** : destination contrôlée (SSRF) via **la politique d'egress du
+  Core** (``core/security/egress.py``, source unique partagée avec les
+  providers LLM) — destination **publique** par défaut ;
+  ``ETHAN_MCP_ALLOW_PRIVATE_HOSTS=1`` autorise explicitement
   loopback / RFC1918 / ULA (serveurs MCP locaux), mais les adresses
   link-local et les endpoints de métadonnées cloud restent **toujours**
   refusés.  Credentials dans l'URL refusés (les secrets vivent dans la
@@ -29,17 +30,11 @@ Règles (fail-closed) :
 
 from __future__ import annotations
 
-import ipaddress
 import os
 import re
 from typing import Any, Callable
-from urllib.parse import urlsplit, urlunsplit
 
-from core.knowledge.web_ingest import (
-    is_safe_public_ip,
-    resolve_hostname,
-    validate_public_url,
-)
+from core.security.egress import validate_egress_url
 
 # ── Allowlists structurelles ────────────────────────────────────────────────
 
@@ -50,9 +45,9 @@ TRUSTED_AUTH_TYPES = frozenset({"none", "bearer", "oauth"})
 ENV_ALLOW_PRIVATE_HOSTS = "ETHAN_MCP_ALLOW_PRIVATE_HOSTS"
 ENV_STDIO_ALLOWLIST = "ETHAN_MCP_STDIO_ALLOWLIST"
 
-# Endpoints de métadonnées cloud : jamais joignables, même en mode privé.
-_METADATA_IPS = frozenset({"169.254.169.254", "fd00:ec2::254", "100.100.100.200"})
-_METADATA_HOSTS = frozenset({"metadata.google.internal", "metadata.goog"})
+# Les destinations interdites (métadonnées cloud, link-local) sont définies par
+# LA politique d'egress du Core : core/security/egress.py.  Ce module ne les
+# redéfinit pas (AGENTS.md : une seule politique, pas de doublon).
 
 MAX_NAME_LENGTH = 120
 MAX_URL_LENGTH = 2048
@@ -134,86 +129,31 @@ def _validate_headers(headers: Any) -> dict[str, str]:
     return cleaned
 
 
-def _resolve_destination_addresses(
-    host: str, resolver: Callable[[str], list[str]] | None
-) -> list[str]:
-    """Adresses IP d'un host (littéral direct, sinon résolution DNS fail-closed)."""
-    try:
-        return [str(ipaddress.ip_address(host))]
-    except ValueError:
-        pass
-    try:
-        addresses = (resolver or resolve_hostname)(host)
-    except OSError as exc:
-        raise ServerPolicyError(f"DNS resolution failed for {host!r}") from exc
-    if not addresses:
-        raise ServerPolicyError(f"no address resolved for {host!r}")
-    return list(addresses)
-
-
-def _is_forbidden_address(address: str) -> bool:
-    """Link-local / métadonnées cloud : interdits même en mode privé autorisé."""
-    if address in _METADATA_IPS:
-        return True
-    try:
-        ip = ipaddress.ip_address(address)
-    except ValueError:
-        return True
-    if ip.is_link_local:
-        return True
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
-        return ip.ipv4_mapped.is_link_local or str(ip.ipv4_mapped) in _METADATA_IPS
-    return False
-
-
 def _validate_http_url(
     url: Any,
     *,
     allow_private: bool | None = None,
     resolver: Callable[[str], list[str]] | None = None,
 ) -> str:
-    """Valide et normalise l'URL d'un serveur MCP (transport http)."""
+    """Valide et normalise l'URL d'un serveur MCP (transport http).
+
+    La politique de destination (schéma, credentials inline, métadonnées cloud,
+    link-local, public-vs-privé) vit dans ``core/security/egress.py`` : source
+    unique de toutes les connexions sortantes du Core.  Ce module n'en conserve
+    que ce qui est propre aux serveurs MCP (longueur, enveloppe d'erreur) et
+    traduit tout refus en ``ServerPolicyError`` (fail-closed).
+    """
     if not isinstance(url, str) or not url.strip():
         raise ServerPolicyError("url is required (non-empty string)")
     raw = url.strip()
     if len(raw) > MAX_URL_LENGTH:
         raise ServerPolicyError(f"url is too long (max {MAX_URL_LENGTH} characters)")
 
-    parts = urlsplit(raw)
-    if parts.scheme not in ("http", "https"):
-        raise ServerPolicyError(f"url scheme {parts.scheme!r} is not allowed (http/https only)")
-    if parts.username or parts.password:
-        raise ServerPolicyError(
-            "credentials in the url are not supported — use auth_config "
-            "(Core secret layer), never an inline user:password"
-        )
-    host = (parts.hostname or "").lower()
-    if not host:
-        raise ServerPolicyError("url has no hostname")
-    if host in _METADATA_HOSTS:
-        raise ServerPolicyError(f"metadata endpoint is forbidden: {host}")
-
     private_ok = private_hosts_allowed() if allow_private is None else allow_private
-    if not private_ok:
-        # Destination publique uniquement : garde-fou SSRF du Core (source unique).
-        try:
-            return validate_public_url(raw, resolver)
-        except ValueError as exc:
-            raise ServerPolicyError(str(exc)) from exc
-
-    # Mode privé explicitement activé : loopback/RFC1918/ULA tolérés,
-    # link-local + métadonnées toujours refusés (fail-closed).
-    for address in _resolve_destination_addresses(host, resolver):
-        if _is_forbidden_address(address):
-            raise ServerPolicyError(
-                f"destination address is forbidden: {address} ({host}) — "
-                "link-local/metadata endpoints are never reachable"
-            )
-        ip = ipaddress.ip_address(address)
-        if not (ip.is_loopback or ip.is_private) and not is_safe_public_ip(ip):
-            raise ServerPolicyError(f"destination address is not allowed: {address} ({host})")
-
-    return urlunsplit((parts.scheme, parts.netloc.lower(), parts.path or "/", parts.query, ""))
+    try:
+        return validate_egress_url(raw, allow_private=private_ok, resolver=resolver)
+    except ValueError as exc:  # ServerPolicyError est un ValueError : fail-closed
+        raise ServerPolicyError(str(exc)) from exc
 
 
 def _validate_stdio(metadata: dict[str, Any]) -> None:

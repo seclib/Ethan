@@ -25,6 +25,15 @@ from core.tools.manager import ToolManager
 from core.tools.types import Tool, ToolContext
 
 
+class _AllowAllEnforcer:
+    """Enforcer permissif : ces tests ciblent le pipeline d'exécution des
+    builtins, pas la politique security (CTO P0-2 : ``ToolExecutor`` exige
+    désormais un enforcer — l'évaluation réelle vit dans tests/security/)."""
+
+    async def check(self, tool, params, context):  # noqa: ARG002
+        return None
+
+
 def _search_response() -> SearchResponse:
     return SearchResponse(
         query="ethan",
@@ -45,7 +54,7 @@ def _search_response() -> SearchResponse:
 
 @pytest.mark.asyncio
 async def test_builtin_web_search_executes_real_pipeline() -> None:
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     context = ToolContext(query="search ethan")
     result = await manager.execute_by_capability("search", {"query": "ethan"}, context)
     # Sans mock : le builtin route vers WebSearchManager — best-effort réseau.
@@ -59,7 +68,7 @@ async def test_builtin_web_search_executes_real_pipeline() -> None:
 @pytest.mark.asyncio
 async def test_builtin_web_search_output_populated() -> None:
     """ToolResult.output porte les résultats normalisés (bug régression)."""
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     with patch.object(WebSearchManager, "search", AsyncMock(return_value=_search_response())):
         context = ToolContext(query="search ethan")
         result = await manager.execute_by_capability("search", {"query": "ethan"}, context)
@@ -73,7 +82,7 @@ async def test_builtin_web_search_output_populated() -> None:
 @pytest.mark.asyncio
 async def test_builtin_web_search_missing_query_fails_gracefully() -> None:
     """Query manquante → ValueError → ToolResult.failed (jamais de crash)."""
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     context = ToolContext(query="search")
     result = await manager.execute_by_capability("search", {}, context)
     assert result.status == "failed"
@@ -83,7 +92,7 @@ async def test_builtin_web_search_missing_query_fails_gracefully() -> None:
 @pytest.mark.asyncio
 async def test_builtin_unknown_tool_fails_gracefully() -> None:
     """Un builtin sans exécuteur → NotImplementedError → failed."""
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     ghost = Tool(
         id="builtin_ghost",
         name="ghost_tool",
@@ -101,7 +110,7 @@ async def test_builtin_unknown_tool_fails_gracefully() -> None:
 @pytest.mark.asyncio
 async def test_deep_research_reads_output_and_finds_sources() -> None:
     """Régression : DeepResearchEngine._search() lit ``result.output``."""
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     engine = DeepResearchEngine(provider_manager=object(), tool_manager=manager)
     with patch.object(WebSearchManager, "search", AsyncMock(return_value=_search_response())):
         sources = await engine._search("ethan")
@@ -113,7 +122,7 @@ async def test_deep_research_reads_output_and_finds_sources() -> None:
 @pytest.mark.asyncio
 async def test_deep_research_search_failure_is_best_effort() -> None:
     """Un échec réseau ne fait pas échouer la recherche deep research."""
-    manager = ToolManager()
+    manager = ToolManager(policy_enforcer=_AllowAllEnforcer())
     engine = DeepResearchEngine(provider_manager=object(), tool_manager=manager)
     with patch.object(
         WebSearchManager,

@@ -19,9 +19,11 @@ import asyncio
 import base64
 import logging
 
+from core.auth import Permission
 from core.llm.provider_manager import ProviderManager
 from core.llm.types import TranscriptionRequest, VisionImage, VisionRequest
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from interfaces.api.auth import require_permission
 from interfaces.api.models.provider_schemas import (
     ProviderCreate,
     ProviderResponse,
@@ -103,12 +105,22 @@ async def get_provider(provider_id: str):
 # ── POST /providers ────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=ProviderResponse, status_code=201)
+@router.post(
+    "",
+    response_model=ProviderResponse,
+    status_code=201,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def create_provider(data: ProviderCreate):
     """Enregistre un nouveau provider.
 
     Le provider est instancié via la factory, testé si activé,
     puis persisté (config sans clé API).
+
+    Gate ``PLUGINS`` : un provider reçoit **tout** le contexte des
+    conversations et choisit l'endpoint qui le reçoit — ce n'est pas une
+    action de lecture, et un rôle en lecture seule ne peut donc pas en
+    enregistrer (escalade / exfiltration par ``base_url`` arbitraire).
     """
     manager = get_manager()
 
@@ -136,7 +148,11 @@ async def create_provider(data: ProviderCreate):
 # ── PUT /providers/{id} ────────────────────────────────────────────────────
 
 
-@router.put("/{provider_id}", response_model=ProviderResponse)
+@router.put(
+    "/{provider_id}",
+    response_model=ProviderResponse,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def update_provider(provider_id: str, data: ProviderUpdate):
     """Met à jour un provider existant.
 
@@ -164,20 +180,26 @@ async def update_provider(provider_id: str, data: ProviderUpdate):
         if value is not None:
             config[key] = value
 
-    # Si on change la clé API, la stocker séparément (jamais dans le store public)
+    # Si on change la clé API, la mémoriser hors config (mémoire de
+    # processus uniquement) : le store ne contient jamais de secret.
     api_key = config.pop("api_key", None)
+    manager.remember_api_key(provider_id, api_key)
 
     try:
-        # Sauvegarder la nouvelle config
-        await manager._store.save(provider_id, config)
+        # Sauvegarder la nouvelle config (copie nettoyée — jamais de secret).
         manager._providers_config[provider_id] = config
+        await manager._store.save(provider_id, manager._public_config(provider_id))
 
         # Ré-instancier / ré-enregistrer si activé
         if config.get("enabled", False):
             from core.llm.provider_factory import create_provider_from_config
 
             provider = create_provider_from_config(
-                {**config, "name": provider_id, "api_key": api_key or ""}
+                {
+                    **config,
+                    "name": provider_id,
+                    "api_key": manager.api_key_for(provider_id),
+                }
             )
             await manager._register(provider, provider_id)
             await provider.initialize()
@@ -196,7 +218,10 @@ async def update_provider(provider_id: str, data: ProviderUpdate):
 # ── DELETE /providers/{id} ─────────────────────────────────────────────────
 
 
-@router.delete("/{provider_id}")
+@router.delete(
+    "/{provider_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def delete_provider(provider_id: str):
     """Supprime un provider de la config et du registry."""
     manager = get_manager()
@@ -245,9 +270,18 @@ async def list_provider_models(provider_id: str):
 # ── POST /providers/{id}/test ──────────────────────────────────────────────
 
 
-@router.post("/{provider_id}/test", response_model=TestConnectionResult)
+@router.post(
+    "/{provider_id}/test",
+    response_model=TestConnectionResult,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def test_provider_connection(provider_id: str):
-    """Teste la connexion à un provider (vrai healthcheck)."""
+    """Teste la connexion à un provider (vrai healthcheck).
+
+    Gate ``PLUGINS`` : cet appel fait **sortir le Core** vers l'endpoint
+    enregistré (server-side request) — il suit donc la politique de la
+    mutation qui a créé cette destination.
+    """
     manager = get_manager()
 
     try:
@@ -268,9 +302,17 @@ async def test_provider_connection(provider_id: str):
 # ── PUT /providers/{id}/default ────────────────────────────────────────────
 
 
-@router.put("/{provider_id}/default", response_model=ProviderResponse)
+@router.put(
+    "/{provider_id}/default",
+    response_model=ProviderResponse,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def set_default_provider(provider_id: str):
-    """Définit le provider par défaut."""
+    """Définit le provider par défaut.
+
+    Gate ``PLUGINS`` : changer le provider par défaut redirige toutes les
+    conversations (et donc tout le contexte) vers un autre endpoint.
+    """
     manager = get_manager()
 
     try:

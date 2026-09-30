@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 import uuid
 from typing import Any
 
@@ -35,13 +34,20 @@ from core.missions import MissionManager
 from core.plugins import PluginRegistry
 from core.rag import RAGPipeline
 from core.rag.strategies import DEFAULT_STRATEGY, available_strategies, validate_strategy
+from core.security.types import ActionType
 from core.skills.lab import SkillLab
 from core.skills.store import SkillStore
 from core.skills.validation import collect_unknown_tools
 from core.state.chats import ChatStore
 from core.state.webui_store import CoreWebUIStore
+
+# Parseur <tool> : source unique Core partagée avec ChatPipeline et la
+# boucle d'outils des agents (AGENTS.md — aucune copie dans l'interface).
+from core.tools.call_protocol import parse_tool_calls as _parse_tool_calls
+from core.tools.call_protocol import strip_tool_blocks as _strip_tool_blocks
 from fastapi import APIRouter, Depends, HTTPException, Request
 from interfaces.api.auth import current_user_id, require_permission
+from interfaces.api.gateway_guard import gateway_guard
 from interfaces.api.routers.folders import get_folder_manager
 
 logger = logging.getLogger(__name__)
@@ -59,37 +65,7 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 
 # Format d'appel d'outil émis par le LLM lorsque des outils sont sélectionnés
 # dans le chat :  <tool name="nom">{"param": "valeur"}</tool>
-# Le parsing/exécution restent côté Core (ChatPipeline.execute_tool_call).
-_TOOL_CALL_RE = re.compile(
-    r'<tool\s+name=["\']([^"\']+)["\']\s*>\s*(.*?)\s*</tool>',
-    re.DOTALL,
-)
-
-
-def _parse_tool_calls(content: str) -> list[dict[str, Any]]:
-    """Extrait les appels d'outils balisés d'une réponse LLM."""
-    calls: list[dict[str, Any]] = []
-    for match in _TOOL_CALL_RE.finditer(content):
-        raw = (match.group(2) or "{}").strip() or "{}"
-        try:
-            params = json.loads(raw)
-            if not isinstance(params, dict):
-                params = {"value": params}
-        except Exception:
-            params = {"raw": raw}
-        calls.append({"name": match.group(1), "params": params})
-    return calls
-
-
-def _strip_tool_blocks(content: str, note_by_name: dict[str, str] | None = None) -> str:
-    """Retire les blocs <tool> du contenu affiché, avec une note par appel."""
-
-    def _repl(match: re.Match[str]) -> str:
-        name = match.group(1)
-        note = (note_by_name or {}).get(name, f"_[Outil « {name} » exécuté]_")
-        return f"\n\n{note}\n\n"
-
-    return _TOOL_CALL_RE.sub(_repl, content)
+# (Le parsing Core est importé depuis core.tools.call_protocol — voir plus bas.)
 
 
 # Instance globale du ProviderManager — injectée au démarrage via set_provider_manager()
@@ -483,8 +459,18 @@ async def list_tools():
     ]
 
 
-@router.put("/agents/{agent_id}")
+@router.put(
+    "/agents/{agent_id}",
+    dependencies=[Depends(require_permission(Permission.AGENTS))],
+)
 async def update_agent(agent_id: str, data: dict[str, Any]):
+    """Met à jour une définition d'agent.
+
+    Gate ``AGENTS`` (aligné sur ``POST /v1/agents``) : modifier un agent, c'est
+    modifier ses ``tool_ids`` et ses collections de connaissance — donc ses
+    droits d'exécution.  Laisser cette route sans gate permettait d'ajouter un
+    outil à un agent sans avoir le droit d'en créer un.
+    """
     try:
         if "knowledge_collection_ids" in data or (
             isinstance(data.get("metadata"), dict) and "knowledge_ids" in data["metadata"]
@@ -511,7 +497,10 @@ async def update_agent(agent_id: str, data: dict[str, Any]):
     return agent.to_dict()
 
 
-@router.delete("/agents/{agent_id}")
+@router.delete(
+    "/agents/{agent_id}",
+    dependencies=[Depends(require_permission(Permission.AGENTS))],
+)
 async def delete_agent(agent_id: str):
     if not await _domains.agents.delete(agent_id):
         raise HTTPException(404, f"Agent {agent_id} not found")
@@ -761,7 +750,14 @@ async def export_skills():
     return await get_skill_store().export_skills()
 
 
-@router.post("/skills/import", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+@router.post(
+    "/skills/import",
+    dependencies=[
+        Depends(require_permission(Permission.PLUGINS)),
+        # CTO P0-1 : SecurityGateway — import de code skills externe.
+        Depends(gateway_guard(ActionType.PLUGIN_INSTALL)),
+    ],
+)
 async def import_skills(data: dict[str, Any]):
     records = data.get("skills") or []
     if not isinstance(records, list):
@@ -1420,13 +1416,31 @@ async def get_flux_event(event_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/settings")
+# ── SETTINGS — DÉPRÉCIÉ (ADR-3007) ──────────────────────────────────────────
+# Record key/value historique : plus aucun consommateur (les écrans fantômes
+# ont été supprimés côté WebUI — docs/design/2026-09-30-webui-settings-honesty.md).
+# Chaque réglage réel a désormais sa source de vérité Core (catalogue providers
+# ADR-3002, /v1/rag/config, /models, /v1/agents…). Les routes restent exposées
+# (aucune suppression sans RFC) et sont marquées dépréciées dans l'OpenAPI.
+
+
+@router.get("/settings", deprecated=True)
 async def get_settings():
+    """[Déprécié — ADR-3007] Record key/value historique, sans consommateur."""
     return await get_webui_store().get_settings()
 
 
-@router.put("/settings")
+@router.put(
+    "/settings",
+    deprecated=True,
+    dependencies=[Depends(require_permission(Permission.SETTINGS))],
+)
 async def update_settings(data: dict[str, Any]):
+    """[Déprécié — ADR-3007] Persistance du record historique — gate ``SETTINGS``.
+
+    Aucune interface ne l'édite plus ; les réglages réels passent par leurs
+    endpoints Core dédiés (providers, RAG, modèles, agents…).
+    """
     return await get_webui_store().update_settings(data)
 
 
@@ -1943,7 +1957,15 @@ async def get_plugin_capabilities(plugin_id: str):
     return caps
 
 
-@router.post("/plugins/install", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+@router.post(
+    "/plugins/install",
+    dependencies=[
+        Depends(require_permission(Permission.PLUGINS)),
+        # CTO P0-1 : SecurityGateway (rate limit par acteur + audit) avant
+        # toute installation de code externe.
+        Depends(gateway_guard(ActionType.PLUGIN_INSTALL)),
+    ],
+)
 async def install_plugin(data: dict[str, Any]):
     """Installe un plugin du catalogue (par id) ou, à défaut, un plugin custom.
 

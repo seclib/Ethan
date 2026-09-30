@@ -16,6 +16,8 @@ import shlex
 from pathlib import Path
 from typing import Any
 
+from core.security.policy import resolve_safe_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,13 +65,28 @@ class TerminalPlugin:
                 f"Command '{cmd}' is not allowed. Allowed: {sorted(self._allowed_commands)}"
             )
 
-        # Prevent dangerous patterns
-        dangerous = ["&&", "||", ";", "|", "`", "$(", "${"]
+        # Prevent dangerous patterns — métacaractères d'enchaînement, de
+        # redirection et de continuation.  Un ``\n``/``\r`` non quoté est un
+        # séparateur de commandes au même titre que ``;`` : il doit être refusé
+        # comme les autres, sinon la whitelist de commandes est contournable.
+        dangerous = ["&&", "||", ";", "|", "`", "$(", "${", "&", "\n", "\r", ">", "<"]
         for pattern in dangerous:
             if pattern in command:
-                raise ValueError(f"Dangerous pattern '{pattern}' in command")
+                raise ValueError(f"Dangerous pattern {pattern!r} in command")
 
         return command
+
+    def _resolve_path(self, path: str) -> Path:
+        """Résout ``path`` dans le répertoire de travail du plugin (fail-closed).
+
+        Toute tentative de traversal (chemin absolu hors workdir, ``../``,
+        symlink sortant du workdir) lève ``PathSecurityError`` — réutilisation
+        du garde-fou Core ``resolve_safe_path`` (CTO P0-4 / Attaque Red Team 4).
+        """
+        # Le join s'effectue en texte : un chemin absolu écrase le workdir et
+        # est donc détecté hors racine ; les ``../`` et symlinks sont résolus
+        # puis comparés au périmètre autorisé.
+        return Path(resolve_safe_path(str(self._workdir / path), [str(self._workdir)]))
 
     async def execute(self, command: str) -> dict[str, Any]:
         """Execute a shell command and return output."""
@@ -169,7 +186,7 @@ class TerminalPlugin:
 
     async def list_directory(self, path: str = ".") -> list[dict[str, Any]]:
         """List directory contents."""
-        target = self._workdir / path
+        target = self._resolve_path(path)
         if not target.exists():
             raise FileNotFoundError(f"Path not found: {target}")
 
@@ -189,7 +206,7 @@ class TerminalPlugin:
 
     async def read_file(self, path: str) -> str:
         """Read file contents."""
-        target = self._workdir / path
+        target = self._resolve_path(path)
         if not target.exists():
             raise FileNotFoundError(f"File not found: {target}")
         if not target.is_file():
@@ -199,7 +216,7 @@ class TerminalPlugin:
 
     async def write_file(self, path: str, content: str) -> bool:
         """Write content to a file."""
-        target = self._workdir / path
+        target = self._resolve_path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
         return True

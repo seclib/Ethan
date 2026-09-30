@@ -39,7 +39,9 @@ def channels():
 
 @pytest.mark.asyncio
 async def test_created_channel_is_readable(channels):
-    channel = await create_channel({"name": "équipe-core", "description": "canal de test"}, request=None)
+    channel = await create_channel(
+        {"name": "équipe-core", "description": "canal de test"}, request=None
+    )
 
     listed = await list_channels()
     assert [c["id"] for c in listed] == [channel["id"]]

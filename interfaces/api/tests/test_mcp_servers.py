@@ -145,8 +145,14 @@ def test_enabled_toggle_via_update():
 
 
 @pytest.mark.skipif(not MCP_AVAILABLE, reason="SDK `mcp` non installé")
-def test_sync_with_real_mcp_stdio_server():
-    """Round-trip complet avec un VRAI serveur MCP (stdio, SDK officiel)."""
+def test_sync_with_real_mcp_stdio_server(monkeypatch):
+    """Round-trip complet avec un VRAI serveur MCP (stdio, SDK officiel).
+
+    Opt-out explicite du sandbox Docker : ce test exerce le TRANSPORT réel
+    (processus local), le wrap docker étant couvert par les unit tests
+    (tests/security/test_runtime_isolation.py).
+    """
+    monkeypatch.setenv("ETHAN_MCP_STDIO_SANDBOX", "off")
 
     async def scenario():
         manager = _manager()

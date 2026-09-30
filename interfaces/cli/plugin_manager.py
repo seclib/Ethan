@@ -74,15 +74,36 @@ def validate(plugin_dir: Path) -> dict | None:
     return _load_plugin(plugin_dir)
 
 
+def git_clone_command(source: str, dest: Path) -> list[str]:
+    """Commande de clone durcie (Red Team Attaques 2 & 17).
+
+    - ``-c core.hooksPath=/dev/null`` : AUCUN hook du dépôt distant n'est
+      exécuté (ATTAQUE 2 — hooks ``post-checkout`` malveillants) ;
+    - ``--no-recurse-submodules`` : aucun submodule autoload avant scan
+      (ATTAQUE 17 — ``.gitmodules`` malveillant).
+
+    Source unique testée dans ``tests/security/test_runtime_isolation.py``.
+    """
+    return [
+        "git",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "clone",
+        "--no-recurse-submodules",
+        source,
+        str(dest),
+    ]
+
+
 def install(source: str) -> bool:
     """Install a plugin from a path or git URL."""
     dest = USER_PLUGIN_DIR / Path(source).name
     USER_PLUGIN_DIR.mkdir(parents=True, exist_ok=True)
 
     if source.startswith(("http://", "https://", "git@")):
-        # Git clone
+        # Git clone (durci — hooks désactivés, pas de submodule autoload)
         try:
-            subprocess.run(["git", "clone", source, str(dest)], check=True, capture_output=True)
+            subprocess.run(git_clone_command(source, dest), check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             print(f"git clone failed: {e.stderr.decode()}")
             return False

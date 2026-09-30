@@ -71,6 +71,27 @@ def validate_install_actions(spec: CapabilitySpec) -> None:
                 )
 
 
+def npm_install_command(npm: str, prefix: str, packages: Any) -> list[str]:
+    """Commande npm d'installation durcie (Red Team Attaque 18).
+
+    ``--ignore-scripts`` interdit l'exécution automatique des hooks
+    ``postinstall`` d'un paquet tiers (injection de code au moment de
+    l'installation). Source unique : testée dans
+    ``tests/security/test_runtime_isolation.py``.
+    """
+    return [
+        npm,
+        "install",
+        "--global",
+        "--prefix",
+        str(prefix),
+        "--no-audit",
+        "--no-fund",
+        "--ignore-scripts",
+        *map(str, packages),
+    ]
+
+
 async def _run(argv: list[str], timeout: float = 300.0) -> tuple[bool, str]:
     """Exécute une argv figée (jamais shell=True) avec timeout."""
     try:
@@ -511,16 +532,11 @@ class NodePackageBackend(InstallBackend):
                 if npm is None:
                     return False, "npm introuvable (requis pour installer un paquet Node)"
                 ok, out = await _run(
-                    [
+                    npm_install_command(
                         npm,
-                        "install",
-                        "--global",
-                        "--prefix",
                         str(node_prefix()),
-                        "--no-audit",
-                        "--no-fund",
-                        *map(str, action["packages"]),
-                    ]
+                        action["packages"],
+                    )
                 )
                 if not ok:
                     return False, f"npm install a echoue: {out}"
