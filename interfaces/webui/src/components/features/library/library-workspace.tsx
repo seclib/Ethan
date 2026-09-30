@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getLibrary, type LibraryItem, type LibraryItemType, type LibraryFilters } from "@/lib/api/library";
+import { useLibraryStore } from "@/store/library.store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,10 @@ export function LibraryWorkspace() {
   const [typeFilter, setTypeFilter] = React.useState<LibraryItemType | "all">("all");
   const [sortBy, setSortBy] = React.useState<LibraryFilters["sort_by"]>("created_at");
   const [sortOrder, setSortOrder] = React.useState<LibraryFilters["sort_order"]>("desc");
-  const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
+  // Mode d'affichage : préférence d'interface PERSISTÉE (Settings → Library),
+  // partagée entre /library et l'écran de préférences — source unique.
+  const viewMode = useLibraryStore((s) => s.viewMode);
+  const setViewMode = useLibraryStore((s) => s.setViewMode);
   const [selectedItem, setSelectedItem] = React.useState<LibraryItem | null>(null);
   const filters: LibraryFilters = { type: typeFilter, search: search || undefined, sort_by: sortBy, sort_order: sortOrder };
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["library", filters], queryFn: () => getLibrary(filters) });
@@ -51,8 +55,8 @@ export function LibraryWorkspace() {
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as LibraryFilters["sort_by"])} className="rounded-md border border-line-1 bg-[var(--panel)] px-3 py-2 text-sm text-foreground"><option value="created_at">Date</option><option value="title">Titre</option><option value="type">Type</option></select>
           <Button size="sm" variant="outline" onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}>{sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}</Button>
           <div className="flex rounded-md border border-line-1">
-            <button onClick={() => setViewMode("grid")} className={cn("p-2", viewMode === "grid" ? "bg-[var(--accent)]/10 text-foreground" : "text-muted-foreground")}><LayoutGrid className="h-4 w-4" /></button>
-            <button onClick={() => setViewMode("list")} className={cn("p-2", viewMode === "list" ? "bg-[var(--accent)]/10 text-foreground" : "text-muted-foreground")}><List className="h-4 w-4" /></button>
+            <button onClick={() => setViewMode("grid")} aria-label="Vue grille" aria-pressed={viewMode === "grid"} className={cn("p-2", viewMode === "grid" ? "bg-[var(--accent)]/10 text-foreground" : "text-muted-foreground")}><LayoutGrid className="h-4 w-4" /></button>
+            <button onClick={() => setViewMode("list")} aria-label="Vue liste" aria-pressed={viewMode === "list"} className={cn("p-2", viewMode === "list" ? "bg-[var(--accent)]/10 text-foreground" : "text-muted-foreground")}><List className="h-4 w-4" /></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4">

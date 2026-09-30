@@ -18,22 +18,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsWorkspace } from "../../../src/components/features/settings/components/settings-workspace";
 
-// Section General montée par défaut au render du workspace.
-// ⚠️ Références STABLES : le composant re-seed son draft via un effet [settings] —
-// un objet recréé à chaque render déclencherait une boucle infinie de renders.
-jest.mock("@/components/features/settings/hooks/use-settings", () => {
-	const stableSettings = { system: {}, llm: {} };
-	const stableUpdate = async () => ({});
-	return {
-		useSettings: () => ({
-			settings: stableSettings,
-			isLoading: false,
-			update: stableUpdate,
-			isUpdating: false,
-		}),
-	};
-});
-
+// La section « General » fantôme a été supprimée du workspace — aucun mock de
+// useSettings n'est nécessaire (elle n'est plus montée par défaut).
 const ragPayload = {
 	config: {
 		chunk_size: 512,

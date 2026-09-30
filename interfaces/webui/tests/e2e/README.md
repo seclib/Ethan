@@ -33,12 +33,15 @@ ETHAN_E2E_EMAIL=operator ETHAN_E2E_PASSWORD='…' npx playwright test
 
 - Aucune valeur par défaut, aucun secret commité (règle « secret » du repo) :
   les identifiants viennent uniquement de l'environnement.
+- Le compte E2E se crée via l'API réelle : `POST /auth/register` (le mot de passe
+  ne vit que dans l'environnement de la session de test).
 - `playwright.config.ts` démarre `npm run dev` sur le port 3001 et **réutilise
   un serveur déjà lancé** (`reuseExistingServer` hors CI). Pour cibler une
   autre instance : `ETHAN_WEBUI_URL=https://… npx playwright test`.
 - `scenarios.spec.ts` crée un projet réel horodaté (« E2E Smoke … ») pour
-  valider le parcours complet jusqu'au Core ; il est supprimable depuis le
-  workspace Projects.
+  valider le parcours complet jusqu'au Core, puis le **supprime lui-même**
+  (`DELETE /v1/projects/{id}` ; repli par nom si l'échec survient avant la
+  navigation) — aucun résidu laissé dans le Core de dev.
 
 ## Conventions
 
@@ -48,3 +51,14 @@ ETHAN_E2E_EMAIL=operator ETHAN_E2E_PASSWORD='…' npx playwright test
 - Aucun sélecteur de mise en page fragile (classes utilitaires Tailwind) :
   l'E2E valide des comportements, les tests unitaires (jest/jsdom) valident le
   rendu détaillé.
+- **Hydratation (mode dev)** : React peut s'hydrater après le premier
+  `fill`/raccourci clavier — un champ contrôlé serait réinitialisé et le submit
+  ne partirait jamais. Utiliser `fillStable()` (`support/auth.ts`) pour tout
+  champ contrôlé, et réessayer les raccourcis clavier (cf. Ctrl+K dans
+  `app.spec.ts`).
+- **Listes Core asynchrones** : attendre les options (`expect.poll` sur
+  `[role="option"]`) avant de compter, sinon un skip « aucun modèle/agent »
+  peut être prononcé à tort pendant le chargement.
+- **Budgets** : `expect` global à 10 s (`playwright.config.ts`) et 15 s pour la
+  navigation post-création de projet — la compilation Next à froid en dev peut
+  dépasser les 5 s par défaut.

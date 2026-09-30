@@ -5,19 +5,24 @@
  * cible validée (Lead Product Architect) :
  *
  *     Settings
- *     ├── General      (general, chat, reminders, shortcuts, library)
- *     ├── AI           (providers, models, routers, speech, ai→"Advanced")
+ *     ├── General      (chat, reminders, shortcuts, library)
+ *     ├── AI           (providers, models, routers, speech)
  *     ├── Knowledge    (knowledge, rag, embedding, vector-db, chunking,
  *     │                 reranking, search)
  *     ├── Skills       (skills)
  *     ├── Integrations (integrations)
  *     ├── Security     (security)
  *     ├── Appearance   (appearance)
- *     └── Advanced     (system, capabilities, advanced)
+ *     └── Advanced     (system, capabilities)
  *
  * Règles :
- *  - **aucune section supprimée** : chaque id apparaît exactement une fois
- *    (couvert par tests/unit/settings/settings-nav.test.ts) ;
+ *  - **chaque section exposée est réellement servie par ETHAN Core** : les
+ *    écrans fantômes historiques (`general` = éditeur de clés `/v1/settings`
+ *    jamais consommées, `ai` = faux formulaire Default Model / Temperature,
+ *    `advanced` = Experimental Features / Debug Mode / Custom CSS) ont été
+ *    SUPPRIMÉS — voir docs/design/2026-09-30-webui-settings-honesty.md ;
+ *  - chaque id apparaît exactement une fois (couvert par
+ *    tests/unit/settings/settings-nav.test.ts) ;
  *  - **aucune logique métier ici** (AGENTS.md) : ids + libellés uniquement —
  *    le rendu reste dans `settings-workspace.tsx`, la vérité reste dans Core ;
  *  - les groupes à section unique sont rendus sans en-tête (pas de doublon
@@ -26,7 +31,6 @@
 
 export const SETTINGS_SECTION_IDS = [
   // General
-  "general",
   "chat",
   "reminders",
   "shortcuts",
@@ -36,7 +40,6 @@ export const SETTINGS_SECTION_IDS = [
   "models",
   "routers",
   "speech",
-  "ai",
   // Knowledge
   "knowledge",
   "rag",
@@ -56,7 +59,6 @@ export const SETTINGS_SECTION_IDS = [
   // Advanced
   "system",
   "capabilities",
-  "advanced",
 ] as const;
 
 export type SettingsSectionId = (typeof SETTINGS_SECTION_IDS)[number];
@@ -70,17 +72,17 @@ export interface SettingsGroup {
   items: readonly SettingsSectionId[];
 }
 
-/** Ordre exact de l'arborescence cible (cible à valider → validée). */
+/** Ordre exact de l'arborescence cible (8 groupes validés). */
 export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   {
     id: "general",
     label: "General",
-    items: ["general", "chat", "reminders", "shortcuts", "library"],
+    items: ["chat", "reminders", "shortcuts", "library"],
   },
   {
     id: "ai",
     label: "AI",
-    items: ["providers", "models", "routers", "speech", "ai"],
+    items: ["providers", "models", "routers", "speech"],
   },
   {
     id: "knowledge",
@@ -91,7 +93,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   { id: "integrations", label: "Integrations", items: ["integrations"] },
   { id: "security", label: "Security", items: ["security"] },
   { id: "appearance", label: "Appearance", items: ["appearance"] },
-  { id: "advanced", label: "Advanced", items: ["system", "capabilities", "advanced"] },
+  { id: "advanced", label: "Advanced", items: ["system", "capabilities"] },
 ];
 
 /** True si `value` est une section Settings connue (pilotage par hash URL). */

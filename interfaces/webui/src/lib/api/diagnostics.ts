@@ -139,6 +139,27 @@ export async function fetchMetrics(): Promise<SystemMetrics | ApiError> {
   return (await res.json()) as SystemMetrics;
 }
 
+// ── Health détaillé (GET /health/detailed) ──────────────────────────────
+//
+// Le Core répond 200 quand toutes les dépendances (NATS, Redis, PostgreSQL)
+// sont connectées, 503 sinon — dans les DEUX cas le corps JSON est valide.
+// On lit donc le corps sans traiter le 503 comme une panne réseau : l'état
+// dégradé doit s'afficher tel quel (les composants en erreur sont listés).
+
+export interface DetailedHealth {
+  status: "ok" | "degraded";
+  checks: Record<string, string>;
+}
+
+export async function fetchDetailedHealth(): Promise<DetailedHealth> {
+  const res = await fetch("/api/health/detailed", { cache: "no-store" });
+  try {
+    return (await res.json()) as DetailedHealth;
+  } catch {
+    throw new Error(`health/detailed illisible (HTTP ${res.status})`);
+  }
+}
+
 /** Mappe un DiagStatus → label + couleur CSS. */
 export function statusMeta(status: DiagStatus): {
   label: string;

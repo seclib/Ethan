@@ -6,7 +6,7 @@
  * et absence de lien fantôme sur le workspace Skills.
  */
 import { test, expect } from "@playwright/test";
-import { CREDENTIALS_MISSING, hasCredentials, login } from "./support/auth";
+import { CREDENTIALS_MISSING, fillStable, hasCredentials, login } from "./support/auth";
 
 test.describe("Settings — navigation guidée (authentifié)", () => {
   test.beforeEach(async ({ page }) => {
@@ -20,14 +20,14 @@ test.describe("Settings — navigation guidée (authentifié)", () => {
     await expect(search).toBeVisible();
     await expect(page.getByRole("button", { name: "Appearance" })).toBeVisible();
 
-    await search.fill("rag");
+    await fillStable(search, "rag");
     await expect(page.getByRole("button", { name: "RAG" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Appearance" })).toHaveCount(0);
 
-    await search.fill("zzzz");
+    await fillStable(search, "zzzz");
     await expect(page.getByText("Aucune section ne correspond")).toBeVisible();
 
-    await search.fill("");
+    await fillStable(search, "");
     await expect(page.getByRole("button", { name: "Appearance" })).toBeVisible();
     await expect(page.getByRole("button", { name: "RAG" })).toBeVisible();
   });

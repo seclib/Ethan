@@ -23,20 +23,8 @@ import {
 	type Provider,
 } from "@/lib/api/providers";
 
-// Section General montée par défaut au render du workspace.
-// ⚠️ Références STABLES : le composant re-seed son draft via un effet [settings].
-jest.mock("@/components/features/settings/hooks/use-settings", () => {
-	const stableSettings = { system: {}, llm: {} };
-	const stableUpdate = async () => ({});
-	return {
-		useSettings: () => ({
-			settings: stableSettings,
-			isLoading: false,
-			update: stableUpdate,
-			isUpdating: false,
-		}),
-	};
-});
+// La section « General » fantôme (éditeur /v1/settings non consommé) a été
+// supprimée — plus aucun mock de useSettings nécessaire.
 
 jest.mock("@/lib/api/providers", () => ({
 	listProviders: jest.fn(async () => []),

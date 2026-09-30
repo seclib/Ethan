@@ -18,21 +18,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettingsWorkspace } from "../../../src/components/features/settings/components/settings-workspace";
 
-// Références stables (voir settings-rag-navigation.test.tsx) : le draft de
-// GeneralSection se re-seed via un effet — un objet recréé à chaque render
-// déclencherait une boucle infinie.
-jest.mock("@/components/features/settings/hooks/use-settings", () => {
-	const stableSettings = { system: {}, llm: {} };
-	const stableUpdate = async () => ({});
-	return {
-		useSettings: () => ({
-			settings: stableSettings,
-			isLoading: false,
-			update: stableUpdate,
-			isUpdating: false,
-		}),
-	};
-});
+// La section « General » fantôme (draft /v1/settings) a été supprimée du
+// workspace — le render par défaut monte la section Chat (préférences réelles).
 
 function renderWorkspace() {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

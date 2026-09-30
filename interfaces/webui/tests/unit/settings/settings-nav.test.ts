@@ -61,15 +61,19 @@ describe("registre SECTIONS du workspace", () => {
     expect(declared).toEqual([...SETTINGS_SECTION_IDS].sort());
   });
 
-  it("l'entrée IA du groupe AI porte le libellé « Advanced » (pas de « AI › AI »)", () => {
-    const aiEntry = SECTIONS.find((s) => s.id === "ai");
-    expect(aiEntry?.label).toBe("Advanced");
+  it("n'expose plus les écrans fantômes historiques (general, ai, advanced)", () => {
+    // Régression : ces ids ouvraient des formulaires factices jamais branchés
+    // (éditeur /v1/settings non consommé, faux Default Model/Temperature,
+    // Experimental Features/Debug Mode). Voir
+    // docs/design/2026-09-30-webui-settings-honesty.md.
+    const ids = new Set<string>(SETTINGS_SECTION_IDS);
+    for (const phantom of ["general", "ai", "advanced"]) {
+      expect(ids.has(phantom)).toBe(false);
+    }
   });
 
   it("évite les doublons en-tête/item (Preferences sous General, Experimental sous Advanced)", () => {
     const labels = new Map(SECTIONS.map((s) => [s.id, s.label]));
-    expect(labels.get("general")).toBe("Preferences");
-    expect(labels.get("advanced")).toBe("Experimental");
     // Exception documentée : « Knowledge » (overview du knowledge base) garde
     // son libellé — verrouillé par settings-rag-navigation.test.tsx (régession
     // historique : section RAG devenue code mort). L'en-tête de groupe est une

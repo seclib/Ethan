@@ -45,7 +45,15 @@ test.describe("Shell — sidebar (authentifié)", () => {
   });
 
   test("Ctrl+K ouvre la palette de commandes", async ({ page }) => {
-    await page.keyboard.press("Control+k");
-    await expect(page.getByPlaceholder("Type a command or search...")).toBeVisible();
+    // Le raccourci est écouté par un listener monté après l'hydratation :
+    // on réessaie la combinaison tant que la palette n'est pas apparue
+    // (sans re-presser si elle est déjà ouverte, pour ne pas la refermer).
+    const palette = page.getByPlaceholder("Type a command or search...");
+    await expect(async () => {
+      if (!(await palette.isVisible())) {
+        await page.keyboard.press("Control+k");
+      }
+      await expect(palette).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
   });
 });

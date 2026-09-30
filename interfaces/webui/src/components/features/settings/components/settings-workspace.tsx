@@ -47,14 +47,12 @@ import {
 } from "@/lib/api/integrations";
 import {
   ChatSection,
-  AISection,
   SearchSection,
   RemindersSection,
   ShortcutsSection,
   LibrarySection,
   SystemSection,
   SecuritySection,
-  AdvancedSection,
 } from "./settings-sections";
 import { CapabilitiesSection } from "./capabilities-section";
 
@@ -66,7 +64,6 @@ import {
   SpeechToTextSection,
   VectorDatabaseSection,
 } from "./settings-ai-sections";
-import { useSettings } from "@/components/features/settings/hooks/use-settings";
 import { useUIStore } from "@/store/ui.store";
 import { useTheme } from "@/providers/theme-provider";
 import {
@@ -83,9 +80,7 @@ import { capabilityLabel, capabilityVariant } from "@/lib/llm/capabilities";
 import {
   AudioLines,
   Braces,
-  Settings,
   Palette,
-  Cpu,
   Database,
   BookOpen,
   Zap,
@@ -137,11 +132,8 @@ export const SECTIONS: {
   icon: React.ReactNode;
   category: "system" | "user" | "project" | "conversation";
 }[] = [
-  // Groupe « General » — libellé d'item distinct de l'en-tête (pas de doublon).
-  { id: "general", label: "Preferences", icon: <Settings className="h-4 w-4" />, category: "user" },
+  // Groupe « General » — chaque entrée est une capacité/état réel.
   { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
-  // Dans le groupe « AI » : comportement avancé de l'IA (température, etc.).
-  { id: "ai", label: "Advanced", icon: <Cpu className="h-4 w-4" />, category: "system" },
   { id: "providers", label: "Providers", icon: <Layers className="h-4 w-4" />, category: "system" },
   { id: "models", label: "Models", icon: <Bot className="h-4 w-4" />, category: "system" },
   { id: "routers", label: "Model Routers", icon: <Network className="h-4 w-4" />, category: "system" },
@@ -162,12 +154,10 @@ export const SECTIONS: {
   { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
   { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
   { id: "security", label: "Security", icon: <Shield className="h-4 w-4" />, category: "system" },
-  // Groupe « Advanced » — item distinct de l'en-tête (expérience/debug).
-  { id: "advanced", label: "Experimental", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
 ];
 
 export function SettingsWorkspace() {
-  const [activeSection, setActiveSection] = React.useState<Section>("general");
+  const [activeSection, setActiveSection] = React.useState<Section>("chat");
   const [search, setSearch] = React.useState("");
 
   // Section pilotée par le hash URL (#general, #appearance, …) : la sidebar
@@ -268,9 +258,7 @@ export function SettingsWorkspace() {
 
       {/* Right panel: section content */}
       <div className="flex-1 min-w-0 overflow-y-auto" data-testid="settings-section-content">
-        {activeSection === "general" && <GeneralSection />}
         {activeSection === "chat" && <ChatSection />}
-        {activeSection === "ai" && <AISection />}
         {activeSection === "appearance" && <AppearanceSection />}
         {activeSection === "knowledge" && <KnowledgeSection />}
         {activeSection === "rag" && <RagSection />}
@@ -291,7 +279,6 @@ export function SettingsWorkspace() {
         {activeSection === "library" && <LibrarySection />}
         {activeSection === "system" && <SystemSection />}
         {activeSection === "security" && <SecuritySection />}
-        {activeSection === "advanced" && <AdvancedSection />}
       </div>
     </div>
   );
@@ -339,104 +326,6 @@ function WorkspaceLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-/* ── General — editable Core settings (/v1/settings) ────────────── */
-
-function GeneralSection() {
-  const { settings, isLoading, update, isUpdating } = useSettings();
-  const addToast = useUIStore((s) => s.addToast);
-  const [draft, setDraft] = React.useState<Record<string, Record<string, unknown>> | null>(null);
-
-  // Re-seed the local draft whenever backend state changes.
-  React.useEffect(() => {
-    if (settings) {
-      setDraft({
-        system: { ...(settings.system as any) },
-        llm: { ...(settings.llm as any) },
-      });
-    }
-  }, [settings]);
-
-  const dirty =
-    !!draft &&
-    !!settings &&
-    (JSON.stringify(draft.system) !== JSON.stringify(settings.system) ||
-      JSON.stringify(draft.llm) !== JSON.stringify(settings.llm));
-
-  const handleSave = async () => {
-    if (!draft || !dirty) return;
-    const result = await update({ system: draft.system, llm: draft.llm } as any);
-    if (!result.error) {
-      addToast({ type: "success", message: "Configuration enregistrée" });
-    }
-  };
-
-  const setField = (sectionKey: string, key: string, value: unknown) => {
-    setDraft((prev) =>
-      prev ? { ...prev, [sectionKey]: { ...prev[sectionKey], [key]: value } } : prev,
-    );
-  };
-
-  if (isLoading || !settings || !draft) return <SectionLoading />;
-
-  return (
-    <div className="p-6">
-      <SectionHeader
-        title="Settings"
-        description="Configuration générale et gouvernance du système"
-      />
-      {(["system", "llm"] as const).map((sectionKey) => (
-        <div key={sectionKey} className="mb-8">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-tertiary">
-            {sectionKey === "system" ? "System" : "LLM"}
-          </h3>
-          <p className="mb-3 mt-1 text-xs text-foreground-tertiary">
-            {sectionKey === "system"
-              ? "Comportement général d'ETHAN : mode de fonctionnement, limites et gouvernance."
-              : "Paramètres par défaut des modèles de langage utilisés par le Core."}
-          </p>
-          <div className="space-y-3">
-            {Object.entries(draft[sectionKey] ?? {}).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between gap-4 rounded-lg border border-line-1 bg-bg-1 px-4 py-3">
-                <span className="text-sm text-foreground-secondary font-mono">{k}</span>
-                {typeof v === "boolean" ? (
-                  <button
-                    type="button"
-                    onClick={() => setField(sectionKey, k, !v)}
-                    className="text-accent"
-                    aria-label={`Toggle ${k}`}
-                  >
-                    {v ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
-                  </button>
-                ) : typeof v === "number" ? (
-                  <Input
-                    type="number"
-                    className="w-48"
-                    value={String(v)}
-                    step="any"
-                    onChange={(e) => setField(sectionKey, k, Number(e.target.value))}
-                  />
-                ) : (
-                  <Input
-                    className="w-48"
-                    value={String(v)}
-                    onChange={(e) => setField(sectionKey, k, e.target.value)}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <div className="flex justify-end">
-        <Button variant="primary" onClick={handleSave} disabled={!dirty || isUpdating}>
-          {isUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          <span className="ml-1">Enregistrer</span>
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Appearance — WebUI preferences (theme, accent, interface) ──── */
 
