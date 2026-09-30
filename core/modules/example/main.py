@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 import nats
 from nats.aio.msg import Msg
 
+from core.bus.nats_auth import nats_connect_options
 from core.ethan_types.event import Event
 from core.ethan_types.sdk.module import CognitiveModule, ModuleContext, ModuleManifest
 from core.telemetry.logger import setup_logging
@@ -45,7 +46,8 @@ class ExampleModule(CognitiveModule):
 
         timeout = float(os.getenv("MODULE_CONNECT_TIMEOUT", "10"))
         self.nc = await asyncio.wait_for(
-            nats.connect(context.nats_url, name=self.module_id), timeout=timeout
+            nats.connect(context.nats_url, name=self.module_id, **nats_connect_options()),
+            timeout=timeout,
         )
 
         # Subscribe to module topics

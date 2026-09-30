@@ -18,6 +18,7 @@ from typing import Any
 import nats
 from core.agents import AgentManager
 from core.auth.password_reset import get_password_reset_manager, set_password_reset_pool
+from core.bus.nats_auth import nats_connect_options
 from core.config import ConfigStore, ConfigurationService
 from core.knowledge import KnowledgeManager
 from core.llm.provider_manager import ProviderManager
@@ -166,7 +167,8 @@ async def lifespan(app: FastAPI):
             if remaining <= 0:
                 raise asyncio.TimeoutError("API dependency startup deadline exceeded")
             nc = await asyncio.wait_for(
-                nats.connect(nats_url, name="api-gateway"), timeout=min(10, remaining)
+                nats.connect(nats_url, name="api-gateway", **nats_connect_options()),
+                timeout=min(10, remaining),
             )
             set_nats_client(nc)
             logger.info("API Gateway connected to NATS")
@@ -1278,7 +1280,7 @@ async def health_detailed():
     nc = None
     try:
         nats_url = os.getenv("NATS_URL", "nats://nats:4222")
-        nc = await asyncio.wait_for(nats.connect(nats_url), timeout=2)
+        nc = await asyncio.wait_for(nats.connect(nats_url, **nats_connect_options()), timeout=2)
         results["nats"] = "connected"
     except Exception as e:
         results["nats"] = f"error: {e}"

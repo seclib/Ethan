@@ -9,9 +9,15 @@ services:
       - "127.0.0.1:${NATS_ROUTE_PORT:-6222}:6222"
     # Expose the NATS monitoring API so health reflects a usable server,
     # rather than merely an open client TCP port.
-    command: ["-js", "-m", "8222"]
+    # Authentification par token (CTO P0-3) : authorization token=$NATS_TOKEN
+    # depuis infrastructure/nats/nats-server.conf — le démarrage échoue
+    # explicitement si NATS_TOKEN n'est pas défini dans .env.
+    command: ["-js", "-m", "8222", "-c", "/etc/nats/nats-server.conf"]
+    environment:
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
     volumes:
       - nats_data:/data
+      - ./infrastructure/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null || exit 1"]
       interval: 5s
@@ -114,6 +120,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
       # URL interne du Kernel Runtime (healthcheck du composant `kernel` de
@@ -131,6 +138,14 @@ services:
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       VLLM_BASE_URL: "${VLLM_BASE_URL:-http://vllm:8000}"
       CUSTOM_OPENAI_BASE_URL: "${CUSTOM_OPENAI_BASE_URL:-http://localhost:8000/v1}"
+      # ── MCP stdio (CTO Phase 1.3 — sandbox Tier 3, fail-closed) ────
+      # `docker` = tout serveur stdio tourne dans un conteneur durci
+      # (image OBLIGATOIRE via ETHAN_MCP_STDIO_SANDBOX_IMAGE) ; `off` =
+      # opt-out explicite de l'opérateur. Sans image ⇒ stdio REFUSÉ.
+      ETHAN_MCP_STDIO_ALLOWLIST: "${ETHAN_MCP_STDIO_ALLOWLIST:-}"
+      ETHAN_MCP_STDIO_SANDBOX: "${ETHAN_MCP_STDIO_SANDBOX:-docker}"
+      ETHAN_MCP_STDIO_SANDBOX_IMAGE: "${ETHAN_MCP_STDIO_SANDBOX_IMAGE:-}"
+      ETHAN_MCP_STDIO_SANDBOX_NETWORK: "${ETHAN_MCP_STDIO_SANDBOX_NETWORK:-none}"
     depends_on:
       nats:
         condition: service_healthy
@@ -173,6 +188,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
       LOG_LEVEL: INFO
@@ -221,6 +237,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
       REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
       LOG_LEVEL: INFO

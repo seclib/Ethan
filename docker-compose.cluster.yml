@@ -30,6 +30,8 @@ services:
     image: nats:2.10-alpine
     container_name: ethan-nats-1
     hostname: nats-1
+    environment:
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
     ports:
       - "127.0.0.1:4222:4222"    # Client (compatibilité avec le port standard)
       - "127.0.0.1:8222:8222"    # HTTP monitoring
@@ -67,6 +69,8 @@ services:
     image: nats:2.10-alpine
     container_name: ethan-nats-2
     hostname: nats-2
+    environment:
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
     ports:
       - "127.0.0.1:4223:4223"
       - "127.0.0.1:8223:8223"
@@ -107,6 +111,8 @@ services:
     image: nats:2.10-alpine
     container_name: ethan-nats-3
     hostname: nats-3
+    environment:
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
     ports:
       - "127.0.0.1:4224:4224"
       - "127.0.0.1:8224:8224"

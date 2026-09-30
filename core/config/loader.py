@@ -185,11 +185,14 @@ class ConfigLoader:
             try:
                 import nats
 
+                from core.bus.nats_auth import nats_connect_options
+
                 nc = await asyncio.wait_for(
                     nats.connect(
                         "nats://localhost:4222",
                         timeout=2,
                         name="ethan-probe",
+                        **nats_connect_options(),
                     ),
                     timeout=2,
                 )

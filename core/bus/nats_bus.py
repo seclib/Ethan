@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from core.bus.interface import EventBus as EventBusContract
 from core.bus.interface import EventHandler, Subscription
+from core.bus.nats_auth import nats_connect_options
 from core.ethan_types.event import Event
 
 try:
@@ -56,7 +57,9 @@ class EventBus(EventBusContract):
 
         url = servers or self.servers
         timeout = float(os.getenv("NATS_CONNECT_TIMEOUT", "10"))
-        self._client = await asyncio.wait_for(nats.connect(url), timeout=timeout)
+        self._client = await asyncio.wait_for(
+            nats.connect(url, **nats_connect_options()), timeout=timeout
+        )
         logger.info("NATS EventBus connected to %s", url)
 
     async def disconnect(self) -> None:

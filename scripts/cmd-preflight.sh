@@ -331,6 +331,9 @@ if [ -f "$ENV_FILE" ]; then
     }
 
     _check_env_var "POSTGRES_PASSWORD" "warn"
+    # CTO P0-3 : token d'authentification NATS (requis par docker-compose —
+    # le serveur nats démarre fail-closed sans lui).
+    _check_env_var "NATS_TOKEN" "error"
     # Variables optionnelles mais importantes
     for var in OPENAI_API_KEY ANTHROPIC_API_KEY; do
         val="$(grep -E "^${var}=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"'"'" || true)"

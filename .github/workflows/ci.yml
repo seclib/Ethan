@@ -206,6 +206,8 @@ jobs:
     env:
       POSTGRES_PASSWORD: ci-test-password
       VAULT_DEV_ROOT_TOKEN_ID: ci-test-token
+      # Authentification NATS (CTO P0-3) : exigée par docker-compose (fail-closed).
+      NATS_TOKEN: ci-test-nats-token
     steps:
       - uses: actions/checkout@v4
 
