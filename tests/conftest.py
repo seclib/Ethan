@@ -17,6 +17,47 @@ if ROOT not in sys.path:
 os.environ.setdefault("ETHAN_MCP_STDIO_SANDBOX", "off")
 
 # ---------------------------------------------------------------------------
+# Credentials des tests in-process : compléter depuis `.env` (racine).
+#
+# Le bus NATS exige un token partagé (CTO P0-3, core/bus/nats_auth.py) : sans
+# `NATS_TOKEN`, le lifespan de l'API (interfaces/api/main.py) tente une
+# connexion sans authentification et le serveur répond « Authorization
+# Violation » à chaque tentative — les tests de contrat échouaient donc hors
+# stack Docker alors que le conteneur API, lui, fonctionnait (le compose lui
+# injecte la variable). L'historique : 6 erreurs pré-existantes dans
+# tests/test_api_contract_p0.py et tests/test_api_contract_domains.py.
+#
+# Règles :
+# - jamais d'écrasement : un environnement CI explicite reste prioritaire ;
+# - `NATS_URL` n'est PAS chargée : la valeur du `.env` est l'URL interne
+#   Docker (`nats://nats:4222`), injoignable depuis l'hôte ; les tests
+#   utilisent le défaut de l'application (`nats://localhost:4222`, port
+#   mappé par compose sur 127.0.0.1).
+# ---------------------------------------------------------------------------
+
+
+def _read_dotenv_value(path: str, key: str) -> str | None:
+    """Lit une clé simple `KEY=value` d'un fichier `.env`, sans interprétation."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                name, _, value = line.partition("=")
+                if name.strip() == key:
+                    return value.strip().strip('"').strip("'") or None
+    except OSError:
+        return None
+    return None
+
+
+if "NATS_TOKEN" not in os.environ:
+    _nats_token = _read_dotenv_value(os.path.join(ROOT, ".env"), "NATS_TOKEN")
+    if _nats_token:
+        os.environ["NATS_TOKEN"] = _nats_token
+
+# ---------------------------------------------------------------------------
 # QUARANTAINE DES TESTS LEGACY (correctif minimal — test-infra uniquement).
 #
 # Le paquet applicatif historique `openjarvis` (865 fichiers sous src/) a été
