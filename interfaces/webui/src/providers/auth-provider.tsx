@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@/types";
 import { logger } from "@/lib/logger";
 
@@ -37,6 +38,7 @@ function normalizeUser(raw: any): User | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -102,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logger.error("Logout error:", error);
     } finally {
       setUser(null);
+      router.replace("/login");
     }
   };
 
