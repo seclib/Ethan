@@ -24,6 +24,8 @@ qu'il interroge la bonne surface, avec le bon vocabulaire.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -217,3 +219,66 @@ class TestDiagnosticHonnete:
         # Meme verbe, meme cause : fish doit traduire les codes, pas les avaler.
         for code in ("401", "404"):
             assert code in fish, f"fish ne distingue plus le code {code}"
+
+
+def _parse_natively(shell: str) -> None:
+    """Parse l'adaptateur avec le vrai shell ; skip explicite s'il est absent."""
+    if shutil.which(shell) is None:
+        pytest.skip(
+            f"{shell} non installe (optionnel). Pour valider nativement : "
+            f"sudo apt install {shell}"
+        )
+    path = ADAPTERS[shell]
+    command = (
+        ["fish", "--no-execute", str(path)]
+        if shell == "fish"
+        else [shell, "-n", str(path)]
+    )
+    result = subprocess.run(command, capture_output=True, text=True)
+    assert result.returncode == 0, (
+        f"{shell} ne parse plus {path.name} :\n{result.stderr.strip()}"
+    )
+
+
+class TestSyntaxeNativeOptionnelle:
+    """Validation par les vrais parseurs — les shells optionnels se sautent.
+
+    Directive : zsh et fish sont installables a la demande, jamais des
+    prerequis. Un test rouge pour une option absente condamnerait l'option ;
+    un test muet cacherait une vraie regression. D'ou : skip nomme + indice.
+    """
+
+    @pytest.mark.parametrize("shell", ["bash", "zsh", "fish"])
+    def test_adaptateur_parse_par_le_vrai_shell(self, shell: str):
+        _parse_natively(shell)
+
+    def test_shell_absent_est_saute_avec_indice_pas_rouge(self, monkeypatch):
+        """Preuve executee de l'optionalite : which() -> None => skip, pas echec."""
+        monkeypatch.setattr(shutil, "which", lambda name, *args, **kwargs: None)
+        with pytest.raises(pytest.skip.Exception) as excinfo:
+            _parse_natively("zsh")
+        assert "apt install zsh" in str(excinfo.value)
+
+
+class TestInstalleurSouple:
+    """install.sh : les shells optionnels ne bloquent ni ne s'auto-installent."""
+
+    def test_l_installeur_accepte_une_liste_de_shells(self):
+        text = (SHELL / "install.sh").read_text(encoding="utf-8")
+        assert "--shells" in text, "install.sh n'accepte plus --shells"
+        for shell in ("bash", "zsh", "fish"):
+            assert shell in text, f"install.sh ne connait plus {shell}"
+
+    def test_un_shell_absent_affiche_un_indice_sans_echouer(self):
+        text = _code_only(SHELL / "install.sh")
+        assert "command -v" in text, "install.sh ne detecte plus la presence du binaire"
+        assert "apt install" in text, "install.sh ne rappelle plus la commande d'installation"
+
+    def test_aucune_installation_automatique(self):
+        """Le consentement est requis : aucun apt execute, seulement des echoes."""
+        executed = [
+            line
+            for line in _code_only(SHELL / "install.sh").splitlines()
+            if re.search(r"\bapt(?:-get)?\s+install\b", line) and "echo" not in line
+        ]
+        assert executed == [], f"l'installeur execute apt : {executed}"
