@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -126,20 +127,21 @@ class TestSessions:
         resumed = resume_session()
         assert resumed == session_id
 
-    def test_resume_missing_creates_new(self) -> None:
-        import os
-
+    def test_resume_missing_creates_new(self, tmp_path: Path) -> None:
         from cli.core.memory import resume_session
 
-        # Ensure no session file
-        try:
-            os.remove("tests/cli/ethan/unit/test.session.txt")
-        except FileNotFoundError:
-            pass
+        # Fichier de session absent : resume_session() doit en creer un.
+        # tmp_path — jamais un chemin relatif au CWD : l'ancien chemin
+        # "tests/cli/ethan/unit/test.session.txt" ecrivait dans le depot et
+        # salissait un fichier versionne a chaque execution de la suite.
+        session_file = tmp_path / "test.session.txt"
+        assert not session_file.exists()
         with pytest.MonkeyPatch().context() as m:
-            m.setattr("cli.core.memory.SESSION_FILE", "tests/cli/ethan/unit/test.session.txt")
+            m.setattr("cli.core.memory.SESSION_FILE", str(session_file))
             session_id = resume_session()
-            assert len(session_id) > 0
+        assert len(session_id) > 0
+        assert session_file.exists()
+        assert session_file.read_text().strip() == session_id
 
     def test_save_session(self) -> None:
         from cli.core.memory import SESSION_FILE, save_session
