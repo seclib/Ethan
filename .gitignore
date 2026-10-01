@@ -185,8 +185,8 @@ build/
 nyarch/
 docs/seclib/
 jarvis-OS/
-design/
-engineering/
+/design/
+/engineering/
 examples/
 logs/
 # Tests directory is tracked, but ignore pytest cache
@@ -195,4 +195,3 @@ tests/.ruff_cache/
 interfaces/webui/docs/
 .claude/
 .venv-1/
-docs/
