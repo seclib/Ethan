@@ -4,17 +4,24 @@
  * KnowledgeHub — cockpit unifié d'organisation des connaissances ETHAN.
  *
  * Onglets : Tous les dossiers · Toutes les Knowledge · RAG Collections ·
- * Skills · Web Import (fonctionnalité unique : recherche multi-moteurs ou
+ * Skills · Library · Web Import (fonctionnalité unique : recherche multi-moteurs ou
  * URL → sélection → destination explicite → indexation).  Chaque panneau
  * réutilise le workspace Core existant (FoldersWorkspace, KnowledgeWorkspace,
- * SkillsWorkspace) ou une vue dédiée (RagCollectionsView, WebImportPanel).
- * Aucune logique métier ici : chaque vue transmet des intentions au Core et
- * affiche l'état retourné.
+ * LibraryWorkspace, SkillsWorkspace) ou une vue dédiée (RagCollectionsView,
+ * WebImportPanel).  Aucune logique métier ici : chaque vue transmet des
+ * intentions au Core et affiche l'état retourné.
+ *
+ * CONSOLIDATION (30/09/2026) — la Library est un onglet, plus une page
+ * séparée : `LibraryWorkspace` et `KnowledgeHub` interrogeaient les MÊMES
+ * endpoints Core (/v1/knowledge, /v1/knowledge/collections, /v1/rag/documents,
+ * /v1/projects/{id}/documents, /files — cf. docs/design/2026-10-01-cartographie-webui-ux.md
+ * §5.1). Deux surfaces pour un seul jeu de données. La route /library reste
+ * valide en lien profond : elle redirige ici avec ?view=library.
  */
 
 import * as React from "react";
 import {
-  FolderTree, Database, Layers, Shapes, Sparkles, Network, Search,
+  FolderTree, Database, Layers, Shapes, Sparkles, Network, Search, Library,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FoldersWorkspace } from "@/components/features/folders/components/folders-workspace";
@@ -25,8 +32,9 @@ import { WebImportPanel } from "@/components/features/knowledge/components/web-i
 import { WebSearchPanel } from "@/components/features/knowledge/components/web-search-panel";
 import { SkillsWorkspace } from "@/components/features/skills/components/skills-workspace";
 import { DomainsWorkspace } from "@/components/features/domains/components/domains-workspace";
+import { LibraryWorkspace } from "@/components/features/library/library-workspace";
 
-type HubTab = "browser" | "domains" | "folders" | "knowledge" | "rag" | "skills" | "web" | "web-search";
+type HubTab = "browser" | "domains" | "folders" | "knowledge" | "library" | "rag" | "skills" | "web" | "web-search";
 
 const TABS: Array<{ id: HubTab; label: string; icon: React.ComponentType<{ size?: number | string; className?: string }> }> = [
   { id: "browser", label: "Navigateur", icon: FolderTree },
@@ -34,14 +42,28 @@ const TABS: Array<{ id: HubTab; label: string; icon: React.ComponentType<{ size?
   { id: "domains", label: "Domains", icon: Shapes },
   { id: "folders", label: "Tous les dossiers", icon: FolderTree },
   { id: "knowledge", label: "Toutes les Knowledge", icon: Database },
+  { id: "library", label: "Library", icon: Library },
   { id: "rag", label: "RAG Collections", icon: Layers },
   { id: "skills", label: "Toutes les Skills", icon: Sparkles },
   { id: "web", label: "Web Import", icon: Network },
 ];
 
+/** `?view=library` : lien profond vers un onglet précis (anciennes routes). */
+function isHubTab(value: string | null): value is HubTab {
+  return value !== null && TABS.some((t) => t.id === value);
+}
+
 export function KnowledgeHub() {
   const [tab, setTab] = React.useState<HubTab>("domains");
   const [search, setSearch] = React.useState("");
+
+  // Lien profond : on lit l'URL après montage (évite `useSearchParams`, qui
+  // imposerait un Suspense boundary pour une page entièrement cliente).
+  React.useEffect(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (isHubTab(view)) setTab(view);
+    else if (window.location.hash === "#library") setTab("library");
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -51,6 +73,7 @@ export function KnowledgeHub() {
             <button
               key={id}
               type="button"
+              aria-current={tab === id ? "page" : undefined}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
                 tab === id
                   ? "bg-primary/10 text-primary font-medium"
@@ -79,6 +102,7 @@ export function KnowledgeHub() {
         {tab === "domains" && <DomainsWorkspace />}
         {tab === "folders" && <FoldersWorkspace />}
         {tab === "knowledge" && <KnowledgeWorkspace />}
+        {tab === "library" && <LibraryWorkspace />}
         {tab === "rag" && <RagCollectionsView />}
         {tab === "web-search" && <WebSearchPanel />}
         {tab === "skills" && <SkillsWorkspace />}

@@ -11,7 +11,7 @@ interface AgentState {
 
 /**
  * Source unique de vérité pour la sélection d'agent. Partagée entre
- * AgentSelector, AssistantTopBar et la page chat (payload `agent_id`) —
+ * AgentSelector, ChatSecondaryBar et la page chat (payload `agent_id`) —
  * une seule instance d'état pour toute l'application (zustand store),
  * symétrique de model.store.ts. Persistée pour la session suivante.
  */

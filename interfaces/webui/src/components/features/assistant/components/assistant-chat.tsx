@@ -77,7 +77,7 @@ interface AssistantChatProps {
    * tools/sélections/provider/model) ont été RETIRÉES — le composer simplifié
    * ne les rend plus. Les sélections actives vivent dans la page (payload chat)
    * et leur représentation visuelle est la ChatContextBar ; les sélecteurs
-   * Agent/Model ont UNE position : le header (AssistantTopBar).
+   * Agent/Model ont UNE position : le header (ChatSecondaryBar).
    */
   /** Erreur globale du flux (use-chats) — affichée en bannière non bloquante. */
   error?: string | null;

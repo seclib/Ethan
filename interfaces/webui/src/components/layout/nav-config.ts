@@ -23,11 +23,11 @@
 
 import type { ComponentType } from "react";
 import {
-  Bot, Cpu, Database, Wrench, Sparkles, Network, Palette, ScrollText,
-  Target, Calendar, StickyNote, Inbox, Telescope, BookOpen, Library,
+  Bot, Cpu, Database, Wrench, Sparkles, ScrollText,
+  Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
     Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge,
-  GalleryVerticalEnd, UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
+  UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
   Workflow, FlaskConical, MessagesSquare,
 } from "lucide-react";
 
@@ -129,12 +129,14 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
   {
     id: "ai",
     label: "AI",
-    description: "Providers, catalogue de modèles et galerie d'assistants",
+    description: "Providers et catalogue de modèles ETHAN",
     collapsible: true,
     items: [
       { href: "/providers", label: "Providers", icon: Layers },
       { href: "/models", label: "Models", icon: Cpu },
-      { href: "/gallery", label: "Gallery", icon: GalleryVerticalEnd },
+      // Pas d'entrée « Gallery » : la page n'existe qu'en état vide honnête
+      // (Core n'expose aucun /v1/gallery). Une entrée de menu annonce une
+      // capacité réelle — voir R5, docs/design/2026-09-30-ux-refonte-cartographie.md.
     ],
   },
   {
@@ -144,9 +146,9 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/knowledge", label: "Knowledge", icon: Database },
-      // Library = vue unifiée (documents RAG, knowledge, collections, images)
-      // servie par les APIs Core existantes ; aucun stockage parallèle.
-      { href: "/library", label: "Library", icon: Library },
+      // Library = onglet de /knowledge (LibraryWorkspace y est monté) : même
+      // jeu de données (mêmes 5 endpoints Core), donc un seul menu. /library
+      // reste une URL valide (redirige vers ?view=library).
       { href: "/workspace", label: "Memory", icon: BrainCircuit },
       { href: "/folders", label: "Folders", icon: FolderTree },
       { href: "/domains", label: "Domains", icon: Shapes },
@@ -163,9 +165,8 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
       // Skills Lab = sandbox Docker du Core (/v1/skills/lab/test|results).
       { href: "/skills/lab", label: "Skills Lab", icon: FlaskConical },
       { href: "/tools", label: "Tools", icon: Wrench },
-      // Serveurs MCP : page dédiée (séparation capacités / infrastructure).
-      { href: "/mcp", label: "MCP", icon: Network },
-      // Prompts prédéfinis : enregistrements Core (/v1/prompts).
+      // Serveurs MCP = onglet de /tools (ToolsHub), plus une page : la
+      // ressource Core `/v1/tools/servers` est unique — un seul menu.
       { href: "/prompts", label: "Prompts", icon: ScrollText },
     ],
   },
@@ -186,8 +187,9 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     collapsible: true,
     items: [
       { href: "/settings", label: "Settings", icon: Settings },
-      // Interface = section Appearance réelle de /settings (thème, accents).
-      { href: "/settings#appearance", label: "Interface", icon: Palette },
+      // Pas d'entrée « Interface » en doublon : /settings#appearance EST la
+      // même page que Settings (section Appearance). Une entrée de menu =
+      // une destination ; le hash reste supporté comme lien profond.
     ],
   },
 ];
@@ -246,7 +248,8 @@ export const G_SEQUENCE_ROUTES: Record<string, { route: string; label: string }>
   t: { route: "/tools", label: "Tools" },
   p: { route: "/providers", label: "Providers" },
   n: { route: "/models", label: "Models" },
-  l: { route: "/library", label: "Library" },
+  // Onglet Library de Knowledge (consolidation 30/09/2026) : cible directe.
+  l: { route: "/knowledge?view=library", label: "Library" },
   s: { route: "/settings", label: "Settings" },
 };
 

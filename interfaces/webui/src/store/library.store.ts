@@ -6,8 +6,9 @@ import { persist } from "zustand/middleware";
  *
  * Préférence PUREMENT interface (navigation/affichage) : le mode d'affichage
  * par défaut de la bibliothèque. Elle est consommée par `LibraryWorkspace`
- * (route /library) ET par la section Settings → Library — une seule source
- * de vérité, aucune logique métier (les données restent servies par le Core).
+ * (onglet « Library » de /knowledge) ET par la section Settings → Library —
+ * une seule source de vérité, aucune logique métier (les données restent
+ * servies par le Core).
  */
 export type LibraryViewMode = "grid" | "list";
 

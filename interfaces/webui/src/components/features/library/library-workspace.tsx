@@ -31,7 +31,8 @@ export function LibraryWorkspace() {
   const [sortBy, setSortBy] = React.useState<LibraryFilters["sort_by"]>("created_at");
   const [sortOrder, setSortOrder] = React.useState<LibraryFilters["sort_order"]>("desc");
   // Mode d'affichage : préférence d'interface PERSISTÉE (Settings → Library),
-  // partagée entre /library et l'écran de préférences — source unique.
+  // partagée entre l'onglet Library de /knowledge et l'écran de préférences
+  // — source unique.
   const viewMode = useLibraryStore((s) => s.viewMode);
   const setViewMode = useLibraryStore((s) => s.setViewMode);
   const [selectedItem, setSelectedItem] = React.useState<LibraryItem | null>(null);

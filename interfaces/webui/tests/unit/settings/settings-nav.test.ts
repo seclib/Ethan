@@ -99,10 +99,15 @@ describe("nav-config — palette / header", () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
-  it("couvre les workspaces clés du scénario réel (models, providers, knowledge, skills, mcp, tools)", () => {
+  // MCP = onglet de la surface unique des outils (ToolsHub). Le menu expose
+  // donc /tools, pas /mcp : une ressource Core, une entrée de menu.
+  it("couvre les workspaces clés du scénario réel (models, providers, knowledge, skills, tools)", () => {
     const hrefs = new Set(NAV_ITEMS_FLAT.map((i) => i.href));
-    for (const href of ["/models", "/providers", "/knowledge", "/skills", "/mcp", "/tools"]) {
+    for (const href of ["/models", "/providers", "/knowledge", "/skills", "/tools"]) {
       expect(hrefs.has(href)).toBe(true);
     }
+    // Les anciennes routes dédupliquées ne doivent plus être des entrées de menu.
+    expect(hrefs.has("/mcp")).toBe(false);
+    expect(hrefs.has("/library")).toBe(false);
   });
 });

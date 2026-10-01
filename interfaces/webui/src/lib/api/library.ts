@@ -9,8 +9,8 @@
  *   Knowledge:  /v1/knowledge, /v1/knowledge/collections
  *   Images:     /files (with image filter)
  *
- * Consommé par components/features/library/library-workspace.tsx, monté sur la
- * route /library (taxinomie Knowledge, séquence clavier « G L », Ctrl+K).
+ * Consommé par components/features/library/library-workspace.tsx, monté sur
+ * l'onglet « Library » de /knowledge (l'ancienne route /library y redirige).
  * Aucun stockage parallèle : agrégation en lecture des APIs Core vérifiées
  * ci-dessus (routers/v1.py et routers/domains.py).
  *   Collections: /v1/knowledge/collections

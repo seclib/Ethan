@@ -12,7 +12,7 @@ interface ModelState {
 
 /**
  * Source unique de vérité pour la sélection moteur IA (provider + modèle).
- * Partagée entre ModelSelector, ProviderSelector, AssistantTopBar et la page
+ * Partagée entre ModelSelector, ProviderSelector, ChatSecondaryBar et la page
  * chat — une seule instance d'état pour toute l'application (zustand store).
  * Persistée pour retrouver la préférence à la session suivante.
  */

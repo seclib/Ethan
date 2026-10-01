@@ -3,7 +3,9 @@
 /**
  * ToolsWorkspace — catalogue des capacités ETHAN (builtin / custom / MCP).
  *
- * Séparation : ici les OUTILS ; /mcp gère les SERVEURS MCP.
+ * Onglet « Outils » de /tools. Les SERVEURS MCP sont l'onglet voisin de la
+ * même surface (consolidation 30/09/2026) : on y va par la route canonique
+ * `/tools?view=mcp`, pas par l'ancienne URL /mcp qui ne fait que rediriger.
  * Capacités réellement supportées par le Core (aucun bouton fictif) :
  *   - liste / recherche / filtres provider + catégorie / tags / détail
  *   - création de tool custom persistant (POST /v1/tools)
@@ -61,10 +63,11 @@ export function ToolsWorkspace() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<CoreTool | null>(null);
 
-  // Ancien onglet #mcp → page dédiée /mcp (compatibilité anciens liens).
-  React.useEffect(() => {
-    if (window.location.hash === "#mcp") router.replace("/mcp");
-  }, [router]);
+  // Le lien profond `#mcp` est traité par ToolsHub (il ouvre l'onglet). Ne
+  // pas le re-rediriger ici : /mcp n'est plus qu'un pont vers /tools?view=mcp.
+
+  // Route canonique de l'onglet MCP (surface unique /tools).
+  const mcpTabHref = "/tools?view=mcp";
 
   const { data: tools = [], isLoading, refetch } = useQuery({
     queryKey: ["tools"],
@@ -127,7 +130,7 @@ export function ToolsWorkspace() {
         count={tools.length}
         actions={
           <>
-            <Button size="sm" variant="secondary" onClick={() => router.push("/mcp")}>
+            <Button size="sm" variant="secondary" onClick={() => router.push(mcpTabHref)}>
               Gérer MCP
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
@@ -217,6 +220,7 @@ export function ToolsWorkspace() {
               tool={selectedTool}
               agentsUsing={agentsUsingSelected}
               canDelete={selectedTool.provider === "custom"}
+              mcpTabHref={mcpTabHref}
               onDelete={() => setPendingDelete(selectedTool)}
             />
           )}
@@ -288,10 +292,12 @@ function CenteredLoader() {
   );
 }
 
-function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
+function ToolDetails({ tool, agentsUsing, canDelete, mcpTabHref, onDelete }: {
   tool: CoreTool;
   agentsUsing: Array<{ id: string; name: string }>;
   canDelete: boolean;
+  /** Route canonique de l'onglet MCP (`/tools?view=mcp`). */
+  mcpTabHref: string;
   onDelete: () => void;
 }) {
   const router = useRouter();
@@ -324,7 +330,7 @@ function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
           </Button>
         ) : (
           <span className="shrink-0 text-xs text-foreground-tertiary">
-            Lecture seule — géré par le Core{tool.provider === "mcp" ? " (sync /mcp)" : ""}
+            Lecture seule — géré par le Core{tool.provider === "mcp" ? " (sync MCP)" : ""}
           </span>
         )}
       </div>
@@ -412,9 +418,9 @@ function ToolDetails({ tool, agentsUsing, canDelete, onDelete }: {
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-foreground-secondary">Source MCP</h3>
           <p className="mb-2 text-sm text-foreground-secondary">
             Cet outil provient d&apos;un serveur MCP (synchronisation et activation
-            sur la page MCP).
+            dans l&apos;onglet « Serveurs MCP »).
           </p>
-          <Button size="sm" variant="secondary" onClick={() => router.push("/mcp")}>
+          <Button size="sm" variant="secondary" onClick={() => router.push(mcpTabHref)}>
             Ouvrir MCP
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>

@@ -160,8 +160,9 @@ export function SettingsWorkspace() {
   const [activeSection, setActiveSection] = React.useState<Section>("chat");
   const [search, setSearch] = React.useState("");
 
-  // Section pilotée par le hash URL (#general, #appearance, …) : la sidebar
-  // v3 ouvre directement « Interface » (/settings#appearance).
+  // Section pilotée par le hash URL (#appearance, #rag, …) : lien profond
+  // documenté (E2E + docs). Aucune entrée de menu ne pointe sur un hash de la
+  // page Settings elle-même — une entrée = une destination (anti-doublon).
   React.useEffect(() => {
     const applyHash = () => {
       const h = window.location.hash.replace("#", "") as Section;

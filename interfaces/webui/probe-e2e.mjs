@@ -23,7 +23,7 @@ const ROUTES = [
   "/", "/agents", "/missions", "/calendar", "/notes", "/inbox",
   "/research", "/cookbook", "/knowledge", "/skills", "/tools",
   "/providers", "/connections", "/diagnostics", "/settings", "/models",
-  "/plugins", "/mcp", "/security", "/logs", "/monitoring",
+  "/plugins", "/tools?view=mcp", "/security", "/logs", "/monitoring",
 ];
 
 const results = [];
@@ -185,6 +185,34 @@ async function main() {
       .isVisible()
       .catch(() => false);
     found ? ok(`sidebar: « ${label} »`) : fail(`sidebar: « ${label} »`);
+  }
+
+  // ── [6] Consolidation : liens profonds historiques ──────────────────────
+  // /library et /mcp n'ont pas disparu : ils redirigent vers la surface
+  // canonique ET ouvrent le bon onglet. C'est la preuve que dédupliquer les
+  // écrans n'a cassé aucun lien externe ni aucun signet.
+  console.log("\n[6] Consolidation — redirections /library et /mcp");
+  for (const [legacy, canonical, tabLabel] of [
+    ["/library", "/knowledge?view=library", "Library"],
+    ["/mcp", "/tools?view=mcp", "Serveurs MCP"],
+  ]) {
+    await page.goto(`${BASE}${legacy}`, { waitUntil: "domcontentloaded", timeout: 20000 });
+    const landed = new URL(page.url());
+    landed.pathname + landed.search === canonical
+      ? ok(`${legacy} -> ${canonical}`)
+      : fail(`${legacy} -> ${canonical}`, `atterri sur ${landed.pathname}${landed.search}`);
+
+    // L'onglet visé doit être celui marqué courant (pas seulement l'URL).
+    // On ATTEND le marqueur : l'ouverture de l'onglet passe par un effet de
+    // montage, donc l'URL est correcte quelques ms avant l'onglet.
+    const active = page.locator(`button[aria-current="page"]:has-text("${tabLabel}")`).first();
+    const shown = await active
+      .waitFor({ state: "visible", timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+    shown
+      ? ok(`${legacy} ouvre l'onglet « ${tabLabel} »`)
+      : fail(`${legacy} ouvre l'onglet « ${tabLabel} »`);
   }
 
   await browser.close();

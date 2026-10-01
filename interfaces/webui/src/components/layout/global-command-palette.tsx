@@ -98,11 +98,13 @@ export function GlobalCommandPalette() {
     },
     {
       id: "nav-library",
+      // Library = onglet de Knowledge : on navigue DIRECTEMENT vers l'onglet
+      // plutôt qu'analyser `/library` puis attendre une redirection.
       label: "Go to Library",
       category: "Navigation",
       icon: <Library className="h-4 w-4" />,
       shortcut: formatGSequence("l"),
-      onSelect: () => handleNavigate("/library"),
+      onSelect: () => handleNavigate("/knowledge?view=library"),
     },
     {
       id: "nav-settings",

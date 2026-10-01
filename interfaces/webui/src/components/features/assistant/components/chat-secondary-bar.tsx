@@ -4,8 +4,9 @@
  * ETHAN WebUI — ChatSecondaryBar
  *
  * Barre secondaire compacte située au-dessus de la zone de conversation.
- * Remplace l'ancienne AssistantTopBar pleine largeur : le titre est affiché
- * en primier plan, puis model/provider/agent en indicateurs compacts à droite.
+ * Reprise (et dé-duplication) de l'ancienne top-bar du chat, retirée du code :
+ * le titre est affiché en premier plan, puis model/provider/agent en
+ * indicateurs compacts à droite.
  * Volontairement sobre (bordure fine, pas de transparence ni overlay) pour
  * laisser la priorité au contenu conversationnel — inspiration Claude Code.
  *
@@ -64,7 +65,7 @@ export function ChatSecondaryBar({
       </div>
 
       {/* Sélecteurs compacts : projet / agent / provider / model.
-          Parité avec l'ancienne AssistantTopBar (qui rendait <ProjectSelector />) :
+          Parité avec la top-bar historique (qui rendait <ProjectSelector />) :
           le scope projet ne doit pas disparaître de la refonte. */}
       <div className="flex shrink-0 items-center gap-1.5">
         <ProjectSelector />

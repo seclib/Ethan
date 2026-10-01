@@ -6,7 +6,7 @@
  * Une seule barre latérale, toujours montée dans le shell, repliable :
  *  - sur la page chat (/) → groupe CONVERSATIONS
  *  - partout → groupe NAVIGATION (taxinomie unique NAV_SECTIONS), collapsible
- * Le sélecteur Agent/Model reste dans le header du chat (AssistantTopBar).
+ * Le sélecteur Agent/Model reste dans le header du chat (ChatSecondaryBar).
  */
 
 import * as React from "react";

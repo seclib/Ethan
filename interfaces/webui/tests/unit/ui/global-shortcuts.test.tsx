@@ -119,11 +119,12 @@ describe("GlobalCommandPalette — raccourcis annoncés ⊆ séquences résolues
     }
   });
 
-  it("propose la Library (route réelle) et navigue dessus", () => {
+  it("propose la Library (onglet de Knowledge) et navigue dessus", () => {
     paletteOpen = true;
     render(<GlobalCommandPalette />);
 
     fireEvent.click(screen.getByRole("option", { name: /Go to Library/ }));
-    expect(mockPush).toHaveBeenCalledWith("/library");
+    // Consolidation : la Library est un onglet de /knowledge, pas une page.
+    expect(mockPush).toHaveBeenCalledWith("/knowledge?view=library");
   });
 });

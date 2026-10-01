@@ -658,7 +658,7 @@ function CreateReminderDialog({
 }
 
 
-// ── Library — préférence d'affichage réelle (consommée par /library) ──
+// ── Library — préférence d'affichage réelle (consommée par l'onglet Library) ──
 
 export function LibrarySection() {
   const viewMode = useLibraryStore((s) => s.viewMode);
@@ -668,7 +668,7 @@ export function LibrarySection() {
     <div className="p-6">
       <SectionHeader
         title="Library"
-        description="Préférences d'affichage de la bibliothèque (/library) — agrégation des ressources du Core."
+        description="Préférences d'affichage de la bibliothèque (onglet Library de /knowledge) — agrégation des ressources du Core."
       />
 
       <SectionTitle>Vue par défaut</SectionTitle>
@@ -694,7 +694,8 @@ export function LibrarySection() {
       </div>
 
       <div className="mt-6">
-        <WorkspaceLink href="/library" label="Ouvrir la Library" />
+        {/* La Library est un onglet de Knowledge : cible directe, pas de détour. */}
+        <WorkspaceLink href="/knowledge?view=library" label="Ouvrir la Library" />
       </div>
 
       <Note>

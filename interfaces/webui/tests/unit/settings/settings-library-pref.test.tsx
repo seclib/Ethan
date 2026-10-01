@@ -25,11 +25,12 @@ describe("Settings → Library", () => {
     expect(screen.getByRole("button", { name: /Liste/ }).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("pointe vers le workspace /library (source unique des ressources)", () => {
+  it("pointe vers l'onglet Library de /knowledge (surface unique)", () => {
     render(<LibrarySection />);
 
     const link = screen.getByRole("link", { name: /Ouvrir la Library/ });
-    expect(link.getAttribute("href")).toBe("/library");
+    // La Library est un onglet de Knowledge : plus une page séparée.
+    expect(link.getAttribute("href")).toBe("/knowledge?view=library");
   });
 
   it("n'expose plus les préférences fantômes historiques", () => {

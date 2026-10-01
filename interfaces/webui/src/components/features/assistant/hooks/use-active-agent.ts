@@ -26,7 +26,7 @@ export function useActiveAgent() {
   const { agents, isLoading, error } = useAgents();
   const addToast = useUIStore((s) => s.addToast);
 
-  // État partagé (store zustand) : AgentSelector, AssistantTopBar et la page
+  // État partagé (store zustand) : AgentSelector, ChatSecondaryBar et la page
   // chat lisent/écrivent la MÊME instance — la sélection du sélecteur est
   // immédiatement reflétée dans le payload chat (`agent_id`).
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId);

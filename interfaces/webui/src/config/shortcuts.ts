@@ -2,7 +2,7 @@
  * ETHAN WebUI — Keyboard Shortcuts registry (UI-only).
  *
  * These shortcuts are managed entirely by the WebUI layer. They dispatch
- * to internal routes (/chat, /projects, /knowledge, /library, /settings)
+ * to internal routes (/chat, /projects, /knowledge, /tools, /settings)
  * and never invoke Runtime business logic directly.
  *
  * The authoritative source for shortcut bindings is this file.
@@ -47,7 +47,8 @@ export const SHORTCUTS: Shortcut[] = [
     label: "Library",
     display: "⌘L",
     action: "route",
-    target: "/library",
+    // Onglet de Knowledge (consolidation 30/09/2026) : cible directe.
+    target: "/knowledge?view=library",
   },
   {
     id: "settings",
