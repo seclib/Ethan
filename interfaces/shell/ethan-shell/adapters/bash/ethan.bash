@@ -3,26 +3,21 @@
 if [[ -n "$ETHAN_SHELL_LOADED" ]]; then return; fi
 export ETHAN_SHELL_LOADED=1
 
-_ethan_api() {
-  local base="${ETHAN_API:-http://localhost:8000}"
-  curl -s --max-time 10 -X POST "$base/message" \
-    -H "Content-Type: application/json" \
-    -d "{\"content\":\"$*\"}" 2>/dev/null
-}
+# Source unique de vérité du contrat API (core.sh). Les adaptateurs ne
+# redéfinissent plus _ethan_api/_ethan_status : c'est cette duplication qui
+# avait laissé bash/zsh/fish diverger du préfixe /v1 et du champ « input ».
+_ETHAN_CORE="${ETHAN_SHELL_HOME:-${HOME}/.config/ethan-shell}/cli/core.sh"
+if [[ -f "$_ETHAN_CORE" ]]; then
+  . "$_ETHAN_CORE"
+fi
 
-_ethan_send() {
-  local out
-  out="$(_ethan_api "$*")" || true
-  if [[ -z "$out" ]]; then
-    echo "ERR: API unreachable" >&2
+_ethan_cli_or_die() {
+  local cli
+  cli="$(_ethan_cli 2>/dev/null)" || {
+    echo "ethan CLI not found — installez interfaces/cli (binaire « ethan »)" >&2
     return 1
-  fi
-  echo "$out"
-}
-
-_ethan_status() {
-  local base="${ETHAN_API:-http://localhost:8000}"
-  curl -s --max-time 5 "$base/state" 2>/dev/null || echo '{"mode":"offline","active_goal":"none","running_tasks":0}'
+  }
+  printf '%s' "$cli"
 }
 
 ethan() {
@@ -33,48 +28,42 @@ ethan() {
         echo "usage: ethan <message>"
         return 1
       fi
-      _ethan_send "$@"
+      _ethan_api_raw "$@"
       ;;
     chat)
-      if command -v ethan-cli >/dev/null 2>&1; then
-        ethan-cli chat
-      else
-        echo "ethan-cli not found — please install ethan-cli"
-      fi
+      local cli; cli="$(_ethan_cli_or_die)" || return 1
+      "$cli" chat
       ;;
     status)
       _ethan_status | python3 -c "
 import sys, json
 s=json.load(sys.stdin)
 print(f\"Mode:       {s.get('mode','?')}\")
-print(f\"Goal:       {s.get('active_goal','none')}\")
+print(f\"Goal:       {s.get('active_goal') or 'none'}\")
 print(f\"Tasks:      {s.get('running_tasks',0)}\")
+print(f\"Modules:    {', '.join(s.get('modules_active') or []) or '-'}\")
 " 2>/dev/null || _ethan_status
       ;;
     suggest)
-      if command -v ethan-cli >/dev/null 2>&1; then
-        ethan-cli suggest "$@"
-      else
-        echo "ethan-cli not found"
-      fi
+      local cli; cli="$(_ethan_cli_or_die)" || return 1
+      "$cli" suggest "$@"
       ;;
     daemon)
-      if command -v ethan-cli >/dev/null 2>&1; then
-        ethan-cli daemon "$@"
-      else
-        echo "ethan-cli not found"
-      fi
+      local cli; cli="$(_ethan_cli_or_die)" || return 1
+      "$cli" daemon "$@"
       ;;
     --help|-h|help)
       echo "ETHAN Shell — native command"
-      echo "  ethan <message>  Send message"
+      echo "  ethan <message>  Send message (POST \$ETHAN_API/v1/message)"
       echo "  ethan chat       Interactive mode"
-      echo "  ethan status     System status"
+      echo "  ethan status     System status (GET \$ETHAN_API/v1/state)"
       echo "  ethan suggest    Show suggestions"
       echo "  ethan daemon     Background cache"
+      echo
+      echo "Env: ETHAN_API (défaut http://localhost:8000) · ETHAN_TOKEN (JWT requis)"
       ;;
     *)
-      _ethan_send "$cmd $*"
+      _ethan_api_raw "$cmd $*"
       ;;
   esac
 }
