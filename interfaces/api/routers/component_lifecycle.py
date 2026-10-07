@@ -71,8 +71,12 @@ def _error(exc: Exception) -> HTTPException:
 async def list_operations(
     _: bool = Depends(require_permission(Permission.READ)),
 ):
-    """Liste les operations de cycle de vie en cours ou terminees."""
-    return {"operations": get_component_manager().list_operations()}
+    """Toutes les opérations de cycle de vie (en cours ET terminées).
+
+    Les opérations terminées restent listables pendant leur rétention : une
+    erreur d'installation reste consultable après un redémarrage de l'API.
+    """
+    return {"operations": await get_component_manager().list_operations()}
 
 
 @router.get("/components/operations/{operation_id}")
@@ -80,8 +84,17 @@ async def get_operation(
     operation_id: str,
     _: bool = Depends(require_permission(Permission.READ)),
 ):
-    """Progression detaillee d'une operation (etapes, avancement, erreur)."""
-    operation = get_component_manager().get_operation(operation_id)
+    """Progression détaillée d'une opération (états, avancement, erreur).
+
+    Réponses distinguables par le client (audit §3) :
+    - 404 `operation inconnue` → identifiant inconnu (jamais créé, ou purgé) ;
+    - 200 `status=RUNNING`    → en cours ;
+    - 200 `status=SUCCESS`    → succès ;
+    - 200 `status=ERROR`      → échec (le message reste lisible) ;
+    - 200 `status=TIMEOUT`    → délai dépassé, opération interrompue ;
+    - 200 `status=CANCELLED`  → annulée par l'utilisateur.
+    """
+    operation = await get_component_manager().get_operation(operation_id)
     if operation is None:
         raise HTTPException(404, "operation inconnue: " + operation_id)
     return operation
@@ -92,7 +105,15 @@ async def cancel_operation(
     operation_id: str,
     _: bool = Depends(require_permission(Permission.ADMIN)),
 ):
-    """Demande l'annulation d'une installation/desinstallation en cours."""
+    """Demande l'annulation d'une installation en cours (404 inconnue, 409 terminée).
+
+    Les deux cas sont distincts et l'interface les traite différemment : 404 = cet
+    identifiant n'a jamais existé (ou a été purgé), 409 = l'opération existe
+    mais n'est plus annulable. Sans le 404, l'interface ne pouvait pas
+    distinguer « mauvais identifiant » de « déjà terminée » (audit §3).
+    """
+    if await get_component_manager().get_operation(operation_id) is None:
+        raise HTTPException(404, "operation inconnue: " + operation_id)
     cancelled = await get_component_manager().cancel_operation(operation_id)
     if not cancelled:
         raise HTTPException(409, "operation deja terminee: " + operation_id)

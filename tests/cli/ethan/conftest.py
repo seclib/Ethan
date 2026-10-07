@@ -326,6 +326,62 @@ def mock_api_direct():
 
 
 @pytest.fixture
+def core():
+    """Patch the single HTTP boundary and record every call.
+
+    The patch is installed on the module OBJECT actually held in `sys.modules`
+    (under both the `interfaces.cli.*` and the `cli.*` alias used by the tests),
+    because `discover_commands()` loads command modules dynamically and the
+    conftest alias hook can otherwise hand back a second, distinct module.
+    """
+
+    class _Core:
+        def __init__(self):
+            self.calls: list[tuple[str, str, dict | None]] = []
+            self.payload: object = {}
+            # Sequential responses: `payloads` is served in order, then
+            # `payload` takes over (so a poll loop settles on the last value).
+            self.payloads: list[object] = []
+
+        def __call__(self, method, path, payload=None, **kwargs):
+            self.calls.append((method, path, payload))
+            self.last_kwargs = kwargs
+            current = self.payloads.pop(0) if self.payloads else self.payload
+            # BaseException (not Exception): lets a test simulate Ctrl+C.
+            if isinstance(current, BaseException):
+                raise current
+            return current
+
+        @property
+        def last(self):
+            return self.calls[-1]
+
+    recorder = _Core()
+    seen: dict[int, object] = {}
+    originals: list[tuple[object, object]] = []
+
+    def _patch(module):
+        if id(module) in seen:
+            return
+        seen[id(module)] = module
+        originals.append((module, module.request_json))
+        module.request_json = recorder
+
+    for name in ("interfaces.cli.core.client", "cli.core.client"):
+        module = sys.modules.get(name)
+        if module is not None:
+            _patch(module)
+
+    yield recorder
+
+    # Restaurer la vraie frontière HTTP : sans ce teardown, le recorder
+    # fuite vers les tests suivants (ordre alphabétique : commands/ avant
+    # unit/) et casse tout test qui patch `urlopen` lui-même.
+    for module, original in originals:
+        module.request_json = original
+
+
+@pytest.fixture
 def captured_output():
     """Capture stdout for assertion.
 

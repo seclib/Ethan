@@ -209,6 +209,9 @@ class EventType(str, Enum):
     INTEGRATION_DISCONNECTED = "ethan.integration.disconnected"
     INTEGRATION_STATUS_CHANGED = "ethan.integration.status_changed"
 
+    # Cyber Threat Intelligence
+    CTI_OBJECT_CREATED = "ethan.cti.object.created"
+
     # User Connections (comptes externes liés PAR UTILISATEUR — OAuth)
     CONNECTION_CONNECTED = "ethan.connection.connected"
     CONNECTION_DISCONNECTED = "ethan.connection.disconnected"

@@ -16,7 +16,7 @@ from core.auth import Permission
 from core.cost import BudgetGuard, BudgetScope, CostTracker
 from core.facts import Fact, FactCategory, FactStatus, FactStore
 from core.skills.lab import SkillLab
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from interfaces.api.auth import require_permission
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,11 @@ def init_modules(
 def get_audit_store() -> AuditStore | None:
     """Expose l'AuditStore aux autres routers (lecture de l'instance, journal append-only)."""
     return _audit
+
+
+def get_approval_engine() -> ApprovalEngine | None:
+    """Expose the Core approval engine to other thin API routers."""
+    return _approval_engine
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -288,8 +293,8 @@ async def list_pending_approvals():
     return _approval_engine.list_pending()
 
 
-@router.post("/approval/resolve", dependencies=[Depends(require_permission(Permission.EXECUTE))])
-async def resolve_approval(data: dict[str, Any]):
+@router.post("/approval/resolve", dependencies=[Depends(require_permission(Permission.ADMIN))])
+async def resolve_approval(data: dict[str, Any], request: Request):
     """Résout une approbation."""
     if _approval_engine is None:
         return {"error": "Approval module not initialized"}, 503
@@ -297,7 +302,7 @@ async def resolve_approval(data: dict[str, Any]):
         request_id=data.get("request_id", ""),
         approved=bool(data.get("approved", False)),
         reason=data.get("reason", ""),
-        responder=data.get("responder", "human"),
+        responder=getattr(request.state, "user", "human"),
     )
     return {"resolved": resolved}
 

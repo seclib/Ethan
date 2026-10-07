@@ -143,6 +143,9 @@ PRIVILEGED_PREFIXES = (
     # pilotent l'hôte (dépendances, services).  Déjà gate côté router — le garde
     # empêche qu'un futur refactor les rouvre.
     "/v1/components",
+    # CTI : dépôt d'objets STIX persistés.  GET est de la lecture (READ), le
+    # POST écrit dans le domaine ``cti_stix_objects`` (WRITE).
+    "/v1/cti",
 )
 
 # Mutations volontairement ouvertes à tout rôle authentifié — avec raison,

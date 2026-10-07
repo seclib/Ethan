@@ -34,9 +34,17 @@ def draft_service():
 
 
 def test_503_sans_service():
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(routes.draft_skill({"topic": "x", "sources": ["https://a.example.com"]}))
-    assert exc.value.status_code == 503
+    # Précondition rendue explicite : le lifespan de l'API (exécuté par une
+    # autre suite) injecte un service réel dans le routeur. Ce test vérifie
+    # précisément le cas « service absent » — il doit donc garantir ce cas,
+    # sinon il dépend de l'ordre d'exécution des fichiers de test.
+    routes.set_web_skill_draft_service(None)
+    try:
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(routes.draft_skill({"topic": "x", "sources": ["https://a.example.com"]}))
+        assert exc.value.status_code == 503
+    finally:
+        routes.set_web_skill_draft_service(None)
 
 
 def test_limits_expose_cap(draft_service):  # noqa: ARG001

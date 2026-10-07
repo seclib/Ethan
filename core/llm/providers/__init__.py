@@ -9,6 +9,7 @@ from .lmstudio import LMStudioProvider
 from .ollama import OllamaProvider
 from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
+from .sglang import SGLangProvider
 from .vllm import VLLMProvider
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "LMStudioProvider",
     "LlamaCppProvider",
     "VLLMProvider",
+    "SGLangProvider",
     "AzureOpenAIProvider",
     "OpenRouterProvider",
 ]

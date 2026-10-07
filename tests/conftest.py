@@ -204,7 +204,8 @@ collect_ignore = [
     "core/test_cognitive_memory.py",
     # Les commandes CLI (status, daemon) ont été refactorées vers le Docker SDK
     # direct : les fonctions alive/get_state/_fetch_state n'existent plus.
-    "cli/ethan/commands/test_status.py",
+    # `cli/ethan/commands/test_status.py` a été réécrit contre l'implémentation
+    # Docker + Core : il n'est plus en quarantaine.
     "cli/ethan/integration/test_failure_scenarios.py",
     "cli/ethan/unit/test_daemon.py",
 ]

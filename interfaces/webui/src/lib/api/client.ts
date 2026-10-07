@@ -51,8 +51,17 @@ export async function apiFetch<T = unknown>(
 		} catch {
 			body = await response.text();
 		}
+		const detail: unknown =
+			typeof body === "object" && body !== null ? (body as { detail?: unknown }).detail : undefined;
+		// `detail` est une string pour la plupart des erreurs, mais un objet
+		// structuré pour les échecs de persistance (503 config) : on remonte
+		// toujours un message lisible, jamais « [object Object] ».
 		const message =
-			(body as { detail?: string })?.detail ||
+			(typeof detail === "string" && detail) ||
+			(typeof detail === "object" &&
+				detail !== null &&
+				typeof (detail as { message?: unknown }).message === "string" &&
+				(detail as { message: string }).message) ||
 			`HTTP ${response.status}`;
 		throw new ApiError(message, response.status, body);
 	}

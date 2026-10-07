@@ -29,6 +29,127 @@ class EthanError(Exception):
         return f"EthanError({self.code}, {self.title})"
 
 
+class CLIError(EthanError):
+    """Contract-aware error carrying its machine code and its exit code.
+
+    Bridges the historical `EthanError` (code/title/context/suggestion, kept
+    for the self-healing/debug loop) and `docs/specs/CLI_CONTRACT.md` §4.3-§5:
+    every CLI failure must be renderable as JSON on stderr AND map to exactly
+    one frozen exit code.
+    """
+
+    def __init__(
+        self,
+        title: str,
+        *,
+        code: str = "",
+        error_code: str = "",
+        context: str = "",
+        hint: str = "",
+        exit_code: int = 1,
+        status: int | None = None,
+    ):
+        super().__init__(code, title, context, hint or "")
+        from interfaces.cli.core.exit_codes import (
+            ErrorCode,
+            ExitCode,
+            error_code_for_exit,
+        )
+
+        self.hint = hint
+        self.status = status
+        self.exit_code = int(exit_code if exit_code else int(ExitCode.OPERATION_FAILED))
+        # No explicit machine code → derive it from the exit code.
+        self.error_code = error_code or error_code_for_exit(self.exit_code)
+        if self.error_code not in {e.value for e in ErrorCode}:  # pragma: no cover
+            self.error_code = ErrorCode.OPERATION_FAILED
+
+
+def usage_error(title: str, hint: str = "", context: str = "") -> CLIError:
+    """Invalid/missing/unknown option → exit 2, evaluated before any network."""
+    from interfaces.cli.core.exit_codes import ErrorCode, ExitCode
+
+    return CLIError(
+        title,
+        code="CLI-USAGE",
+        error_code=ErrorCode.USAGE,
+        context=context,
+        hint=hint,
+        exit_code=ExitCode.USAGE,
+    )
+
+
+def api_error(status: int, detail: str, hint: str = "") -> CLIError:
+    """HTTP failure from the Core API → contract exit code (§5)."""
+    from interfaces.cli.core.exit_codes import exit_code_for_status
+
+    code_by_status = {
+        401: "CLI-401",
+        403: "CLI-403",
+        404: "CLI-404",
+        409: "CLI-409",
+    }
+    return CLIError(
+        f"API {status}: {detail}",
+        code=code_by_status.get(status, "CLI-API"),
+        context="the Core API returned an error",
+        hint=hint,
+        exit_code=exit_code_for_status(status),
+        status=status,
+    )
+
+
+def connection_error(detail: str, hint: str = "") -> CLIError:
+    """Core API unreachable (connection refused, DNS, 502/503/504) → exit 5."""
+    from interfaces.cli.core.exit_codes import ErrorCode, ExitCode
+
+    return CLIError(
+        f"Core API unreachable: {detail}",
+        code="CLI-UNREACHABLE",
+        error_code=ErrorCode.UNAVAILABLE,
+        context=detail,
+        hint=hint or "check that ETHAN is running: ethan status",
+        exit_code=ExitCode.UNAVAILABLE,
+    )
+
+
+def timeout_error(seconds: float, hint: str = "") -> CLIError:
+    """Client-side deadline exceeded → exit 7 (§5)."""
+    from interfaces.cli.core.exit_codes import ErrorCode, ExitCode
+
+    return CLIError(
+        f"Timeout after {seconds:g}s",
+        code="CLI-TIMEOUT",
+        error_code=ErrorCode.TIMEOUT,
+        context="the operation exceeded the client deadline",
+        hint=hint or f"retry with a larger deadline: --timeout {int(seconds * 2) or 10}",
+        exit_code=ExitCode.TIMEOUT,
+    )
+
+
+def format_cli_error(err: CLIError, *, as_json: bool = False) -> str:
+    """Render a CLIError for stderr, human or JSON (contract §4.3)."""
+    import json as _json
+
+    if as_json:
+        payload = {
+            "error": {
+                "code": err.error_code,
+                "status": err.status,
+                "message": err.title,
+                "hint": err.hint,
+            }
+        }
+        return _json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+    parts = [f"✗ error: {err.title}"]
+    if err.context:
+        parts.append(f"  → {err.context}")
+    if err.hint:
+        parts.append(f"  → {err.hint}")
+    return "\n".join(parts)
+
+
 def format_error(err: EthanError | BaseException, debug: bool = False) -> str:
     """Render an error into a human-readable string.
 

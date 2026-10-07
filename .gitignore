@@ -56,6 +56,7 @@ logs/
 # `traces/` pattern matches src/openjarvis/traces/ and silently drops
 # the runtime module from the wheel (issue #372).
 /traces/
+/models/
 coding_task_*
 get-pip.py
 # Junk from mocked-path tests that write to their mock's __repr__ as a path

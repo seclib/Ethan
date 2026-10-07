@@ -6,14 +6,13 @@ import { usePathname } from "next/navigation";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { PreferencesProvider } from "@/providers/preferences-provider";
 import { WebSocketProvider } from "@/providers/websocket-provider";
 import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { useUIStore } from "@/store/ui.store";
 import { AppSidebar } from "@/components/layout/sidebar";
 import { AppHeader } from "@/components/layout/app-header";
-import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
-import { GlobalCommandPalette } from "@/components/layout/global-command-palette";
 import { OverlayEscHandler } from "@/components/ui/overlay-esc-handler";
 import { GlobalInspector } from "@/components/layout/global-inspector";
 import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
@@ -40,11 +39,10 @@ export default function RootLayout({
                         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
+              <PreferencesProvider>
               <I18nProvider>
                 <WebSocketProvider>
                   <div style={{ display: "flex", width: "100%", height: "100dvh", overflow: "hidden" }}>
-                  <GlobalShortcuts />
-                  <GlobalCommandPalette />
                   <OverlayEscHandler />
                   <GlobalInspector />
                   <AtmosphereLayer />
@@ -100,6 +98,7 @@ export default function RootLayout({
                 </button>
                                 </WebSocketProvider>
               </I18nProvider>
+              </PreferencesProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

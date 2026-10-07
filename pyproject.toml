@@ -65,6 +65,7 @@ server = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
     "pydantic>=2.0",
+    "PyYAML>=6.0",
     "python-multipart>=0.0.9",
     "prometheus-client>=0.20",
     # Surveillance système (usages gardés par try/except ImportError dans
@@ -95,7 +96,11 @@ Repository = "https://github.com/ethan/Ethan"
 Issues = "https://github.com/ethan/Ethan/issues"
 
 [project.scripts]
-ethan = "core.main:main"
+# `ethan` est le CLI officiel (interface ETHAN) — cf. AGENTS/audit Phase 1.
+# L'ancien point d'entrée (core.main:main) lançait le harness kernel en
+# ignorant les arguments et plantait sur `ethan --help`.
+ethan = "interfaces.cli.main:main"
+ethan-kernel = "core.main:main"
 
 # Version is derived from git tags by hatch-vcs (see #526). For source/editable
 # checkouts this yields the true `git describe` version (e.g. 1.0.3.dev109+g<sha>)

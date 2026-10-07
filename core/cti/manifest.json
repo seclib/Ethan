@@ -1,0 +1,10 @@
+{
+  "id": "ethan-cti",
+  "name": "ETHAN-CTI",
+  "version": "0.1.0",
+  "description": "Renseignement sur les menaces, basé sur le modèle STIX 2.1.",
+  "route": "/tools/cti",
+  "api_base": "/v1/cti",
+  "model": "STIX 2.1",
+  "capabilities": ["objects.read", "objects.create", "status"]
+}

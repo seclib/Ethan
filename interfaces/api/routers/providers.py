@@ -21,6 +21,7 @@ import logging
 
 from core.auth import Permission
 from core.llm.provider_manager import ProviderManager
+from core.llm.store import ProviderDefaultError
 from core.llm.types import TranscriptionRequest, VisionImage, VisionRequest
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from interfaces.api.auth import require_permission
@@ -312,6 +313,9 @@ async def set_default_provider(provider_id: str):
 
     Gate ``PLUGINS`` : changer le provider par défaut redirige toutes les
     conversations (et donc tout le contexte) vers un autre endpoint.
+
+    404 provider inconnu · 503 défaut non persisté (fail-closed, rien n'est
+    engagé en mémoire).
     """
     manager = get_manager()
 
@@ -320,9 +324,17 @@ async def set_default_provider(provider_id: str):
         return ProviderResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ProviderDefaultError as e:
+        # Fail-closed : le défaut n'a pas été rendu durable, on ne le déclare
+        # pas réussi (503 = réessayer, pas « le provider est inconnu »).
+        logger.error("Provider par défaut non persiste (%s): %s", provider_id, e)
+        raise HTTPException(
+            status_code=503,
+            detail="Provider par défaut non persisté — réessayez",
+        )
     except Exception as e:
         logger.exception("Failed to set default provider %s: %s", provider_id, e)
-        raise HTTPException(status_code=500, detail=f"Failed to set default provider: {e}")
+        raise HTTPException(status_code=500, detail="Failed to set default provider")
 
 
 # ── GET /providers/{id}/capabilities ──────────────────────────────────────

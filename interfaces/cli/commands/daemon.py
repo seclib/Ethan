@@ -4,7 +4,7 @@ from interfaces.cli.registry import register
 from interfaces.cli.core import daemon as daemon_core
 
 
-@register("daemon")
+@register("daemon", group="system", description="Manage the background daemon (start|stop|status)")
 def cmd_daemon(args):
     if not args or args[0] not in ("start", "stop", "status"):
         print("usage: ethan daemon <start|stop|status>")

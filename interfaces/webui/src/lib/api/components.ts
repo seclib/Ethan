@@ -106,17 +106,34 @@ export interface MutationPlan {
   requires_confirmation: boolean;
 }
 
+/**
+ * États d'une opération de cycle de vie, tels que révélés par le Core
+ * (`core/capability_manager/types.py::OperationStatus`). La WebUI n'invente
+ * aucun état : elle affiche ce que le Core a persisté.
+ */
+export type OperationState =
+  | "RUNNING"
+  | "SUCCESS"
+  | "ERROR"
+  | "TIMEOUT"
+  | "CANCELLED";
+
 export interface OperationStatus {
   operation_id: string;
   capability_id: string;
   operation: string;
+  /** État terminal ou en cours — source de vérité du Core. */
+  status: OperationState;
   progress: number;
   cancel_requested: boolean;
-  started_at?: number;
-  finished_at?: number;
+  /** Horodatages ISO-8601 UTC du Core (jamais un `Date.now()` local). */
+  started_at?: string | null;
+  updated_at?: string | null;
+  finished_at?: string | null;
   steps_done: [string, boolean, string][];
   done: boolean;
   error: string | null;
+  actor?: string;
 }
 
 export interface HealthTestResult {

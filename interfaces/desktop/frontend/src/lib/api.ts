@@ -151,6 +151,52 @@ export async function fetchRecommendedModel(): Promise<{ model: string; reason: 
   return res.json();
 }
 
+export interface DiscoveredModel {
+  id: string;
+  name: string;
+  provider: string;
+  repo_id: string;
+  params_b: number;
+  description: string;
+  use_case: string;
+  quantization: string;
+  source: string;
+  compatibility?: {
+    compatible: boolean;
+    fit_level: 'perfect' | 'good' | 'marginal' | 'too_tight';
+    vram_required_gb: number;
+    ram_required_gb: number;
+    recommended_runtime: string;
+    reason: string;
+  };
+}
+
+export async function discoverModels(query: string = '', useCase?: string): Promise<DiscoveredModel[]> {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (useCase) params.set('use_case', useCase);
+  const res = await apiFetch(`/models/discover?${params.toString()}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function checkModelCompatibility(modelName: string): Promise<any> {
+  const res = await apiFetch('/models/check-compatibility', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: modelName }),
+  });
+  if (!res.ok) throw new Error('Failed to check compatibility');
+  return res.json();
+}
+
+export async function fetchHardwareInfo(): Promise<any> {
+  const res = await apiFetch('/models/hardware');
+  if (!res.ok) return null;
+  return res.json();
+}
+
+
 export async function pullModel(modelName: string): Promise<void> {
   // In Tauri, go through the Rust backend directly (avoids CORS / timeout
   // issues with long model downloads via fetch).
@@ -172,6 +218,19 @@ export async function pullModel(modelName: string): Promise<void> {
     const detail = await res.text().catch(() => res.statusText);
     throw new Error(`Failed to pull model: ${detail}`);
   }
+}
+
+export async function installModel(modelName: string, providerHint?: string, quantization?: string): Promise<{ success: boolean; message: string; runtime: string; provider?: string }> {
+  const res = await apiFetch(`/models/install`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: modelName, provider: providerHint, quantization }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new Error(`Failed to install model: ${detail}`);
+  }
+  return res.json();
 }
 
 export async function deleteModel(modelName: string): Promise<void> {

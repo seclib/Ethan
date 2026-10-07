@@ -1,4 +1,9 @@
 [project]
+# NON-DISTRIBUABLE : ce manifeste décrit le checkout, pas la release officielle.
+# La voie d'installation supportée est le paquet racine `Ethan`
+# (hatch-vcs, console script `ethan = interfaces.cli.main:main`).
+# Ne pas publier `ethan-cli` : le build échoue sur la découverte setuptools
+# (paquets ui/core/plugins/commands) et la version 1.0.0 divergerait du wheel.
 name = "ethan-cli"
 version = "1.0.0"
 description = "ETHAN CLI — Terminal Interface for ETHAN Cognitive Runtime"
@@ -7,17 +12,19 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
-    "pyyaml>=6.0",
     "httpx>=0.25.0",
-    "prompt-toolkit>=3.0",
+    "pyyaml>=6.0",
+    "asyncpg>=0.29.0",
+    "bcrypt>=4.0",
+    "requests>=2.31.0",
 ]
 
 [project.scripts]
-ethan = "ethan.main:main"
+ethan = "interfaces.cli.main:main"
 
 [build-system]
-requires = ["setuptools>=68.0", "setuptools_scm[toml]>=8.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 line-length = 100

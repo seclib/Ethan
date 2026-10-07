@@ -19,6 +19,7 @@ from core.llm.providers.ollama import OllamaProvider
 from core.llm.providers.openai import OpenAIProvider
 from core.llm.providers.openai_compatible import OpenAICompatibleProvider
 from core.llm.providers.openrouter import OpenRouterProvider
+from core.llm.providers.sglang import SGLangProvider
 from core.llm.providers.vllm import VLLMProvider
 from core.security.egress import assert_literal_destination
 
@@ -31,6 +32,7 @@ SUPPORTED_PROVIDER_TYPES = {
     "azure",
     "anthropic",
     "vllm",
+    "sglang",
     "llamacpp",
     "lmstudio",
     "gemini",
@@ -46,6 +48,7 @@ SUPPORTED_PROVIDER_TYPES = {
 DEFAULT_BASE_URLS: dict[str, str] = {
     "ollama": "http://localhost:11434",
     "vllm": "http://localhost:8000",
+    "sglang": "http://localhost:30000",
     "llamacpp": "http://localhost:8080",
     "lmstudio": "http://localhost:1234",
     "openai-compatible": "http://localhost:8000/v1",
@@ -120,6 +123,12 @@ def create_provider_from_config(config: dict[str, Any]) -> LLMProvider:
 
     if provider_type == "vllm":
         provider = VLLMProvider(base_url=base_url or DEFAULT_BASE_URLS["vllm"])
+        if default_model:
+            provider.default_model = default_model
+        return provider
+
+    if provider_type == "sglang":
+        provider = SGLangProvider(base_url=base_url or DEFAULT_BASE_URLS["sglang"])
         if default_model:
             provider.default_model = default_model
         return provider

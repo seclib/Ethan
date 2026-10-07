@@ -8,7 +8,9 @@ source "${SCRIPT_DIR}/ethan-lib.sh"
 
 require_python
 
-section "CLI ETHAN"
+# Bannière sur stderr : stdout reste réservé à la sortie de la commande
+# (contrat §4.2 / T6 — `-o json` = un seul JSON valide, zéro décoration).
+section "CLI ETHAN" >&2
 
 if [ -f "${CLI_DIR}/main.py" ]; then
     cd "$ETHAN_ROOT"

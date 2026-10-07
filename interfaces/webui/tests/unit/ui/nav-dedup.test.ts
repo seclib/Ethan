@@ -13,16 +13,13 @@
  *     = ambiguity de clic) ;
  *  3. aucune entrée de menu ne pointe un hash de `/settings` (le lien profond
  *     par hash reste supporté par la page, mais n'est PLUS une entrée) ;
- *  4. les séquences clavier « G puis x » ne conduisent que vers des
- *     destinations existant dans la taxinomie (la barre latérale ou le logo
- *     couvrent la seule exception documentée : la page chat « / »).
  *
  * Règle AGENTS.md : aucune logique métier — ce test confronte des données de
  * présentation entre elles. La légitimité d'une capacité reste en Core.
  */
 import fs from "fs";
 import path from "path";
-import { NAV_ITEMS_FLAT, NAV_SECTIONS, G_SEQUENCE_ROUTES } from "@/components/layout/nav-config";
+import { NAV_ITEMS_FLAT, NAV_SECTIONS } from "@/components/layout/nav-config";
 import { SECTIONS } from "@/components/features/settings/components/settings-workspace";
 import { SETTINGS_GROUPS } from "@/components/features/settings/settings-nav";
 
@@ -58,17 +55,6 @@ describe("nav-config — anti-doublon des menus", () => {
       (item) => item.href.split(/[#?]/)[0] === "/settings" && item.href !== "/settings",
     );
     expect(offenders).toEqual([]);
-  });
-
-  it("les séquences G conduisent à des destinations de la taxinomie", () => {
-    const known = new Set(NAV_ITEMS_FLAT.map((item) => destination(item.href)));
-    // Exception documentée : « G A » ouvre la page chat, dessinée par le logo
-    // de la sidebar et non par une entrée de taxinomie.
-    known.add("/");
-    const unknown = Object.entries(G_SEQUENCE_ROUTES)
-      .filter(([, { route }]) => !known.has(destination(route)))
-      .map(([key, { route }]) => `${key} → ${route}`);
-    expect(unknown).toEqual([]);
   });
 });
 

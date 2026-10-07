@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any, AsyncIterator
 
 from core.llm.client import LLMClient
@@ -47,6 +48,7 @@ logger = logging.getLogger(__name__)
 _CAPABILITY_BY_TYPE: dict[str, list[str]] = {
     "ollama": ["llm", "vision", "embedding"],
     "vllm": ["llm", "embedding"],
+    "sglang": ["llm", "embedding"],
     "llamacpp": ["llm", "embedding"],
     "lmstudio": ["llm", "embedding"],
     "openai": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
@@ -77,6 +79,7 @@ def _caps_for_type(provider_type: str) -> list[str]:
 _AUTH_METHODS_BY_TYPE: dict[str, list[str]] = {
     "ollama": ["api_key"],
     "vllm": ["api_key"],
+    "sglang": ["api_key"],
     "llamacpp": ["api_key"],
     "lmstudio": ["api_key"],
     "openai": ["api_key"],
@@ -519,10 +522,13 @@ class ProviderManager:
                 }
 
         try:
+            t0 = time.perf_counter()
             ok = await provider.test_connection()
+            latency_ms = round((time.perf_counter() - t0) * 1000, 1)
             return {
                 "connected": ok,
                 "status": "connected" if ok else "error",
+                "latency_ms": latency_ms if ok else None,
                 "message": "Connection successful" if ok else "Connection failed",
             }
         except Exception as e:
@@ -623,14 +629,18 @@ class ProviderManager:
 
         Raises:
             ValueError: Si le provider n'existe pas.
+            ProviderDefaultError: Si le défaut n'a pas pu être persisté.
         """
         if provider_id not in self._providers_config and not self._registry.get_provider(
             provider_id
         ):
             raise ValueError(f"Provider '{provider_id}' not found")
 
-        self._default_provider = provider_id
+        # Fail-closed : l'état mémoire n'est engagé qu'APRÈS l'écriture
+        # durable. Sinon un échec de persistance laisserait un « défaut »
+        # annoncé en mémoire qui disparaîtrait au redémarrage suivant.
         await self._store.set_default(provider_id)
+        self._default_provider = provider_id
         logger.info("Default provider set: %s", provider_id)
         return await self.describe_provider(provider_id)
 

@@ -52,13 +52,11 @@ import {
   type DiagnosticsReport,
 } from "@/lib/api/diagnostics";
 import { getSecurityStatus, getTwoFactorStatus } from "@/lib/api/security";
-import { SHORTCUTS } from "@/config/shortcuts";
 import {
   AlertCircle,
   Bell,
   CheckCircle2,
   ExternalLink,
-  Keyboard,
   LayoutGrid,
   List,
   Loader2,
@@ -891,32 +889,5 @@ export function SecuritySection() {
   );
 }
 
-// ── Shortcuts — registre réel géré par le WebUI (use-keyboard) ───────
 
-export function ShortcutsSection() {
-  return (
-    <div className="p-6">
-      <SectionHeader
-        title="Shortcuts"
-        description="Raccourcis clavier de navigation (gérés par l'interface — aucune logique Core)."
-      />
-      <div className="max-w-3xl space-y-2">
-        {SHORTCUTS.map((s) => (
-          <div
-            key={s.id}
-            className="flex items-center justify-between rounded-md border border-line-1 px-4 py-3"
-          >
-            <div className="flex items-center gap-2">
-              <Keyboard className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-foreground">{s.label}</span>
-            </div>
-            <kbd className="rounded-md bg-[var(--panel)] px-2 py-1 text-xs font-mono text-muted-foreground">
-              {s.display}
-            </kbd>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 

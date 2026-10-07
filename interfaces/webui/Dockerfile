@@ -7,7 +7,10 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+# The builder uses Tailwind/PostCSS and the TypeScript toolchain, all of which
+# are development dependencies. Next standalone output keeps the runtime image
+# limited to traced production files.
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder

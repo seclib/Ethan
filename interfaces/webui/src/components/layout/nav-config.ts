@@ -28,7 +28,7 @@ import {
     Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge,
   UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
-  Workflow, FlaskConical, MessagesSquare,
+  Workflow, FlaskConical, MessagesSquare, SquareTerminal as TerminalIcon,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -107,6 +107,7 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
     defaultCollapsed: true,
         items: [
       { href: "/diagnostics", label: "Diagnostics", icon: Activity },
+      { href: "/terminal", label: "Terminal", icon: TerminalIcon },
       { href: "/logs", label: "Logs", icon: ScrollText },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/groups", label: "Groups", icon: UsersRound },
@@ -228,32 +229,3 @@ export function toggleGroupState(
   return { ...groups, [id]: !(groups[id] ?? true) };
 }
 
-/**
- * Séquences clavier « g puis x » — SOURCE UNIQUE de vérité.
- *
- * Consommée par :
- *  - `global-shortcuts.tsx` : résolution de la touche (handler) ET rendu de
- *    l'indicateur de séquence — aucune dérive possible entre les deux ;
- *  - `global-command-palette.tsx` : libellé annoncé (`formatGSequence`).
- *
- * Invariant (couvert par tests + garde-fou anti-fantôme) : chaque `route`
- * correspond à une route réelle de l'App Router.
- */
-export const G_SEQUENCE_ROUTES: Record<string, { route: string; label: string }> = {
-  a: { route: "/", label: "Assistant" },
-  d: { route: "/workspace", label: "Workspace" },
-  m: { route: "/missions", label: "Missions" },
-  k: { route: "/knowledge", label: "Knowledge" },
-  e: { route: "/agents", label: "Agents" },
-  t: { route: "/tools", label: "Tools" },
-  p: { route: "/providers", label: "Providers" },
-  n: { route: "/models", label: "Models" },
-  // Onglet Library de Knowledge (consolidation 30/09/2026) : cible directe.
-  l: { route: "/knowledge?view=library", label: "Library" },
-  s: { route: "/settings", label: "Settings" },
-};
-
-/** Libellé affiché d'une séquence (ex. "l" → "G L"). */
-export function formatGSequence(key: string): string {
-  return `G ${key.toUpperCase()}`;
-}

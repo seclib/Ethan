@@ -12,6 +12,7 @@ Domaines gérés :
 - planner    : planification de tâches
 - plugins    : gestion des plugins
 - authentication : JWT, RBAC, OAuth
+- preferences : préférences utilisateur (modèle/agent/mode) lues par les interfaces
 - runtime    : bus, stockage, mode d'exécution
 """
 
@@ -300,6 +301,34 @@ class AuthenticationConfig:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Preferences (préférences utilisateur exposées aux interfaces)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class PreferencesConfig:
+    """Préférences utilisateur — source de vérité côté ETHAN Core.
+
+    Les interfaces (WebUI, CLI, Desktop) lisent et écrivent CE domaine via
+    ``/config/preferences`` au lieu de les confiner dans le ``localStorage``
+    d'un navigateur : une préférence doit survivre au changement de machine,
+    de navigateur et au redémarrage (règle « la source de vérité reste dans
+    core/ »).
+
+    Valeur vide (``""``) ou liste vide = aucun choix explicite : l'interface
+    applique son fallback d'affichage, Core reste maître du provider/modèle
+    réellement utilisés.
+    """
+
+    active_provider: str = ""
+    active_model: str = ""
+    active_agent: str = ""
+    recent_agents: list[str] = field(default_factory=list)
+    chat_mode: str = "act"
+    reasoning_effort: str = "medium"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Point d'entrée
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -321,6 +350,7 @@ class ConfigSchema:
     planner: PlannerConfig = field(default_factory=PlannerConfig)
     plugins: PluginsConfig = field(default_factory=PluginsConfig)
     authentication: AuthenticationConfig = field(default_factory=AuthenticationConfig)
+    preferences: PreferencesConfig = field(default_factory=PreferencesConfig)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # ── Helpers de conversion ──────────────────────────────────────────────
@@ -347,6 +377,7 @@ class ConfigSchema:
             "planner",
             "plugins",
             "authentication",
+            "preferences",
         ):
             domain_data = data.get(domain_name, {})
             if not isinstance(domain_data, dict):

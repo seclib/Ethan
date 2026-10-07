@@ -118,6 +118,15 @@ services:
       - "127.0.0.1:${ETHAN_API_PORT:-8000}:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      # Artefacts des capabilities : site-packages `pip install --user`
+      # (~/.local/lib/python3.12/site-packages) et préfixe npm de node_prefix()
+      # (~/.local/share/ethan/node). Sans volume, un recreate du conteneur
+      # perdait tout ce qui avait été installé alors que l'état INSTALLED, lui,
+      # restait persisté en base — un mensonge. Le répertoire n'existe pas dans
+      # l'image et est vide dans le conteneur en cours : aucun déni de données
+      # existantes, démarrage à vide sur une installation neuve.
+      - ethan_api_artifacts:/home/ethan/.local
     environment:
       NATS_URL: nats://nats:4222
       NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
@@ -130,6 +139,11 @@ services:
       LOG_LEVEL: INFO
       LOG_FORMAT: "${LOG_FORMAT:-text}"
       JWT_SECRET: ${JWT_SECRET}
+      # Model Hub (core/models) : /app est en lecture seule pour le user non-root
+      # de l'image, donc le stockage des modèles pointe vers le home — même
+      # contrat que ~/.ethan documenté dans deploy/Dockerfile.api. Sans cela,
+      # ensure_models_storage() échoue (PermissionError) à la première utilisation.
+      ETHAN_MODELS_DIR: /home/ethan/.ethan/models
       # ── LLM Provider configuration ──────────────────────────────────
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
       OLLAMA_DEFAULT_MODEL: "${OLLAMA_DEFAULT_MODEL:-llama3.1}"
@@ -334,7 +348,10 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001 || exit 1"]
+      # 127.0.0.1 et non `localhost` : next-server écoute en IPv4 (0.0.0.0),
+      # `localhost` résout d'abord en ::1 (IPv6) → wget obtenait un « connection
+      # refused » sur un serveur parfaitement sain (faux négatif de doctor).
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001 || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -364,6 +381,9 @@ volumes:
   postgres_data:
     driver: local
   postgres_backup:
+    driver: local
+  # Artefacts des capabilities Python/Node installés depuis l'API (§1 audit).
+  ethan_api_artifacts:
     driver: local
 
 networks:

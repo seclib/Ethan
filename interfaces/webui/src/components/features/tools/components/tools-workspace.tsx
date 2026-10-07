@@ -134,6 +134,10 @@ export function ToolsWorkspace() {
               Gérer MCP
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
+            <Button size="sm" variant="secondary" onClick={() => router.push("/tools/cti")}>
+              ETHAN-CTI
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
             <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
               <Plus className="h-3.5 w-3.5" />
               <span className="ml-1">Nouveau tool custom</span>

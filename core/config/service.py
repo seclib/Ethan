@@ -13,6 +13,7 @@ Domaines gérés :
 - plugins
 - authentication
 - runtime
+- preferences
 """
 
 from __future__ import annotations
@@ -23,7 +24,9 @@ from typing import Any
 
 from core.config.loader import ConfigLoader
 from core.config.schema import ConfigSchema
-from core.config.store import ConfigStore
+from core.config.store import ConfigPersistenceError, ConfigStore
+
+__all__ = ["ConfigPersistenceError", "ConfigurationService", "DOMAINS"]
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,7 @@ DOMAINS = (
     "plugins",
     "authentication",
     "runtime",
+    "preferences",
 )
 
 
@@ -153,21 +157,36 @@ class ConfigurationService:
         return base
 
     # ── Écriture ────────────────────────────────────────────────────────
+    #
+    # Toutes les écritures sont fail-closed :
+    #   1. on construit une copie candidate de l'état ;
+    #   2. on persiste en premier ;
+    #   3. seulement si la persistance réussit on engage `self._persisted` ;
+    #   4. sinon on lève ConfigPersistenceError.
+    # L'état en mémoire ne peut donc jamais annoncer une valeur que la base
+    # ne contient pas (cf. docs/security/10-secret-hygiene.md et ADR-3007).
 
-    async def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> dict[str, Any]:
         """Définit une valeur de configuration et la persiste.
 
         Args:
             key: Clé de configuration (dot-notation supportée)
             value: Nouvelle valeur
+
+        Returns:
+            L'état du domaine réellement persisté.
+
+        Raises:
+            ConfigPersistenceError: la persistance a échoué — la valeur n'a
+                pas été acceptée.
         """
         self._ensure_loaded()
 
         # Déterminer le domaine racine
         domain = key.split(".")[0]
 
-        # Appliquer dans le dict persisté (sans le domaine dans les clés)
-        persisted = self._persisted.get(domain, {})
+        # Construire le candidat SANS muter l'état engagé.
+        persisted = copy.deepcopy(self._persisted.get(domain, {}))
         keys = key.split(".")[1:]  # Exclure le domaine
         current = persisted
         for k in keys[:-1]:
@@ -176,32 +195,101 @@ class ConfigurationService:
             current = current[k]
         current[keys[-1]] = value
 
-        self._persisted[domain] = persisted
-
-        # Persister dans le store
-        try:
-            await self._store.save(domain, persisted)
-        except Exception as e:
-            logger.warning("Failed to persist config %s: %s", key, e)
-
+        await self._commit(domain, persisted)
         logger.info("Configuration set: %s = %s", key, value)
+        return self._persisted.get(domain, {})
 
-    async def set_domain(self, domain: str, data: dict[str, Any]) -> None:
+    async def set_domain(self, domain: str, data: dict[str, Any]) -> dict[str, Any]:
         """Remplace complètement la configuration d'un domaine.
 
         Args:
             domain: Nom du domaine
             data: Nouvelle configuration du domaine
+
+        Returns:
+            L'état du domaine réellement persisté (relu depuis le store).
+
+        Raises:
+            ConfigPersistenceError: la persistance a échoué — la valeur n'a
+                pas été acceptée et l'état en mémoire est inchangé.
         """
         self._ensure_loaded()
-        self._persisted[domain] = copy.deepcopy(data)
-
-        try:
-            await self._store.save(domain, data)
-        except Exception as e:
-            logger.warning("Failed to persist domain %s: %s", domain, e)
-
+        await self._commit(domain, copy.deepcopy(data))
         logger.info("Configuration domain set: %s", domain)
+        return self._persisted.get(domain, {})
+
+    async def _commit(self, domain: str, payload: dict[str, Any]) -> None:
+        """Persiste ``payload`` puis engage l'état en mémoire.
+
+        Le read-back sur le store garantit que la valeur retournée (et donc
+        exposée par l'API) correspond à ce qui est durablement stocké.
+        """
+        try:
+            await self._store.save(domain, payload)
+        except Exception as e:
+            logger.error("Failed to persist domain %s: %s", domain, e)
+            # `_persisted` n'est PAS modifié : l'état reste celui de la base.
+            raise ConfigPersistenceError(
+                f"Configuration domain '{domain}' could not be persisted: {e}"
+            ) from e
+
+        if not self._store.durable:
+            logger.warning(
+                "Configuration domain %s written to NON-DURABLE backend '%s': "
+                "it will be lost on restart",
+                domain,
+                self._store.backend,
+            )
+
+        # Read-back : vérifier ce que la base contient réellement.
+        try:
+            stored = await self._store.get(domain)
+        except Exception as e:
+            logger.error("Read-back verification failed for domain %s: %s", domain, e)
+            raise ConfigPersistenceError(
+                f"Configuration domain '{domain}' was written but could not be "
+                f"read back for verification: {e}"
+            ) from e
+
+        if stored is None:
+            raise ConfigPersistenceError(
+                f"Configuration domain '{domain}' write reported success but the "
+                "value is missing from the store"
+            )
+
+        self._persisted[domain] = copy.deepcopy(stored)
+
+    @property
+    def durable(self) -> bool:
+        """True si la configuration est réellement stockée dans un backend durable."""
+        return self._store.durable
+
+    @property
+    def backend(self) -> str:
+        """Nom du backend de persistance du store sous-jacent."""
+        return self._store.backend
+
+    async def status(self) -> dict[str, Any]:
+        """État de la persistance de la configuration (pour ``GET /config/status``).
+
+        Permet à une interface d'afficher « réglages non persistés » plutôt que
+        de laisser l'utilisateur croire que son choix survivra à un
+        redémarrage.
+        """
+        return {
+            "durable": self.durable,
+            "backend": self.backend,
+            "loaded_domains": sorted(self._persisted),
+            "warning": (
+                None
+                if self.durable
+                else (
+                    "No durable backend (PostgreSQL) is attached: configuration "
+                    "changes live in process memory only and WILL be lost on "
+                    "restart."
+                )
+            ),
+        }
 
     async def delete(self, key: str) -> bool:
         """Supprime une clé de configuration.
@@ -211,13 +299,17 @@ class ConfigurationService:
 
         Returns:
             True si supprimé, False sinon
+
+        Raises:
+            ConfigPersistenceError: la persistance de la suppression a échoué.
         """
         self._ensure_loaded()
         domain = key.split(".")[0]
         persisted = self._persisted.get(domain, {})
 
         keys = key.split(".")[1:]  # Exclure le domaine
-        current = persisted
+        candidate = copy.deepcopy(persisted)
+        current = candidate
         for k in keys[:-1]:
             if isinstance(current, dict) and k in current:
                 current = current[k]
@@ -226,11 +318,7 @@ class ConfigurationService:
 
         if isinstance(current, dict) and keys[-1] in current:
             del current[keys[-1]]
-            self._persisted[domain] = persisted
-            try:
-                await self._store.save(domain, persisted)
-            except Exception as e:
-                logger.warning("Failed to persist delete %s: %s", key, e)
+            await self._commit(domain, candidate)
             return True
 
         return False
@@ -291,7 +379,14 @@ class ConfigurationService:
             if not isinstance(value, dict):
                 errors.append(f"Domain '{domain}' must be a dict")
                 continue
-            await self.set_domain(domain, value)
+            try:
+                await self.set_domain(domain, value)
+            except ConfigPersistenceError as e:
+                # Un domaine non persisté n'est PAS déclaré importé : l'état
+                # de l'import doit refléter la base, pas l'intention.
+                logger.error("Import failed for domain %s: %s", domain, e)
+                errors.append(str(e))
+                continue
             imported.append(domain)
 
         logger.info("Configuration imported (%d domains)", len(imported))

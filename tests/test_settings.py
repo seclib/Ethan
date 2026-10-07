@@ -12,7 +12,6 @@ def test_settings_sections_defined():
         "search",
         "integrations",
         "reminders",
-        "shortcuts",
         "library",
         "system",
         "security",
@@ -28,7 +27,6 @@ def test_settings_sections_defined():
         "search",
         "integrations",
         "reminders",
-        "shortcuts",
         "library",
         "system",
         "security",
@@ -120,7 +118,6 @@ def test_settings_categories_complete():
             "general",
             "appearance",
             "reminders",
-            "shortcuts",
         ],
         "project": [
             "library",
@@ -130,7 +127,7 @@ def test_settings_categories_complete():
         ],
     }
     assert len(CATEGORIES["system"]) == 7
-    assert len(CATEGORIES["user"]) == 4
+    assert len(CATEGORIES["user"]) == 3
     assert len(CATEGORIES["project"]) == 1
     assert len(CATEGORIES["conversation"]) == 1
 

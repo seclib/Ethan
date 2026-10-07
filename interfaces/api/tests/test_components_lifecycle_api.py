@@ -88,3 +88,60 @@ def test_logs_tail_invalide_422(manager):
     with pytest.raises(HTTPException) as exc:
         _run(get_component_logs("memory", tail=0))
     assert exc.value.status_code == 422
+
+
+# ── contrat HTTP du suivi d'opérations (audit §2, §3 et §5) ─────────────────
+
+
+def _seed_operation(manager, status: str, error: str | None = None) -> str:
+    """Ecrit une opération dans le store du manager (démarrage simulé)."""
+    op_id = manager._start_operation("memory", "install", "tester")
+    _run(manager._finish_operation(op_id, status, error))
+    return op_id
+
+
+def test_operation_inconnue_404(manager):
+    """Identifiant jamais créé (ou purgé) → 404, pas un 200 « en cours »."""
+    with pytest.raises(HTTPException) as exc:
+        _run(components_router.get_operation("op_inexistant"))
+    assert exc.value.status_code == 404
+
+
+def test_annulation_operation_inconnue_404(manager):
+    with pytest.raises(HTTPException) as exc:
+        _run(components_router.cancel_operation("op_inexistant"))
+    assert exc.value.status_code == 404
+
+
+def test_annulation_operation_terminee_409(manager):
+    """L'opération existe mais n'est plus annulable → 409 (et non 404)."""
+    op_id = _seed_operation(manager, "SUCCESS")
+    with pytest.raises(HTTPException) as exc:
+        _run(components_router.cancel_operation(op_id))
+    assert exc.value.status_code == 409
+
+
+def test_liste_expose_les_operations_persistees(manager):
+    """Une erreur reste consultable après coup (pas seulement « en cours »)."""
+    op_id = _seed_operation(manager, "ERROR", "échec simulé")
+    out = _run(components_router.list_operations())
+    operation = next(o for o in out["operations"] if o["operation_id"] == op_id)
+    assert operation["status"] == "ERROR"
+    assert operation["done"] is True
+    assert operation["error"] == "échec simulé"
+    # Jamais d'objet Python non sérialisable exposé par l'API.
+    assert "task" not in operation and "deadline" not in operation
+
+
+def test_install_refuse_409_si_deja_en_cours(manager, monkeypatch):
+    """Une installation concurrente est refusée par le Core → 409 explicite."""
+    from core.capability_manager import TransitionError
+
+    async def _busy(*args, **kwargs):
+        raise TransitionError("transition impossible IDLE -> INSTALLING")
+
+    monkeypatch.setattr(components_router, "current_user_id", lambda request: "tester")
+    monkeypatch.setattr(manager, "install", _busy)
+    with pytest.raises(HTTPException) as exc:
+        _run(components_router.install_component("memory", None))
+    assert exc.value.status_code == 409

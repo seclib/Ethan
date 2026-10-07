@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import platform
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -20,7 +21,13 @@ from typing import Any
 import pytest
 from core.capability_manager import backends as backends_mod
 from core.capability_manager import manager as mgr_mod
-from core.capability_manager.manager import CapabilityManager, _validate_config
+from core.capability_manager.manager import (
+    _OPERATION_DOMAIN,
+    _OPERATION_MAX_KEPT,
+    _OPERATION_TIMEOUT_S,
+    CapabilityManager,
+    _validate_config,
+)
 from core.capability_manager.types import (
     CapabilityRuntimeState,
     CapabilitySpec,
@@ -29,10 +36,12 @@ from core.capability_manager.types import (
     ConfigField,
     Dependency,
     HealthCheck,
+    OperationStatus,
     Provenance,
     Requirements,
     TransitionError,
 )
+from core.state.record_store import CoreRecordStore
 
 
 # ── backend factice ─────────────────────────────────────────────────────────
@@ -98,7 +107,9 @@ def make_spec(cap_id: str = "cap-a", **over: Any) -> CapabilitySpec:
 async def wait_done(mgr: CapabilityManager, op_id: str, timeout: float = 5.0) -> dict:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        op = mgr.get_operation(op_id)
+        # `get_operation` est async : il lit aussi le store durable (les
+        # opérations survivent à un redémarrage de l'API — audit §2).
+        op = await mgr.get_operation(op_id)
         assert op is not None, "operation inconnue: " + op_id
         if op["done"]:
             return op
@@ -494,7 +505,7 @@ class TestLifecycleBoutEnBout:
         assert final["last_error"] is None
 
         # 7. Traçabilité : les opérations du parcours restent listables.
-        assert op_id in {o["operation_id"] for o in mgr.list_operations()}
+        assert op_id in {o["operation_id"] for o in await mgr.list_operations()}
 
 
 # ── etats intermediaires + annulation (section 4) ─────────────────────────
@@ -549,7 +560,7 @@ class TestIntermediates:
     async def test_list_operations(self, mgr: CapabilityManager) -> None:
         op_id = await mgr.install("cap-a")
         await wait_done(mgr, op_id)
-        ops = mgr.list_operations()
+        ops = await mgr.list_operations()
         assert op_id in {o["operation_id"] for o in ops}
 
 
@@ -1524,3 +1535,295 @@ class TestComponentLogs:
             await m.logs("logs-b", tail=0)
         with pytest.raises(ValueError, match="tail"):
             await m.logs("logs-b", tail=5000)
+
+
+# ── persistance + réconciliation des opérations (audit §2 et §3) ────────────
+#
+# Un CapabilityManager vit dans un processus : sa mémoire ne survit pas à un
+# redémarrage de l'API. On le reproduit avec un pool PostgreSQL factice partagé
+# par DEUX managers — la mémoire du premier est jetée, la base reste.
+
+
+class FakePG:
+    """Pool asyncpg minimaliste, limité à `core_domain_records`.
+
+    Un même objet partagé par deux `CoreRecordStore` reproduit fidèlement un
+    redémarrage : le second store ne voit que ce que le premier a réellement
+    écrit en base, pas ce qu'il avait en mémoire.
+    """
+
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], str] = {}
+        self.writes = 0
+        self.fail = False
+
+    async def execute(self, query: str, *args: Any) -> str:
+        sql = " ".join(query.split())
+        if self.fail:
+            raise RuntimeError("postgres injoignable")
+        if "INSERT INTO core_domain_records" in sql:
+            domain, record_id, payload = args
+            self.rows[(domain, record_id)] = payload
+            self.writes += 1
+            return "INSERT 0 1"
+        if "DELETE FROM core_domain_records" in sql:
+            domain, record_id = args
+            existed = self.rows.pop((domain, record_id), None) is not None
+            return "DELETE 1" if existed else "DELETE 0"
+        raise AssertionError("requête SQL inattendue: " + sql)
+
+    async def fetchrow(self, query: str, *args: Any) -> dict[str, Any] | None:
+        sql = " ".join(query.split())
+        if "SELECT record FROM core_domain_records" in sql:
+            domain, record_id = args
+            payload = self.rows.get((domain, record_id))
+            return None if payload is None else {"record": payload}
+        raise AssertionError("requête SQL inattendue: " + sql)
+
+    async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
+        sql = " ".join(query.split())
+        if "SELECT record_id, record" in sql:
+            (domain,) = args
+            return [
+                {"record_id": record_id, "record": payload}
+                for (row_domain, record_id), payload in list(self.rows.items())
+                if row_domain == domain
+            ]
+        raise AssertionError("requête SQL inattendue: " + sql)
+
+
+def restarted(
+    pg: FakePG,
+    backend: FakeBackend,
+    monkeypatch: pytest.MonkeyPatch,
+    *spec_ids: str,
+) -> CapabilityManager:
+    """Manager « après redémarrage » : mémoire vierge, même base."""
+    real_get_backend = mgr_mod.get_backend
+
+    def _get(name: str):
+        if name == "docker":
+            return backend
+        return real_get_backend(name)
+
+    monkeypatch.setattr(mgr_mod, "get_backend", _get)
+    manager = CapabilityManager(store=CoreRecordStore(pg))
+    for cap_id in spec_ids or ("cap-a",):
+        manager.register(make_spec(cap_id))
+    return manager
+
+
+def running_record(op_id: str = "op_crash", started_ago_s: float = 30.0) -> dict[str, Any]:
+    """Opération `RUNNING` telle qu'un process mort peut la laisser en base."""
+    started = datetime.now(timezone.utc) - timedelta(seconds=started_ago_s)
+    return {
+        "operation_id": op_id,
+        "capability_id": "cap-a",
+        "operation": "install",
+        "status": OperationStatus.RUNNING,
+        "progress": 35,
+        "steps_done": [["docker", True, "ok"]],
+        "cancel_requested": False,
+        "started_at": started.isoformat(),
+        "updated_at": started.isoformat(),
+        "finished_at": None,
+        "error": None,
+        "actor": "tester",
+    }
+
+
+def installing_state(capability_id: str = "cap-a") -> dict[str, Any]:
+    """État de capability figé en INSTALLING par un crash."""
+    return CapabilityRuntimeState(
+        id=capability_id,
+        state=CapabilityState.INSTALLING,
+        enabled=True,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    ).to_dict()
+
+
+class TestOperationsDurables:
+    """Audit §2/§3 : rien ne disparaît au redémarrage, rien ne reste bloqué."""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_operation_terminee_survit_au_redemarrage(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        op_id = await first.install("cap-a", actor="tester")
+        await wait_done(first, op_id)
+        # Écrite en base, pas seulement en mémoire.
+        assert pg.writes > 0
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        op = await second.get_operation(op_id)
+        assert op is not None
+        assert op["status"] == OperationStatus.SUCCESS
+        assert op["done"] is True
+        assert op["actor"] == "tester"
+        # Jamais d'objet non sérialisable exposé à l'API/UI.
+        assert "task" not in op and "deadline" not in op
+
+    async def test_etat_capability_survit_au_redemarrage(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        op_id = await first.install("cap-a")
+        await wait_done(first, op_id)
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        status = await second.status("cap-a")
+        # Avant correction : `register()` réinstallait un état SUPPORTED par
+        # défaut et écrasait le record persisté.
+        assert status["state"] == CapabilityState.READY
+        assert status["installed_version"] == "1.0.0"
+
+    async def test_operation_inconnue_retourne_none(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Une opération jamais créée n'a aucune trace → l'API répond 404 et
+        # l'interface cesse d'attendre.
+        second = restarted(FakePG(), fake_backend, monkeypatch)
+        assert await second.get_operation("op_inexistant") is None
+
+    async def test_installation_interrompue_reconciliee_au_demarrage(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        await first.store.save(_OPERATION_DOMAIN, "op_crash", running_record())
+        await first.store.save("capability_manager", "cap-a", installing_state())
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        summary = await second.recover_operations()
+        assert summary["restored"] == 1
+        assert summary["interrupted"] == 1
+        assert summary["timed_out"] == 0
+
+        op = await second.get_operation("op_crash")
+        assert op is not None
+        assert op["status"] == OperationStatus.ERROR
+        assert op["done"] is True
+        assert "redémarrage" in (op["error"] or "")
+
+        status = await second.status("cap-a")
+        # Plus jamais d'INSTALLING abandonné, et la cause reste consultable.
+        assert status["state"] == CapabilityState.ERROR
+        assert status["last_error"]
+
+    async def test_operation_interrompue_trop_vieille_passe_en_timeout(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        await first.store.save(
+            _OPERATION_DOMAIN,
+            "op_vieux",
+            running_record(op_id="op_vieux", started_ago_s=_OPERATION_TIMEOUT_S + 60),
+        )
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        summary = await second.recover_operations()
+        assert summary["timed_out"] == 1
+
+        op = await second.get_operation("op_vieux")
+        assert op is not None
+        assert op["status"] == OperationStatus.TIMEOUT
+        assert op["done"] is True
+
+    async def test_operation_relecture_expire_sans_recover(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`deadline` n'est pas persistée : elle doit être recalculée.
+
+        Sans hydratation, une opération relue avec une échéance nulle ne pouvait
+        jamais expirer — le blocage « INSTALLING pour toujours ».
+        """
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        await first.store.save(
+            _OPERATION_DOMAIN,
+            "op_vieux",
+            running_record(op_id="op_vieux", started_ago_s=_OPERATION_TIMEOUT_S + 60),
+        )
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        op = await second.get_operation("op_vieux")  # sans recover_operations()
+        assert op is not None
+        assert op["status"] == OperationStatus.TIMEOUT
+        assert op["done"] is True
+
+    async def test_list_operations_vient_du_store(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        op_id = await first.install("cap-a")
+        await wait_done(first, op_id)
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        ops = await second.list_operations()
+        assert op_id in {o["operation_id"] for o in ops}
+
+    async def test_annulation_apres_redemarrage_explicite(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pas de faux positif : la tâche n'existe plus, on le dit (False)."""
+        pg = FakePG()
+        first = restarted(pg, fake_backend, monkeypatch)
+        await first.store.save(_OPERATION_DOMAIN, "op_crash", running_record())
+
+        second = restarted(pg, fake_backend, monkeypatch)
+        await second.recover_operations()
+        assert await second.cancel_operation("op_crash") is False
+
+    async def test_retention_borne_le_domaine(
+        self, fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Les opérations terminées restent lisibles, sans grossir à l'infini."""
+        pg = FakePG()
+        manager = restarted(pg, fake_backend, monkeypatch)
+        now = time.time()
+        total = _OPERATION_MAX_KEPT + 15
+        for index in range(total):
+            record = running_record(op_id=f"op_{index:03d}", started_ago_s=10)
+            record["status"] = OperationStatus.SUCCESS
+            record["started_at"] = datetime.fromtimestamp(now - index, timezone.utc).isoformat()
+            await manager.store.save(_OPERATION_DOMAIN, f"op_{index:03d}", record)
+        # Une erreur vieille de plus de 24 h doit être purgée même si le
+        # bornage en nombre n'est pas atteint.
+        ancient = running_record(op_id="op_ancien", started_ago_s=26 * 3600)
+        ancient["status"] = OperationStatus.ERROR
+        await manager.store.save(_OPERATION_DOMAIN, "op_ancien", ancient)
+
+        await manager._prune_operations()
+
+        remaining = await manager.store.list(_OPERATION_DOMAIN)
+        ids = {r["operation_id"] for r in remaining}
+        assert len(remaining) <= _OPERATION_MAX_KEPT
+        assert "op_ancien" not in ids
+        # Les plus récentes sont conservées (l'UI doit pouvoir les relire).
+        assert "op_000" in ids
+
+    async def test_echec_de_persistance_ne_masque_rien(
+        self,
+        fake_backend: FakeBackend,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Base indisponible : le warning est explicite et le travail continue."""
+        pg = FakePG()
+        pg.fail = True
+        manager = restarted(pg, fake_backend, monkeypatch)
+
+        op_id = await manager.install("cap-a")
+        op = await wait_done(manager, op_id)
+
+        assert op["done"] is True
+        assert op["status"] == OperationStatus.SUCCESS
+        assert (await manager.status("cap-a"))["state"] == CapabilityState.READY
+        assert pg.writes == 0
+        assert "Core record save failed" in caplog.text

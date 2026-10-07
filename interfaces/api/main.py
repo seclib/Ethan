@@ -28,7 +28,9 @@ from core.rag import RAGPipeline
 from core.skills.store import SkillStore
 from core.state import CoreRecordStore
 from core.state.webui_store import CoreWebUIStore
+from core.system_exec import SystemExecService
 from core.telemetry.logger import setup_logging
+from core.terminal import DEFAULT_ROOT, TerminalService, current_user
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials
@@ -58,6 +60,8 @@ from interfaces.api.routers.connections import router as connections_router
 from interfaces.api.routers.cookbook import router as cookbook_router
 from interfaces.api.routers.cookbook import set_cookbook_manager
 from interfaces.api.routers.core_domains import router as core_domains_router
+from interfaces.api.routers.cti import router as cti_router
+from interfaces.api.routers.cti import set_cti_manager
 from interfaces.api.routers.dedup import router as dedup_router
 from interfaces.api.routers.dedup import set_dedup_managers
 from interfaces.api.routers.diagnostics import (
@@ -71,6 +75,12 @@ from interfaces.api.routers.domains import router as domains_router
 from interfaces.api.routers.domains import set_domain_managers
 from interfaces.api.routers.email import router as email_router
 from interfaces.api.routers.email import set_email_manager
+from interfaces.api.routers.extensions import (
+    router as extensions_router,
+)
+from interfaces.api.routers.extensions import (
+    set_extension_manager,
+)
 from interfaces.api.routers.folders import router as folders_router
 from interfaces.api.routers.integrations import router as integrations_router
 from interfaces.api.routers.internal import init_modules
@@ -93,6 +103,10 @@ from interfaces.api.routers.search import router as search_router
 from interfaces.api.routers.security import router as security_router
 from interfaces.api.routers.security import set_security_pool
 from interfaces.api.routers.state import router as state_router
+from interfaces.api.routers.system_exec import router as system_exec_router
+from interfaces.api.routers.system_exec import set_system_exec_service
+from interfaces.api.routers.terminal import router as terminal_router
+from interfaces.api.routers.terminal import set_terminal_service
 from interfaces.api.routers.v1 import (
     CoreDomainServices,
     get_skill_store,
@@ -457,6 +471,15 @@ async def lifespan(app: FastAPI):
     app.state.event_bus = event_bus
     logger.info("EventBus ready (NATS-backed)")
 
+    # CTI is a Core-owned domain. It reuses the shared persistent record store
+    # and ETHAN event bus; it does not create another database or queue.
+    from core.cti import CTIManager
+
+    cti_manager = CTIManager(store=domain_store, event_bus=event_bus)
+    set_cti_manager(cti_manager)
+    app.state.cti_manager = cti_manager
+    logger.info("CTIManager ready (Core-owned STIX 2.1 foundation)")
+
     # --- Scheduler (background tasks, cron, reminders) ---
     from core.scheduler.scheduler import Scheduler
 
@@ -695,6 +718,21 @@ async def lifespan(app: FastAPI):
         len(component_manager.list_specs()),
     )
 
+    # --- Réconciliation des opérations de cycle de vie (audit §2) ---
+    # À chaque démarrage : les opérations `RUNNING` interrompues passent à un
+    # état terminal consultable (ERROR/TIMEOUT), et aucune capability ne reste
+    # bloquée en INSTALLING/UNINSTALLING. Sans cela, l'UI pouvait attendre un
+    # operation_id qui n'existait plus, et une installation restait « en cours »
+    # pour toujours. Résumé d'états uniquement — aucun secret journalisé.
+    try:
+        recovery = await component_manager.recover_operations()
+        if any(recovery.values()):
+            logger.warning("Opérations de capability réconciliées après démarrage: %s", recovery)
+        else:
+            logger.info("Opérations de capability : aucune à réconcilier")
+    except Exception as exc:  # noqa: BLE001 — le démarrage ne doit pas échouer
+        logger.exception("Réconciliation des opérations de capability impossible: %s", exc)
+
     # --- Cookbook / Email / Research (Core-owned, RFC-0001/2/3) ---
     from core.cookbook.manager import CookbookManager
     from core.mailbox.manager import EmailManager
@@ -710,6 +748,41 @@ async def lifespan(app: FastAPI):
     set_cookbook_manager(cookbook_manager)
     app.state.cookbook_manager = cookbook_manager
     logger.info("Cookbook manager ready (%d recipes)", len(cookbook_manager.list_recipes()))
+
+    # --- Système d'extensions unifié (Capabilities + Plugins + Cookbook) ---
+    # UNE couche de gestion au-dessus des trois systèmes d'origine : elle ne
+    # les remplace pas (compatibilité), elle uniformise leur cycle de vie, leur
+    # persistance et leurs erreurs. Les trois restent masters de leur sémantique.
+    from core.extensions import (
+        CapabilityHandler,
+        CookbookHandler,
+        ExtensionKind,
+        ExtensionManager,
+        PluginHandler,
+    )
+
+    extension_manager = ExtensionManager(
+        handlers={
+            ExtensionKind.CAPABILITY: CapabilityHandler(component_manager),
+            ExtensionKind.PLUGIN: PluginHandler(plugin_registry),
+            ExtensionKind.COOKBOOK: CookbookHandler(cookbook_manager),
+        },
+        store=domain_store,
+        event_bus=event_bus,
+    )
+    set_extension_manager(extension_manager)
+    app.state.extension_manager = extension_manager
+
+    # Réconciliation : une opération d'extension interrompue ne doit jamais
+    # rester « en cours » après un redémarrage (audit §5).
+    try:
+        ext_recovery = await extension_manager.recover_operations()
+        if any(ext_recovery.values()):
+            logger.warning(
+                "Opérations d'extensions réconciliées après démarrage: %s", ext_recovery
+            )
+    except Exception as exc:  # noqa: BLE001 — le démarrage ne doit pas échouer
+        logger.exception("Réconciliation des opérations d'extensions impossible: %s", exc)
 
     set_email_manager(EmailManager())
 
@@ -857,9 +930,48 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.exception("Failed to initialize diagnostics service: %s", exc)
 
+    # Terminal : service Core de sessions PTY réelles (interface WebUI).
+    # Le registre est en mémoire et les workers sont uniques (workers=1) :
+    # une session appartient au worker qui l'a créée.
+    terminal_service = TerminalService()
+    set_terminal_service(terminal_service)
+    app.state.terminal_service = terminal_service
+    logger.info("Terminal service ready (PTY, user=%s, root=%s)", current_user(), DEFAULT_ROOT)
+
+    # Commandes système contrôlées : capacité Core distincte du terminal PTY.
+    # Elle utilise le même moteur d'approbation et journal append-only, sans
+    # shell implicite ni montage Docker ajouté par l'API.
+    from interfaces.api.routers.internal import get_approval_engine, get_audit_store
+
+    approval_engine = get_approval_engine()
+    if approval_engine is None:  # pragma: no cover - init_modules vient de réussir
+        raise RuntimeError("Approval engine unavailable: system execution stays disabled")
+    system_exec_service = SystemExecService(
+        root=os.getenv("ETHAN_EXEC_ROOT", DEFAULT_ROOT),
+        approval_engine=approval_engine,
+        audit_store=get_audit_store(),
+    )
+    set_system_exec_service(system_exec_service)
+    app.state.system_exec_service = system_exec_service
+    logger.info(
+        "Controlled system execution service ready (root=%s)",
+        os.getenv("ETHAN_EXEC_ROOT", DEFAULT_ROOT),
+    )
+
     yield
 
     # --- Shutdown ---
+    try:
+        await system_exec_service.shutdown()
+    except Exception:  # noqa: BLE001 - shutdown must continue even after a child error
+        logger.warning("System exec: cleanup incomplete", exc_info=True)
+
+    # Aucune session terminal ne doit survivre à l'arrêt de l'API : chaque
+    # shell forké est tué avec son groupe de processus (pas de fuite).
+    try:
+        terminal_service.shutdown_all()
+    except Exception:  # noqa: BLE001 — l'arrêt ne doit pas être bloqué par le terminal
+        logger.warning("Terminal: nettoyage des sessions incomplet", exc_info=True)
     from interfaces.api.routers import message as _message_router
 
     nc = _message_router._nats
@@ -936,6 +1048,7 @@ app.include_router(providers_router)
 app.include_router(models_router)
 app.include_router(integrations_router)
 app.include_router(connections_router)
+app.include_router(cti_router)
 app.include_router(search_router)
 app.include_router(reminders_router)
 app.include_router(diagnostics_router)
@@ -943,10 +1056,13 @@ app.include_router(config_router)
 app.include_router(domains_router)
 app.include_router(capabilities_router)
 app.include_router(component_lifecycle_router)
+app.include_router(extensions_router)
 app.include_router(cookbook_router)
 app.include_router(email_router)
 app.include_router(research_router)
 app.include_router(realtime_router)
+app.include_router(terminal_router)
+app.include_router(system_exec_router)
 # Open WebUI-compatible adapter — exposes /api/v1/auths/*, /api/v1/models/*,
 # /openai/config and /api/chat/completions so the Open WebUI frontend fork
 # (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.

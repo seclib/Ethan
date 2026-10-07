@@ -1,511 +1,177 @@
-# CLI Reference
+# CLI ETHAN
 
-Ethan provides a command-line interface through the `jarvis` command. Built on [Click](https://click.palletsprojects.com/), it offers subcommands for querying models, managing memory, running benchmarks, and serving an OpenAI-compatible API.
+Le CLI est une interface officielle d'ETHAN. Il expose les capacités du Core
+par son API HTTP et garde localement uniquement les préférences propres au
+terminal. La référence des commandes et du contrat de sortie se trouve dans
+[`interfaces/cli/README.md`](../../interfaces/cli/README.md) et
+[`docs/specs/CLI_CONTRACT.md`](../specs/CLI_CONTRACT.md).
 
-## Global Options
+## Installation depuis le dépôt
 
-```bash
-jarvis --version   # Print the Ethan version
-jarvis --help      # Show top-level help with all subcommands
-```
-
-## `jarvis init`
-
-Detect local hardware (CPU, GPU, RAM) and generate a configuration file at `~/.ethan/config.toml`.
+Le paquet racine du dépôt déclare la commande `ethan`. Sur Debian et les autres
+systèmes qui protègent le Python système, utilisez un environnement virtuel :
 
 ```bash
-jarvis init           # Interactive — refuses to overwrite existing config
-jarvis init --force   # Overwrite existing config without prompting
+git clone <URL_DU_DEPOT> Ethan
+cd Ethan
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+ethan --version
 ```
 
-| Option    | Description                                   |
-|-----------|-----------------------------------------------|
-| `--force` | Overwrite existing configuration without prompting |
+Tant que l'environnement virtuel est activé, `ethan` fonctionne depuis
+n'importe quel répertoire. Le paquet racine inclut aussi le Core et ses
+dépendances Python; ce n'est pas encore une distribution minimale du seul CLI.
+Le script historique `interfaces/cli/install.sh` installe `ethan-cli` en
+référant le chemin du dépôt et ne constitue pas l'installation officielle.
+L'audit de production associé documente les écarts de packaging :
+[`CLI_PRODUCTION_AUDIT.md`](../audits/CLI_PRODUCTION_AUDIT.md).
 
-The `init` command auto-detects:
+### Mise à jour et désinstallation
 
-- **Platform** (Linux, macOS, Windows)
-- **CPU** brand and core count
-- **RAM** in GB
-- **GPU** vendor, model, VRAM, and count (via `nvidia-smi`, `rocm-smi`, or `system_profiler`)
-
-Based on the detected hardware, it recommends an appropriate inference engine and writes a pre-configured TOML file.
-
-**Example output:**
-
-```
-Detecting hardware...
-  Platform : linux
-  CPU      : AMD Ryzen 9 7950X (32 cores)
-  RAM      : 64 GB
-  GPU      : NVIDIA RTX 4090 (24.0 GB VRAM, x1)
-
-Config written successfully.
-```
-
----
-
-## `jarvis ask`
-
-Send a query to the inference engine (directly or through an agent) and print the response.
+Depuis le dépôt, avec le même environnement virtuel activé :
 
 ```bash
-jarvis ask "What is the capital of France?"
+git pull
+python -m pip install --upgrade -e .
 ```
 
-### Options
-
-| Option                        | Type    | Default    | Description                                           |
-|-------------------------------|---------|------------|-------------------------------------------------------|
-| `-m`, `--model MODEL`         | string  | auto       | Model to use for inference                             |
-| `-e`, `--engine ENGINE`       | string  | auto       | Engine backend (ollama, vllm, llamacpp, etc.)          |
-| `-t`, `--temperature TEMP`    | float   | `0.7`      | Sampling temperature                                   |
-| `--max-tokens N`              | int     | `1024`     | Maximum tokens to generate                             |
-| `--json`                      | flag    | off        | Output raw JSON result instead of plain text           |
-| `--no-stream`                 | flag    | off        | Disable streaming (synchronous mode)                   |
-| `--no-context`                | flag    | off        | Disable memory context injection                       |
-| `-a`, `--agent AGENT`         | string  | none       | Agent to use (`simple`, `orchestrator`)                |
-| `--tools TOOLS`               | string  | none       | Comma-separated tool names to enable                   |
-| `-i`, `--image PATH`          | path    | none       | Image file for a vision model (e.g. `gemma3:4b`); repeatable |
-| `-S`, `--screen`              | flag    | off        | Capture the current screen and send it to the vision model  |
-
-### Direct Mode vs Agent Mode
-
-**Direct mode** (default) sends the query straight to the inference engine:
+Pour désinstaller la commande et les fichiers Python installés dans cet
+environnement :
 
 ```bash
-jarvis ask "Explain quantum computing"
+python -m pip uninstall Ethan
 ```
 
-**Agent mode** routes the query through an agent that can use tools and manage multi-turn interactions:
+## Quickstart
+
+Le Core local est attendu à `http://localhost:8000` par défaut. Démarrez-le
+selon le mode de déploiement choisi, puis utilisez le CLI :
 
 ```bash
-jarvis ask --agent orchestrator "What is 2+2?"
-jarvis ask --agent orchestrator --tools calculator,think "Calculate sqrt(144) + 3^2"
-jarvis ask --agent simple "Hello"
+ethan --help
+ethan status
+ethan provider list
+ethan chat "Résume les capacités d'ETHAN"
 ```
 
-### Usage Examples
+Les commandes `help`, `version`, `doctor`, `status`, `config`, `auth` et
+`logs` sont visibles dans l'aide du CLI. Les commandes métier disponibles
+sont celles enregistrées dans `interfaces/cli/commands/` et exposées par
+l'API Core. Consultez `ethan <commande>` et le README du CLI pour leurs
+arguments actuels.
+
+## Configuration et Core distant
+
+L'URL par défaut peut être remplacée pour un appel avec `--api-url`, ou pour
+la session avec `ETHAN_API_URL` (alias accepté : `ETHAN_API`) :
 
 ```bash
-# Basic query
-jarvis ask "What is machine learning?"
-
-# Specify a model
-jarvis ask -m qwen3:8b "Summarize this concept"
-
-# Use the orchestrator agent with tools
-jarvis ask --agent orchestrator --tools calculator "What is 15% of 340?"
-
-# Get JSON output
-jarvis ask --json "Hello"
-
-# Disable memory context injection
-jarvis ask --no-context "Tell me about Python"
-
-# Set maximum token generation
-jarvis ask --max-tokens 2048 "Write a detailed essay about AI"
+ethan --api-url https://ethan.example.net status
+ETHAN_API_URL=https://ethan.example.net ethan provider list
 ```
 
-### Vision Input
+Les préférences et profils du CLI sont stockés sous
+`${XDG_CONFIG_HOME:-~/.config}/ethan/`. `ETHAN_CONFIG_DIR` permet de changer
+ce répertoire. Les préférences locales se consultent avec `ethan config list`;
+les domaines de configuration du Core passent par `ethan config domains`,
+`ethan config core-get <domaine>` et `ethan config core-set <domaine> ...`.
 
-Vision-capable models (such as `gemma3:4b`) can read images alongside your
-text prompt. Attach one or more image files with `-i`/`--image`, or capture
-the current screen with `-S`/`--screen`:
+Les options globales comprennent `-o, --output human|json`, `-q, --quiet`,
+`-v`, `--no-color`, `--profile`, `--timeout`, `--api-url` et `--token`.
+L'aide (`ethan --help`) affiche les options acceptées.
+
+## Authentification
 
 ```bash
-# Ask about a local image
-jarvis ask -i screenshot.png "What is shown in this image?"
-
-# Send multiple images (the flag is repeatable)
-jarvis ask -i chart-a.png -i chart-b.png "Compare these two charts"
-
-# Capture the current screen and ask about it
-jarvis ask --screen "Summarize what's on my screen"
+ethan auth login
+ethan auth status
+ethan auth logout
 ```
 
-Vision runs in **direct mode** only. If you also pass `--agent`, the image is
-ignored and a note is printed — re-run with `--agent ""` to force direct mode.
+Le JWT local est conservé dans `credentials.json` avec les permissions
+`0600`. Pour les scripts, `ETHAN_TOKEN` est préférable à `--token`, qui est
+visible dans la liste des processus. Ne placez pas de secrets dans les
+arguments de commandes ou dans les fichiers de configuration non protégés.
 
-The Ollama context window can be tuned for large images or long prompts with
-the `JARVIS_NUM_CTX` environment variable (default `16384`):
+## Sorties et scripts
+
+Les erreurs et diagnostics sont écrits sur `stderr`; `-o json` réserve
+`stdout` au document JSON afin de permettre le piping :
 
 ```bash
-JARVIS_NUM_CTX=8192 jarvis ask --screen "What's on my screen?"
+ethan -o json provider list | jq .
+ethan -o json version
 ```
 
-!!! note "Keep vision on-device"
-    Images are sensitive. Ethan prints a privacy warning before sending
-    an image to a non-local engine, so a screenshot never leaves your machine
-    unnoticed. Use a local engine (e.g. `ollama` with `gemma3:4b`) to keep
-    vision fully local.
+Les codes de sortie contractuels sont `0` succès, `2` usage, `3`
+authentification, `4` autorisation, `5` API indisponible, `6` introuvable,
+`7` délai dépassé, `8` conflit, `70` erreur interne et `130` interruption.
 
-### JSON Output Format
+## Commandes système contrôlées
 
-When using `--json` in **direct mode**, the output includes:
-
-```json
-{
-  "content": "The response text...",
-  "usage": {
-    "prompt_tokens": 12,
-    "completion_tokens": 85,
-    "total_tokens": 97
-  }
-}
-```
-
-When using `--json` in **agent mode**, the output includes:
-
-```json
-{
-  "content": "The response text...",
-  "turns": 3,
-  "tool_results": [
-    {
-      "tool_name": "calculator",
-      "content": "51.0",
-      "success": true
-    }
-  ]
-}
-```
-
----
-
-## `jarvis model`
-
-Manage and inspect language models available on running engines.
-
-### `jarvis model list`
-
-List all models available from running inference engines, displayed as a Rich table with model parameters, context length, and VRAM requirements.
+`ethan exec` est distinct des commandes ETHAN. Par exemple, `ethan model
+list` consulte le catalogue Core, tandis que `ethan exec ollama list` demande
+l'exécution de l'outil local Ollama par le Core.
 
 ```bash
-jarvis model list
+ethan exec catalogue
+ethan exec ollama list --no-wait
+ethan exec git status --short
+ethan exec operation <operation-id>
+ethan exec cancel <operation-id>
 ```
 
-**Example output:**
-
-```
-           Available Models
-┌─────────┬────────────────┬────────┬─────────┬──────┐
-│ Engine  │ Model          │ Params │ Context │ VRAM │
-├─────────┼────────────────┼────────┼─────────┼──────┤
-│ ollama  │ qwen3:8b       │ 8B     │ 32,768  │ 6GB  │
-│ ollama  │ llama3.2:3b    │ 3B     │ 8,192   │ 3GB  │
-└─────────┴────────────────┴────────┴─────────┴──────┘
-```
-
-### `jarvis model info <model>`
-
-Show detailed information about a specific model.
-
-```bash
-jarvis model info qwen3:8b
-```
-
-**Example output:**
-
-```
-┌─ Qwen 3 8B ──────────────────────────────┐
-│ Model ID:     qwen3:8b                    │
-│ Name:         Qwen 3 8B                   │
-│ Parameters:   8B                          │
-│ Context:      32,768                      │
-│ Quantization: none                        │
-│ Min VRAM:     6GB                         │
-│ Engines:      ollama, vllm                │
-│ Provider:     Alibaba                     │
-│ API Key:      not required                │
-└───────────────────────────────────────────┘
-```
-
-### `jarvis model pull <model>`
-
-Download a model via Ollama. Shows a progress bar during download.
-
-```bash
-jarvis model pull qwen3:8b
-```
-
-!!! note
-    The `pull` command requires a running Ollama instance. It connects to the Ollama API at the host configured in your `config.toml`.
-
----
-
-## `jarvis pearl`
-
-Access Pearl's native node, wallet, and RPC tools from the Ethan CLI.
-
-```bash
-jarvis pearl doctor
-jarvis pearl node -- <pearld args>
-jarvis pearl wallet -- <oyster args>
-jarvis pearl ctl -- <prlctl args>
-jarvis pearl address
-```
-
-All Pearl wrapper commands use the `jarvis pearl <command>` shape. The
-pass-through commands map to Pearl's native binaries:
-
-| Ethan command | Pearl binary | Use |
-|--------------------|--------------|-----|
-| `jarvis pearl doctor` | n/a | Check whether `pearld`, `oyster`, and `prlctl` are discoverable |
-| `jarvis pearl node` | `pearld` | Run the Pearl full node |
-| `jarvis pearl wallet` | `oyster` | Run the Oyster wallet daemon |
-| `jarvis pearl ctl` | `prlctl` | Query Pearl node or wallet RPC |
-| `jarvis pearl address` | `prlctl --wallet getnewaddress` | Generate a wallet address from Oyster |
-
-Use `PEARL_HOME=/path/to/pearl` or `--pearl-home /path/to/pearl` if Pearl's
-`bin/` directory is not on `PATH`. See the [Pearl CLI guide](pearl.md) for
-examples.
-
----
-
-## `jarvis memory`
-
-Manage the document memory store for retrieval-augmented generation.
-
-### `jarvis memory index <path>`
-
-Index documents from a file or directory into the memory store.
-
-```bash
-jarvis memory index ./docs/
-jarvis memory index ./notes.md
-jarvis memory index ./data/ --chunk-size 256 --chunk-overlap 32
-jarvis memory index ./docs/ --backend sqlite
-```
-
-| Option                      | Type   | Default | Description                          |
-|-----------------------------|--------|---------|--------------------------------------|
-| `--backend`, `-b`           | string | config  | Override the default memory backend  |
-| `--chunk-size`              | int    | `512`   | Chunk size in tokens                 |
-| `--chunk-overlap`           | int    | `64`    | Overlap between chunks in tokens     |
-
-The ingestion pipeline supports text, markdown, code files, and PDF (with `pdfplumber` installed). Binary files and hidden directories are automatically skipped.
-
-### `jarvis memory search <query>`
-
-Search the memory store for relevant document chunks.
-
-```bash
-jarvis memory search "machine learning basics"
-jarvis memory search -k 10 "neural networks"
-jarvis memory search --backend faiss "embeddings"
-```
-
-| Option             | Type   | Default | Description                          |
-|--------------------|--------|---------|--------------------------------------|
-| `--top-k`, `-k`    | int    | `5`     | Number of results to return          |
-| `--backend`, `-b`  | string | config  | Override the default memory backend  |
-
-Results are displayed in a table with rank, score, source file, and a content preview.
-
-### `jarvis memory stats`
-
-Show memory store statistics including document count and database size.
-
-```bash
-jarvis memory stats
-jarvis memory stats --backend sqlite
-```
-
-| Option             | Type   | Default | Description                          |
-|--------------------|--------|---------|--------------------------------------|
-| `--backend`, `-b`  | string | config  | Override the default memory backend  |
-
----
-
-## `jarvis telemetry`
-
-Query and manage inference telemetry data stored in SQLite.
-
-### `jarvis telemetry stats`
-
-Show aggregated telemetry statistics including total calls, tokens, cost, and latency, broken down by model and engine.
-
-```bash
-jarvis telemetry stats
-jarvis telemetry stats -n 5    # Show top 5 models
-```
-
-| Option          | Type | Default | Description                   |
-|-----------------|------|---------|-------------------------------|
-| `-n`, `--top`   | int  | `10`    | Number of top models to show  |
-
-### `jarvis telemetry export`
-
-Export raw telemetry records in JSON or CSV format.
-
-```bash
-jarvis telemetry export                          # JSON to stdout
-jarvis telemetry export --format csv             # CSV to stdout
-jarvis telemetry export --format json -o data.json  # JSON to file
-jarvis telemetry export -f csv -o metrics.csv    # CSV to file
-```
-
-| Option                | Type   | Default  | Description                     |
-|-----------------------|--------|----------|---------------------------------|
-| `-f`, `--format`      | choice | `json`   | Output format: `json` or `csv`  |
-| `-o`, `--output`      | path   | stdout   | Output file path                |
-
-### `jarvis telemetry clear`
-
-Delete all telemetry records from the database.
-
-```bash
-jarvis telemetry clear         # Interactive confirmation
-jarvis telemetry clear --yes   # Skip confirmation
-```
-
-| Option         | Type | Default | Description                   |
-|----------------|------|---------|-------------------------------|
-| `-y`, `--yes`  | flag | off     | Skip confirmation prompt      |
-
-!!! warning
-    This permanently deletes all stored telemetry data. Use `--yes` to skip the confirmation prompt in automated scripts.
-
----
-
-## `jarvis bench`
-
-Run inference benchmarks against a running engine.
-
-### `jarvis bench run`
-
-Execute benchmarks and report results.
-
-```bash
-jarvis bench run                               # Run all benchmarks, 10 samples
-jarvis bench run -n 20                         # 20 samples per benchmark
-jarvis bench run -b latency                    # Only the latency benchmark
-jarvis bench run -b throughput -n 50 --json    # Throughput, 50 samples, JSON output
-jarvis bench run -o results.jsonl              # Write JSONL results to file
-jarvis bench run -m qwen3:8b -e ollama         # Specific model and engine
-```
-
-| Option                     | Type   | Default | Description                              |
-|----------------------------|--------|---------|------------------------------------------|
-| `-m`, `--model MODEL`      | string | auto    | Model to benchmark                       |
-| `-e`, `--engine ENGINE`    | string | auto    | Engine backend                           |
-| `-n`, `--samples N`        | int    | `10`    | Number of samples per benchmark          |
-| `-b`, `--benchmark NAME`   | string | all     | Specific benchmark to run                |
-| `-o`, `--output PATH`      | path   | none    | Write JSONL results to file              |
-| `--json`                   | flag   | off     | Output JSON summary to stdout            |
-
-Available benchmarks:
-
-- **latency** -- Measures per-call inference latency (mean, p50, p95, min, max)
-- **throughput** -- Measures tokens-per-second throughput
-
----
-
-## `jarvis channel`
-
-Manage messaging channels for multi-platform communication. Channels connect directly to platform APIs (Telegram, Discord, Slack, etc.) -- no gateway required.
-
-### `jarvis channel list`
-
-List registered channel backends and their connection status.
-
-```bash
-jarvis channel list
-```
-
-### `jarvis channel send`
-
-Send a message to a specific channel.
-
-```bash
-jarvis channel send slack "Hello from Jarvis!"
-jarvis channel send discord "Build complete"
-```
-
-| Argument    | Type   | Description                          |
-|-------------|--------|--------------------------------------|
-| `TARGET`    | string | Channel name to send to              |
-| `MESSAGE`   | string | Message content                      |
-
-### `jarvis channel status`
-
-Show connection status for configured channels.
-
-```bash
-jarvis channel status
-```
-
-!!! note "Channel Dependencies"
-    Each channel requires its platform-specific credentials (bot tokens, API keys) configured in the `[channel.<platform>]` section of your config. See [Configuration](../getting-started/configuration.md) for details.
-
----
-
-## `jarvis serve`
-
-Start an OpenAI-compatible API server.
-
-```bash
-jarvis serve                                 # Default host/port from config
-jarvis serve --port 8000                     # Custom port
-jarvis serve --host 0.0.0.0 --port 9000      # Bind to all interfaces
-jarvis serve --model qwen3:8b                # Specify default model
-jarvis serve --agent orchestrator            # Route requests through an agent
-```
-
-| Option                   | Type   | Default | Description                              |
-|--------------------------|--------|---------|------------------------------------------|
-| `--host HOST`            | string | config  | Bind address                             |
-| `--port PORT`            | int    | config  | Port number                              |
-| `-e`, `--engine ENGINE`  | string | auto    | Engine backend                           |
-| `-m`, `--model MODEL`    | string | config  | Default model for inference              |
-| `-a`, `--agent AGENT`    | string | none    | Agent for non-streaming requests         |
-
-!!! note "Server Dependencies"
-    The `serve` command requires the server extra:
-
-    ```bash
-    uv sync --extra server
-    ```
-
-    This installs FastAPI, uvicorn, and related dependencies.
-
-### API Endpoints
-
-The server exposes the following OpenAI-compatible endpoints:
-
-| Method | Path                     | Description                    |
-|--------|--------------------------|--------------------------------|
-| POST   | `/v1/chat/completions`   | Chat completions (streaming & non-streaming) |
-| GET    | `/v1/models`             | List available models          |
-| GET    | `/health`                | Health check                   |
-| GET    | `/v1/channels`           | List available messaging channels    |
-| POST   | `/v1/channels/send`      | Send a message to a channel          |
-| GET    | `/v1/channels/status`    | Channel bridge connection status     |
-
-**Example with curl:**
-
-```bash
-curl http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen3:8b",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
-```
-
-When an agent is configured (e.g., `--agent orchestrator`), non-streaming requests are routed through the agent with access to all registered tools. For tool-capable agents (`orchestrator`, `react`, `openhands`), all registered tools are automatically loaded and made available.
-
----
-
-## LLM-guided spec search (no CLI yet)
-
-LLM-guided spec search (the frontier-driven harness-learning subsystem)
-is exposed as a Python library only — there is currently no top-level
-`jarvis` subcommand for it. Construct a `SpecSearchOrchestrator`
-directly from `ethan.learning.spec_search.orchestrator` and call
-`.run(trigger)` with a trigger from
-`ethan.learning.spec_search.triggers`. See
-[`docs/user-guide/llm-guided-spec-search.md`](llm-guided-spec-search.md)
-for the architecture and the building blocks
-(`splits.py`, external corpora, `external_adapter`).
+Le Core n'interprète jamais une chaîne shell : il lance seulement un exécutable
+du catalogue avec un `argv` validé. Le catalogue de base autorise uniquement
+des formes en lecture seule de `ollama`, `git`, `python`/`python3` et `node`.
+Chaque demande est soumise à une approbation humaine explicite. Un
+administrateur examine `ethan exec pending`, puis peut décider avec
+`ethan exec approve <approval-id>` ou `ethan exec reject <approval-id>`.
+
+L'exécution conserve stdout et stderr séparément, limite la sortie, masque les
+motifs de secrets connus, applique un délai maximal de 120 secondes et permet
+l'annulation. `Ctrl+C` depuis le CLI demande l'annulation de l'opération; le
+Core termine le groupe de processus de l'enfant, afin de ne pas laisser de
+sous-processus connu actif.
+
+Le répertoire de travail doit être relatif à `ETHAN_EXEC_ROOT` (par défaut
+`/workspace`) et ne peut pas en sortir, y compris par lien symbolique. Le
+processus enfant reçoit un environnement minimal sans tokens ni secrets du
+serveur et s'exécute sous l'utilisateur effectif réel du service. Si ce
+service est root, la capacité refuse toute commande.
+
+Docker figure dans le catalogue à des fins de diagnostic, mais la politique
+Core le refuse par défaut. ETHAN ne monte ni ne transmet
+`/var/run/docker.sock`; une installation qui donne ce socket au processus API
+reste une décision de déploiement externe, que cette capacité ne contourne
+pas et ne crée pas.
+
+Cette première version ne diffuse pas les sorties pendant l'exécution : le
+CLI récupère l'état de l'opération puis rend les deux flux séparés à la fin.
+Les résultats et décisions d'approbation sont inscrits dans l'audit Core.
+
+## Dépannage
+
+- **API indisponible** : vérifier l'URL avec `ethan config list`, puis
+  l'état du Core et l'accès réseau. Le CLI retourne le code `5` sur une
+  connexion refusée ou une API indisponible.
+- **401** : lancer `ethan auth login` ou vérifier `ETHAN_TOKEN`.
+- **403** : le compte authentifié ne possède pas l'autorisation demandée.
+- **Commande inconnue** : consulter `ethan help`; les commandes d'extension
+  dépendent des routes publiées par le Core.
+- **Commande absente après installation** : activer le virtualenv dans lequel
+  le paquet a été installé et vérifier `command -v ethan`.
+- **Installation Debian refusée** : installer dans un virtualenv; ne pas
+  forcer pip à modifier le Python géré par le système.
+
+## Architecture
+
+Les commandes résident dans `interfaces/cli/commands/`. Elles appellent la
+frontière HTTP partagée `interfaces/cli/core/api.py` et son client
+`interfaces/cli/core/client.py`; l'API et le Core restent propriétaires de
+l'état métier. Le CLI ne nécessite pas le répertoire du dépôt pour résoudre
+`ethan` après installation du paquet, mais ses dépendances de distribution
+sont actuellement celles du paquet racine ETHAN.

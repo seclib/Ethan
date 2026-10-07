@@ -49,7 +49,6 @@ import {
   ChatSection,
   SearchSection,
   RemindersSection,
-  ShortcutsSection,
   LibrarySection,
   SystemSection,
   SecuritySection,
@@ -99,7 +98,6 @@ import {
   MessageSquare,
   Search,
   Bell,
-  Keyboard,
   FolderOpen,
   Shield,
   SlidersHorizontal,
@@ -149,7 +147,6 @@ export const SECTIONS: {
   { id: "search", label: "Search", icon: <Search className="h-4 w-4" />, category: "system" },
   { id: "integrations", label: "Integrations", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "reminders", label: "Reminders", icon: <Bell className="h-4 w-4" />, category: "user" },
-  { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" />, category: "user" },
   { id: "capabilities", label: "Capabilities", icon: <Puzzle className="h-4 w-4" />, category: "system" },
   { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
   { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
@@ -275,7 +272,6 @@ export function SettingsWorkspace() {
         {activeSection === "search" && <SearchSection />}
         {activeSection === "integrations" && <IntegrationsSection />}
         {activeSection === "reminders" && <RemindersSection />}
-        {activeSection === "shortcuts" && <ShortcutsSection />}
         {activeSection === "capabilities" && <CapabilitiesSection />}
         {activeSection === "library" && <LibrarySection />}
         {activeSection === "system" && <SystemSection />}

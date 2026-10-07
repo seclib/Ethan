@@ -14,7 +14,7 @@ import re
 import secrets
 import shutil
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,7 @@ from core.capability_manager.types import (
     CapabilitySpec,
     CapabilityState,
     MutationPlan,
+    OperationStatus,
     PlanStep,
     TransitionError,
 )
@@ -46,13 +47,99 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger(__name__)
 _DOMAIN = "capability_manager"
 
+# ── Opérations de cycle de vie (durables) ────────────────────────────────────
+#
+# Audit §2 : `_operations` ne vivait qu'en mémoire. Un redémarrage de l'API
+# effaçait toute trace d'une installation en cours, l'UI restait bloquée sur un
+# `operation_id` devenu 404, et un état `INSTALLING` pouvait rester figé
+# indéfiniment. Les opérations sont maintenant persistées via CoreRecordStore
+# (domaine ci-dessous) et réconciliées au démarrage par `recover_operations()`.
+_OPERATION_DOMAIN = "capability_operations"
+# Délai au-delà duquel une opération est terminée en TIMEOUT — jamais de
+# `INSTALLING` qui reste bloqué (audit §2/§3).
+_OPERATION_TIMEOUT_S = 900.0
+# Durée de conservation des opérations terminées : les erreurs doivent rester
+# consultables assez longtemps pour être lues par l'utilisateur (audit §3).
+_OPERATION_RETENTION_S = 24.0 * 3600.0
+# Nombre maximal d'opérations terminées conservées (bornage du domaine).
+_OPERATION_MAX_KEPT = 50
+
 
 def _now() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
+def _utc_now() -> str:
+    """Horodatage ISO-8601 UTC — lisible, triable et stable entre redémarrages.
+
+    (Contrairement à `time.monotonic()`, une valeur qui n'a aucun sens hors du
+    processus courant : c'est ce qui rendait les opérations non récupérables.)
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _iso_epoch(value: Any) -> float | None:
+    """Convertit un horodatage ISO-8601 en epoch, ou None si illisible."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
 def _new_op_id() -> str:
     return "op_" + secrets.token_hex(6)
+
+
+def _op_record(op: dict[str, Any]) -> dict[str, Any]:
+    """Forme JSON-sûre et durable d'une opération.
+
+    Exclut ce qui n'existe que dans le process courant (`task`, `deadline`) :
+    un `asyncio.Task` n'est ni sérialisable ni significatif après redémarrage.
+    """
+    return {
+        "operation_id": op["operation_id"],
+        "capability_id": op["capability_id"],
+        "operation": op["operation"],
+        "status": op["status"],
+        "progress": int(op["progress"]),
+        "steps_done": [list(step) for step in op["steps_done"]],
+        "cancel_requested": bool(op.get("cancel_requested", False)),
+        "started_at": op.get("started_at"),
+        "updated_at": op.get("updated_at"),
+        "finished_at": op.get("finished_at"),
+        "error": op.get("error"),
+        "actor": op.get("actor", "system"),
+    }
+
+
+def _op_public(op: dict[str, Any]) -> dict[str, Any]:
+    """Vue d'une opération destinée à l'API/UI (jamais de tâche asyncio)."""
+    public = {key: value for key, value in op.items() if key not in ("task", "deadline")}
+    public["done"] = op["status"] in OperationStatus.TERMINAL
+    return public
+
+
+def _hydrate_operation(record: dict[str, Any]) -> dict[str, Any]:
+    """Complète une opération restaurée depuis le store durable.
+
+    `task` et `deadline` n'existent que dans le process vivant et ne sont donc
+    jamais persistés. On recalcule `deadline` depuis `started_at` : sans cela,
+    une opération `RUNNING` relue après un redémarrage aurait une échéance
+    nulle et ne pourrait **jamais** expirer — exactement le blocage « INSTALLING
+    pour toujours » que l'audit §2 décrit.
+    """
+    record.setdefault("task", None)
+    record.setdefault("cancel_requested", False)
+    record.setdefault("error", None)
+    record.setdefault("progress", 0)
+    record.setdefault("steps_done", [])
+    record.setdefault("finished_at", None)
+    if not record.get("deadline"):
+        started = _iso_epoch(record.get("started_at"))
+        record["deadline"] = (started or time.time()) + _OPERATION_TIMEOUT_S
+    return record
 
 
 def _validate_config(spec: CapabilitySpec, config: dict[str, Any]) -> dict[str, Any]:
@@ -174,8 +261,16 @@ class CapabilityManager:
         self.check_external = check_external
         self._registry: dict[str, CapabilitySpec] = dict(registry or {})
         self._health = HealthChecker()
+        # Opérations de cycle de vie — état vivant du process courant, doublé
+        # d'une copie durable dans CoreRecordStore (`_OPERATION_DOMAIN`).
+        # `task`/`deadline` n'existent qu'ici ; `_pending_writes` retient les
+        # écritures de fond pour qu'elles ne soient jamais collectées avant
+        # d'avoir été exécutées.
         self._operations: dict[str, dict[str, Any]] = {}
+        self._pending_writes: set[asyncio.Task] = set()
         self._states: dict[str, CapabilityRuntimeState] = {}
+        # Ids dont l'état a déjà été lu depuis le store (une seule lecture).
+        self._hydrated: set[str] = set()
 
     # ── registre des specs ──
     def register(self, spec: CapabilitySpec) -> None:
@@ -195,17 +290,26 @@ class CapabilityManager:
 
     # ── état runtime ──
     async def _load_state(self, capability_id: str) -> CapabilityRuntimeState:
-        if capability_id not in self._states:
+        """État d'une capability — hydraté **une fois** depuis le store durable.
+
+        `register()` sème un état par défaut en mémoire (il est synchrone et ne
+        peut pas lire la base). Sans hydratation explicite, ce défaut écrasait
+        l'état persisté : un redémarrage de l'API remettait chaque capability
+        en `SUPPORTED`, perdait `installed_version` et surtout laissait
+        `INSTALLING` sans jamais le réconcilier (audit §2).
+        """
+        if capability_id not in self._hydrated:
             record = await self.store.get(_DOMAIN, capability_id)
-            self._states[capability_id] = (
-                CapabilityRuntimeState.from_dict(record)
-                if record
-                else CapabilityRuntimeState(id=capability_id)
-            )
+            if record:
+                self._states[capability_id] = CapabilityRuntimeState.from_dict(record)
+            self._hydrated.add(capability_id)
+        if capability_id not in self._states:
+            self._states[capability_id] = CapabilityRuntimeState(id=capability_id)
         return self._states[capability_id]
 
     async def _save_state(self, state: CapabilityRuntimeState) -> None:
         self._states[state.id] = state
+        self._hydrated.add(state.id)
         state.updated_at = _now()
         await self.store.save(_DOMAIN, state.id, state.to_dict())
 
@@ -488,7 +592,7 @@ class CapabilityManager:
         spec = self._require_spec(capability_id)
         state = await self._load_state(capability_id)
         if state.state == CapabilityState.READY:
-            return self._already_done(spec, state, "install", actor)
+            return await self._already_done(spec, state, "install", actor)
         if CapabilityState.BUSY & {state.state}:
             raise TransitionError(capability_id + " deja en cours (etat=" + state.state + ")")
         if state.state == CapabilityState.SUPPORTED:
@@ -497,18 +601,15 @@ class CapabilityManager:
             self._transition(state, CapabilityState.NOT_INSTALLED)
             await self._save_state(state)
         validated = _validate_config(spec, config) if config else None
-        op_id = _new_op_id()
         plan = await self.plan_install(capability_id)
+        # L'opération est créée ET persistée AVANT le lancement de la tâche :
+        # il ne doit jamais exister une installation en cours sans trace
+        # interrogeable (audit §2 — un redémarrage ne doit pas la faire disparaître).
+        op_id = self._start_operation(capability_id, "install", actor)
+        await self._persist_operation(op_id)
         task = asyncio.create_task(self._do_install(op_id, plan, spec, state, validated, actor))
-        self._operations[op_id] = {
-            "capability_id": capability_id,
-            "operation": "install",
-            "task": task,
-            "started_at": time.monotonic(),
-            "steps_done": [],
-            "progress": 0,
-            "cancel_requested": False,
-        }
+        self._operations[op_id]["task"] = task
+        task.add_done_callback(lambda t, _id=op_id: self._on_task_done(_id, t))
         self._log_event("install", capability_id, actor, validated is not None)
         self._audit("install", "allowed", capability_id, actor, plan.to_dict())
         return op_id
@@ -574,6 +675,7 @@ class CapabilityManager:
             state.last_error = "installation annulee"
             await self._save_state(state)
             self._log_event("install_cancelled", spec.id, actor)
+            await self._finish_operation(op_id, OperationStatus.CANCELLED, "installation annulée")
         except Exception as exc:
             op["error"] = str(exc)[:300]
             state.state = CapabilityState.ERROR
@@ -581,9 +683,11 @@ class CapabilityManager:
             await self._save_state(state)
             self._log_event("install_failed", spec.id, actor)
             self._audit("install", "error", spec.id, actor, {"error": str(exc)[:200]})
-        finally:
-            op["progress"] = 100
-            op["finished_at"] = time.monotonic()
+            # `_do_install` n'échoue jamais silencieusement : l'état terminal
+            # ERROR est posé ici, avec son message, et persisté (audit §3).
+            await self._finish_operation(op_id, OperationStatus.ERROR, op["error"])
+        else:
+            await self._finish_operation(op_id, OperationStatus.SUCCESS, None)
 
     # ── configure / test ──
     async def configure(
@@ -704,17 +808,12 @@ class CapabilityManager:
         if CapabilityState.BUSY & {state.state}:
             raise TransitionError(capability_id + " deja en cours (etat=" + state.state + ")")
         plan = await self.plan_uninstall(capability_id, delete_data)
-        op_id = _new_op_id()
+        # Même garantie que pour install : trace persistée avant toute tâche.
+        op_id = self._start_operation(capability_id, "uninstall", actor)
+        await self._persist_operation(op_id)
         task = asyncio.create_task(self._do_uninstall(op_id, plan, spec, state, delete_data, actor))
-        self._operations[op_id] = {
-            "capability_id": capability_id,
-            "operation": "uninstall",
-            "task": task,
-            "started_at": time.monotonic(),
-            "steps_done": [],
-            "progress": 0,
-            "cancel_requested": False,
-        }
+        self._operations[op_id]["task"] = task
+        task.add_done_callback(lambda t, _id=op_id: self._on_task_done(_id, t))
         self._log_event("uninstall", capability_id, actor, delete_data)
         self._audit("uninstall", "allowed", capability_id, actor, {"delete_data": delete_data})
         return op_id
@@ -772,6 +871,9 @@ class CapabilityManager:
             state.state = CapabilityState.ERROR
             state.last_error = "désinstallation annulée"
             await self._save_state(state)
+            await self._finish_operation(
+                op_id, OperationStatus.CANCELLED, "désinstallation annulée"
+            )
         except Exception as exc:
             op["error"] = str(exc)[:300]
             state.state = CapabilityState.ERROR
@@ -779,9 +881,9 @@ class CapabilityManager:
             await self._save_state(state)
             self._log_event("uninstall_failed", spec.id, actor)
             self._audit("uninstall", "error", spec.id, actor, {"error": str(exc)[:200]})
-        finally:
-            op["progress"] = 100
-            op["finished_at"] = time.monotonic()
+            await self._finish_operation(op_id, OperationStatus.ERROR, op["error"])
+        else:
+            await self._finish_operation(op_id, OperationStatus.SUCCESS, None)
 
     async def _check_dependent_enabled(self, spec: CapabilitySpec) -> tuple[bool, str]:
         for other_id, other in self._registry.items():
@@ -801,40 +903,64 @@ class CapabilityManager:
         return True, "ok"
 
     # ── suivi d'opérations ──
-    def get_operation(self, operation_id: str) -> dict[str, Any] | None:
+    async def get_operation(self, operation_id: str) -> dict[str, Any] | None:
+        """Progression d'une opération : mémoire d'abord, store durable ensuite.
+
+        `None` signifie « opération inconnue » → l'API répond 404. C'est ce qui
+        permet à l'interface de distinguer une opération jamais créée d'une
+        opération terminée, au lieu d'attendre indéfiniment.
+        """
         op = self._operations.get(operation_id)
         if op is None:
-            return None
-        task = op.get("task")
-        done = True
-        if task is not None:
-            done = task.done()
-        return {
-            "operation_id": operation_id,
-            "capability_id": op["capability_id"],
-            "operation": op["operation"],
-            "progress": op["progress"],
-            "cancel_requested": op["cancel_requested"],
-            "started_at": op.get("started_at"),
-            "finished_at": op.get("finished_at"),
-            "steps_done": list(op["steps_done"]),
-            "done": done,
-            "error": op.get("error"),
-        }
+            stored = await self.store.get(_OPERATION_DOMAIN, operation_id)
+            if stored is None:
+                return None
+            # La clé du store fait foi : c'est elle qui indexe `_operations`,
+            # `store.delete` et `_finish_operation`. Si un record incohérent
+            # portait un autre `operation_id`, l'opération relue ne pourrait
+            # plus être terminée (elle resterait RUNNING pour toujours).
+            stored["operation_id"] = operation_id
+            op = _hydrate_operation(stored)
+            self._operations[operation_id] = op
+        await self._expire_if_stale(op)
+        return _op_public(op)
 
-    def list_operations(self) -> list[dict[str, Any]]:
-        return [self.get_operation(op_id) for op_id in self._operations]
+    async def list_operations(self) -> list[dict[str, Any]]:
+        """Toutes les opérations connues (mémoire ∪ store), récentes d'abord."""
+        try:
+            stored = await self.store.list(_OPERATION_DOMAIN)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Liste des opérations indisponible: %s", exc)
+            stored = []
+        for record in stored:
+            op_id = record.get("operation_id")
+            if not op_id or op_id in self._operations:
+                continue
+            self._operations[op_id] = _hydrate_operation(record)
+
+        views: list[dict[str, Any]] = []
+        for op_id in list(self._operations):
+            view = await self.get_operation(op_id)
+            if view is not None:
+                views.append(view)
+        views.sort(key=lambda item: item.get("started_at") or "", reverse=True)
+        return views
 
     async def cancel_operation(self, operation_id: str) -> bool:
+        """Demande l'annulation d'une opération en cours (jamais d'une terminée)."""
         op = self._operations.get(operation_id)
         if op is None:
             return False
+        if op["status"] in OperationStatus.TERMINAL:
+            return False
         task = op.get("task")
-        if task is not None and task.done() and not task.cancelled():
+        if not isinstance(task, asyncio.Task) or task.done():
+            # Tâche absente (opération restaurée après redémarrage) ou déjà
+            # terminée : on ne peut plus annuler, on le dit explicitement.
             return False
         op["cancel_requested"] = True
-        if task is not None and not task.done():
-            task.cancel()
+        task.cancel()
+        self._schedule_persist(operation_id)
         return True
 
     # ── status public (pour l'API) ──
@@ -934,26 +1060,261 @@ class CapabilityManager:
         }
 
     # ── helpers internes ──
-    def _already_done(
+
+    def _start_operation(
+        self,
+        capability_id: str,
+        operation: str,
+        actor: str,
+    ) -> str:
+        """Crée une opération à l'état `RUNNING` (jamais `done` d'entrée)."""
+        op_id = _new_op_id()
+        now = _utc_now()
+        self._operations[op_id] = {
+            "operation_id": op_id,
+            "capability_id": capability_id,
+            "operation": operation,
+            "status": OperationStatus.RUNNING,
+            "task": None,
+            "started_at": now,
+            "updated_at": now,
+            "finished_at": None,
+            "error": None,
+            "steps_done": [],
+            "progress": 0,
+            "cancel_requested": False,
+            "actor": actor,
+            # Limite de durée : runtime seulement (jamais persistée).
+            "deadline": time.time() + _OPERATION_TIMEOUT_S,
+        }
+        return op_id
+
+    async def _persist_operation(self, op_id: str) -> None:
+        """Écrit l'état d'une opération dans le store durable.
+
+        Un échec de persistance n'est jamais masqué (warning explicite) mais
+        n'interrompt pas non plus la mutation en cours.
+        """
+        op = self._operations.get(op_id)
+        if op is None:
+            return
+        try:
+            await self.store.save(_OPERATION_DOMAIN, op_id, _op_record(op))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Persistance de l'opération %s impossible: %s", op_id, exc)
+
+    async def _finish_operation(
+        self,
+        op_id: str,
+        status: str,
+        error: str | None = None,
+    ) -> None:
+        """Passe l'opération à un état TERMINAL (idempotent) et la persiste."""
+        op = self._operations.get(op_id)
+        if op is None or op["status"] in OperationStatus.TERMINAL:
+            return
+        op["status"] = status
+        op["error"] = error
+        op["finished_at"] = _utc_now()
+        op["updated_at"] = op["finished_at"]
+        if status == OperationStatus.SUCCESS:
+            op["progress"] = 100
+        await self._persist_operation(op_id)
+        await self._prune_operations()
+
+    async def _already_done(
         self,
         spec: CapabilitySpec,
         state: CapabilityRuntimeState,
         operation: str,
         actor: str,
     ) -> str:
-        op_id = _new_op_id()
-        self._operations[op_id] = {
-            "capability_id": spec.id,
-            "operation": operation,
-            "task": None,
-            "started_at": time.monotonic(),
-            "steps_done": [("déjà réalisé", True, "ok")],
-            "progress": 100,
-            "cancel_requested": False,
-            "finished_at": time.monotonic(),
-        }
+        """Opération d'ores-et-déjà satisfaite : succès immédiat et persisté."""
+        op_id = self._start_operation(spec.id, operation, actor)
+        self._operations[op_id]["steps_done"].append(("déjà réalisé", True, "ok"))
+        await self._finish_operation(op_id, OperationStatus.SUCCESS, None)
         self._log_event(operation + "_skipped", spec.id, actor)
         return op_id
+
+    async def _settle_operation(self, op_id: str, task: asyncio.Task) -> None:
+        """Termine une opération à partir du résultat réel de sa tâche.
+
+        Point d'entrée unique de l'issue d'une tâche : succès, exception ou
+        annulation produisent tous un état terminal persisté — l'UI ne peut
+        donc jamais observer une opération « encore en cours » déjà morte.
+        """
+        op = self._operations.get(op_id)
+        if op is None or op["status"] in OperationStatus.TERMINAL:
+            return
+        if task.cancelled():
+            status, error = OperationStatus.CANCELLED, "opération annulée"
+        else:
+            exc = task.exception()
+            if exc is None:
+                status, error = OperationStatus.SUCCESS, None
+            else:
+                status = OperationStatus.ERROR
+                error = str(exc) or type(exc).__name__
+        await self._finish_operation(op_id, status, error)
+        if status is not OperationStatus.SUCCESS:
+            # `_run` aligne déjà l'état dans le cas nominal ; on ne touche à la
+            # capability que si elle est restée bloquée en INSTALLING/…
+            await self._reconcile_dangling_state(op["capability_id"], error or status)
+
+    def _on_task_done(self, op_id: str, task: asyncio.Task) -> None:
+        """Callback de fin de tâche (exécuté dans la boucle événementielle)."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:  # pragma: no cover — boucle déjà fermée
+            return
+        pending = asyncio.create_task(self._settle_operation(op_id, task))
+        self._pending_writes.add(pending)
+        pending.add_done_callback(self._pending_writes.discard)
+
+    async def _reconcile_dangling_state(self, capability_id: str, reason: str) -> None:
+        """Aucune capability ne doit rester bloquée en INSTALLING/UNINSTALLING."""
+        if not capability_id:
+            return
+        try:
+            state = await self._load_state(capability_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Réconciliation impossible pour %s: %s", capability_id, exc)
+            return
+        if state.state not in (CapabilityState.INSTALLING, CapabilityState.UNINSTALLING):
+            return
+        state.state = CapabilityState.ERROR
+        state.last_error = reason
+        state.updated_at = _now()
+        # `_save_state` (et non `_persist_state`, qui n'existe pas) : sans cette
+        # écriture, la réconciliation levait AttributeError au moment précis où
+        # elle devait débloquer une capability restée en INSTALLING.
+        await self._save_state(state)
+        self._log_event("state_reconciled", capability_id, "system", reason)
+
+    def _schedule_persist(self, op_id: Any) -> None:
+        """Écriture de fond de l'état d'une opération (jamais bloquante)."""
+        if not isinstance(op_id, str):
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # hors boucle événementielle : rien à faire ici
+            return
+        pending = loop.create_task(self._persist_operation(op_id))
+        self._pending_writes.add(pending)
+        pending.add_done_callback(self._pending_writes.discard)
+
+    async def _prune_operations(self) -> None:
+        """Applique la rétention (durée) et le bornage (nombre) des opérations.
+
+        Les erreurs restent consultables pendant `_OPERATION_RETENTION_S`
+        (audit §3), puis le domaine est assaini pour ne pas grossir à l'infini.
+        """
+        try:
+            records = await self.store.list(_OPERATION_DOMAIN)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Liste des opérations indisponible: %s", exc)
+            return
+        terminal = [r for r in records if r.get("status") in OperationStatus.TERMINAL]
+        terminal.sort(key=lambda r: _iso_epoch(r.get("started_at")) or 0.0, reverse=True)
+        now = time.time()
+        for index, record in enumerate(terminal):
+            op_id = record.get("operation_id")
+            if not op_id:
+                continue
+            started = _iso_epoch(record.get("started_at"))
+            too_old = started is not None and (now - started) > _OPERATION_RETENTION_S
+            if too_old or index >= _OPERATION_MAX_KEPT:
+                self._operations.pop(op_id, None)
+                await self.store.delete(_OPERATION_DOMAIN, op_id)
+
+    async def _expire_if_stale(self, op: dict[str, Any]) -> None:
+        """Termine une opération trop longue ou dont la tâche a disparu.
+
+        Garantie « aucune opération INSTALLING bloquée indéfiniment » (§2) :
+        le délai est appliqué à chaque lecture, même sans tâche vivante.
+        """
+        if op["status"] in OperationStatus.TERMINAL:
+            return
+        task = op.get("task")
+        if isinstance(task, asyncio.Task) and task.done():
+            await self._settle_operation(op["operation_id"], task)
+            return
+        deadline = op.get("deadline")
+        if deadline and time.time() > float(deadline):
+            op["cancel_requested"] = True
+            if isinstance(task, asyncio.Task) and not task.done():
+                task.cancel()
+            reason = f"dépassement du délai de {_OPERATION_TIMEOUT_S:.0f}s — opération interrompue"
+            await self._finish_operation(op["operation_id"], OperationStatus.TIMEOUT, reason)
+            await self._reconcile_dangling_state(op["capability_id"], reason)
+
+    async def recover_operations(self) -> dict[str, int]:
+        """Réconcilie les opérations persistées après un redémarrage de l'API.
+
+        - recharge dans le manager la trace des opérations connues ;
+        - termine en `ERROR` (ou `TIMEOUT` si le délai est écoulé) celles qui
+          étaient `RUNNING` à l'arrêt : jamais d'`INSTALLING` abandonné ;
+        - aligne les capabilities restées en INSTALLING/UNINSTALLING ;
+        - applique rétention et bornage.
+
+        Retourne un résumé pour les logs de démarrage — identifiants et états
+        uniquement, jamais de secret (règle secrets du repo).
+        """
+        summary = {
+            "restored": 0,
+            "interrupted": 0,
+            "timed_out": 0,
+            "capabilities_reconciled": 0,
+        }
+        try:
+            records = await self.store.list(_OPERATION_DOMAIN)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Récupération des opérations impossible: %s", exc)
+            records = []
+
+        now = time.time()
+        for record in records:
+            op_id = record.get("operation_id")
+            if not op_id:
+                continue
+            _hydrate_operation(record)
+            started = _iso_epoch(record.get("started_at"))
+            if record.get("status") not in OperationStatus.TERMINAL:
+                expired = started is not None and (now - started) > _OPERATION_TIMEOUT_S
+                if expired:
+                    record["status"] = OperationStatus.TIMEOUT
+                    record["error"] = "interrompue par un redémarrage de l'API (délai écoulé)"
+                    summary["timed_out"] += 1
+                else:
+                    record["status"] = OperationStatus.ERROR
+                    record["error"] = "interrompue par un redémarrage de l'API"
+                    summary["interrupted"] += 1
+                record["finished_at"] = _utc_now()
+                record["updated_at"] = record["finished_at"]
+                try:
+                    await self.store.save(_OPERATION_DOMAIN, op_id, record)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Réconciliation de %s impossible: %s", op_id, exc)
+                await self._reconcile_dangling_state(
+                    record.get("capability_id", ""), record["error"] or ""
+                )
+            self._operations[op_id] = record
+            summary["restored"] += 1
+
+        # Capacités bloquées sans opération correspondante.
+        for spec in self._registry.values():
+            current = await self._load_state(spec.id)
+            if current.state in (
+                CapabilityState.INSTALLING,
+                CapabilityState.UNINSTALLING,
+            ):
+                await self._reconcile_dangling_state(
+                    spec.id, "installation interrompue par un redémarrage de l'API"
+                )
+                summary["capabilities_reconciled"] += 1
+
+        await self._prune_operations()
+        return summary
 
     def _record_step(
         self,
@@ -966,6 +1327,10 @@ class CapabilityManager:
     ) -> None:
         op["steps_done"].append((step, ok, message))
         op["progress"] = int(((index + 1) / max(total, 1)) * 100)
+        op["updated_at"] = _utc_now()
+        # La progression doit rester lisible même après un redémarrage (§2) :
+        # écriture de fond, jamais bloquante pour l'exécution elle-même.
+        self._schedule_persist(op.get("operation_id"))
 
     def _log_event(
         self,

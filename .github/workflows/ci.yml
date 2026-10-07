@@ -89,8 +89,17 @@ jobs:
                  tests/test_audit.py \
                  tests/test_facts.py \
                  tests/test_loading.py \
+                 tests/test_terminal_service.py \
+                 tests/test_terminal_api.py \
                  -v --tb=short \
                  --cov=core --cov-report=xml \
+                 -m "not docker and not live and not slow"
+
+      - name: Run CLI tests
+        run: |
+          pytest tests/cli \
+                 tests/test_cli_plugin_cmd.py \
+                 -v --tb=short \
                  -m "not docker and not live and not slow"
 
       - name: Upload coverage

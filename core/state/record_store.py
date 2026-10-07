@@ -81,22 +81,18 @@ class CoreRecordStore:
             logger.info("Using in-process fallback for Core record %s/%s", domain, record_id)
 
     async def get(self, domain: str, record_id: str) -> dict[str, Any] | None:
-        """Return a record by domain and identifier."""
+        """Return a record by domain and identifier.
+
+        Source de vérité : PostgreSQL. La mémoire du process est le cache
+        chaud ; Redis n'est relu qu'en dernier recours. Lire Redis AVANT
+        PostgreSQL rendait l'état durable invisible tant que le cache vivait
+        (TTL 300 s) : après un redémarrage de l'API, une capability resterait
+        bloquée sur un état périmé (INSTALLING fantôme) alors que la base
+        disait autre chose.
+        """
         cached = self._memory.get((domain, record_id))
         if cached is not None:
             return self._clone(cached)
-
-        if self._redis is not None:
-            try:
-                raw = await self._redis.get(self._cache_key(domain, record_id))
-                if raw:
-                    record = self._decode(raw)
-                    self._memory[(domain, record_id)] = record
-                    return self._clone(record)
-            except Exception as exc:
-                logger.warning(
-                    "Core record cache read failed for %s/%s: %s", domain, record_id, exc
-                )
 
         if self._pg is not None:
             try:
@@ -115,6 +111,18 @@ class CoreRecordStore:
                     return self._clone(record)
             except Exception as exc:
                 logger.warning("Core record read failed for %s/%s: %s", domain, record_id, exc)
+
+        if self._redis is not None:
+            try:
+                raw = await self._redis.get(self._cache_key(domain, record_id))
+                if raw:
+                    record = self._decode(raw)
+                    self._memory[(domain, record_id)] = record
+                    return self._clone(record)
+            except Exception as exc:
+                logger.warning(
+                    "Core record cache read failed for %s/%s: %s", domain, record_id, exc
+                )
 
         return None
 

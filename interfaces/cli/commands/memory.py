@@ -8,7 +8,7 @@ from interfaces.cli.core.ux import UX
 KNOWN_MEMORY_SUBS = ["recent", "frequent"]
 
 
-@register("memory")
+@register("memory", group="core", description="Show local command history and suggestions")
 def cmd_memory(args):
     if not args or args[0] == "recent":
         n = int(args[1]) if len(args) > 1 else 8

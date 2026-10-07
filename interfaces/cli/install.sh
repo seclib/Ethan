@@ -1,14 +1,21 @@
 #!/bin/bash
+# Installe le CLI ETHAN comme commande locale `ethan-cli`.
+# Le CLI est un client de l'API Core : il s'exécute avec la racine du dépôt
+# dans PYTHONPATH (imports interfaces.cli.*).
 set -e
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "${SRC}/../.." && pwd)"
 DEST="${HOME}/.local/bin"
-mkdir -p "$DEST"
-install -m 755 "$SRC/ethan" "$DEST/ethan"
-cp -r "$SRC/registry.py" "$DEST/registry.py"
-cp -r "$SRC/plugin_manager.py" "$DEST/plugin_manager.py"
-cp -r "$SRC/core" "$DEST/core"
-cp -r "$SRC/commands" "$DEST/commands"
-echo "Installed: $DEST/ethan (+ registry + plugin_manager + core + commands)"
+mkdir -p "${DEST}"
+
+cat > "${DEST}/ethan-cli" <<WRAPPER
+#!/usr/bin/env bash
+export PYTHONPATH="${REPO}:\${PYTHONPATH:-}"
+exec python3 -m interfaces.cli.main "\$@"
+WRAPPER
+chmod 755 "${DEST}/ethan-cli"
+
+echo "Installed: ${DEST}/ethan-cli"
 echo
 echo "Add to PATH if needed:"
 echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""

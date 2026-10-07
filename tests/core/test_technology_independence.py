@@ -50,7 +50,10 @@ CORE_DIRS = {"core", "tests/core"}
 #   - core/state, core/memory, core/bus : état externe (Redis/PostgreSQL) ;
 #   - core/facts : store de faits (PG primaire + fallback SQLite local dev) ;
 #   - core/llm/providers : adaptateurs des SDK LLM (remplaçables) ;
-#   - core/deployment : scripts d'outillage (non chargés au runtime).
+#   - core/deployment : manifeste/cycle de vie des applications externes
+#     (chargés au runtime par l'API — voir ADR-4006 : `pydantic` en a été retiré,
+#     le schéma est désormais en dataclasses stdlib) et scripts d'outillage
+#     (`scripts/pearl/` importe `torch`, jamais chargé au runtime).
 ADAPTER_ALLOWLIST: dict[str, set[str]] = {
     "core/state/": {"asyncpg", "redis"},
     "core/memory/": {"asyncpg", "redis"},
@@ -65,6 +68,8 @@ ADAPTER_ALLOWLIST: dict[str, set[str]] = {
     "core/knowledge/web_search.py": {"httpx"},  # connecteur web (fetch)
     "core/knowledge/web_ingest.py": {"httpx"},  # ingestion web (fetch)
     "core/chat/context_sources.py": {"httpx"},  # sources de contexte externes
+    "core/models/hf.py": {"httpx"},  # connecteur Hugging Face Hub (API metadata)
+    "core/llm/model_installer.py": {"httpx"},  # installateur de modèles (pull transport)
     "core/modules/": {"redis"},  # état live des modules cognitifs
 }
 

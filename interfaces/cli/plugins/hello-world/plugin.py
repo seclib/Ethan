@@ -25,4 +25,5 @@ ETHAN_PLUGIN = {
 
 
 def cmd_hello(args):
+    """Say hello (plugin example)."""
     print(f"Hello, {args[0] if args else 'world'}!")

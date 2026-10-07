@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Cpu, X, Download, Loader2, Trash2, Check, Cloud, Key, Eye, EyeOff } from 'lucide-react';
+import { Search, Cpu, X, Download, Loader2, Trash2, Check, Cloud, Key, Eye, EyeOff, ChevronDown, ChevronUp, ShieldCheck, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../lib/store';
-import { pullModel, deleteModel, fetchModels, preloadModel, isTauri } from '../lib/api';
+import { pullModel, deleteModel, fetchModels, preloadModel, isTauri, discoverModels, DiscoveredModel } from '../lib/api';
 
 /** Popular models that users can download from the catalogue. */
 const CATALOGUE_MODELS = [
@@ -92,6 +92,8 @@ export function CommandPalette() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [customModel, setCustomModel] = useState('');
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [discoveredModels, setDiscoveredModels] = useState<DiscoveredModel[]>([]);
+  const [expandedAdvanced, setExpandedAdvanced] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>(() => {
     const keys: Record<string, string> = {};
     for (const p of CLOUD_PROVIDERS) keys[p.storageKey] = getStoredKey(p.storageKey);
@@ -107,14 +109,31 @@ export function CommandPalette() {
 
   const installedIds = new Set(models.map((m) => m.id));
 
+  useEffect(() => {
+    let active = true;
+    if (tab === 'catalogue') {
+      discoverModels(query)
+        .then((items) => {
+          if (active && items.length > 0) {
+            setDiscoveredModels(items);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => { active = false; };
+  }, [tab, query]);
+
   const filtered = tab === 'installed'
     ? (query
         ? models.filter((m) => m.id.toLowerCase().includes(query.toLowerCase()))
         : models)
     : tab === 'catalogue'
-    ? CATALOGUE_MODELS.filter((m) =>
-        !installedIds.has(m.id) &&
-        (!query || m.id.toLowerCase().includes(query.toLowerCase()) || m.desc.toLowerCase().includes(query.toLowerCase()))
+    ? (discoveredModels.length > 0
+        ? discoveredModels.filter((m) => !installedIds.has(m.id))
+        : CATALOGUE_MODELS.filter((m) =>
+            !installedIds.has(m.id) &&
+            (!query || m.id.toLowerCase().includes(query.toLowerCase()) || m.desc.toLowerCase().includes(query.toLowerCase()))
+          )
       )
     : []; // cloud tab doesn't use filtered
 
@@ -379,41 +398,100 @@ export function CommandPalette() {
             )
           ) : tab === 'catalogue' ? (
             <>
-              {(filtered as typeof CATALOGUE_MODELS).map((model) => {
+              {(filtered as Array<any>).map((model) => {
                 const isPulling = pulling === model.id;
                 const justInstalled = pullSuccess === model.id;
+                const compat = model.compatibility;
+                const isAdvOpen = !!expandedAdvanced[model.id];
+
                 return (
-                  <div key={model.id} className="flex items-center gap-3 w-full px-4 py-2.5">
-                    <Download size={16} style={{ color: 'var(--color-text-tertiary)' }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate" style={{ color: 'var(--color-text)' }}>{model.id}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>{model.desc} &middot; {model.size}</div>
+                  <div key={model.id} className="flex flex-col w-full px-4 py-2.5 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                    <div className="flex items-center gap-3 w-full">
+                      <Download size={16} style={{ color: 'var(--color-text-tertiary)' }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{model.name || model.id}</span>
+                          {compat && (
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium"
+                              style={{
+                                background: (compat.fit_level === 'perfect' || compat.fit_level === 'good')
+                                  ? 'color-mix(in srgb, var(--color-success) 12%, transparent)'
+                                  : compat.fit_level === 'marginal'
+                                  ? 'color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent)'
+                                  : 'color-mix(in srgb, var(--color-error) 12%, transparent)',
+                                color: (compat.fit_level === 'perfect' || compat.fit_level === 'good')
+                                  ? 'var(--color-success)'
+                                  : compat.fit_level === 'marginal'
+                                  ? 'var(--color-warning, #f59e0b)'
+                                  : 'var(--color-error)',
+                              }}
+                            >
+                              {(compat.fit_level === 'perfect' || compat.fit_level === 'good') && <ShieldCheck size={10} />}
+                              {compat.fit_level === 'marginal' && <AlertTriangle size={10} />}
+                              {compat.fit_level === 'too_tight' && <AlertCircle size={10} />}
+                              {compat.fit_level === 'perfect' ? 'Compatible' :
+                               compat.fit_level === 'good' ? 'Compatible' :
+                               compat.fit_level === 'marginal' ? 'Compatible (CPU)' : 'Trop lourd'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                          {model.desc || model.description || ''} {model.size ? `· ${model.size}` : ''}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedAdvanced(prev => ({ ...prev, [model.id]: !prev[model.id] }))}
+                          className="text-[11px] px-2 py-1 rounded flex items-center gap-1 cursor-pointer"
+                          style={{ color: 'var(--color-text-tertiary)', background: 'transparent' }}
+                          title="Détails techniques (Advanced)"
+                        >
+                          Advanced {isAdvOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+
+                        <button
+                          onClick={() => handlePull(model.id)}
+                          disabled={isPulling || !!pulling || (compat && !compat.compatible)}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium cursor-pointer"
+                          style={{
+                            background: justInstalled ? 'var(--color-accent-subtle)' : 'var(--color-accent)',
+                            color: justInstalled ? 'var(--color-accent)' : 'var(--color-on-accent)',
+                            opacity: (isPulling || (pulling && !isPulling) || (compat && !compat.compatible)) ? 0.5 : 1,
+                          }}
+                        >
+                          {isPulling ? <><Loader2 size={12} className="animate-spin" /> Installation...</> :
+                           justInstalled ? <><Check size={12} /> Prêt</> :
+                           <><Download size={12} /> Utiliser / Installer</>}
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handlePull(model.id)}
-                      disabled={isPulling || !!pulling}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium cursor-pointer"
-                      style={{
-                        background: justInstalled ? 'var(--color-accent-subtle)' : 'var(--color-accent)',
-                        color: justInstalled ? 'var(--color-accent)' : 'var(--color-on-accent)',
-                        opacity: (isPulling || (pulling && !isPulling)) ? 0.5 : 1,
-                      }}
-                    >
-                      {isPulling ? <><Loader2 size={12} className="animate-spin" /> Downloading...</> :
-                       justInstalled ? <><Check size={12} /> Installed</> :
-                       <><Download size={12} /> Download</>}
-                    </button>
+
+                    {isAdvOpen && compat && (
+                      <div className="mt-2 text-[11px] p-2 rounded-lg" style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)' }}>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                          <div><strong>Runtime :</strong> {compat.recommended_runtime}</div>
+                          <div><strong>RAM requise :</strong> ~{compat.ram_required_gb} Go</div>
+                          <div><strong>VRAM min :</strong> ~{compat.vram_required_gb} Go</div>
+                          <div><strong>Adéquation :</strong> {compat.reason}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
               <div className="px-4 py-3 mt-1" style={{ borderTop: '1px solid var(--color-border)' }}>
-                <div className="text-[11px] mb-2" style={{ color: 'var(--color-text-tertiary)' }}>Or enter any Ollama model name:</div>
+                <div className="text-[11px] mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
+                  Ou entrez un modèle (Ollama tag, Hugging Face org/repo, etc.) :
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text" value={customModel}
                     onChange={(e) => setCustomModel(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCustomPull(); } }}
-                    placeholder="e.g. codellama:7b"
+                    placeholder="ex: qwen2.5:7b ou Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
                     className="flex-1 text-sm px-3 py-1.5 rounded-lg outline-none"
                     style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                   />
@@ -422,7 +500,7 @@ export function CommandPalette() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
                     style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)', opacity: (!customModel.trim() || pulling) ? 0.5 : 1 }}
                   >
-                    <Download size={12} /> Pull
+                    <Download size={12} /> Installer
                   </button>
                 </div>
               </div>

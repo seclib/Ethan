@@ -24,8 +24,13 @@ import logging
 from typing import Any
 
 from core.auth import Permission
+from core.hardware.detector import get_system_hardware
+from core.hardware.fit import check_model_compatibility
+from core.llm.model_installer import install_or_use_model
 from core.llm.model_store import ModelStore
 from core.llm.provider_manager import ProviderManager
+from core.models.discovery import discover_catalog_models, discover_models_async
+from core.models.hub import get_model_hub
 from fastapi import APIRouter, Depends, HTTPException, Query
 from interfaces.api.auth import require_permission
 
@@ -207,6 +212,131 @@ async def search_models(q: str = Query(default="", description="Query string")):
         logger.warning("Failed to search custom models: %s", exc)
 
     return results
+
+
+# ── GET /models/hardware ────────────────────────────────────────────────
+
+
+@router.get("/hardware")
+async def get_hardware_info():
+    """Retourne la carte des ressources matérielles du système hôte."""
+    return get_system_hardware()
+
+
+# ── GET /models/discover ────────────────────────────────────────────────
+
+
+@router.get("/discover")
+async def discover_models(
+    q: str = Query(default="", description="Terme de recherche"),
+    use_case: str | None = Query(default=None, description="Filtre par cas d'usage"),
+):
+    """Découvre les modèles du catalogue avec leur compatibilité matérielle."""
+    return await discover_models_async(query=q, use_case=use_case)
+
+
+# ── POST /models/check-compatibility ────────────────────────────────────
+
+
+@router.post("/check-compatibility")
+async def check_compatibility(payload: dict[str, Any]):
+    """Vérifie l'adéquation matérielle d'un modèle spécifié."""
+    model_name = payload.get("model") or payload.get("model_id") or payload.get("name")
+    if not model_name:
+        raise HTTPException(status_code=400, detail="Missing 'model' or 'model_id' in payload")
+
+    params_b = payload.get("params_b")
+    quantization = payload.get("quantization")
+    context_length = int(payload.get("context_length", 4096))
+
+    result = check_model_compatibility(
+        model_name=str(model_name),
+        params_b=float(params_b) if params_b is not None else None,
+        quantization=str(quantization) if quantization else None,
+        context_length=context_length,
+    )
+    return result.to_dict()
+
+
+# ── POST /models/install (et alias /models/pull) ─────────────────────────
+
+
+@router.post("/install")
+@router.post("/pull")
+async def install_model(payload: dict[str, Any]):
+    """Installe ou active un modèle dans ETHAN.
+
+    Applique le principe : l'utilisateur choisit le modèle, ETHAN Core
+    détermine la meilleure méthode d'exécution (Ollama, local, cloud).
+    """
+    model_id = payload.get("model") or payload.get("model_id") or payload.get("name")
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Missing 'model' or 'model_id' in payload")
+
+    provider_hint = payload.get("provider")
+    manager = get_manager()
+    store = get_store()
+
+    result = await install_or_use_model(
+        model_id=str(model_id),
+        provider_hint=str(provider_hint) if provider_hint else None,
+        manager=manager,
+        store=store,
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Installation failed"))
+
+    return result
+
+
+# ── GET /models/installed ───────────────────────────────────────────────
+
+
+@router.get("/installed")
+async def get_installed_models():
+    """Liste tous les modèles installés et disponibles dans ETHAN."""
+    hub = get_model_hub()
+    return await hub.list_installed(manager=_manager, store=_store)
+
+
+# ── GET /models/inspect/{model_id:path} ──────────────────────────────────
+
+
+@router.get("/inspect/{model_id:path}")
+async def inspect_model(model_id: str):
+    """Inspecte un modèle et répond à : « Ce modèle peut-il fonctionner, et par quelle méthode ? »"""
+    hub = get_model_hub()
+    return await hub.inspect(model_id=model_id)
+
+
+# ── GET /models/runtimes/health ─────────────────────────────────────────
+
+
+@router.get("/runtimes/health")
+async def get_runtimes_health():
+    """Vérifie la santé des runtimes d'inférence configurés."""
+    hub = get_model_hub()
+    return await hub.check_runtime_health(manager=_manager)
+
+
+# ── GET /models/downloads ───────────────────────────────────────────────
+
+
+@router.get("/downloads")
+async def list_downloads():
+    """Liste tous les téléchargements de modèles (en cours et récents)."""
+    hub = get_model_hub()
+    return hub.list_downloads()
+
+
+# ── GET /models/storage ─────────────────────────────────────────────────
+
+
+@router.get("/storage")
+async def get_storage_layout():
+    """Retourne la disposition et les répertoires de stockage du Model Hub."""
+    hub = get_model_hub()
+    return hub.get_storage_layout().to_dict()
 
 
 # ── GET /models/{id} ────────────────────────────────────────────────────

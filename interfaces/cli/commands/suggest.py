@@ -4,7 +4,7 @@ from interfaces.cli.registry import register
 from interfaces.cli.core import memory as mem
 
 
-@register("suggest")
+@register("suggest", group="core", description="Suggest follow-up commands from local history")
 def cmd_suggest(args):
     if not args:
         print("Recent:")

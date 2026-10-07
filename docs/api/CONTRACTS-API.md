@@ -224,6 +224,56 @@ La gestion des composants optionnels (détection, installation, configuration, s
 - **Connections (comptes externes : email, github, notion…) : surface NON committée** — routeur `connections.py` (9 routes `/connections/*`) en WIP au 25/09/2026 → **hors contrat v1**. Au commit : ajouter au contrat + snapshot.
 - **Tests** : domaine `integrations` (8 routes).
 
+## 12bis. Terminal (PTY distant)
+
+**Source de vérité Core** : `TerminalService` (`core/terminal/`) — sessions PTY
+réelles. Passerelle : `interfaces/api/routers/terminal.py`. Sécurité et
+cycle de vie : `docs/architecture/terminal-webui.md`.
+
+| Route | Permission | Notes |
+|---|---|---|
+| `POST /v1/terminal/sessions` | `EXECUTE` | ouvre une session PTY réelle (**201**) |
+| `GET /v1/terminal/sessions` | `READ` | sessions actives (les mortes sont purgées) |
+| `GET /v1/terminal/sessions/{id}` | `READ` | état réel (vocabulaire Core) |
+| `POST /v1/terminal/sessions/{id}/input` | `EXECUTE` | stdin (`\x03` = Ctrl+C) |
+| `POST /v1/terminal/sessions/{id}/resize` | `EXECUTE` | `ioctl TIOCSWINSZ` |
+| `POST /v1/terminal/sessions/{id}/interrupt` | `EXECUTE` | SIGINT au groupe de processus |
+| `DELETE /v1/terminal/sessions/{id}` | `EXECUTE` | termine la session et nettoie le processus |
+| `WS /v1/terminal/ws` | `EXECUTE` (JWT explicite) | flux interactif bidirectionnel |
+
+- **Garde-fous** : refus fail-closed du root (403), environnement sans secret,
+  `cwd` borné par `resolve_safe_path`.
+- **Déconnexion WS ≠ mort du shell** : la session reste listée et réattachable
+  (`?session_id=`) — fermer l'onglet ne tue pas une installation en cours.
+- **Tests** : `tests/test_terminal_service.py` (27) + `tests/test_terminal_api.py` (19).
+
+## 12ter. Exécution système contrôlée (non-shell, lecture seule)
+
+**Source de vérité Core** : `SystemExecService` (`core/system_exec/`) — catalogue
+fermé, `argv` validé, `execve` sans shell. Passerelle :
+`interfaces/api/routers/system_exec.py`. Approbation humaine :
+`interfaces/api/routers/internal.py` (`/internal/approval/*`). Chaîne complète :
+`docs/user-guide/system-exec.md`.
+
+| Route | Permission | Notes |
+|---|---|---|
+| `GET /v1/system/exec/catalogue` | `READ` | catalogue fermé (`commands`, `docker_socket_granted: false`) |
+| `POST /v1/system/exec/operations` | `EXECUTE` | **202** + opération `PENDING_APPROVAL`, `requires_approval: true` |
+| `GET /v1/system/exec/operations/{id}` | `EXECUTE` (demandeur seul) | `stdout`/`stderr` séparés, `exit_code`, `status` |
+| `POST /v1/system/exec/operations/{id}/cancel` | `EXECUTE` (demandeur seul) | annulation, groupe de processus terminé |
+| `GET /internal/approval/pending` | `ADMIN` | file d'approbation présentable à l'humain |
+| `POST /internal/approval/resolve` | `ADMIN` | `{request_id, approved}` — périmètre = `argv` exact |
+
+- **Garde-fous** : catalogue lecture seule (`ollama list|ps|show`, `git
+  status|log|diff|branch|rev-parse` à flags fermés, `python{,3}/node
+  --version`), Docker refusé par politique (`security.docker.execute` DENY),
+  jamais de montage `/var/run/docker.sock`, refus root, `cwd` relatif sous
+  `ETHAN_EXEC_ROOT`, env allowlist, secrets redacted, audit `COMMAND`.
+- **Limites** : pas de streaming (polling `operation`), pas de mutation ni de
+  script arbitraire, pas de pipe/redirection. Étendre le catalogue = évolution
+  Core + politique + revue sécurité.
+- **Tests** : `tests/test_system_exec_service.py` + `tests/interfaces/test_system_exec_api.py`.
+
 ## 13. Surfaces déclarées ∪ non committées (WIP local) — hors contrat v1
 
 Ces surfaces existent **uniquement dans le WIP local** (mesuré le 25/09/2026) et sont **exclues du contrat** tant qu'elles ne sont pas committées :

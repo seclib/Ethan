@@ -50,6 +50,14 @@ def register(name: str, group: str = "core", description: str = "", usage: str =
             )
         # Store handler for dispatch in the function itself
         fn._ethan_cmd_name = name
+        # Métadonnées lisibles par l'aide (main._show_help) — l'ancienne
+        # version ne remplissait jamais `__meta__` : toutes les commandes
+        # apparaissaient en « Other » sans description.
+        fn.__meta__ = {
+            "group": group,
+            "description": description or (fn.__doc__ or "").strip().split("\n")[0],
+            "usage": usage or f"ethan {name}",
+        }
         COMMAND_HANDLERS[name] = fn
         return fn
 
@@ -103,7 +111,13 @@ def _load_module(path):
             fn = getattr(mod, attr_name)
             if callable(fn):
                 cmd_name = attr_name[4:]  # remove "cmd_" prefix
-                if cmd_name not in COMMAND_HANDLERS:
+                existing = COMMAND_HANDLERS.get(cmd_name)
+                # Une vraie commande (commands/<name>.py) doit écraser un
+                # handler slash du REPL laissé par handler.py (chargé avant
+                # help.py). Sans cela, la purge retire « help » de CE registry
+                # : la dualité cli.* vs interfaces.cli.* fait que help.py
+                # s'enregistre via interfaces.cli.registry, pas cli.registry.
+                if existing is None or _is_repl_handler(existing):
                     COMMAND_HANDLERS[cmd_name] = fn
                     # Also register in discovery registry if not already there
                     if registry.get(cmd_name) is None:
@@ -120,7 +134,22 @@ def _load_module(path):
     if hasattr(mod, "ETHAN_PLUGIN"):
         for name, cmd in mod.ETHAN_PLUGIN.get("commands", {}).items():
             if isinstance(cmd, dict) and "handler" in cmd:
-                COMMAND_HANDLERS[name] = cmd["handler"]
+                handler = cmd["handler"]
+                # Un handler peut être référencé par nom de fonction
+                # (ex. "cmd_hello") — résolu ici, sinon la string serait
+                # appelée directement → TypeError: 'str' object is not callable.
+                if isinstance(handler, str):
+                    handler = getattr(mod, handler, None)
+                if callable(handler):
+                    COMMAND_HANDLERS[name] = handler
+                    # Métadonnées d'aide pour les plugins aussi
+                    if getattr(handler, "__meta__", None) is None:
+                        desc = cmd.get("help") or (handler.__doc__ or "").strip()
+                        handler.__meta__ = {
+                            "group": "core",
+                            "description": desc.split("\n")[0],
+                            "usage": f"ethan {name}",
+                        }
 
 
 def discover_commands():
@@ -149,6 +178,34 @@ def discover_commands():
     if user_dir.exists():
         for path in sorted(user_dir.iterdir()):
             _load_module(path)
+
+    # 4. Purge : les handlers slash du REPL (/exit, /clear, /help…) ne sont
+    #    pas des commandes CLI. Leur détection automatique cmd_* les injectait
+    #    dans le dispatch (signatures 4 args → TypeError). On les retire
+    #    seulement s'ils n'ont pas été écrasés par une vraie commande
+    #    (ex. "status" vient bien de commands/status.py).
+    _purge_repl_handlers()
+
+
+def _is_repl_handler(fn) -> bool:
+    """True si `fn` est un handler slash du REPL (commands/parser.py)."""
+    try:
+        from interfaces.cli.commands import parser
+    except Exception:  # noqa: BLE001 — ne doit jamais casser la discovery
+        return False
+    return fn in parser.COMMANDS.values()
+
+
+def _purge_repl_handlers() -> None:
+    """Remove REPL slash-handlers leaked into the CLI dispatch table."""
+    try:
+        from interfaces.cli.commands import parser
+    except Exception:  # noqa: BLE001 — la purge ne doit jamais casser la discovery
+        return
+    for slash_name, fn in list(parser.COMMANDS.items()):
+        key = slash_name.lstrip("/")
+        if key and COMMAND_HANDLERS.get(key) is fn:
+            del COMMAND_HANDLERS[key]
 
 
 def dispatch(argv, _debug=False, timeout=_COMMAND_TIMEOUT):

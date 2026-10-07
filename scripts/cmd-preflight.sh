@@ -20,7 +20,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/ethan-lib.sh"
 
-STRICT_MODE="${1:-}"
+STRICT_MODE=""
+FIX_DOCKER_GID=false
+for _arg in "$@"; do
+    case "$_arg" in
+        --strict) STRICT_MODE="--strict" ;;
+        --fix)    FIX_DOCKER_GID=true ;;
+        *)        warn "Option préflight inconnue: $_arg" ;;
+    esac
+done
 ERRORS=0
 WARNINGS=0
 
@@ -122,6 +130,54 @@ else
         _warn "Docker nécessite sudo — ajouter l'utilisateur au groupe 'docker'"
         info  "Correction : sudo usermod -aG docker $USER && newgrp docker"
     fi
+fi
+
+# ── 2b. Accès de l'utilisateur du conteneur au socket Docker ─────
+#
+# docker-compose monte /var/run/docker.sock (srw-rw---- root:<gid>) et transmet
+# `group_add: ${DOCKER_GID}` au service `api`. Si DOCKER_GID ne correspond pas
+# au GID réel du socket, l'utilisateur `ethan` du conteneur ne peut pas l'ouvrir
+# et TOUTES les capabilities Docker échouent — alors que `docker ps` sur l'hôte
+# passe parfaitement. D'où ce contrôle spécifique (audit §1).
+
+DOCKER_SOCK="${DOCKER_SOCK:-/var/run/docker.sock}"
+if [[ -S "$DOCKER_SOCK" ]]; then
+    _sock_gid="$(stat -c '%g' "$DOCKER_SOCK" 2>/dev/null || true)"
+    _env_file="${ETHAN_ROOT}/.env"
+    _env_gid=""
+    if [[ -f "$_env_file" ]]; then
+        _env_gid="$(grep -E '^[[:space:]]*DOCKER_GID[[:space:]]*=' "$_env_file" 2>/dev/null \
+            | tail -1 | cut -d= -f2- | tr -d '[:space:]' || true)"
+    fi
+
+    if [[ -z "$_sock_gid" ]]; then
+        _warn "Socket Docker présent mais GID illisible — group_add inutilisable"
+    elif [[ -z "$_env_gid" ]]; then
+        if [[ "$FIX_DOCKER_GID" == "true" ]]; then
+            if [[ -f "$_env_file" ]]; then
+                printf '\n# GID du socket Docker hôte (stat -c %g %s) — requis par group_add de l'"'"'API\nDOCKER_GID=%s\n' \
+                    "$DOCKER_SOCK" "$_sock_gid" >> "$_env_file"
+            else
+                printf 'DOCKER_GID=%s\n' "$_sock_gid" > "$_env_file"
+            fi
+            _ok "DOCKER_GID=${_sock_gid} écrit dans .env"
+        else
+            _warn "DOCKER_GID absent de .env (socket GID=${_sock_gid}) — group_add retombera sur 999, accès socket refusé"
+            info  "Correction : ./ethan preflight --fix   (ou ajouter DOCKER_GID=${_sock_gid} à .env)"
+        fi
+    elif [[ "$_env_gid" != "$_sock_gid" ]]; then
+        if [[ "$FIX_DOCKER_GID" == "true" ]]; then
+            sed -i -E "s|^[[:space:]]*DOCKER_GID[[:space:]]*=.*|DOCKER_GID=${_sock_gid}|" "$_env_file"
+            _ok "DOCKER_GID corrigé : ${_env_gid} → ${_sock_gid}"
+        else
+            _warn "DOCKER_GID=${_env_gid} dans .env mais GID réel du socket=${_sock_gid}"
+            info  "Correction : ./ethan preflight --fix"
+        fi
+    else
+        _ok "DOCKER_GID=${_sock_gid} — correspond au socket Docker (accès depuis le conteneur possible)"
+    fi
+else
+    _warn "Socket Docker absent (${DOCKER_SOCK}) — les capabilities Docker seront refusées dans le conteneur"
 fi
 
 # ── 3. Ports TCP disponibles ────────────────────────────────────

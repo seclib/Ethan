@@ -19,6 +19,7 @@ ETHAN_PLUGIN = {
 
 
 def cmd_weather(args):
+    """Show weather for a city (wttr.in)."""
     if not args:
         print("usage: weather <city>")
         return 1

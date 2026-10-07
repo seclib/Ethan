@@ -53,6 +53,9 @@ class ApprovalEngine:
 
         # Futures en attente : request_id → Future[ApprovalResponse]
         self._pending: dict[str, asyncio.Future[ApprovalResponse]] = {}
+        # Détails affichables à l'humain qui doit décider. Les futures seules
+        # ne permettent pas à une interface de présenter le périmètre réel.
+        self._requests: dict[str, ApprovalRequest] = {}
         self._lock = asyncio.Lock()
 
     # ── Création de requête ─────────────────────────────────────────
@@ -92,6 +95,7 @@ class ApprovalEngine:
 
         async with self._lock:
             self._pending[request.id] = future
+            self._requests[request.id] = request
 
         # Publier la requête
         try:
@@ -100,6 +104,7 @@ class ApprovalEngine:
             logger.error("ApprovalEngine: publish failed: %s", e)
             async with self._lock:
                 self._pending.pop(request.id, None)
+                self._requests.pop(request.id, None)
             return ApprovalResponse(
                 request_id=request.id,
                 status=ApprovalStatus.CANCELLED,
@@ -135,6 +140,7 @@ class ApprovalEngine:
         except TimeoutError:
             async with self._lock:
                 self._pending.pop(request.id, None)
+                self._requests.pop(request.id, None)
 
             logger.warning(
                 "Approval TIMEOUT: %s (%ss) — %s",
@@ -195,6 +201,7 @@ class ApprovalEngine:
 
         # Nettoyage
         self._pending.pop(request_id, None)
+        self._requests.pop(request_id, None)
 
         logger.info(
             "Approval RESOLVED: %s → %s (by %s)",
@@ -246,6 +253,7 @@ class ApprovalEngine:
         )
         future.set_result(response)
         self._pending.pop(request_id, None)
+        self._requests.pop(request_id, None)
         logger.info("Approval CANCELLED: %s — %s", request_id, reason)
         return True
 
@@ -258,13 +266,22 @@ class ApprovalEngine:
         logger.info("ApprovalEngine: %d pending requests cancelled", count)
         return count
 
+    def cancel_by_correlation(self, correlation_id: str, reason: str = "") -> bool:
+        """Cancel one pending request belonging to an operation correlation id."""
+        for request_id, request in list(self._requests.items()):
+            if request.correlation_id == correlation_id:
+                return self.cancel(request_id, reason)
+        return False
+
     # ── Requêtes ────────────────────────────────────────────────────
 
     def list_pending(self) -> list[dict[str, Any]]:
         """Liste les requêtes en attente (sans la Future)."""
-        # On ne peut pas récupérer le détail depuis la Future,
-        # donc on retourne juste les IDs
-        return [{"request_id": rid, "status": "pending"} for rid in self._pending.keys()]
+        return [
+            {**request.to_dict(), "status": "pending"}
+            for request_id, request in self._requests.items()
+            if request_id in self._pending
+        ]
 
     @property
     def pending_count(self) -> int:

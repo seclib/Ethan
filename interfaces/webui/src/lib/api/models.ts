@@ -122,3 +122,146 @@ export async function toggleModel(id: string): Promise<ModelInfo> {
 		method: 'POST',
 	});
 }
+
+// ── Model Hub types ──────────────────────────────────────────────────────
+
+export interface HubModelCompatibility {
+	compatible: boolean;
+	fit_level: string;
+	reason: string;
+	recommendation: string;
+	recommended_runtime: string;
+	supported_runtimes: string[];
+	ram_required_gb: number;
+	vram_required_gb: number;
+	estimated_speed_tps: number | null;
+	status: string;
+	status_label: string;
+	execution_method: string;
+}
+
+export interface HubModel {
+	id: string;
+	name: string;
+	provider: string;
+	repo_id?: string;
+	params_b: number;
+	description: string;
+	use_case: string;
+	quantization: string;
+	source: string;
+	formats_available: string[];
+	is_installed: boolean;
+	compatibility: HubModelCompatibility;
+}
+
+export interface ModelInspection {
+	model_id: string;
+	can_run: boolean;
+	status: string;
+	status_label: string;
+	method: string;
+	formats_available: string[];
+	is_gated: boolean;
+	params_b: number;
+	conversion_supported: boolean;
+	reason: string;
+	recommendation: string;
+	estimated_speed_tps: number | null;
+	compatibility: HubModelCompatibility;
+}
+
+export interface InstalledModel {
+	id: string;
+	name: string;
+	provider: string;
+	is_local: boolean;
+	source: string;
+	context_length: number;
+	capabilities: string[];
+}
+
+export interface HardwareInfo {
+	total_ram_gb: number;
+	available_ram_gb: number;
+	cpu_cores: number;
+	gpu_count: number;
+	gpu_name: string;
+	gpu_vram_gb: number;
+	gpu_vram_free_gb: number;
+	backend: string;
+	memory_bandwidth_gb_s: number;
+}
+
+export interface RuntimeHealth {
+	status: string;
+	runtimes: Record<string, {
+		enabled: boolean;
+		reachable: boolean;
+		latency_ms?: number;
+	}>;
+}
+
+// ── Model Hub API functions ──────────────────────────────────────────────
+
+/** Discover models from catalog + Hugging Face with hardware compatibility */
+export async function discoverModels(params?: {
+	q?: string;
+	use_case?: string;
+	source?: string;
+}): Promise<HubModel[]> {
+	const qs = new URLSearchParams();
+	if (params?.q) qs.set('q', params.q);
+	if (params?.use_case) qs.set('use_case', params.use_case);
+	if (params?.source) qs.set('source', params.source);
+	const suffix = qs.toString() ? `?${qs}` : '';
+	return apiFetch<HubModel[]>(`/models/discover${suffix}`);
+}
+
+/** Inspect a model: can it run on this machine? By what method? */
+export async function inspectModel(modelId: string): Promise<ModelInspection> {
+	return apiFetch<ModelInspection>(`/models/inspect/${encodeURIComponent(modelId)}`);
+}
+
+/** Install a model via ETHAN Core (Ollama pull, HF download, etc.) */
+export async function installModel(payload: {
+	model: string;
+	provider?: string;
+}): Promise<{ success: boolean; message: string; provider?: string }> {
+	return apiFetch<{ success: boolean; message: string; provider?: string }>('/models/install', {
+		method: 'POST',
+		body: JSON.stringify(payload),
+	});
+}
+
+/** List all installed models */
+export async function getInstalledModels(): Promise<InstalledModel[]> {
+	return apiFetch<InstalledModel[]>('/models/installed');
+}
+
+/** Get hardware info for the host machine */
+export async function getHardwareInfo(): Promise<HardwareInfo> {
+	return apiFetch<HardwareInfo>('/models/hardware');
+}
+
+/** Check runtime health */
+export async function getRuntimesHealth(): Promise<RuntimeHealth> {
+	return apiFetch<RuntimeHealth>('/models/runtimes/health');
+}
+
+export interface DownloadItem {
+	id: string;
+	repo_id: string;
+	runtime: string;
+	status: 'starting' | 'downloading' | 'completed' | 'failed';
+	percent: number;
+	error?: string | null;
+	created_at: number;
+	updated_at: number;
+}
+
+/** List all active and past model downloads */
+export async function getDownloads(): Promise<DownloadItem[]> {
+	return apiFetch<DownloadItem[]>('/models/downloads');
+}
+

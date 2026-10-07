@@ -5,7 +5,7 @@
  * cible validée (Lead Product Architect) :
  *
  *     Settings
- *     ├── General      (chat, reminders, shortcuts, library)
+ *     ├── General      (chat, reminders, library)
  *     ├── AI           (providers, models, routers, speech)
  *     ├── Knowledge    (knowledge, rag, embedding, vector-db, chunking,
  *     │                 reranking, search)
@@ -33,7 +33,6 @@ export const SETTINGS_SECTION_IDS = [
   // General
   "chat",
   "reminders",
-  "shortcuts",
   "library",
   // AI
   "providers",
@@ -77,7 +76,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   {
     id: "general",
     label: "General",
-    items: ["chat", "reminders", "shortcuts", "library"],
+    items: ["chat", "reminders", "library"],
   },
   {
     id: "ai",

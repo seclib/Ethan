@@ -357,5 +357,33 @@ class MutationPlan:
         }
 
 
+class OperationStatus:
+    """États d'une opération de cycle de vie (install/uninstall).
+
+    Frontière d'API (audit §3) : `IDLE → INSTALLING → SUCCESS` ou
+    `IDLE → INSTALLING → ERROR`. `status` est persisté, ce qui permet à
+    l'interface de distinguer **opération inconnue** (404, aucune trace),
+    **en cours** (`RUNNING`), **succès** (`SUCCESS`), **erreur** (`ERROR`) et
+    **timeout** (`TIMEOUT`) sans jamais rester bloquée sur un `operation_id`
+    perdu lors d'un redémarrage de l'API.
+
+    Tout état hors `TERMINAL` est réconcilié au démarrage par
+    `CapabilityManager.recover_operations()` — une opération `RUNNING`
+    interrompue ne reste jamais `INSTALLING` indéfiniment.
+    """
+
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    TIMEOUT = "TIMEOUT"
+    CANCELLED = "CANCELLED"
+
+    ALL = frozenset({RUNNING, SUCCESS, ERROR, TIMEOUT, CANCELLED})
+    TERMINAL = frozenset({SUCCESS, ERROR, TIMEOUT, CANCELLED})
+
+    # États affichables dans le dialogue d'installation (miroir frontend).
+    FOR_UI = frozenset({"SUCCESS", "ERROR", "TIMEOUT", "CANCELLED"})
+
+
 class TransitionError(Exception):
     """Transition d'état illégale — protège la machine à états."""

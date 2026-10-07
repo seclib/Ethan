@@ -19,6 +19,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useUIStore } from "@/store/ui.store";
+import { ApiError } from "@/lib/api/client";
 import {
   cancelOperation,
   configureComponent,
@@ -26,6 +27,7 @@ import {
   getOperation,
   getUninstallPlan,
   installComponent,
+  listOperations,
   testComponent,
   uninstallComponent,
   type ComponentStatus,
@@ -39,19 +41,26 @@ export function OperationProgress({
   operationId,
   label,
   onFinished,
+  onClose,
 }: {
   operationId: string;
   label: string;
   onFinished: (ok: boolean, error?: string | null) => void;
+  onClose?: () => void;
 }) {
   const addToast = useUIStore((s) => s.addToast);
   const notifiedRef = React.useRef(false);
 
   // Polling du Core : la progression affichée EST celle du Core.
-  const { data: op } = useQuery({
+  const { data: op, error, isFetching, refetch } = useQuery({
     queryKey: ["component-operation", operationId],
     queryFn: () => getOperation(operationId),
-    refetchInterval: (query) => (query.state.data?.done ? false : 1000),
+    // Le polling s'arrête dès que l'opération est terminée OU que le Core ne
+    // connaît plus cet identifiant : sans cela, un 404 était relancé toutes
+    // les secondes, indéfiniment.
+    refetchInterval: (query) =>
+      query.state.data?.done || query.state.status === "error" ? false : 1000,
+    retry: 2,
   });
 
   React.useEffect(() => {
@@ -61,7 +70,13 @@ export function OperationProgress({
       if (ok) {
         addToast({ type: "success", message: `${label} terminé` });
       } else {
-        addToast({ type: "error", message: `${label} échoué : ${op.error}` });
+        const reason =
+          op.status === "CANCELLED"
+            ? "annulée"
+            : op.status === "TIMEOUT"
+              ? "interrompue (délai dépassé)"
+              : `échouée : ${op.error}`;
+        addToast({ type: "error", message: `${label} ${reason}` });
       }
       onFinished(ok, op.error);
     }
@@ -72,6 +87,43 @@ export function OperationProgress({
     onSuccess: () =>
       addToast({ type: "info", message: "Annulation demandée au Core…" }),
   });
+
+  // Suivi indisponible : opération inconnue du Core (404) ou API injoignable.
+  // L'utilisateur ne doit jamais rester devant « Lecture de la progression… »
+  // indéfiniment : la cause est affichée et une reprise est possible.
+  if (error) {
+    const missing = error instanceof ApiError && error.status === 404;
+    return (
+      <div className="space-y-3 py-2" role="alert">
+        <p className="flex items-start gap-2 text-sm text-red-500">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          {missing
+            ? "Opération inconnue du Core — jamais enregistrée, ou purgée après sa rétention."
+            : "Suivi de l'opération indisponible (API injoignable)."}
+        </p>
+        <p className="text-xs text-muted-foreground">{error.message}</p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Réessayer"
+            )}
+          </Button>
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Fermer
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!op) {
     return (
@@ -127,6 +179,9 @@ export function InstallDialog({
   onCompleted: () => void;
 }) {
   const [operationId, setOperationId] = React.useState<string | null>(null);
+  const [installError, setInstallError] = React.useState<string | null>(null);
+  const [lastError, setLastError] = React.useState<string | null>(null);
+  const qc = useQueryClient();
 
   const planQuery = useQuery({
     queryKey: ["component-install-plan", component.id],
@@ -136,18 +191,59 @@ export function InstallDialog({
 
   const installMutation = useMutation({
     mutationFn: () => installComponent(component.id),
-    onSuccess: (result) => setOperationId(result.operation_id),
+    onSuccess: (result) => {
+      setInstallError(null);
+      setLastError(null);
+      setOperationId(result.operation_id);
+    },
+    onError: async (err) => {
+      // 409 = une installation est déjà en cours côté Core. Les opérations
+      // étant persistées (audit §2), on se rattache à celle qui existe au
+      // lieu de laisser l'utilisateur devant un dialog sans rien à suivre.
+      if (err instanceof ApiError && err.status === 409) {
+        try {
+          const { operations } = await listOperations();
+          const running = operations.find(
+            (o) => o.capability_id === component.id && o.status === "RUNNING",
+          );
+          if (running) {
+            setInstallError(null);
+            setOperationId(running.operation_id);
+            return;
+          }
+        } catch {
+          // Liste indisponible : on affiche le message ci-dessous.
+        }
+        setInstallError(
+          "Une installation est déjà en cours pour ce composant — suivi indisponible.",
+        );
+        return;
+      }
+      setInstallError(err instanceof Error ? err.message : String(err));
+    },
   });
 
+  const retryInstall = React.useCallback(() => {
+    setLastError(null);
+    setOperationId(null);
+    installMutation.mutate();
+  }, [installMutation]);
+
   const handleFinished = React.useCallback(
-    (ok: boolean) => {
+    (ok: boolean, error?: string | null) => {
+      void qc.invalidateQueries({ queryKey: ["components"] });
       if (ok) {
         setOperationId(null);
+        setLastError(null);
         onCompleted();
         onClose();
+        return;
       }
+      // Échec : le détail reste affiché et un réessai est proposé (audit §5).
+      // Sans cela, le seul moyen de recommencer était de tout fermer.
+      setLastError(error ?? "L'opération a échoué.");
     },
-    [onCompleted, onClose],
+    [onCompleted, onClose, qc],
   );
 
   const plan = planQuery.data;
@@ -167,7 +263,35 @@ export function InstallDialog({
             operationId={operationId}
             label={`Installation de ${component.name}`}
             onFinished={handleFinished}
+            onClose={onClose}
           />
+          {lastError && (
+            <div
+              className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-soft bg-red-soft p-3"
+              role="alert"
+            >
+              <p className="text-sm text-red-500">
+                Installation échouée : {lastError}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={retryInstall}
+                  disabled={installMutation.isPending}
+                >
+                  {installMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Réessayer"
+                  )}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -235,6 +359,32 @@ export function InstallDialog({
             </div>
           )}
 
+          {(installError || planQuery.isError) && (
+            <div
+              className="rounded-lg border border-red-soft bg-red-soft p-3 text-sm text-red-500"
+              role="alert"
+            >
+              <p className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {installError ??
+                  "Plan d'installation indisponible (API injoignable)."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => void planQuery.refetch()}
+                disabled={planQuery.isFetching}
+              >
+                {planQuery.isFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Réessayer"
+                )}
+              </Button>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>
               Annuler
@@ -272,7 +422,9 @@ export function UninstallDialog({
   const [deleteData, setDeleteData] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [operationId, setOperationId] = React.useState<string | null>(null);
+  const [lastError, setLastError] = React.useState<string | null>(null);
   const addToast = useUIStore((s) => s.addToast);
+  const qc = useQueryClient();
 
   // Le plan est recalculé selon le choix keep/delete (fourni par le Core).
   const planQuery = useQuery({
@@ -283,7 +435,10 @@ export function UninstallDialog({
 
   const uninstallMutation = useMutation({
     mutationFn: () => uninstallComponent(component.id, deleteData),
-    onSuccess: (result) => setOperationId(result.operation_id),
+    onSuccess: (result) => {
+      setLastError(null);
+      setOperationId(result.operation_id);
+    },
     onError: (err) =>
       addToast({
         type: "error",
@@ -296,18 +451,29 @@ export function UninstallDialog({
       setDeleteData(false);
       setConfirmDelete(false);
       setOperationId(null);
+      setLastError(null);
     }
   }, [open]);
 
+  const retryUninstall = React.useCallback(() => {
+    setLastError(null);
+    setOperationId(null);
+    uninstallMutation.mutate();
+  }, [uninstallMutation]);
+
   const handleFinished = React.useCallback(
-    (ok: boolean) => {
+    (ok: boolean, error?: string | null) => {
+      void qc.invalidateQueries({ queryKey: ["components"] });
       if (ok) {
         setOperationId(null);
+        setLastError(null);
         onCompleted();
         onClose();
+        return;
       }
+      setLastError(error ?? "L'opération a échoué.");
     },
-    [onCompleted, onClose],
+    [onCompleted, onClose, qc],
   );
 
   const destructivePlan = planQuery.data?.steps.some((s) => s.destructive) ?? false;
@@ -321,11 +487,41 @@ export function UninstallDialog({
         size="lg"
       >
         {operationId ? (
-          <OperationProgress
-            operationId={operationId}
-            label={`Désinstallation de ${component.name}`}
-            onFinished={handleFinished}
-          />
+          <>
+            <OperationProgress
+              operationId={operationId}
+              label={`Désinstallation de ${component.name}`}
+              onFinished={handleFinished}
+              onClose={onClose}
+            />
+            {lastError && (
+            <div
+              className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-soft bg-red-soft p-3"
+              role="alert"
+            >
+              <p className="text-sm text-red-500">
+                Désinstallation échouée : {lastError}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={retryUninstall}
+                  disabled={uninstallMutation.isPending}
+                >
+                  {uninstallMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Réessayer"
+                  )}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">

@@ -134,6 +134,28 @@ CREATE INDEX IF NOT EXISTS idx_llm_providers_enabled
     ON llm_providers (enabled);
 CREATE INDEX IF NOT EXISTS idx_llm_providers_default
     ON llm_providers (is_default);
+-- Un seul provider peut porter `is_default` (contrainte partielle, cf.
+-- migrations/009_unique_default_provider.sql — parity du volume vierge).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_providers_single_default
+    ON llm_providers (is_default)
+    WHERE is_default;
+
+-- Centralized ETHAN configuration domains (managed by core/config ConfigStore).
+-- One JSONB document per domain (providers, models, rag, memory, agents,
+-- planner, plugins, authentication, runtime).  ⚠️ La table ne stocke JAMAIS les
+-- clés API (secrets via core/config/secrets.py, cf. docs/security/10-secret-hygiene.md).
+-- Boot d'un volume vierge : lue par ConfigurationService; sans cette table,
+-- toute écriture de configuration échoue et les réglages sont perdus au
+-- redémarrage.
+CREATE TABLE IF NOT EXISTS ethan_config (
+    domain_name TEXT PRIMARY KEY CHECK (length(domain_name) > 0),
+    config      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ethan_config_updated
+    ON ethan_config (updated_at DESC);
 
 -- Durable JSON records owned by Core domain managers.  The domain-specific
 -- managers validate their own types; this table supplies a small common
@@ -272,6 +294,25 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
+-- Password reset tokens (migration 007 in-linée pour le boot d'un volume
+-- vierge). Le Core ne stocke que le SHA-256 des jetons, jamais le jeton brut.
+-- Sans cette table, le flux « mot de passe oublié » échoue sur une base neuve
+-- tant que `./ethan migrate` n'a pas été lancé.
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id          bigserial PRIMARY KEY,
+    token_hash  text NOT NULL UNIQUE,
+    username    text NOT NULL,
+    expires_at  timestamptz NOT NULL,
+    used        boolean NOT NULL DEFAULT false,
+    consumed_at timestamptz,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_username
+    ON password_reset_tokens (username);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires
+    ON password_reset_tokens (expires_at);
+
 -- Default admin user (password is 'admin' — change immediately in production).
 -- Hash bcrypt $2b$12$ (passlib default rounds).
 INSERT INTO users (id, username, password_hash, roles)
@@ -286,7 +327,12 @@ INSERT INTO schema_migrations (version)
 VALUES
     ('0001_initial_schema'),
     ('0003_create_users_table'),
-    ('006_add_totp_2fa')
+    ('004_create_llm_providers_table'),
+    ('005_create_core_domain_records'),
+    ('006_add_totp_2fa'),
+    ('007_password_reset_tokens'),
+    ('008_create_ethan_config'),
+    ('009_unique_default_provider')
 ON CONFLICT (version) DO NOTHING;
 
 DO $$

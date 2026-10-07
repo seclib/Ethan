@@ -2080,3 +2080,36 @@ async def disconnect_plugin(plugin_id: str):
     if result is None:
         raise HTTPException(404, f"Plugin {plugin_id} not found")
     return result
+
+
+@router.post("/models/pull")
+async def pull_model_v1(payload: dict[str, Any]):
+    """Installe ou active un modèle dans ETHAN via l'API v1."""
+    from core.llm.model_installer import install_or_use_model
+    from interfaces.api.routers.models import get_manager, get_store
+
+    model_id = payload.get("model") or payload.get("model_id") or payload.get("name")
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Missing 'model' or 'model_id' in payload")
+
+    provider_hint = payload.get("provider")
+    try:
+        manager = get_manager()
+    except Exception:
+        manager = None
+    try:
+        store = get_store()
+    except Exception:
+        store = None
+
+    result = await install_or_use_model(
+        model_id=str(model_id),
+        provider_hint=str(provider_hint) if provider_hint else None,
+        manager=manager,
+        store=store,
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Installation failed"))
+
+    return result
+
