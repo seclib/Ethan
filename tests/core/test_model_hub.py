@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from core.hardware.fit import check_model_compatibility
 from core.llm.model_store import ModelStore
@@ -110,14 +112,10 @@ async def test_model_hub_inspect_answers_capability_and_method():
 @pytest.mark.asyncio
 async def test_model_hub_inspect_insufficient_info():
     """Un modèle sans paramètre ni taille identifiée renvoie 'information insuffisante'."""
-    hub = ModelHub()
     compat = check_model_compatibility("inconnu-sans-params", params_b=0.0)
     assert compat.status == "insufficient_info"
     assert compat.status_label == "Information insuffisante"
     assert compat.compatible is False
-
-
-from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.asyncio

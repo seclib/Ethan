@@ -230,9 +230,22 @@ async def get_hardware_info():
 async def discover_models(
     q: str = Query(default="", description="Terme de recherche"),
     use_case: str | None = Query(default=None, description="Filtre par cas d'usage"),
+    source: str = Query(default="all", description="Filtre par source (all, curated, huggingface, local)"),
 ):
     """Découvre les modèles du catalogue avec leur compatibilité matérielle."""
-    return await discover_models_async(query=q, use_case=use_case)
+    return await discover_models_async(query=q, use_case=use_case, source=source)
+
+
+# ── POST /models/detect-artifacts ─────────────────────────────────────────
+
+
+@router.get(
+    "/detect-artifacts/{model_id:path}",
+)
+async def detect_model_artifacts(model_id: str):
+    """Détecte les artefacts disponibles et la méthode d'exécution pour un modèle."""
+    hub = get_model_hub()
+    return await hub.detect_artifact_formats(model_id=model_id)
 
 
 # ── POST /models/check-compatibility ────────────────────────────────────

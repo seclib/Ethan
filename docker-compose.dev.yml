@@ -7,15 +7,78 @@
 #   - ChromaDB (vector store alternatif)
 #   - Ollama (LLM local)
 #
+# Bind mounts du code source (api · kernel · modules) :
+#   le code est COPIÉ dans les images (COPY core/ …) — sans ces mounts,
+#   toute modification impose `docker compose up -d --build`. Avec cet
+#   overlay, un changement Python est visible après `restart` du service.
+#   LIMITES : mounts en lecture seule ; l'UI Next (standalone) exige toujours
+#   un rebuild (`up -d --build ui`) ; une nouvelle dépendance Python aussi.
+#
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d api
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml restart api
 #
 # Note : Redis et PostgreSQL sont définis dans docker-compose.yml (fichier principal)
 # pour éviter les conflits de réseaux et de noms de conteneurs.
-# Ce fichier n'ajoute QUE les services optionnels de développement.
+# Ce fichier n'ajoute QUE les services optionnels de développement et les
+# bind mounts ci-dessous (Compose fusionne les volumes par cible de mount :
+# ethan_api_artifacts et autres volumes racine sont conservés).
 # =============================================================================
 
 services:
+  # ===========================================================================
+  # Bind mounts du code source — services applicatifs
+  # ===========================================================================
+  api:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+      - ./interfaces/api:/app/interfaces/api:ro
+      - ./cookbook:/app/cookbook:ro
+  kernel:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+  modules:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+      - ./plugins:/app/plugins:ro
+
+  # ===========================================================================
+  # ui-dev — WebUI en mode hot-reload (zéro rebuild en développement)
+  # next dev compile à la demande ; les sources sont montées en bind mount.
+  # Accès : http://127.0.0.1:3002 — le service ui « production » (standalone)
+  # reste sur 3001 et n'est PAS affecté (cf. `make dev-ui`).
+  # ===========================================================================
+  ui-dev:
+    image: node:20-alpine
+    container_name: ethan-ui-dev
+    working_dir: /app
+    volumes:
+      - ./interfaces/webui:/app
+      - ui-dev-node-modules:/app/node_modules
+      - ui-dev-next:/app/.next
+    ports:
+      - "127.0.0.1:${ETHAN_WEBUI_DEV_PORT:-3002}:3001"
+    environment:
+      NODE_ENV: development
+      ETHAN_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps; npm run dev"
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # ===========================================================================
   # Qdrant — Vector database (production)
   # ===========================================================================
@@ -95,5 +158,9 @@ volumes:
     name: ethan-qdrant-data
   chromadb-data:
     name: ethan-chromadb-data
+  ui-dev-node-modules:
+    name: ethan-ui-dev-node-modules
+  ui-dev-next:
+    name: ethan-ui-dev-next
 
 # ── Réseau partagé avec docker-compose.yml ────────────────────────────────────

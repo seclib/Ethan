@@ -1,4 +1,4 @@
-.PHONY: help install dev build up down logs test lint clean shell bootstrap doctor preflight pull-images wait-for-services status smoke ci
+.PHONY: help install dev build up down logs test lint clean shell bootstrap doctor preflight pull-images wait-for-services status smoke ci dev-code dev-ui
 
 help:
 	@echo "Ethan Cognitive OS — Makefile"
@@ -6,6 +6,8 @@ help:
 	@echo "Usage:"
 	@echo "  make install    Install Python package in editable mode"
 	@echo "  make dev        Run API Gateway locally (uvicorn)"
+	@echo "  make dev-code   Dev : bind mounts du code (overlay dev) + restart api/kernel/modules — zéro rebuild"
+	@echo "  make dev-ui     Dev : WebUI en mode hot-reload (next dev, port 3002) — zéro rebuild"
 	@echo "  make build      Build Docker images"
 	@echo "  make up         Start all services (docker-compose)"
 	@echo "  make down       Stop all services"
@@ -25,6 +27,17 @@ install:
 
 dev:
 	PYTHONPATH=. NATS_URL=nats://localhost:$(NATS_PORT) uvicorn api.main:app --reload --port $(API_PORT)
+
+# Dev sans rebuild : active les bind mounts de code (docker-compose.dev.yml)
+# puis recrée les services applicatifs — le code source du host est lu
+# directement, un changement Python se voit après simple restart.
+dev-code:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --no-build api kernel modules
+
+# WebUI en hot-reload (next dev + bind mount, port 3002) : aucun rebuild
+# nécessaire pour développer l'interface. Voir docker-compose.dev.yml (ui-dev).
+dev-ui:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d ui-dev
 
 build:
 	docker compose build

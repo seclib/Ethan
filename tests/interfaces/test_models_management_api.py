@@ -147,3 +147,18 @@ async def test_api_get_storage_layout(setup_models_env):
         assert data["models_dir"].endswith("/models")
 
 
+@pytest.mark.asyncio
+async def test_api_detect_model_artifacts(setup_models_env) -> None:
+    """GET /models/detect-artifacts renvoie la vue artefact + compatibilité."""
+    transport = ASGITransport(app=setup_models_env)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/models/detect-artifacts/qwen2.5:7b")
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["model_id"] == "qwen2.5:7b"
+    assert "formats_available" in data
+    assert "compatible" in data
+    assert "status" in data
+    assert "method" in data
+

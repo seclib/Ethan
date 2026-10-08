@@ -155,13 +155,15 @@ sdk/typescript/dist/
 # Kubernetes generated files
 deploy/kubernetes/*.generated.yaml
 
-# Data volumes (mounted in Docker, not committed)
-data/
-memory/
-models/
-embeddings/
-cache/
-uploads/
+# Data volumes (mounted in Docker, not committed — anchored to repo root only;
+# an unanchored `models/` pattern would also ignore source code such as
+# core/models/, interfaces/api/models/ or interfaces/webui/.../models/)
+/data/
+/memory/
+/models/
+/embeddings/
+/cache/
+/uploads/
 # Exception : interfaces/api/models/ contient du code source Python
 # (schémas Pydantic requis par les routeurs API) — ne pas ignorer.
 !interfaces/api/models/

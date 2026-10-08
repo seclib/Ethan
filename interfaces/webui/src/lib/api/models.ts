@@ -151,6 +151,8 @@ export interface HubModel {
 	quantization: string;
 	source: string;
 	formats_available: string[];
+	/** Capability tags when the Core provides them (may be absent on older payloads). */
+	capabilities?: string[];
 	is_installed: boolean;
 	compatibility: HubModelCompatibility;
 }
