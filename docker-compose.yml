@@ -149,7 +149,6 @@ services:
       start_period: 5s
     restart: unless-stopped
     networks:
-      - ethan-core
       - odin-control
 
   api:
@@ -220,6 +219,7 @@ services:
     restart: unless-stopped
     networks:
       - ethan-core
+      - odin-control
     deploy:
       resources:
         limits:
