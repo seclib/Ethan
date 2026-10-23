@@ -236,22 +236,59 @@ async def install_or_use_model(
             cfg = manager._providers_config.get("ollama", {})
             base_url = cfg.get("base_url") or base_url
 
-        # Tenter d'ordonner le pull à Ollama
+        # Tenter d'ordonner le pull à Ollama (ou réutiliser si déjà présent)
         pull_success = False
+        pull_error_msg = ""
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=4.0)) as client:
-                logger.info(
-                    "Début du téléchargement du modèle %s via Ollama (%s)", target_name, base_url
-                )
-                resp = await client.post(
-                    f"{base_url}/api/pull",
-                    json={"name": target_name, "stream": False},
-                )
-                if resp.status_code == 200:
-                    pull_success = True
-                    logger.info("Modèle %s téléchargé avec succès par Ollama", target_name)
+                # 1. Vérifier si le modèle existe déjà localement dans Ollama
+                try:
+                    tags_resp = await client.get(f"{base_url}/api/tags", timeout=3.0)
+                    if tags_resp.status_code == 200:
+                        existing_models = [
+                            m.get("name", "") for m in tags_resp.json().get("models", [])
+                        ]
+                        if any(
+                            m == target_name
+                            or m == f"{target_name}:latest"
+                            or f"{m}:latest" == target_name
+                            or m.split(":")[0] == target_name.split(":")[0]
+                            for m in existing_models
+                        ):
+                            pull_success = True
+                            logger.info("Modèle %s déjà présent dans Ollama", target_name)
+                except Exception:
+                    pass
+
+                # 2. Si non présent, exécuter le pull
+                if not pull_success:
+                    logger.info(
+                        "Début du téléchargement du modèle %s via Ollama (%s)", target_name, base_url
+                    )
+                    resp = await client.post(
+                        f"{base_url}/api/pull",
+                        json={"name": target_name, "stream": False},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json() if resp.content else {}
+                        if data.get("error"):
+                            pull_error_msg = data["error"]
+                        else:
+                            pull_success = True
+                            logger.info("Modèle %s téléchargé avec succès par Ollama", target_name)
+                    else:
+                        pull_error_msg = f"HTTP {resp.status_code}: {resp.text}"
         except Exception as exc:
+            pull_error_msg = str(exc)
             logger.warning("Connexion à Ollama (%s) impossible pour le pull : %s", base_url, exc)
+
+        if not pull_success:
+            return {
+                "success": False,
+                "error": "ollama_pull_failed",
+                "message": f"Échec de l'installation du modèle {target_name} via Ollama : {pull_error_msg or 'Modèle non trouvé ou erreur de communication'}",
+                "strategy": strategy,
+            }
 
         # Enregistrer et activer le modèle dans le ModelStore
         if store:

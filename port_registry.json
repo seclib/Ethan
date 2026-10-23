@@ -10,5 +10,11 @@
     "container": "osiris-grafana",
     "host_port": 3002,
     "container_port": 3000
+  },
+  "odin": {
+    "service_name": "odin",
+    "container": "odin",
+    "host_port": 4173,
+    "container_port": 4173
   }
 }

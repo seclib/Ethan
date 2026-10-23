@@ -224,3 +224,103 @@ export function disconnectPlugin(pluginId: string): Promise<PluginInfo> {
   );
 }
 
+/** État réel du service applicatif Odin (routeur dédié). */
+export interface OdinStatus {
+  id: string;
+  name: string;
+  status: "not_installed" | "installed_stopped" | "starting" | "running" | "degraded" | "stopping" | "error" | "unknown";
+  port: number;
+  host: string;
+  url: string;
+  container_id?: string | null;
+  healthy: boolean;
+  mcp_tools_count?: number | null;
+  error?: string | null;
+  updated_at?: string;
+  allowed_actions: string[];
+  details?: {
+    compose_file?: string;
+    repo_dir?: string;
+    container_info?: Record<string, unknown>;
+  };
+}
+
+/** GET /v1/plugins/odin/status — état réel vérifié. */
+export function getOdinStatus(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/status");
+}
+
+/** POST /v1/plugins/odin/start — démarrage confiné. */
+export function startOdin(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/start", {
+    method: "POST",
+  });
+}
+
+/** POST /v1/plugins/odin/stop — arrêt sans suppression. */
+export function stopOdin(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/stop", {
+    method: "POST",
+  });
+}
+
+/** POST /v1/plugins/odin/restart — redémarrage confiné. */
+export function restartOdin(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/restart", {
+    method: "POST",
+  });
+}
+
+/** POST /v1/plugins/odin/install — installation du service Odin. */
+export function installOdin(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/install", {
+    method: "POST",
+  });
+}
+
+/** POST /v1/plugins/odin/uninstall — désinstallation du service Odin. */
+export function uninstallOdin(): Promise<OdinStatus> {
+  return apiFetch<OdinStatus>("/v1/plugins/odin/uninstall", {
+    method: "POST",
+  });
+}
+
+/** Logs récents du service Odin (tail limité, secrets redactés). */
+export interface OdinLogs {
+  status: string;
+  logs: string;
+  total_lines: number;
+  redacted: boolean;
+  fetched_at: string;
+  error?: string | null;
+}
+
+/** GET /v1/plugins/odin/logs — logs récents du service. */
+export function getOdinLogs(tail = 100): Promise<OdinLogs> {
+  return apiFetch<OdinLogs>(
+    `/v1/plugins/odin/logs?tail=${tail}`,
+  );
+}
+
+/** Vérification détaillée de santé du service (TCP + conteneur). */
+export interface OdinHealth {
+  status: string;
+  healthy: boolean;
+  reachable: boolean;
+  tcp_probe: boolean;
+  container_state: string;
+  container_health?: string;
+  port: number;
+  host: string;
+  url: string;
+  last_transition: string;
+  checked_at: string;
+}
+
+/** GET /v1/plugins/odin/health — vérification détaillée de santé. */
+export function getOdinHealth(): Promise<OdinHealth> {
+  return apiFetch<OdinHealth>("/v1/plugins/odin/health");
+}
+
+
+

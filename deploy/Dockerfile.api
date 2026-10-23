@@ -16,6 +16,7 @@ COPY sdk/ sdk/
 COPY interfaces/api/ interfaces/api/
 COPY cookbook/ cookbook/
 COPY deploy/ deploy/
+COPY scripts/odin_compose_controller.py scripts/odin_compose_controller.py
 
 # ── Outils système réellement nécessaires aux capabilities ──────────────────
 # docker-cli      : le backend `docker` du CapabilityManager DOIT pouvoir

@@ -109,10 +109,15 @@ def get_timeout(default: float = TIMEOUT) -> float:
     return default
 
 
+_local_bootstrap_token: str | None = None
+
+
 def get_token() -> str | None:
     """Resolve the API token: Context > ETHAN_TOKEN > credentials.json.
 
     The credentials file is managed by `ethan auth login` (mode 0600).
+    If no token is stored and the CLI is connecting to a local Core API,
+    auto-generates an admin bootstrap token from the persistent local secret.
     """
     try:
         from interfaces.cli.core.context import get_context
@@ -140,9 +145,29 @@ def get_token() -> str | None:
         from interfaces.cli import config as legacy_config
 
         with open(legacy_config.CONFIG_FILE) as f:
-            return json.load(f).get("token") or None
+            legacy_token = json.load(f).get("token")
+            if legacy_token:
+                return legacy_token
     except Exception:
-        return None
+        pass
+
+    # Local dev auto-discovery: if the CLI connects to a local Core instance,
+    # generate a valid admin token locally using the shared secret.
+    global _local_bootstrap_token
+    if _local_bootstrap_token:
+        return _local_bootstrap_token
+
+    try:
+        base_url = get_base_url()
+        if any(h in base_url for h in ("localhost", "127.0.0.1", "0.0.0.0", "::1")):
+            from core.security.jwt_bootstrap import create_local_token
+
+            _local_bootstrap_token = create_local_token(user_id="admin", username="admin", role="admin")
+            return _local_bootstrap_token
+    except Exception:
+        pass
+
+    return None
 
 
 def request_json(

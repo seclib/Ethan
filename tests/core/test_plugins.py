@@ -1,9 +1,5 @@
 """Tests — Plugin Discovery & Loading (ADR-1008)"""
 
-import shutil
-import tempfile
-from pathlib import Path
-
 import pytest
 from core.plugins import Plugin, PluginContext, PluginMetadata, PluginRegistry
 
@@ -31,104 +27,75 @@ class MockPlugin(Plugin):
         pass
 
 
+class TestPlugin:
+    """Comportements du SDK Plugin / PluginMetadata / PluginContext."""
+
+    def test_metadata(self):
+        meta = MockPlugin("x", "1.0.0").get_metadata()
+        assert meta.name == "x"
+        assert meta.capabilities == ["test.cap"]
+        assert meta.description == "Test plugin"
+
+    @pytest.mark.asyncio
+    async def test_lifecycle(self):
+        plugin = MockPlugin()
+        await plugin.initialize(PluginContext())
+        await plugin.shutdown()
+
+
 class TestPluginRegistry:
-    """Tests for PluginRegistry."""
+    """Tests du registre Core (source de vérité des plugins).
+
+    Le registre Core est un gestionnaire de catalogue + état persistant :
+    il ne scanne pas (cela relève du loader), il exporte et arbitre.
+    """
 
     @pytest.fixture
-    def registry(self):
-        return PluginRegistry()
+    def store(self):
+        class _Store:
+            def __init__(self):
+                self._data = {}
+
+            async def list(self, domain):
+                return list(self._data.values())
+
+            async def get(self, domain, plugin_id):
+                return self._data.get(plugin_id)
+
+            async def save(self, domain, plugin_id, record):
+                self._data[plugin_id] = record
+
+        return _Store()
 
     @pytest.fixture
-    def temp_plugin_dir(self):
-        """Creates a temporary directory for plugins."""
-        temp_dir = Path(tempfile.mkdtemp())
-        yield temp_dir
-        shutil.rmtree(temp_dir)
-
-    def test_registry_empty(self, registry):
-        """Test registry is empty on initialization."""
-        assert len(registry) == 0
-        assert registry.list_plugins() == []
+    def registry(self, store):
+        return PluginRegistry(store)
 
     @pytest.mark.asyncio
-    async def test_discover_no_plugins(self, registry, temp_plugin_dir):
-        """Test discovery with no plugins."""
-        await registry.discover([temp_plugin_dir])
-        assert len(registry) == 0
+    async def test_empty_store_has_no_installed_plugins(self, registry):
+        assert await registry.get("ghost") is None
 
     @pytest.mark.asyncio
-    async def test_discover_single_plugin(self, registry, temp_plugin_dir):
-        """Test discovery of a single plugin file."""
-        # Create a plugin file
-        plugin_file = temp_plugin_dir / "my_plugin.py"
-        plugin_file.write_text(
-            "from core.plugins import Plugin, PluginMetadata\n"
-            "class MyPlugin(Plugin):\n"
-            "    def get_metadata(self):\n"
-            "        return PluginMetadata('my-plugin', '1.0.0', 'Desc', 'Auth', ['cap1'])\n"
-            "    async def initialize(self, ctx): pass\n"
-            "    async def shutdown(self): pass\n"
-        )
-
-        await registry.discover([temp_plugin_dir])
-        assert len(registry) == 1
-        assert "my-plugin" in registry.list_plugins()
-        assert registry.get_plugin("my-plugin") is not None
+    async def test_save_and_list(self, registry, store):
+        await store.save("webui_plugins", "my-plugin", {
+            "id": "my-plugin",
+            "name": "My Plugin",
+            "status": "active",
+            "version": "1.0.0",
+            "installed": True,
+            "capabilities": ["test.cap"],
+        })
+        view = await registry.list_plugins()
+        assert {"my-plugin"} <= {v["id"] for v in view}
+        assert (await registry.get("my-plugin"))["id"] == "my-plugin"
 
     @pytest.mark.asyncio
-    async def test_discover_init_file_plugin(self, registry, temp_plugin_dir):
-        """Test discovery of a plugin in a package (__init__.py)."""
-        plugin_dir = temp_plugin_dir / "plugin_pkg"
-        plugin_dir.mkdir()
-        init_file = plugin_dir / "__init__.py"
-        init_file.write_text(
-            "from core.plugins import Plugin, PluginMetadata\n"
-            "class PkgPlugin(Plugin):\n"
-            "    def get_metadata(self):\n"
-            "        return PluginMetadata('pkg-plugin', '1.0.0', 'Desc', 'Auth', ['cap1'])\n"
-            "    async def initialize(self, ctx): pass\n"
-            "    async def shutdown(self): pass\n"
-        )
-
-        await registry.discover([temp_plugin_dir])
-        assert len(registry) == 1
-        assert "pkg-plugin" in registry.list_plugins()
+    async def test_get_nonexistent_plugin(self, registry):
+        assert await registry.get("ghost") is None
+        assert await registry.permissions("ghost") is None
 
     @pytest.mark.asyncio
-    async def test_discover_multiple_plugins(self, registry, temp_plugin_dir):
-        """Test discovery of multiple plugins."""
-        # Plugin 1
-        (temp_plugin_dir / "p1.py").write_text(
-            "from core.plugins import Plugin, PluginMetadata\n"
-            "class P1(Plugin):\n"
-            "    def get_metadata(self):\n"
-            "        return PluginMetadata('p1', '1.0', 'D', 'A', [])\n"
-            "    async def initialize(self, ctx): pass\n"
-            "    async def shutdown(self): pass\n"
-        )
-        # Plugin 2
-        (temp_plugin_dir / "p2.py").write_text(
-            "from core.plugins import Plugin, PluginMetadata\n"
-            "class P2(Plugin):\n"
-            "    def get_metadata(self):\n"
-            "        return PluginMetadata('p2', '1.0', 'D', 'A', [])\n"
-            "    async def initialize(self, ctx): pass\n"
-            "    async def shutdown(self): pass\n"
-        )
-
-        await registry.discover([temp_plugin_dir])
-        assert len(registry) == 2
-        assert set(registry.list_plugins()) == {"p1", "p2"}
-
-    @pytest.mark.asyncio
-    async def test_discover_invalid_plugin(self, registry, temp_plugin_dir):
-        """Test discovery ignores invalid python files."""
-        (temp_plugin_dir / "invalid.py").write_text("print('hello')")
-
-        await registry.discover([temp_plugin_dir])
-        assert len(registry) == 0
-
-    def test_get_nonexistent_plugin(self, registry):
-        """Test getting a plugin that doesn't exist."""
-        assert registry.get_plugin("ghost") is None
-        assert registry.get_metadata("ghost") is None
+    async def test_builtin_catalog_is_listed(self, registry):
+        view = await registry.list_plugins()
+        assert view
+        assert all(isinstance(v.get("id"), str) for v in view)

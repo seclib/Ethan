@@ -22,6 +22,12 @@ class Permission(Enum):
     FILES = "files"
     EXECUTE = "execute"
 
+    # Adapter IA de Odin — agent autorisé à appeler l'inférence ETHAN.
+    # Ne concerne JAMAITSM les clés de fournisseur : c'est le jeton d'agent.
+    ODIN_AI = "odin-ai"
+    # Alias de compatibilité temporaire déprécié (migration GEV -> Odin)
+    GODS_EYE_AI = "odin-ai"
+
 
 @dataclass
 class Role:
@@ -73,6 +79,20 @@ class RBACEngine:
             name="viewer",
             permissions=[Permission.READ, Permission.CHAT],
             description="Read-only access",
+        )
+        # Agent Odin AI — jeton de provision de portée restreinte.
+        # Peut appeler l'inférence via /v1/plugins/odin/ai/*.
+        # Ne reçoit JAMAIS de clé provider (côté serveur ETHAN uniquement).
+        self._roles["odin-ai"] = Role(
+            name="odin-ai",
+            permissions=[Permission.READ, Permission.CHAT, Permission.ODIN_AI],
+            description="Scoped agent for Odin AI inference.",
+        )
+        # Rôle legacy pour rétro-compatibilité temporaire (migration GEV -> Odin)
+        self._roles["gevs-ai"] = Role(
+            name="gevs-ai",
+            permissions=[Permission.READ, Permission.CHAT, Permission.ODIN_AI],
+            description="Legacy alias for odin-ai scoped agent.",
         )
 
     def add_role(self, name: str, permissions: list[Permission], description: str = "") -> Role:

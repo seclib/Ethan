@@ -52,7 +52,7 @@ def routes() -> set[tuple[str, str]]:
 def _code_only(path: Path) -> str:
     """Le fichier sans ses lignes de commentaire (un `#` ne casse pas un test)."""
     raw = path.read_text(encoding="utf-8")
-    return "\n".join(l for l in raw.splitlines() if not l.lstrip().startswith("#"))
+    return "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("#"))
 
 
 def _request_lines(path: Path) -> list[str]:
@@ -63,7 +63,7 @@ def _request_lines(path: Path) -> list[str]:
     pour un appel reel, et le bug historique (route non versionnee) a echappe
     au test pendant qu'on extrayait /v1/... de tout le fichier.
     """
-    return [l for l in _code_only(path).splitlines() if "curl" in l]
+    return [line for line in _code_only(path).splitlines() if "curl" in line]
 
 
 def _paths_called(path: Path) -> set[str]:

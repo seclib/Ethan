@@ -94,6 +94,7 @@ services:
     restart: unless-stopped
     networks:
       - ethan-core
+      - odin-control
     deploy:
       resources:
         limits:
@@ -109,7 +110,50 @@ services:
         max-file: "3"
 
   # ── Application Services ────────────────────────────────────────────
+  # Seul ce contrôleur reçoit le socket Docker. Son API interne n'accepte que
+  # les opérations Compose prédéfinies pour examples/odin/compose.yaml.
+  odin-controller:
+    image: ethan-api
+    command: ["python", "scripts/odin_compose_controller.py"]
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-118}"
+    read_only: true
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      ETHAN_ODIN_CONTROLLER_TOKEN: "${JWT_SECRET}"
+      ETHAN_ODIN_REPO_DIR: "${PWD}/examples/odin"
+      UID: "${UID:-1000}"
+      GID: "${GID:-1000}"
+      DOCKER_CONFIG: /tmp/docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Le chemin cible est identique au chemin hôte : Compose transmet ainsi
+      # au daemon les bons chemins pour build: . et le bind mount ./ → /app.
+      - "${PWD}/examples/odin:${PWD}/examples/odin:ro"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+      - odin-control
+
   api:
+    image: ethan-api
     build:
       context: .
       dockerfile: deploy/Dockerfile.api
@@ -128,6 +172,9 @@ services:
       # existantes, démarrage à vide sur une installation neuve.
       - ethan_api_artifacts:/home/ethan/.local
     environment:
+      ETHAN_ODIN_CONTROLLER_URL: http://odin-controller:8765
+      ETHAN_ODIN_CONTROLLER_TOKEN: "${JWT_SECRET}"
+      ETHAN_ODIN_REPO_DIR: "${PWD}/examples/odin"
       NATS_URL: nats://nats:4222
       NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
       DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
@@ -167,6 +214,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      odin-controller:
+        condition: service_started
     command: uvicorn interfaces.api.main:app --host 0.0.0.0 --port 8000 --workers 1
     restart: unless-stopped
     networks:
@@ -373,6 +422,35 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ── vLLM (Optional Local GPU Model Runtime) ─────────────────────────────
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: ethan-vllm
+    profiles:
+      - gpu
+    ports:
+      - "127.0.0.1:${VLLM_PORT:-8090}:8000"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: "${HUGGING_FACE_HUB_TOKEN:-}"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - ethan-core
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
 volumes:
   nats_data:
     driver: local
@@ -393,3 +471,7 @@ networks:
       config:
         - subnet: 172.20.0.0/16
           gateway: 172.20.0.1
+  # Le contrôleur socket n'est joignable que par l'API ETHAN.
+  odin-control:
+    driver: bridge
+    internal: true

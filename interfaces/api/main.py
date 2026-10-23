@@ -82,12 +82,25 @@ from interfaces.api.routers.extensions import (
     set_extension_manager,
 )
 from interfaces.api.routers.folders import router as folders_router
+from interfaces.api.routers.odin import (
+    legacy_router as legacy_odin_router,
+    router as odin_router,
+)
+from interfaces.api.routers.odin_ai import (
+    legacy_router as legacy_odin_ai_router,
+    router as odin_ai_router,
+)
+from interfaces.api.routers.odin_ai import (
+    set_provider_manager as set_odin_ai_provider_manager,
+)
 from interfaces.api.routers.integrations import router as integrations_router
 from interfaces.api.routers.internal import init_modules
 from interfaces.api.routers.internal import router as internal_router
 from interfaces.api.routers.knowledge_imports import router as knowledge_imports_router
+from interfaces.api.routers.logs import router as logs_router
 from interfaces.api.routers.message import router as message_router
 from interfaces.api.routers.message import set_nats_client
+from interfaces.api.routers.model_router import router as model_router
 from interfaces.api.routers.models import router as models_router
 from interfaces.api.routers.models import set_model_store
 from interfaces.api.routers.models import set_provider_manager as set_models_provider_manager
@@ -695,6 +708,9 @@ async def lifespan(app: FastAPI):
 
     api_keys_manager = APIKeyManager(store=domain_store)
     configure_api_keys(api_keys_manager, audit_store=_internal.get_audit_store())
+    from interfaces.api.auth import set_api_key_manager
+
+    set_api_key_manager(api_keys_manager)
     app.state.api_keys_manager = api_keys_manager
     logger.info("API keys manager ready (secret-once policy)")
     app.state.capability_managers = capability_managers
@@ -791,6 +807,7 @@ async def lifespan(app: FastAPI):
         provider_manager = ProviderManager(store=store)
         await provider_manager.initialize()
         set_provider_manager(provider_manager)
+        set_odin_ai_provider_manager(provider_manager)
         set_v1_provider_manager(provider_manager)
         # Réinjecte le manager dans le ChatPipeline (créé plus tôt dans le
         # lifespan, avant que le ProviderManager n'existe) — sinon le chat
@@ -930,6 +947,42 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.exception("Failed to initialize diagnostics service: %s", exc)
 
+    # --- Logs (Core-owned : LogService, exposé par /logs) ───────────────
+    # Sans cette injection, GET /logs renvoie 503 ("Log service not
+    # initialized"). Best-effort : un échec ne bloque jamais le démarrage.
+    try:
+        from core.telemetry.log_pipeline import LogService
+        from interfaces.api.routers.logs import set_log_service
+
+        log_service = LogService()
+        set_log_service(log_service)
+        app.state.log_service = log_service
+        logger.info("LogService ready (Core-owned, exposed via /logs)")
+    except Exception as exc:
+        logger.exception("Failed to initialize LogService: %s", exc)
+
+    # --- Persistance unifiée (Core-owned : Redis + PostgreSQL) ──────────
+    # Les factories de drivers viennent de la couche interface (ADR-1005).
+    # Sans Redis/PostgreSQL, les backends restent dégradés : le boot continue.
+    try:
+        from core.persistence.manager import init_persistence
+        from core.persistence.migrations import MigrationManager
+        from interfaces.api.persistence.backend import pg_pool_factory, redis_client_factory
+
+        persistence = await init_persistence(
+            redis_client_factory=redis_client_factory,
+            pg_pool_factory=pg_pool_factory,
+        )
+        app.state.persistence = persistence
+        try:
+            applied = await MigrationManager().run(persistence.postgres)
+            if applied:
+                logger.info("Persistence migrations applied: %s", applied)
+        except Exception as exc:
+            logger.warning("Persistence migrations skipped: %s", exc)
+    except Exception as exc:
+        logger.exception("Failed to initialize persistence: %s", exc)
+
     # Terminal : service Core de sessions PTY réelles (interface WebUI).
     # Le registre est en mémoire et les workers sont uniques (workers=1) :
     # une session appartient au worker qui l'a créée.
@@ -982,13 +1035,20 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error during NATS shutdown: {e}")
 
-    # Fermer le.ProviderManager (clients providers + store/redis)
+    # Fermer le ProviderManager (clients providers + store/redis)
     if provider_manager is not None:
         try:
             await provider_manager.close()
             logger.info("ProviderManager closed")
         except Exception as exc:
             logger.warning("Error closing ProviderManager: %s", exc)
+    persistence = getattr(app.state, "persistence", None)
+    if persistence is not None:
+        try:
+            await persistence.close()
+            logger.info("Persistence closed")
+        except Exception as exc:
+            logger.warning("Error closing persistence: %s", exc)
     if pg_pool is not None:
         try:
             await asyncio.wait_for(pg_pool.close(), timeout=5)
@@ -1046,9 +1106,11 @@ app.include_router(v1_router)
 app.include_router(security_router)
 app.include_router(providers_router)
 app.include_router(models_router)
+app.include_router(model_router)
 app.include_router(integrations_router)
 app.include_router(connections_router)
 app.include_router(cti_router)
+app.include_router(logs_router)
 app.include_router(search_router)
 app.include_router(reminders_router)
 app.include_router(diagnostics_router)
@@ -1063,6 +1125,11 @@ app.include_router(research_router)
 app.include_router(realtime_router)
 app.include_router(terminal_router)
 app.include_router(system_exec_router)
+app.include_router(odin_router)
+app.include_router(odin_ai_router)
+# Rétro-compatibilité temporaire dépréciée (migration GEV -> Odin)
+app.include_router(legacy_odin_router)
+app.include_router(legacy_odin_ai_router)
 # Open WebUI-compatible adapter — exposes /api/v1/auths/*, /api/v1/models/*,
 # /openai/config and /api/chat/completions so the Open WebUI frontend fork
 # (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.

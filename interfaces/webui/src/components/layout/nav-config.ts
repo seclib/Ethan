@@ -26,7 +26,7 @@ import {
   Bot, Cpu, Database, Wrench, Sparkles, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
     Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
-  Activity, ShieldCheck, Gauge,
+  Activity, ShieldCheck, Gauge, Globe,
   UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
   Workflow, FlaskConical, MessagesSquare, SquareTerminal as TerminalIcon,
 } from "lucide-react";
@@ -88,6 +88,15 @@ export const NAV_SECTIONS_PRIMARY: NavSection[] = [
       // Automations = règles réellement servies par le Core (/v1/automations).
       { href: "/automations", label: "Automations", icon: Workflow },
       { href: "/cookbook", label: "Cookbook", icon: BookOpen },
+    ],
+  },
+  {
+    id: "tools",
+    label: "Tools",
+    description: "Outils et services applicatifs pilotables",
+    collapsible: true,
+    items: [
+      { href: "/odin", label: "Odin", icon: Globe },
     ],
   },
 ];

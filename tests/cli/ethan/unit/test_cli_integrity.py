@@ -89,11 +89,28 @@ class TestTokenResolution:
         assert get_token() == "from-config"
 
     def test_returns_none_without_token(self, monkeypatch, tmp_path: Path) -> None:
-        from cli.core.client import get_token
+        from cli.core import client
 
-        monkeypatch.setattr("cli.config.CONFIG_FILE", str(tmp_path / "missing.json"))
+        # Toutes les sources de get_token sont isolées : contexte CLI,
+        # env, credentials.json, config legacy ET token bootstrap local
+        # (auto-généré quand base_url est localhost — sinon le test verrait
+        # un vrai JWT admin sur une machine de dev authentifiée).
+        monkeypatch.setattr("interfaces.cli.core.context.get_context", lambda: None)
         monkeypatch.delenv("ETHAN_TOKEN", raising=False)
-        assert get_token() is None
+        monkeypatch.setattr(
+            "interfaces.cli.core.config.get_token_from_credentials",
+            lambda *args, **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "interfaces.cli.config.CONFIG_FILE", str(tmp_path / "missing.json")
+        )
+        monkeypatch.setattr(
+            "cli.config.CONFIG_FILE", str(tmp_path / "missing.json")
+        )
+        monkeypatch.setattr(client, "get_base_url", lambda: "http://ethan.invalid")
+        monkeypatch.setattr(client, "_local_bootstrap_token", None)
+
+        assert client.get_token() is None
 
 
 class TestRequestJson:

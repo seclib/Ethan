@@ -24,6 +24,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.secrets/
+*.key
 
 # Python
 __pycache__/

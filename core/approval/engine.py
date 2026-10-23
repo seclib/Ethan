@@ -57,6 +57,11 @@ class ApprovalEngine:
         # ne permettent pas à une interface de présenter le périmètre réel.
         self._requests: dict[str, ApprovalRequest] = {}
         self._lock = asyncio.Lock()
+        self._human_root: Any | None = None
+
+    def set_human_root(self, human_root: Any) -> None:
+        """Attache le Human Root of Trust comme autorité supérieure."""
+        self._human_root = human_root
 
     # ── Création de requête ─────────────────────────────────────────
 
@@ -96,6 +101,26 @@ class ApprovalEngine:
         async with self._lock:
             self._pending[request.id] = future
             self._requests[request.id] = request
+
+        if self._human_root is not None:
+            try:
+                from core.human_root import TrustAction, TrustRisk
+                risk = (
+                    TrustRisk.CRITICAL
+                    if str(category).lower() in ("command_exec", "system_modify")
+                    else TrustRisk.HIGH
+                )
+                self._human_root._in_flight[request.id] = TrustAction(
+                    action_id=request.id,
+                    caller=source,
+                    category=category.value if hasattr(category, "value") else str(category),
+                    risk=risk,
+                    summary=title or description,
+                    details=details or {},
+                    trace_id=correlation_id,
+                )
+            except Exception:
+                pass
 
         # Publier la requête
         try:
@@ -198,6 +223,18 @@ class ApprovalEngine:
         )
 
         future.set_result(response)
+
+        if self._human_root is not None:
+            try:
+                if request_id in self._human_root._in_flight:
+                    self._human_root.resolve(
+                        action_id=request_id,
+                        approved=approved,
+                        reason=reason,
+                        responder=responder,
+                    )
+            except Exception:
+                pass
 
         # Nettoyage
         self._pending.pop(request_id, None)

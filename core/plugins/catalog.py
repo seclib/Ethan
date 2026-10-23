@@ -202,6 +202,30 @@ BUILTIN_PLUGINS: list[PluginManifest] = [
         capabilities=["read", "create", "update", "search"],
         permissions=["local_files", "read_data", "modify"],
     ),
+    PluginManifest(
+        id="odin",
+        name="Odin",
+        version="1.0.0",
+        description=(
+            "Visualisation géospatiale 3D et fusion multi-sources (aérien ADS-B, "
+            "maritime AIS, satellites, météo, feux, séismes) avec agent vocal et 35 outils MCP."
+        ),
+        author="Bilawal Sidhu / ETHAN",
+        icon="Globe",
+        categories=["geospatial", "intelligence", "tools"],
+        capabilities=["geospatial_3d", "mcp", "realtime_voice", "satellite_tracking"],
+        mcp=["odin-mcp"],
+        permissions=["external_network", "read_data"],
+        configuration=[
+            PluginConfigurationField(
+                key="host_port",
+                label="Port local",
+                type="string",
+                description="Port TCP lié au conteneur local (défaut 4173).",
+            ),
+        ],
+        featured=True,
+    ),
 ]
 
 

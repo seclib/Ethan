@@ -27,7 +27,14 @@ logger = logging.getLogger(__name__)
 
 
 class ModelHub:
-    """Façade unifiée de découverte, évaluation et orchestration de modèles pour ETHAN Core."""
+    """Façade unifiée de découverte, évaluation et orchestration de modèles pour ETHAN Core.
+
+    Point central de gestion des modèles (concept : Source → Model →
+    Artifact / Format → Runtime → Endpoint → Hardware).
+
+    ``ModelManager`` est un alias historique de cette même façade : il n'existe
+    qu'une seule implémentation (pas de deuxième Manager/registry).
+    """
 
     def __init__(self) -> None:
         self._registry = get_model_registry()
@@ -151,9 +158,9 @@ class ModelHub:
         if "/" in model_id:
             hf_info = await inspect_hf_model(model_id)
             formats_detected = hf_info.get("formats_available", ["gguf"])
-            is_gated = hf_info.get("is_gated", False)
-            if hf_info.get("params_billions"):
-                p_billions = hf_info["params_billions"]
+            hf_p = hf_info.get("params_b") or hf_info.get("params_billions")
+            if hf_p:
+                p_billions = hf_p
 
         # Analyse d'adéquation physique
         compat: CompatibilityResult = check_model_compatibility(
@@ -283,10 +290,13 @@ class ModelHub:
         if store is not None:
             try:
                 for card in await store.list_models():
-                    mid = str(card.get("id") or "")
-                    if not mid or mid in seen:
+                    card_uuid = str(card.get("id") or "")
+                    mid = str(card.get("model") or card.get("name") or card_uuid)
+                    if not mid or mid in seen or card_uuid in seen:
                         continue
                     seen.add(mid)
+                    if card_uuid:
+                        seen.add(card_uuid)
                     results.append(
                         {
                             "id": mid,
@@ -294,7 +304,7 @@ class ModelHub:
                             "provider": card.get("provider", "custom"),
                             "is_local": True,
                             "is_installed": True,
-                            "source": "custom",
+                            "source": card.get("source", "custom"),
                             "context_length": card.get("context_length", 4096),
                             "capabilities": card.get("capabilities", ["chat"]),
                         }
@@ -421,32 +431,38 @@ class ModelHub:
         est marqué ``ethan_self`` et non reachable — sinon l'API ETHAN sur
         :8000 passerait pour un vLLM local et fausserait le statut global.
         """
+        import asyncio
+        import json as _json
         import time
+        import urllib.request
 
         ethan_self_services = frozenset({"api", "kernel"})
 
-        try:
-            import httpx
-
+        def _sync_probe() -> dict[str, Any]:
             start = time.monotonic()
-            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
-                resp = await client.get(f"{base_url}{health_path}")
+            req = urllib.request.Request(f"{base_url}{health_path}", method="GET")
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
                 latency_ms = round((time.monotonic() - start) * 1000, 1)
+                status = resp.status
+                body_raw = resp.read()
 
-                ethan_self = False
-                if resp.status_code == 200:
-                    try:
-                        body = resp.json()
-                    except Exception:
-                        body = None
-                    if isinstance(body, dict) and body.get("service") in ethan_self_services:
-                        ethan_self = True
+            ethan_self = False
+            if status == 200:
+                try:
+                    body = _json.loads(body_raw.decode("utf-8"))
+                except Exception:
+                    body = None
+                if isinstance(body, dict) and body.get("service") in ethan_self_services:
+                    ethan_self = True
 
-                return {
-                    "reachable": resp.status_code == 200 and not ethan_self,
-                    "latency_ms": latency_ms,
-                    "ethan_self": ethan_self,
-                }
+            return {
+                "reachable": status == 200 and not ethan_self,
+                "latency_ms": latency_ms,
+                "ethan_self": ethan_self,
+            }
+
+        try:
+            return await asyncio.to_thread(_sync_probe)
         except Exception:
             return {"reachable": False, "latency_ms": None, "ethan_self": False}
 
@@ -585,3 +601,7 @@ def get_model_hub() -> ModelHub:
     if _global_model_hub is None:
         _global_model_hub = ModelHub()
     return _global_model_hub
+
+
+# Alias historique : ModelManager = ModelHub (façade unique, pas de doublon).
+ModelManager = ModelHub

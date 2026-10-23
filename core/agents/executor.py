@@ -134,7 +134,7 @@ async def run_agent_chat(
     """Conversation agent avec appels d'outils bornés — fail-closed.
 
     CTO Phase 0.3 (SecureToolEnforcer dans le flux) + base de la Phase 3.1
-    (boucle d'outils Atreus-ready) :
+    (boucle d'outils autonome / agentique) :
 
     - chaque appel ``<tool>`` passe par ``ToolExecutor`` — donc par le
       ``SecureToolEnforcer`` (P0-2) : PolicyEngine + Capability + ExfilGuard ;

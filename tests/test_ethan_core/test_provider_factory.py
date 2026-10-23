@@ -17,6 +17,7 @@ from core.llm.providers.ollama import OllamaProvider
 from core.llm.providers.openai import OpenAIProvider
 from core.llm.providers.openai_compatible import OpenAICompatibleProvider
 from core.llm.providers.openrouter import OpenRouterProvider
+from core.llm.providers.sglang import SGLangProvider
 from core.llm.providers.vllm import VLLMProvider
 from core.llm.types import ChatMessage
 
@@ -33,6 +34,7 @@ EXPECTED_CLASSES: dict[str, type[LLMProvider]] = {
     "gemini": GeminiProvider,
     "openrouter": OpenRouterProvider,
     "openai-compatible": OpenAICompatibleProvider,
+    "sglang": SGLangProvider,
     "custom": OpenAICompatibleProvider,
 }
 

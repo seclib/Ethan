@@ -26,7 +26,7 @@ docker compose stop module-executive module-planner module-memory module-reflect
 
 # Stop application
 echo "  Stopping application..."
-docker compose stop api kernel
+docker compose stop api kernel odin-controller
 
 # Stop Runtime
 echo "  Stopping Runtime..."

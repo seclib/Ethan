@@ -73,7 +73,7 @@ class OllamaProvider(LLMProvider):
     ) -> ChatResponse:
         """Chat completion."""
         if not self._client:
-            raise RuntimeError("Ollama provider not initialized")
+            await self.initialize()
 
         response = await self._client.post(
             f"{self._base_url}/api/chat",
@@ -111,7 +111,7 @@ class OllamaProvider(LLMProvider):
     ):
         """Streaming chat."""
         if not self._client:
-            raise RuntimeError("Ollama provider not initialized")
+            await self.initialize()
 
         async with self._client.stream(
             "POST",
@@ -137,7 +137,7 @@ class OllamaProvider(LLMProvider):
     async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
         """Generate embeddings."""
         if not self._client:
-            raise RuntimeError("Ollama provider not initialized")
+            await self.initialize()
 
         embeddings = []
         for text in texts:
@@ -197,7 +197,7 @@ class OllamaProvider(LLMProvider):
     async def vision_analyze(self, request: VisionRequest) -> VisionResponse:
         """Analyze an image via Ollama (LLaVA-style models)."""
         if not self._client:
-            raise RuntimeError("Ollama provider not initialized")
+            await self.initialize()
 
         model = request.model or "llava"
         images_b64: list[str] = []

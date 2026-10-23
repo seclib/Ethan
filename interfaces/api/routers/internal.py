@@ -30,6 +30,7 @@ _budget_guard: BudgetGuard | None = None
 _cost_tracker: CostTracker | None = None
 _fact_store: FactStore | None = None
 _approval_engine: ApprovalEngine | None = None
+_human_root: Any | None = None
 _skill_lab: SkillLab | None = None
 
 
@@ -39,13 +40,23 @@ def init_modules(
     audit_log_fn: Any = None,
 ) -> None:
     """Initialise tous les nouveaux modules (appelé au startup)."""
-    global _audit, _budget_guard, _cost_tracker, _fact_store, _approval_engine, _skill_lab
+    global _audit, _budget_guard, _cost_tracker, _fact_store, _approval_engine, _human_root, _skill_lab
 
     _audit = AuditStore(pg_conn=pg_conn, publish_fn=publish_fn)
     _cost_tracker = CostTracker(pg_conn=pg_conn)
     _budget_guard = BudgetGuard(tracker=_cost_tracker, publish_fn=audit_log_fn)
     _fact_store = FactStore(pg_conn=pg_conn, publish_fn=publish_fn)
     _approval_engine = ApprovalEngine(publish_fn=publish_fn, audit_log_fn=audit_log_fn)
+
+    try:
+        from core.human_root import HumanRoot
+        _human_root = HumanRoot(approval_engine=_approval_engine)
+        _approval_engine.set_human_root(_human_root)
+        logger.info("Human Root of Trust (HROT) connected to ApprovalEngine")
+    except Exception as exc:
+        _human_root = None
+        logger.warning("Failed to initialize HumanRoot: %s", exc)
+
     _skill_lab = None
     try:
         import docker as _docker_sdk
@@ -60,7 +71,7 @@ def init_modules(
         _skill_lab = SkillLab(docker_client=None, publish_fn=publish_fn)
         logger.warning("SkillLab initialized WITHOUT Docker (%s) — endpoints will return 503", exc)
 
-    logger.info("Internal modules initialized: audit, budget, facts, approval, skilllab")
+    logger.info("Internal modules initialized: audit, budget, facts, approval, human_root, skilllab")
 
 
 def get_audit_store() -> AuditStore | None:
@@ -71,6 +82,11 @@ def get_audit_store() -> AuditStore | None:
 def get_approval_engine() -> ApprovalEngine | None:
     """Expose the Core approval engine to other thin API routers."""
     return _approval_engine
+
+
+def get_human_root() -> Any | None:
+    """Expose le Human Root of Trust comme autorité racine."""
+    return _human_root
 
 
 # ═══════════════════════════════════════════════════════════════════════

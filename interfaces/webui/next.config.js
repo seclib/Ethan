@@ -8,6 +8,15 @@ const nextConfig = {
   // src/app/api/[...path]/route.ts (conversion cookie JWT → Bearer, SSE,
   // uploads binaires). Aucun rewrite ici : une destination malformée
   // casse le serveur ("Can not repeat path without a prefix and suffix").
+  async redirects() {
+    return [
+      {
+        source: "/gods-eye-view",
+        destination: "/odin",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

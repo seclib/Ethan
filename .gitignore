@@ -39,6 +39,8 @@ Thumbs.db
 # Secrets
 .env
 .env.*
+.secrets/
+*.key
 # ...but keep checked-in example/templates (never contain real secrets)
 !.env.example
 !**/.env.example

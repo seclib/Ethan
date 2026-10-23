@@ -113,7 +113,10 @@ class TestCheminsAppeles:
                 # Appel 100 % dynamique (`/api${path}`) : rien de verifiable
                 # statiquement — les appels litteraux du meme module le sont.
                 continue
-            if not any(declared_path == literal or declared_path.startswith(literal + "/") for declared_path in declared):
+            if not any(
+                declared_path == literal or declared_path.startswith(literal + "/")
+                for declared_path in declared
+            ):
                 orphans[path] = modules
         assert not orphans, (
             "chemins appeles par le WebUI mais absents de l'API (corriger "

@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { ShieldCheck, ShieldOff, Users, Plus, UserCheck, UserX, Pencil, Trash2 } from "lucide-react";
 import { AuditExplorer } from "./audit-explorer";
+import { ApprovalsQueue } from "./approvals-queue";
 import { IdentityProviders } from "./identity-providers";
 import { ApiKeysManager } from "./api-keys-manager";
 
@@ -403,6 +404,9 @@ export default function SecurityPage() {
 
         {/* ── Fournisseurs d'identité — SCIM / LDAP / OAuth (statut + config réelle) ── */}
         <IdentityProviders />
+
+        {/* ── Human Root of Trust — file d'approbations (ADMIN) ── */}
+        <ApprovalsQueue />
 
         {/* ── Journal d'audit — consultation réelle (/internal/audit/search) ── */}
         <AuditExplorer />

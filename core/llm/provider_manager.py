@@ -100,6 +100,27 @@ def _auth_methods_for_type(provider_type: str) -> list[str]:
     return list(_AUTH_METHODS_BY_TYPE.get(provider_type, ["api_key"]))
 
 
+def _resolve_ollama_base_url() -> str:
+    """Résout l'URL Ollama avec fallback localhost hors Docker.
+
+    Priorités : OLLAMA_BASE_URL explicite > host.docker.internal si
+    résolvable (conteneur) > localhost (hôte natif). Sans ce fallback,
+    le chat manager pointe une URL injoignable hors Docker alors qu'un
+    Ollama local répond (circuit breaker intempestif).
+    """
+    import socket
+
+    explicit = os.getenv("OLLAMA_BASE_URL")
+    if explicit:
+        return explicit
+    docker_host = "http://host.docker.internal:11434"
+    try:
+        socket.gethostbyname("host.docker.internal")
+        return docker_host
+    except OSError:
+        return "http://localhost:11434"
+
+
 class ProviderManager:
     """Manager central des providers LLM.
 
@@ -193,7 +214,7 @@ class ProviderManager:
                 "name": "ollama",
                 "type": "ollama",
                 "enabled": True,
-                "base_url": os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434"),
+                "base_url": _resolve_ollama_base_url(),
                 "default_model": os.getenv("OLLAMA_DEFAULT_MODEL", ""),
                 "display_name": "Ollama (local)",
             },

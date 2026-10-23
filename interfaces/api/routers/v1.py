@@ -1426,8 +1426,22 @@ async def get_flux_event(event_id: str):
 
 @router.get("/settings", deprecated=True)
 async def get_settings():
-    """[Déprécié — ADR-3007] Record key/value historique, sans consommateur."""
-    return await get_webui_store().get_settings()
+    """[Déprécié — ADR-3007] Proxy de lecture vers /config (source canonique).
+
+    Aucune double source : le record historique n'est plus la vérité.
+    Les consommateurs migrent vers GET /config et /config/preferences.
+    """
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "GET /v1/settings is deprecated — use GET /config instead"
+    )
+    try:
+        from interfaces.api.routers.config import get_service
+
+        return get_service().get_all()
+    except Exception:
+        return await get_webui_store().get_settings()
 
 
 @router.put(
@@ -1436,12 +1450,19 @@ async def get_settings():
     dependencies=[Depends(require_permission(Permission.SETTINGS))],
 )
 async def update_settings(data: dict[str, Any]):
-    """[Déprécié — ADR-3007] Persistance du record historique — gate ``SETTINGS``.
+    """[Déprécié — ADR-3007] Écriture fermée : migrer vers PUT /config/{domain}.
 
-    Aucune interface ne l'édite plus ; les réglages réels passent par leurs
-    endpoints Core dédiés (providers, RAG, modèles, agents…).
+    Retourne 410 Gone avec le mapping des domaines — aucune double écriture
+    (le record historique n'est plus persisté ici).
     """
-    return await get_webui_store().update_settings(data)
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "PUT /v1/settings is retired — write via PUT /config/{domain}.",
+            "domains": "GET /config/schema for the canonical domain list",
+            "received_keys": sorted(data.keys()) if isinstance(data, dict) else [],
+        },
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2082,7 +2103,10 @@ async def disconnect_plugin(plugin_id: str):
     return result
 
 
-@router.post("/models/pull")
+@router.post(
+    "/models/pull",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
 async def pull_model_v1(payload: dict[str, Any]):
     """Installe ou active un modèle dans ETHAN via l'API v1."""
     from core.llm.model_installer import install_or_use_model
@@ -2109,7 +2133,12 @@ async def pull_model_v1(payload: dict[str, Any]):
         store=store,
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("message", "Installation failed"))
+        from interfaces.api.routers.models import _install_error_status
+
+        raise HTTPException(
+            status_code=_install_error_status(result),
+            detail=result.get("message", "Installation failed"),
+        )
 
     return result
 

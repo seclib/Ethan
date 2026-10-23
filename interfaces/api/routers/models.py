@@ -274,6 +274,27 @@ async def check_compatibility(payload: dict[str, Any]):
 # ── POST /models/install (et alias /models/pull) ─────────────────────────
 
 
+def _install_error_status(result: dict[str, Any]) -> int:
+    """Mappe le code d'erreur Core vers un statut HTTP exploitable.
+
+    - incompatible_hardware → 422 (requête valide, matériel insuffisant)
+    - ollama_pull_failed / download_failed (runtime indisponible) → 502
+    - défaut → 400
+    """
+    code = str(result.get("error", ""))
+    if code == "incompatible_hardware":
+        return 422
+    if code in ("ollama_pull_failed", "download_failed"):
+        message = str(result.get("message", "")).lower()
+        if any(
+            hint in message
+            for hint in ("connexion", "connection", "refused", "unreachable", "timeout", "timed out")
+        ):
+            return 502
+        return 400
+    return 400
+
+
 @router.post("/install")
 @router.post("/pull")
 async def install_model(payload: dict[str, Any]):
@@ -297,7 +318,10 @@ async def install_model(payload: dict[str, Any]):
         store=store,
     )
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("message", "Installation failed"))
+        raise HTTPException(
+            status_code=_install_error_status(result),
+            detail=result.get("message", "Installation failed"),
+        )
 
     return result
 

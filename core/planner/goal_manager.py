@@ -1,10 +1,9 @@
 """Goal Manager — Gestionnaire de multiples objectifs.
 
-Responsabilités :
-- Gérer plusieurs goals simultanément
-- Prioriser les goals
-- Détecter les conflits
-- Ordonnancer l'exécution
+.. deprecated::
+    Canonique : ``core.goals.manager.GoalManager`` (event-driven, PG+Redis).
+    Cette classe reste importable pour compatibilité mais délègue : aucun
+    appelant interne ne l'utilise (vérifié : kernel/main/bootstrap → core.goals).
 """
 
 from __future__ import annotations

@@ -21,17 +21,17 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────
 
+from core.security.jwt_bootstrap import get_or_create_jwt_secret
+
 _SECRET_KEY = os.getenv("JWT_SECRET")
-if not _SECRET_KEY:
-    # Fail fast in production: a hardcoded fallback would allow anyone to forge
-    # valid JWTs and bypass authentication entirely.
+if not _SECRET_KEY or _SECRET_KEY == "change-me-in-prod-generate-a-random-secret-here":
     import sys
 
-    if "pytest" not in sys.modules and os.getenv("ETHAN_ENV", "production").lower() not in (
-        "development",
-        "dev",
-        "test",
-        "staging",
+    # In production without an explicit or file secret, fail fast
+    if (
+        "pytest" not in sys.modules
+        and os.getenv("ETHAN_ENV", "production").lower() not in ("development", "dev", "test", "staging")
+        and not os.path.exists(".secrets/jwt.key")
     ):
         raise RuntimeError(
             "JWT_SECRET environment variable is not set. "
@@ -39,13 +39,8 @@ if not _SECRET_KEY:
             "Generate one with: openssl rand -base64 64 "
             "and set JWT_SECRET in your .env file."
         )
-    # Dev/test fallback: log a loud warning but allow startup.
-    import logging as _logging
+    _SECRET_KEY = get_or_create_jwt_secret()
 
-    _logging.getLogger(__name__).warning(
-        "JWT_SECRET is not set — using insecure fallback key. This MUST NOT be used in production."
-    )
-    _SECRET_KEY = "change-me-in-prod-generate-a-random-secret-here"
 SECRET_KEY = _SECRET_KEY
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
@@ -77,6 +72,18 @@ PUBLIC_PATHS = {
 }
 
 security = HTTPBearer(auto_error=False)
+
+# ── API key manager (Core-owned) — injecté au startup via set_api_key_manager ──
+_api_key_manager = None
+
+
+def set_api_key_manager(manager) -> None:
+    global _api_key_manager
+    _api_key_manager = manager
+
+
+def get_api_key_manager():
+    return _api_key_manager
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -139,7 +146,7 @@ def current_user_id(request: Request | None) -> str | None:
 
 
 async def auth_middleware(request: Request, call_next):
-    """FastAPI middleware that enforces JWT authentication on protected routes.
+    """FastAPI middleware that enforces JWT or API-key authentication on protected routes.
 
     Usage in main.py:
         app.middleware("http")(auth_middleware)
@@ -150,19 +157,53 @@ async def auth_middleware(request: Request, call_next):
     if is_public_path(path):
         return await call_next(request)
 
-    # Protected paths: require valid cookie or Bearer token
+    # Protected paths: require valid cookie, Bearer token, or API key
     token = request.cookies.get("ethan_token")
     if not token:
         # Fallback to Authorization header if provided
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
+            token = auth_header.split(" ", 1)[1].strip()
 
-    if not token:
+    api_key = request.headers.get("X-API-Key")
+    # A Bearer token that looks like an ETHAN API key is treated as one too.
+    if token and token.startswith("ethan_"):
+        api_key = token
+        token = None
+
+    if not token and not api_key:
         return JSONResponse(
             status_code=401,
             content={"detail": "Authentification requise. Cookie ou Token manquant."},
         )
+
+    # API key path (server-to-server, e.g. GEV)
+    if api_key and not token:
+        manager = get_api_key_manager()
+        if manager is None:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "API key manager not initialized."},
+            )
+        try:
+            key = await manager.validate_key(api_key)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("API key validation failed: %s", exc)
+            key = None
+        if key is None:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Clé API invalide ou expirée."},
+            )
+        scopes = list(key.get("scopes") or [])
+        request.state.user = key.get("user_id") or "api-key"
+        request.state.token_payload = {
+            "sub": key.get("user_id"),
+            "role": "api-key",
+            "scope": scopes,
+            "scopes": scopes,
+        }
+        return await call_next(request)
 
     try:
         payload = await verify_token_string(token)

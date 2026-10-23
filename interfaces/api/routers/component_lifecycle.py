@@ -20,12 +20,28 @@ import logging
 from typing import Any
 
 from core.auth import Permission
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from interfaces.api.auth import current_user_id, require_permission
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1", tags=["components"])
+
+def _add_deprecation_headers(request: Request, response: Response) -> None:
+    """RFC 8594 deprecation header injection for legacy /v1/components routes."""
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "2027-01-01"
+    response.headers["Link"] = '</v1/extensions>; rel="successor-version"'
+    logger.warning(
+        f"DEPRECATED API CALL: {request.method} {request.url.path} is deprecated. Use /v1/extensions instead."
+    )
+
+
+router = APIRouter(
+    prefix="/v1",
+    tags=["components (deprecated)"],
+    deprecated=True,
+    dependencies=[Depends(_add_deprecation_headers)],
+)
 
 
 # ── injection du manager Core (meme pattern que capabilities.py) ──

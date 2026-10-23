@@ -1,0 +1,1 @@
+"""Memory Module — Stores and retrieves cognitive events in Redis/PostgreSQL."""

@@ -137,6 +137,7 @@ packages = ["core", "sdk", "plugins", "interfaces"]
 # la CI tant que ce fixture n'est pas dans le dépôt. Ils restent lancables en
 # explicitant le dossier (`pytest interfaces/api/tests/`) — comme en dev.
 testpaths = ["tests"]
+norecursedirs = [".venv", "node_modules", "examples", ".next", ".git", "__pycache__"]
 # Les tests du CLI (tests/cli/**) importent `cli.*` : le package CLI actuel
 # vit dans interfaces/cli/. Cette entrée reconnecte ces tests au code actuel
 # (le paquet racine `cli/` historique a été déplacé lors du rebuild).

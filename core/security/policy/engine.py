@@ -124,7 +124,7 @@ class PolicyEngine:
         reason = decisive.reason or _default_reason(result, request)
 
         logger.info(
-            "Policy %s: %s %s:%s on %r -> %s (level=%s, policy=%s)",
+            "Policy %s: %s %s:%s -> %s (level=%s, policy=%s)",
             request.source,
             request.category,
             request.action,
