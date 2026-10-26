@@ -15,8 +15,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useWebSocket } from "@/providers/websocket-provider";
+import { useI18n } from "@/lib/i18n";
 import { NAV_ITEMS_FLAT } from "./nav-config";
 import { LogoSquare } from "@/components/shared/logo";
+import { LanguageSelector } from "@/components/shared/language-selector";
 import { Activity } from "lucide-react";
 
 const WS_LABELS: Record<string, string> = {
@@ -30,6 +32,7 @@ const WS_LABELS: Record<string, string> = {
 export function AppHeader() {
   const pathname = usePathname();
   const { status } = useWebSocket();
+  const { t } = useI18n();
 
   if (pathname === "/") return null;
 
@@ -37,7 +40,7 @@ export function AppHeader() {
   const current =
     NAV_ITEMS_FLAT.find((i) => i.href === pathname) ??
     NAV_ITEMS_FLAT.filter((i) => pathname.startsWith(i.href)).sort((a, b) => b.href.length - a.href.length)[0];
-  const label = current?.label ?? "Ethan";
+  const label = current ? t(current.label) : "Ethan";
 
   return (
     <header className="app-header">
@@ -50,6 +53,7 @@ export function AppHeader() {
         <span className="app-header-page">{label}</span>
       </div>
       <div className="app-header-right">
+        <LanguageSelector />
         <span className={cn("ws-dot", `ws-${status}`)} aria-hidden="true" />
         <Activity size={12} aria-hidden="true" />
         <span>{WS_LABELS[status] ?? status}</span>

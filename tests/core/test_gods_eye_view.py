@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from core.plugins import gods_eye_view as mod
@@ -92,6 +93,12 @@ def test_confinement_rejects_foreign_path(tmp_path):
     (foreign / "compose.yaml").write_text("x")
     with pytest.raises(ValueError):
         GodsEyeViewService(repo_dir=foreign)
+
+
+def test_legacy_gods_eye_view_manager_cannot_control_odin():
+    odin_repo = Path(__file__).resolve().parents[2] / "examples" / "odin"
+    with pytest.raises(ValueError):
+        GodsEyeViewService(repo_dir=odin_repo)
 
 
 def test_singleton_settable():

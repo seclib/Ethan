@@ -17,6 +17,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from core.plugins.odin_compose_config import (
+    ODIN_COMPOSE_FILE,
+    ODIN_PROJECT_NAME,
+    ODIN_REPO_DIR,
+)
+
 logger = logging.getLogger("odin-compose-controller")
 TAIL_RE = re.compile(r"^[1-9][0-9]{0,2}$")
 PROBE_JS = (
@@ -28,7 +34,10 @@ PROBE_JS = (
 
 def project_paths(repo_dir: str | Path) -> tuple[Path, Path]:
     repo = Path(repo_dir).resolve(strict=False)
-    compose = repo / "compose.yaml"
+    expected_repo = ODIN_REPO_DIR.resolve()
+    if repo != expected_repo:
+        raise ValueError(f"Odin Compose path is outside the fixed project: {repo}")
+    compose = ODIN_COMPOSE_FILE.resolve()
     return repo, compose
 
 
@@ -67,7 +76,7 @@ def command_for(args: list[str], repo_dir: str | Path) -> list[str]:
         os.getenv("DOCKER_CLI", "docker"),
         "compose",
         "--project-name",
-        "odin",
+        ODIN_PROJECT_NAME,
         "-f",
         str(compose),
         *operation,
@@ -85,7 +94,7 @@ def redact(text: str) -> str:
 
 class ControllerHandler(BaseHTTPRequestHandler):
     server_version = "OdinComposeController/1"
-    repo_dir = Path(os.getenv("ETHAN_ODIN_REPO_DIR", "/nonexistent"))
+    repo_dir = Path(os.getenv("ETHAN_ODIN_REPO_DIR", str(ODIN_REPO_DIR)))
     token = os.getenv("ETHAN_ODIN_CONTROLLER_TOKEN", "")
 
     def log_message(self, fmt: str, *args: Any) -> None:
@@ -128,7 +137,7 @@ class ControllerHandler(BaseHTTPRequestHandler):
                 return
             argv = command_for(args, self.repo_dir)
             if args == ["probe"]:
-                timeout = 5
+                timeout = 15
             elif args == ["up", "-d"]:
                 timeout = 900
             elif args == ["config"]:
@@ -165,6 +174,8 @@ def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
     if not ControllerHandler.token:
         raise RuntimeError("ETHAN_ODIN_CONTROLLER_TOKEN is required")
+    if Path(ControllerHandler.repo_dir).resolve() != ODIN_REPO_DIR.resolve():
+        raise RuntimeError("ETHAN_ODIN_REPO_DIR must point to the fixed Odin checkout")
     port = int(os.getenv("ETHAN_ODIN_CONTROLLER_PORT", "8765"))
     server = ThreadingHTTPServer(("0.0.0.0", port), ControllerHandler)
     logger.info("Odin Compose controller listening on internal port %s", port)

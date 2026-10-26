@@ -13,6 +13,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { useChatSidebarStore } from "@/store/chat-sidebar.store";
 import { useUIStore } from "@/store/ui.store";
 import {
@@ -59,6 +60,7 @@ function useIsMobile() {
 
 export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const chatState = useChatSidebarStore();
   const router = useRouter();
   const { openCommandPalette } = useUIStore();
@@ -410,6 +412,7 @@ function NavigationSection({
   openGroups: Record<string, boolean>;
   setOpenGroups: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
+  const { t } = useI18n();
   return (
     <div className="sidebar-nav-group">
             {sections.map((section) => {
@@ -420,10 +423,10 @@ function NavigationSection({
             <Link
               key={item.href} href={item.href}
               className={cn("sidebar-nav-item", pathname === item.href && "active")}
-              title={item.label}
+              title={t(item.label)}
             >
               <ItemIcon icon={item.icon} />
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </Link>
           );
         }
@@ -433,10 +436,10 @@ function NavigationSection({
               className={cn("sidebar-nav-section-header", section.items.some((it) => it.href === pathname) && "active")}
               onClick={() => setOpenGroups((g) => toggleGroupState(g, section.id))}
               aria-expanded={isOpen}
-              title={section.description ?? section.label}
+              title={section.description ? t(section.description) : t(section.label)}
             >
               <span className="sidebar-nav-item-outer">
-                <span>{section.label}</span>
+                <span>{t(section.label)}</span>
               </span>
               <ChevronDown size={14} className={cn("sidebar-nav-chevron", !isOpen && "rotate-[-90deg]")} />
             </button>
@@ -451,7 +454,7 @@ function NavigationSection({
                       className={cn("sidebar-nav-item", pathname === item.href && "active")}
                     >
                       <ItemIcon icon={item.icon} />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </Link>
                   ),
                 )}
@@ -476,6 +479,7 @@ function ItemIcon({ icon }: { icon: NavItem["icon"] }) {
  * navigateur. Correctif audit UX (P2-2).
  */
 function ExternalNavItem({ item }: { item: NavItem }) {
+  const { t } = useI18n();
   const origin = React.useMemo(() => {
     try {
       return new URL(item.href).origin;
@@ -492,10 +496,10 @@ function ExternalNavItem({ item }: { item: NavItem }) {
       target="_blank"
       rel="noreferrer"
       className={cn("sidebar-nav-item", down && "opacity-60")}
-      title={down ? `${item.label} — service injoignable (${origin})` : item.label}
+      title={down ? `${t(item.label)} — service injoignable (${origin})` : t(item.label)}
     >
       <ItemIcon icon={item.icon} />
-      <span>{item.label}</span>
+      <span>{t(item.label)}</span>
       {down ? (
         <span className="ml-auto text-warning text-[11px]" aria-label="Service injoignable">
           ⚠

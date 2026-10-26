@@ -37,7 +37,6 @@ export const SETTINGS_SECTION_IDS = [
   // AI
   "providers",
   "models",
-  "routers",
   "speech",
   // Knowledge
   "knowledge",
@@ -56,7 +55,6 @@ export const SETTINGS_SECTION_IDS = [
   // Appearance
   "appearance",
   // Advanced
-  "system",
   "capabilities",
 ] as const;
 
@@ -81,7 +79,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   {
     id: "ai",
     label: "AI",
-    items: ["providers", "models", "routers", "speech"],
+    items: ["providers", "models", "speech"],
   },
   {
     id: "knowledge",
@@ -92,7 +90,7 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   { id: "integrations", label: "Integrations", items: ["integrations"] },
   { id: "security", label: "Security", items: ["security"] },
   { id: "appearance", label: "Appearance", items: ["appearance"] },
-  { id: "advanced", label: "Advanced", items: ["system", "capabilities"] },
+  { id: "advanced", label: "Advanced", items: ["capabilities"] },
 ];
 
 /** True si `value` est une section Settings connue (pilotage par hash URL). */

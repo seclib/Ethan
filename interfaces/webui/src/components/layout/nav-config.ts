@@ -25,9 +25,9 @@ import type { ComponentType } from "react";
 import {
   Bot, Cpu, Database, Wrench, Sparkles, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
-    Layers, BrainCircuit, Settings, FolderTree, Shapes, FolderKanban,
+    Layers, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge, Globe,
-  UsersRound, Puzzle, BarChart3, ScanSearch, LifeBuoy,
+  UsersRound, BarChart3, ScanSearch, LifeBuoy,
   Workflow, FlaskConical, MessagesSquare, SquareTerminal as TerminalIcon,
 } from "lucide-react";
 
@@ -66,37 +66,37 @@ export interface NavSection {
 export const NAV_SECTIONS_PRIMARY: NavSection[] = [
   {
     id: "assistants",
-    label: "Assistants",
+    label: "navigation.assistants",
     description: "Vos agents ETHAN",
     collapsible: false,
     items: [
-      { href: "/agents", label: "Agents", icon: Bot },
-      { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/agents", label: "navigation.agents", icon: Bot },
+      { href: "/projects", label: "navigation.projects", icon: FolderKanban },
     ],
   },
   {
     id: "operate",
-    label: "Pilotage",
+    label: "navigation.pilotage",
     description: "Missions, agenda et outils de suivi au quotidien",
     collapsible: true,
     items: [
-      { href: "/missions", label: "Missions", icon: Target },
-      { href: "/calendar", label: "Calendar", icon: Calendar },
-      { href: "/notes", label: "Notes", icon: StickyNote },
-      { href: "/inbox", label: "Inbox", icon: Inbox },
-      { href: "/research", label: "Deep Research", icon: Telescope },
+      { href: "/missions", label: "navigation.missions", icon: Target },
+      { href: "/calendar", label: "navigation.calendar", icon: Calendar },
+      { href: "/notes", label: "navigation.notes", icon: StickyNote },
+      { href: "/inbox", label: "navigation.inbox", icon: Inbox },
+      { href: "/research", label: "navigation.research", icon: Telescope },
       // Automations = règles réellement servies par le Core (/v1/automations).
-      { href: "/automations", label: "Automations", icon: Workflow },
-      { href: "/cookbook", label: "Cookbook", icon: BookOpen },
+      { href: "/automations", label: "navigation.automations", icon: Workflow },
+      { href: "/cookbook", label: "navigation.cookbook", icon: BookOpen },
     ],
   },
   {
     id: "tools",
-    label: "Tools",
+    label: "navigation.tools",
     description: "Outils et services applicatifs pilotables",
     collapsible: true,
     items: [
-      { href: "/odin", label: "Odin", icon: Globe },
+      { href: "/odin", label: "navigation.odin", icon: Globe },
     ],
   },
 ];
@@ -109,21 +109,20 @@ export const NAV_SECTIONS_PRIMARY: NavSection[] = [
 export const NAV_SECTIONS_ADMIN: NavSection[] = [
   {
     id: "admin",
-    label: "Administration",
+    label: "navigation.administration",
     description: "Outils système et diagnostic — réservé à la supervision",
     collapsible: true,
     // Repliée au premier rendu : la sidebar reste « assistant-first ».
     defaultCollapsed: true,
         items: [
-      { href: "/diagnostics", label: "Diagnostics", icon: Activity },
-      { href: "/terminal", label: "Terminal", icon: TerminalIcon },
-      { href: "/logs", label: "Logs", icon: ScrollText },
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/groups", label: "Groups", icon: UsersRound },
-      { href: "/plugins", label: "Plugins", icon: Puzzle },
-      { href: "/connections", label: "Connexions", icon: LifeBuoy },
-      { href: "/monitoring", label: "Monitoring", icon: Gauge },
-      { href: "/security", label: "Security", icon: ShieldCheck },
+      { href: "/diagnostics", label: "navigation.diagnostics", icon: Activity },
+      { href: "/terminal", label: "navigation.terminal", icon: TerminalIcon },
+      { href: "/logs", label: "navigation.logs", icon: ScrollText },
+      { href: "/analytics", label: "navigation.analytics", icon: BarChart3 },
+      { href: "/groups", label: "navigation.groups", icon: UsersRound },
+      { href: "/connections", label: "navigation.connections", icon: LifeBuoy },
+      { href: "/monitoring", label: "navigation.monitoring", icon: Gauge },
+      { href: "/security", label: "navigation.security", icon: ShieldCheck },
     ],
   },
 ];
@@ -138,12 +137,12 @@ export const NAV_SECTIONS_ADMIN: NavSection[] = [
 export const NAV_SECTIONS_SECONDARY: NavSection[] = [
   {
     id: "ai",
-    label: "AI",
+    label: "navigation.ai",
     description: "Providers et catalogue de modèles ETHAN",
     collapsible: true,
     items: [
-      { href: "/providers", label: "Providers", icon: Layers },
-      { href: "/models", label: "Models", icon: Cpu },
+      { href: "/providers", label: "navigation.providers", icon: Layers },
+      { href: "/models", label: "navigation.models", icon: Cpu },
       // Pas d'entrée « Gallery » : la page n'existe qu'en état vide honnête
       // (Core n'expose aucun /v1/gallery). Une entrée de menu annonce une
       // capacité réelle — voir R5, docs/design/2026-09-30-ux-refonte-cartographie.md.
@@ -151,18 +150,17 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
   },
   {
     id: "knowledge",
-    label: "Knowledge",
+    label: "navigation.knowledge",
     description: "Documents, organisation et mémoire d'ETHAN",
     collapsible: true,
     items: [
-      { href: "/knowledge", label: "Knowledge", icon: Database },
+      { href: "/knowledge", label: "navigation.knowledge", icon: Database },
       // Library = onglet de /knowledge (LibraryWorkspace y est monté) : même
       // jeu de données (mêmes 5 endpoints Core), donc un seul menu. /library
       // reste une URL valide (redirige vers ?view=library).
-      { href: "/workspace", label: "Memory", icon: BrainCircuit },
-      { href: "/folders", label: "Folders", icon: FolderTree },
-      { href: "/domains", label: "Domains", icon: Shapes },
-      { href: "/dedup", label: "Duplicates", icon: ScanSearch },
+      { href: "/folders", label: "navigation.folders", icon: FolderTree },
+      { href: "/domains", label: "navigation.domains", icon: Shapes },
+      { href: "/dedup", label: "navigation.dedup", icon: ScanSearch },
     ],
   },
   {
@@ -171,13 +169,13 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     description: "Skills, outils et serveurs MCP",
     collapsible: true,
     items: [
-      { href: "/skills", label: "Skills", icon: Sparkles },
+      { href: "/skills", label: "navigation.skills", icon: Sparkles },
       // Skills Lab = sandbox Docker du Core (/v1/skills/lab/test|results).
-      { href: "/skills/lab", label: "Skills Lab", icon: FlaskConical },
-      { href: "/tools", label: "Tools", icon: Wrench },
+      { href: "/skills/lab", label: "navigation.skills_lab", icon: FlaskConical },
+      { href: "/tools", label: "navigation.tools", icon: Wrench },
       // Serveurs MCP = onglet de /tools (ToolsHub), plus une page : la
       // ressource Core `/v1/tools/servers` est unique — un seul menu.
-      { href: "/prompts", label: "Prompts", icon: ScrollText },
+      { href: "/prompts", label: "navigation.prompts", icon: ScrollText },
     ],
   },
   {
@@ -187,16 +185,16 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     collapsible: true,
     items: [
       // Channels = canaux + messages du ChannelStore Core (/v1/channels).
-      { href: "/channels", label: "Channels", icon: MessagesSquare },
+      { href: "/channels", label: "navigation.channels", icon: MessagesSquare },
     ],
   },
   {
     id: "preferences",
-    label: "Préférences",
+    label: "navigation.settings",
     description: "Personnalisez le comportement et l'apparence de l'interface",
     collapsible: true,
     items: [
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/settings", label: "navigation.settings", icon: Settings },
       // Pas d'entrée « Interface » en doublon : /settings#appearance EST la
       // même page que Settings (section Appearance). Une entrée de menu =
       // une destination ; le hash reste supporté comme lien profond.

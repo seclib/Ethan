@@ -1,239 +1,93 @@
-import os
+"""
+Shared test fixtures for ETHAN.
+
+This conftest centralizes the dummy httpx injection pattern used across
+adapter tests so that imports of core.adapters.* work without a real HTTP
+dependency.
+"""
+
 import sys
-
-import pytest
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
-
-# ── MCP stdio : opt-out explicite du sandbox Docker (mode `off`) ─────────────
-# Le sandboxing stdio (core.tools.sandbox_runner) est fail-closed par défaut
-# (mode `docker`, image requise). La suite de tests lance de VRAIS serveurs
-# stdio (tests/test_ethan_core/, interfaces/api/tests/) : ni image ni Docker
-# ne sont garantis en CI, et le wrap docker est couvert par les unit tests
-# dédiés (tests/security/test_runtime_isolation.py). `off` est donc un
-# opt-out délibéré, tracé par un warning — jamais un défaut de prod.
-os.environ.setdefault("ETHAN_MCP_STDIO_SANDBOX", "off")
-
-# ---------------------------------------------------------------------------
-# Credentials des tests in-process : compléter depuis `.env` (racine).
-#
-# Le bus NATS exige un token partagé (CTO P0-3, core/bus/nats_auth.py) : sans
-# `NATS_TOKEN`, le lifespan de l'API (interfaces/api/main.py) tente une
-# connexion sans authentification et le serveur répond « Authorization
-# Violation » à chaque tentative — les tests de contrat échouaient donc hors
-# stack Docker alors que le conteneur API, lui, fonctionnait (le compose lui
-# injecte la variable). L'historique : 6 erreurs pré-existantes dans
-# tests/test_api_contract_p0.py et tests/test_api_contract_domains.py.
-#
-# Règles :
-# - jamais d'écrasement : un environnement CI explicite reste prioritaire ;
-# - `NATS_URL` n'est PAS chargée : la valeur du `.env` est l'URL interne
-#   Docker (`nats://nats:4222`), injoignable depuis l'hôte ; les tests
-#   utilisent le défaut de l'application (`nats://localhost:4222`, port
-#   mappé par compose sur 127.0.0.1).
-# ---------------------------------------------------------------------------
+import types
 
 
-def _read_dotenv_value(path: str, key: str) -> str | None:
-    """Lit une clé simple `KEY=value` d'un fichier `.env`, sans interprétation."""
-    try:
-        with open(path, encoding="utf-8") as fh:
-            for raw in fh:
-                line = raw.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                name, _, value = line.partition("=")
-                if name.strip() == key:
-                    return value.strip().strip('"').strip("'") or None
-    except OSError:
-        return None
-    return None
+def _install_dummy_httpx() -> types.ModuleType:
+    """Install a minimal dummy httpx module into sys.modules.
 
-
-if "NATS_TOKEN" not in os.environ:
-    _nats_token = _read_dotenv_value(os.path.join(ROOT, ".env"), "NATS_TOKEN")
-    if _nats_token:
-        os.environ["NATS_TOKEN"] = _nats_token
-
-# ---------------------------------------------------------------------------
-# QUARANTAINE DES TESTS LEGACY (correctif minimal — test-infra uniquement).
-#
-# Le paquet applicatif historique `openjarvis` (865 fichiers sous src/) a été
-# supprimé par le commit 6883042b ("Rebuild and Deployment", rebuild "Docker
-# Foundation Clean Architecture"). Les entrées ci-dessous importent encore
-# `openjarvis.*` ou d'autres modules racine supprimés et sont donc
-# non-importables dans l'architecture reconstruite (core/, sdk/, plugins/,
-# interfaces/).
-#
-# Ces tests sont MIS EN QUARANTAINE (collect_ignore) — pas supprimés — afin
-# que `pytest` collecte une suite saine. Leur migration vers le code actuel
-# (mapping openjarvis.* → core.*) reste à réaliser via une RFC dédiée.
-#
-# Non quarantainés :
-#   - tests/cli/**  : reconnecté au code CLI actuel via pythonpath
-#     ["interfaces"] (pyproject.toml) ;
-#   - tests/core/** : seuls les fichiers hérités listés sont exclus, les
-#     tests du code actuel restent actifs ;
-#   - tests/security/** : quarantaine locale et automatique, définie par
-#     tests/security/conftest.py (détection des fichiers important
-#     `openjarvis`). Les tests de sécurité du code actuel (core.security.*,
-#     core.tools.*) restent ainsi collectés — seule la quarantaine des
-#     fichiers legacy est déléguée à ce conftest, pour ne pas la figer ici.
-# ---------------------------------------------------------------------------
-collect_ignore = [
-    "a2a",
-    "agents",
-    "analytics",
-    "bench",
-    "channels",
-    "connectors",
-    "daemon",
-    "engine",
-    "evals",
-    "hardware",
-    "install",
-    "integration",
-    "intelligence",
-    "learning",
-    "mcp",
-    "memory",
-    "mining",
-    "operators",
-    "prompt",
-    "recipes",
-    "sandbox",
-    "scheduler",
-    "sdk",
-    "server",
-    "sessions",
-    "skills",
-    "speech",
-    "telemetry",
-    "templates",
-    "test_core",
-    "test_orchestrator_learning",
-    "tools",
-    "traces",
-    "workflow",
-    "core/test_cognitive_loop.py",
-    "core/test_config.py",
-    "core/test_config_key_validation.py",
-    "core/test_config_phase3.py",
-    "core/test_config_phase4.py",
-    "core/test_config_phase5.py",
-    "core/test_config_skills_sources.py",
-    "core/test_credentials.py",
-    "core/test_plugins.py",
-    "core/test_preset_configs.py",
-    "core/test_recommend_model.py",
-    "core/test_registry.py",
-    "core/test_skills_learning_config.py",
-    "core/test_types.py",
-    "test_core.py",
-    "test_digest_integration.py",
-    "test_query_orchestrator.py",
-    "test_vision.py",
-    # ── tests/cli racine : tests de l'ancien CLI, importent openjarvis.* ──
-    "cli/test_add_cmd.py",
-    "cli/test_agent_cmd.py",
-    "cli/test_ask_agent.py",
-    "cli/test_ask_context.py",
-    "cli/test_ask_e2e.py",
-    "cli/test_ask_router.py",
-    "cli/test_ask_vision.py",
-    "cli/test_bench_cmd.py",
-    "cli/test_bench_skills_command.py",
-    "cli/test_channel_cmd.py",
-    "cli/test_chat_cmd.py",
-    "cli/test_cli.py",
-    "cli/test_config_cmd.py",
-    "cli/test_config_set.py",
-    "cli/test_connect.py",
-    "cli/test_daemon_cmd.py",
-    "cli/test_dashboard.py",
-    "cli/test_digest_cmd.py",
-    "cli/test_doctor_cmd.py",
-    "cli/test_doctor_labels.py",
-    "cli/test_eval_cmd.py",
-    "cli/test_hints.py",
-    "cli/test_init_guidance.py",
-    "cli/test_init_host.py",
-    "cli/test_install_detect.py",
-    "cli/test_log_config.py",
-    "cli/test_memory_cmd.py",
-    "cli/test_mine_cmd.py",
-    "cli/test_model_cmd.py",
-    "cli/test_model_pull.py",
-    "cli/test_optimize_skills_command.py",
-    "cli/test_pearl_cmd.py",
-    "cli/test_quickstart.py",
-    "cli/test_registry_cmd.py",
-    "cli/test_scan.py",
-    "cli/test_self_update.py",
-    "cli/test_serve_channel_wiring.py",
-    "cli/test_serve_model_resolution.py",
-    "cli/test_serve_single_build.py",
-    "cli/test_skill_cmd.py",
-    "cli/test_telemetry_cmd.py",
-    "cli/test_tool_cmd.py",
-    "cli/test_vault_cmd.py",
-    "cli/test_version_check.py",
-    "cli/test_workflow_cmd.py",
-    # ── tests/cli/ethan : anciens benchmarks/régression (API `COMMANDS`
-    #    retirée de cli/registry.py lors du rebuild) ──
-    "cli/ethan/benchmarks/test_command_performance.py",
-    "cli/ethan/benchmarks/test_daemon_impact.py",
-    "cli/ethan/benchmarks/test_memory_usage.py",
-    "cli/ethan/regression/test_api_contracts.py",
-    "cli/ethan/regression/test_command_matrix.py",
-    "cli/ethan/regression/test_snapshot_regression.py",
-    # ── fichiers important openjarvis.* au runtime (dans les fonctions) ──
-    "core/test_rust_bridge.py",
-    "core/test_intent_routing.py",
-    "cli/test_deep_research_setup.py",
-    "cli/test_eval_cmd_external_flags.py",
-    "cli/ethan/regression/test_plugin_compat.py",
-    # ── Tests de fonctionnalités SUPPRIMÉES / DÉPLACÉES (post-rebuild) ──
-    # Le modèle de sécurité historique (check_bind_safety, OPENJARVIS_API_KEY,
-    # auth_middleware, core/server/) a été supprimé lors du rebuild. Ces tests
-    # vérifient des artefacts qui n'existent plus.
-    "deploy/test_deploy_auth.py",
-    # MemoryBackend a été déplacé de core/memory/ vers core/bus/backends/memory.py.
-    "core/test_cognitive_memory.py",
-    # Les commandes CLI (status, daemon) ont été refactorées vers le Docker SDK
-    # direct : les fonctions alive/get_state/_fetch_state n'existent plus.
-    # `cli/ethan/commands/test_status.py` a été réécrit contre l'implémentation
-    # Docker + Core : il n'est plus en quarantaine.
-    "cli/ethan/integration/test_failure_scenarios.py",
-    "cli/ethan/unit/test_daemon.py",
-]
-
-
-# ---------------------------------------------------------------------------
-# Fixtures partagées des tests de contrat API (ADR-3006 / G-06).
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def contract_client():
-    """TestClient de contrat : lifespan actif, état global restauré après coup.
-
-    Le lifespan de `interfaces/api/main.py` peuple deux singletons plugin
-    (`core.plugins.registry._registry` + `interfaces.api.routers.v1
-    ._plugin_registry`). `tests/test_plugins_api.py::test_routes_sans_
-    registry_503` exige leur absence : on snapshot l'état initial et on le
-    restaure en teardown pour ne pas polluer le reste de la suite.
+    Always replaces sys.modules["httpx"] with the dummy so that adapter
+    imports see the mock, not the real network library.
     """
-    import core.plugins.registry as core_plugin_registry
-    from fastapi.testclient import TestClient
-    from interfaces.api.main import app
-    from interfaces.api.routers import v1
+    dummy = types.ModuleType("httpx")
 
-    saved_core_registry = core_plugin_registry._registry
-    saved_v1_registry = v1._plugin_registry
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
-    core_plugin_registry.set_plugin_registry(saved_core_registry)
-    v1.set_plugin_registry(saved_v1_registry)
+    class _DummyAsyncClient:
+        """A minimal async client mock that returns empty responses
+        so adapter code can parse them without network calls."""
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def get(self, *args, **kwargs):
+            return _DummyResponse("")
+
+        async def post(self, *args, **kwargs):
+            return _DummyResponse("")
+
+        def is_closed(self):
+            return False
+
+        async def aclose(self):
+            pass
+
+    class _DummyResponse:
+        """Mock HTTP response with empty text."""
+
+        def __init__(self, text: str = ""):
+            self.text = text
+            self.status_code = 200
+            self.content = text.encode()
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {}
+
+        async def aread(self):
+            return self.content
+
+
+    class _DummyTimeout:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class _DummyHTTPStatusError(Exception):
+        def __init__(self, *args, **kwargs):
+            self.response = types.SimpleNamespace(status_code=500, text="")
+            super().__init__(*args)
+
+    class _DummyRequestError(Exception):
+        pass
+
+    dummy.AsyncClient = _DummyAsyncClient
+    dummy.Timeout = _DummyTimeout
+    dummy.HTTPStatusError = _DummyHTTPStatusError
+    dummy.RequestError = _DummyRequestError
+    # Also expose commonly-used names so adapter code can reference them
+    dummy.HTTPStatusError = _DummyHTTPStatusError
+    dummy.RequestError = _DummyRequestError
+    dummy.AsyncClient = _DummyAsyncClient
+    dummy._dummy = True
+    sys.modules["httpx"] = dummy
+    return dummy
+
+
+# Install at import time so that all test modules can import adapters
+_install_dummy_httpx()
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _patch_httpx_for_async_tests():
+    """Ensure httpx is mocked in async tests that need it."""
+    _install_dummy_httpx()
+    yield

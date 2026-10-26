@@ -271,24 +271,32 @@ class OdinService:
         except Exception as exc:
             return False, _redact_secrets(str(exc))
 
-    def _controller_project_available(self) -> bool | None:
+    async def _controller_project_available(self) -> bool | None:
         try:
-            return bool(self._controller_request("/health").get("project_available"))
+            result = await asyncio.to_thread(self._controller_request, "/health")
+            return bool(result.get("project_available"))
         except Exception:
             return None
 
-    def check_health(self) -> bool:
+    async def check_health(self) -> bool:
         """Vérifie qu'Odin répond réellement en HTTP sur l'endpoint configuré."""
         if getattr(self, "_controller_url", ""):
-            try:
-                result = self._controller_request("/run", ["probe"])
-                return bool(result.get("ok"))
-            except Exception:
-                return False
+            for _attempt in range(3):
+                try:
+                    result = await asyncio.to_thread(
+                        self._controller_request, "/run", ["probe"], timeout=20.0
+                    )
+                    if bool(result.get("ok")):
+                        return True
+                except Exception:
+                    pass
+                if _attempt < 2:
+                    await asyncio.sleep(0.5)
+            return False
         try:
             request = urllib.request.Request(f"http://{self._host}:{self._port}/", method="GET")
-            with urllib.request.urlopen(request, timeout=1.5) as response:
-                return 200 <= response.status < 500
+            response = await asyncio.to_thread(urllib.request.urlopen, request, timeout=1.5)
+            return 200 <= response.status < 500
         except urllib.error.HTTPError:
             return True
         except Exception:
@@ -323,7 +331,7 @@ class OdinService:
 
     async def get_health(self) -> dict[str, Any]:
         """Vérification approfondie de l'état de santé du service."""
-        is_healthy = self.check_health()
+        is_healthy = await self.check_health()
         try:
             container_info = await self._inspect_container()
         except Exception as exc:
@@ -378,7 +386,7 @@ class OdinService:
             )
 
         project_available = (
-            self._controller_project_available()
+            await self._controller_project_available()
             if getattr(self, "_controller_url", "")
             else self._repo_dir.is_dir() and self._compose_file.is_file()
         )
@@ -408,7 +416,7 @@ class OdinService:
             self._cached_container_id = c_name
 
             if c_state in ("running", "up"):
-                is_healthy = self.check_health() and str(container_info.get("Health", "")).lower() != "unhealthy"
+                is_healthy = await self.check_health() and str(container_info.get("Health", "")).lower() != "unhealthy"
                 new_state = STATE_ACTIVE if is_healthy else STATE_DEGRADED
                 self._state = new_state
                 self._last_error = None
@@ -421,7 +429,7 @@ class OdinService:
                 )
             elif c_state in ("exited", "stopped", "dead"):
                 exit_code = container_info.get("ExitCode")
-                if exit_code not in (None, 0, "0"):
+                if exit_code not in (None, 0, "0", 137, "137", 143, "143"):
                     self._state = STATE_ERROR
                     self._last_error = f"Le conteneur Odin s'est arrêté avec le code {exit_code}."
                     return self._build_status_dict(
@@ -440,7 +448,7 @@ class OdinService:
 
         # Si le conteneur n'est pas vu par compose mais que le port est occupé
         if port_busy:
-            is_healthy = self.check_health()
+            is_healthy = await self.check_health()
             if is_healthy:
                 self._state = STATE_ACTIVE
                 return self._build_status_dict(
@@ -475,7 +483,7 @@ class OdinService:
 
             # 2. Vérifier les conflits de port avec un tiers
             if is_port_in_use(self._port, host=self._host):
-                if not self.check_health():
+                if not await self.check_health():
                     self._state = STATE_ERROR
                     self._last_error = (
                         f"Impossible de démarrer : le port {self._port} "
@@ -505,13 +513,18 @@ class OdinService:
                     error=self._last_error,
                 )
 
-            # 5. Attendre la disponibilité réseau (polling 2s, timeout 60s)
+            # 5. Attendre la disponibilité réseau (polling 2s, timeout ~90s)
             healthy = False
-            for _ in range(30):
+            consecutive = 0
+            for _ in range(45):
                 await asyncio.sleep(2.0)
-                if self.check_health():
-                    healthy = True
-                    break
+                if await self.check_health():
+                    consecutive += 1
+                    if consecutive >= 2:
+                        healthy = True
+                        break
+                else:
+                    consecutive = 0
 
             self._state = STATE_ACTIVE if healthy else STATE_DEGRADED
             if not healthy:
@@ -529,6 +542,32 @@ class OdinService:
             if not ok:
                 self._state = STATE_ERROR
                 self._last_error = f"Échec de l'arrêt Docker Compose : {out[-400:]}"
+                self._last_updated = _now()
+                return self._build_status_dict(
+                    state=STATE_ERROR,
+                    healthy=False,
+                    error=self._last_error,
+                )
+
+            # Vérifier que le conteneur est bien arrêté (polling jusqu'à 30s)
+            stopped = False
+            for _ in range(30):
+                try:
+                    container_info = await self._inspect_container()
+                except Exception:
+                    container_info = None
+                if not container_info:
+                    stopped = True
+                    break
+                c_state = str(container_info.get("State", "")).lower()
+                if c_state in ("exited", "stopped", "dead"):
+                    stopped = True
+                    break
+                await asyncio.sleep(1.0)
+
+            if not stopped:
+                self._state = STATE_ERROR
+                self._last_error = "Le conteneur Odin n'a pas pu être arrêté dans le délai imparti."
                 self._last_updated = _now()
                 return self._build_status_dict(
                     state=STATE_ERROR,
@@ -555,7 +594,7 @@ class OdinService:
 
             # 2. Vérifier la présence du dépôt et du compose
             project_available = (
-                self._controller_project_available()
+                await self._controller_project_available()
                 if getattr(self, "_controller_url", "")
                 else self._repo_dir.is_dir()
             )
@@ -598,13 +637,18 @@ class OdinService:
                 self._last_updated = _now()
                 return self._build_status_dict(state=STATE_ERROR, healthy=False, error=self._last_error)
 
-            # 5. Attendre la disponibilité réseau (polling 2s, timeout 60s)
+            # 5. Attendre la disponibilité réseau (polling 2s, timeout ~90s)
             healthy = False
-            for _ in range(30):
+            consecutive = 0
+            for _ in range(45):
                 await asyncio.sleep(2.0)
-                if self.check_health():
-                    healthy = True
-                    break
+                if await self.check_health():
+                    consecutive += 1
+                    if consecutive >= 2:
+                        healthy = True
+                        break
+                else:
+                    consecutive = 0
 
             self._state = STATE_ACTIVE if healthy else STATE_DEGRADED
             self._last_updated = _now()
@@ -669,12 +713,23 @@ class OdinService:
                     error=self._last_error,
                 )
 
+            # Vérifier que le conteneur a redémarré et répond (polling jusqu'à 15s)
             healthy = False
             for _ in range(15):
                 await asyncio.sleep(1.0)
-                if self.check_health():
-                    healthy = True
-                    break
+                if await self.check_health():
+                    try:
+                        container_info = await self._inspect_container()
+                    except Exception:
+                        container_info = None
+                    if container_info:
+                        c_state = str(container_info.get("State", "")).lower()
+                        if c_state in ("running", "up"):
+                            healthy = True
+                            break
+                    else:
+                        healthy = True
+                        break
 
             self._state = STATE_ACTIVE if healthy else STATE_DEGRADED
             self._last_updated = _now()

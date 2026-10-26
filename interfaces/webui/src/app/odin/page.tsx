@@ -12,9 +12,6 @@ import {
   getOdinStatus,
   startOdin,
   stopOdin,
-  restartOdin,
-  installOdin,
-  uninstallOdin,
   getOdinLogs,
   getOdinHealth,
   type OdinStatus,
@@ -25,7 +22,7 @@ import { useUIStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Globe, Play, Square, RefreshCw, ExternalLink, Terminal, Activity, Clock, Trash2
+  Globe, Play, Square, RefreshCw, ExternalLink, Terminal, Activity, Clock
 } from "lucide-react";
 
 function statusLabel(status: OdinStatus["status"]): string {
@@ -75,12 +72,9 @@ export default function OdinPage() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["odin", "status"] });
   const mutation = useMutation({
-    mutationFn: async (kind: "start" | "stop" | "restart" | "install" | "uninstall") => {
+    mutationFn: async (kind: "start" | "stop") => {
       if (kind === "start") return startOdin();
-      if (kind === "stop") return stopOdin();
-      if (kind === "restart") return restartOdin();
-      if (kind === "install") return installOdin();
-      return uninstallOdin();
+      return stopOdin();
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(["odin", "status"], updated);
@@ -214,19 +208,42 @@ export default function OdinPage() {
                 <span>Image : {String(data.details.container_info.Image ?? "build local")}</span>
               </div>
             )}
+            {data.container_stats && (
+              <div className="mt-4 rounded-md border border-line-1 bg-bg-2 p-3">
+                <h3 className="text-sm font-medium text-foreground-secondary mb-2">Ressources du conteneur</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-xs text-foreground-tertiary">CPU</div>
+                    <div className="h-2 rounded-bg bg-container">
+                      <div
+                        className={`h-full rounded-bg bg-primary ${data.container_stats.cpu_percent > 70 ? "bg-destructive" : ""}`}
+                        style={{width: `${data.container_stats.cpu_percent}%`}}
+                        aria-valuenow={data.container_stats.cpu_percent}
+                        aria-label={`CPU: ${data.container_stats.cpu_percent}%`}
+                      />
+                    </div>
+                    <div className="text-[10px] text-foreground-tertiary">{data.container_stats.cpu_percent}%</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-foreground-tertiary">Mémoire</div>
+                    <div className="h-2 rounded-bg bg-container">
+                      <div
+                        className={`h-full rounded-bg bg-primary ${data.container_stats.memory_percent > 70 ? "bg-destructive" : ""}`}
+                        style={{width: `${data.container_stats.memory_percent}%`}}
+                        aria-valuenow={data.container_stats.memory_percent}
+                        aria-label={`Mémoire: ${data.container_stats.memory_percent}%`}
+                      />
+                    </div>
+                    <div className="text-[10px] text-foreground-tertiary">{data.container_stats.memory_percent}%</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-foreground-tertiary">
+                  <div>Réseau: {data.container_stats.network_io}</div>
+                  <div>Stockage: {data.container_stats.block_io}</div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-2">
-              {allowed.has("install") && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => mutation.mutate("install")}
-                  disabled={busy}
-                >
-                  <Globe size={13} /> Installer
-                </Button>
-              )}
-
-              {/* Start button */}
               {allowed.has("start") && (
                 <Button
                   size="sm"
@@ -237,7 +254,6 @@ export default function OdinPage() {
                 </Button>
               )}
 
-              {/* Stop button */}
               {allowed.has("stop") && (
                 <Button
                   size="sm"
@@ -246,31 +262,6 @@ export default function OdinPage() {
                   onClick={() => mutation.mutate("stop")}
                 >
                   <Square size={13} /> Arreter
-                </Button>
-              )}
-
-              {/* Restart button */}
-              {allowed.has("restart") && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => mutation.mutate("restart")}
-                >
-                  <RefreshCw size={13} /> Redemarrer
-                </Button>
-              )}
-
-              {allowed.has("uninstall") && (
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={busy}
-                  onClick={() => {
-                    if (window.confirm("Désinstaller Odin ? Les conteneurs et ressources Compose seront retirés. Les volumes, fichiers .env, secrets et données du projet seront conservés.")) mutation.mutate("uninstall");
-                  }}
-                >
-                  <Trash2 size={13} /> Désinstaller
                 </Button>
               )}
 

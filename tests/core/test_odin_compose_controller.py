@@ -7,6 +7,8 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 import pytest
+from core.plugins import odin_compose_config
+from scripts import odin_compose_controller as controller
 from scripts.odin_compose_controller import (
     PROBE_JS,
     ControllerHandler,
@@ -15,13 +17,27 @@ from scripts.odin_compose_controller import (
 )
 
 
-def test_controller_maps_fixed_project_operations(tmp_path):
+def test_controller_maps_fixed_project_operations(tmp_path, monkeypatch):
     compose = tmp_path / "examples" / "odin" / "compose.yaml"
     compose.parent.mkdir(parents=True)
     compose.write_text("services: {}\n")
+    monkeypatch.setattr(odin_compose_config, "ODIN_REPO_DIR", compose.parent)
+    monkeypatch.setattr(odin_compose_config, "ODIN_COMPOSE_FILE", compose)
+    monkeypatch.setattr(controller, "ODIN_REPO_DIR", compose.parent)
+    monkeypatch.setattr(controller, "ODIN_COMPOSE_FILE", compose)
 
     argv = command_for(["up", "-d"], compose.parent)
     assert argv == ["docker", "compose", "--project-name", "odin", "-f", str(compose), "up", "-d"]
+    assert command_for(["down"], compose.parent) == [
+        "docker",
+        "compose",
+        "--project-name",
+        "odin",
+        "-f",
+        str(compose),
+        "down",
+    ]
+    assert "-v" not in command_for(["down"], compose.parent)
     assert command_for(["config"], compose.parent)[-2:] == ["config", "--quiet"]
     assert command_for(["probe"], compose.parent)[-3:] == ["node", "-e", PROBE_JS]
 
@@ -41,18 +57,27 @@ def test_controller_rejects_arbitrary_or_destructive_args(tmp_path, args):
         command_for(args, tmp_path)
 
 
-def test_project_available_requires_fixed_compose_file(tmp_path):
+def test_project_available_requires_fixed_compose_file(tmp_path, monkeypatch):
     repo = tmp_path / "odin"
     repo.mkdir()
+    monkeypatch.setattr(controller, "ODIN_REPO_DIR", repo)
+    monkeypatch.setattr(controller, "ODIN_COMPOSE_FILE", repo / "compose.yaml")
     assert not project_available(repo)
     (repo / "compose.yaml").write_text("services: {}\n")
     assert project_available(repo)
 
 
-def test_controller_requires_internal_token_and_rejects_unapproved_operation(tmp_path):
+def test_controller_rejects_a_foreign_compose_path(tmp_path):
+    with pytest.raises(ValueError, match="outside the fixed project"):
+        command_for(["up", "-d"], tmp_path)
+
+
+def test_controller_requires_internal_token_and_rejects_unapproved_operation(tmp_path, monkeypatch):
     repo = tmp_path / "odin"
     repo.mkdir()
     (repo / "compose.yaml").write_text("services: {}\n")
+    monkeypatch.setattr(controller, "ODIN_REPO_DIR", repo)
+    monkeypatch.setattr(controller, "ODIN_COMPOSE_FILE", repo / "compose.yaml")
     handler = type(
         "TestControllerHandler",
         (ControllerHandler,),

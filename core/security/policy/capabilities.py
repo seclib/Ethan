@@ -42,6 +42,7 @@ MCP = "mcp"
 MEMORY = "memory"
 CONFIGURATION = "configuration"
 EXTERNAL_TRANSMISSION = "external_transmission"
+OSINT = "osint"
 
 RESOURCE_CATEGORIES = {
     FILESYSTEM,
@@ -53,6 +54,7 @@ RESOURCE_CATEGORIES = {
     MEMORY,
     CONFIGURATION,
     EXTERNAL_TRANSMISSION,
+    OSINT,
 }
 
 # Opérations par catégorie.
@@ -65,6 +67,7 @@ MCP_OPS = {"execute"}
 MEMORY_OPS = {"read", "write"}
 CONFIGURATION_OPS = {"read", "write"}
 EXTERNAL_TRANSMISSION_OPS = {"send"}
+OSINT_OPS = {"collect", "analyze"}
 
 _OPERATION_MAP: dict[str, set[str]] = {
     FILESYSTEM: FILESYSTEM_OPS,
@@ -76,6 +79,7 @@ _OPERATION_MAP: dict[str, set[str]] = {
     MEMORY: MEMORY_OPS,
     CONFIGURATION: CONFIGURATION_OPS,
     EXTERNAL_TRANSMISSION: EXTERNAL_TRANSMISSION_OPS,
+    OSINT: OSINT_OPS,
 }
 
 

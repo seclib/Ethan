@@ -25,7 +25,13 @@ import logging
 from typing import Any
 
 from core.auth import Permission
-from core.plugins.odin import STATE_ERROR, get_odin_service
+from core.plugins.odin import (
+    STATE_ACTIVE,
+    STATE_DEGRADED,
+    STATE_ERROR,
+    STATE_STOPPED,
+    get_odin_service,
+)
 from fastapi import APIRouter, Depends, HTTPException
 from interfaces.api.auth import require_permission
 
@@ -50,11 +56,15 @@ async def start_service(
     """Démarre le service Docker Compose après vérification des conflits de ports."""
     service = get_odin_service()
     res = await service.start()
-    if res.get("status") == STATE_ERROR:
-        err_msg = res.get("error") or "Erreur lors du démarrage du conteneur."
+    if res.get("status") != STATE_ACTIVE:
+        err_msg = res.get("error") or (
+            "Odin n'a pas passé sa sonde de santé."
+            if res.get("status") == STATE_DEGRADED
+            else "Erreur lors du démarrage du conteneur."
+        )
         if "Conflit de port" in err_msg:
             raise HTTPException(status_code=409, detail=err_msg)
-        raise HTTPException(status_code=500, detail=err_msg)
+        raise HTTPException(status_code=503, detail=err_msg)
     return res
 
 
@@ -65,8 +75,11 @@ async def stop_service(
     """Arrête le service Docker Compose sans supprimer les données."""
     service = get_odin_service()
     res = await service.stop()
-    if res.get("status") == STATE_ERROR:
-        raise HTTPException(status_code=500, detail=res.get("error") or "Erreur d'arrêt.")
+    if res.get("status") != STATE_STOPPED:
+        raise HTTPException(
+            status_code=503,
+            detail=res.get("error") or "L'état arrêté d'Odin n'a pas pu être vérifié.",
+        )
     return res
 
 
@@ -77,8 +90,11 @@ async def restart_service(
     """Redémarre le conteneur du service."""
     service = get_odin_service()
     res = await service.restart()
-    if res.get("status") == STATE_ERROR:
-        raise HTTPException(status_code=500, detail=res.get("error") or "Erreur de redémarrage.")
+    if res.get("status") != STATE_ACTIVE:
+        raise HTTPException(
+            status_code=503,
+            detail=res.get("error") or "Le démarrage d'Odin n'a pas pu être vérifié.",
+        )
     return res
 
 
@@ -114,11 +130,11 @@ async def install_service(
     """Déploie le service Odin via docker compose up -d si non déjà actif."""
     service = get_odin_service()
     res = await service.install()
-    if res.get("status") == STATE_ERROR:
+    if res.get("status") != STATE_ACTIVE:
         err_msg = res.get("error") or "Erreur lors du déploiement du conteneur."
         if "Conflit de port" in err_msg:
             raise HTTPException(status_code=409, detail=err_msg)
-        raise HTTPException(status_code=500, detail=err_msg)
+        raise HTTPException(status_code=503, detail=err_msg)
     return res
 
 

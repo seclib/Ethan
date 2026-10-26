@@ -58,12 +58,8 @@ def _redact_secrets(text: str) -> str:
 
 
 def _resolve_default_repo() -> Path:
-    """Résout le chemin du dépôt en vérifiant la présence réelle d'odin ou gods-eye-view."""
+    """Resolve only the legacy God's Eye View checkout, never Odin's Compose stack."""
     ethan_root = Path(__file__).resolve().parent.parent.parent
-    for candidate_name in ("odin", "gods-eye-view"):
-        candidate = ethan_root / "examples" / candidate_name
-        if candidate.is_dir() and (candidate / "compose.yaml").is_file():
-            return candidate.resolve()
     return (ethan_root / "examples" / "gods-eye-view").resolve()
 
 
@@ -119,15 +115,12 @@ class GodsEyeViewService:
         """Vérifie que le chemin du compose est valide et confiné.
 
         Confinement strict : le compose doit être exactement
-        ``examples/gods-eye-view/compose.yaml`` ou ``examples/odin/compose.yaml``
-        sous la racine ETHAN. Tout autre chemin est refusé (fail-closed).
+        ``examples/gods-eye-view/compose.yaml`` sous la racine ETHAN. Odin est
+        piloté uniquement par ``OdinService`` et son contrôleur dédié.
         """
         try:
             ethan_root = Path(__file__).resolve().parent.parent.parent
-            allowed_repos = {
-                (ethan_root / "examples" / "gods-eye-view").resolve(),
-                (ethan_root / "examples" / "odin").resolve(),
-            }
+            allowed_repos = {(ethan_root / "examples" / "gods-eye-view").resolve()}
             repo = self._repo_dir.resolve()
             if repo not in allowed_repos:
                 raise ValueError(f"chemin GEV/Odin hors allowlist : {repo}")

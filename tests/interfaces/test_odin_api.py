@@ -3,8 +3,9 @@
 import asyncio
 import inspect
 
+import pytest
 from core.plugins import odin as mod
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.routing import APIRoute
 from interfaces.api.routers import odin as odin_router
 
@@ -13,7 +14,7 @@ ODIN_START_PATH = "/v1/plugins/odin/start"
 
 
 class _FakeService:
-    def __init__(self, status="stopped", error=None, healthy=False, allowed=None):
+    def __init__(self, status="installed_stopped", error=None, healthy=False, allowed=None):
         self._payload = {
             "id": "odin",
             "name": "Odin",
@@ -35,16 +36,14 @@ class _FakeService:
     async def start(self):
         self.calls.append("start")
         payload = dict(self._payload)
-        payload.update(
-            {"status": "active", "healthy": True, "allowed_actions": ["stop"]}
-        )
+        payload.update({"status": "running", "healthy": True, "allowed_actions": ["stop"]})
         return payload
 
     async def stop(self):
         self.calls.append("stop")
         payload = dict(self._payload)
         payload.update(
-            {"status": "stopped", "healthy": False, "allowed_actions": ["start"]}
+            {"status": "installed_stopped", "healthy": False, "allowed_actions": ["start"]}
         )
         return payload
 
@@ -74,9 +73,19 @@ def test_start_stop_restart_idempotent():
     svc = _FakeService()
     mod.set_odin_service(svc)
     try:
-        assert _run(svc.start())["status"] == "active"
-        assert _run(svc.start())["status"] == "active"
-        assert _run(svc.stop())["status"] == "stopped"
+        assert _run(svc.start())["status"] == "running"
+        assert _run(svc.start())["status"] == "running"
+        assert _run(svc.stop())["status"] == "installed_stopped"
+    finally:
+        mod.set_odin_service(None)
+
+
+def test_lifecycle_routes_return_verified_success():
+    svc = _FakeService()
+    mod.set_odin_service(svc)
+    try:
+        assert _run(odin_router.start_service())["status"] == "running"
+        assert _run(odin_router.stop_service())["status"] == "installed_stopped"
     finally:
         mod.set_odin_service(None)
 
@@ -84,6 +93,38 @@ def test_start_stop_restart_idempotent():
 def test_port_conflict_maps_to_409():
     src = inspect.getsource(odin_router.start_service)
     assert "409" in src and "Conflit de port" in src
+
+
+@pytest.mark.parametrize(
+    ("route", "method_name", "payload"),
+    [
+        (
+            odin_router.start_service,
+            "start",
+            {"status": "degraded", "error": "health probe failed"},
+        ),
+        (
+            odin_router.stop_service,
+            "stop",
+            {"status": "unknown", "error": "daemon unavailable"},
+        ),
+    ],
+)
+def test_lifecycle_routes_require_verified_final_state(route, method_name, payload):
+    svc = _FakeService()
+
+    async def operation():
+        svc.calls.append(method_name)
+        return payload
+
+    setattr(svc, method_name, operation)
+    mod.set_odin_service(svc)
+    try:
+        with pytest.raises(HTTPException) as raised:
+            _run(route())
+        assert raised.value.status_code == 503
+    finally:
+        mod.set_odin_service(None)
 
 
 def test_rbac_declared_on_routes():

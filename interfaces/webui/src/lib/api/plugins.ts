@@ -238,6 +238,13 @@ export interface OdinStatus {
   error?: string | null;
   updated_at?: string;
   allowed_actions: string[];
+  container_stats?: {
+    cpu_percent: number;
+    memory_usage: string;
+    memory_percent: number;
+    network_io: string;
+    block_io: string;
+  };
   details?: {
     compose_file?: string;
     repo_dir?: string;

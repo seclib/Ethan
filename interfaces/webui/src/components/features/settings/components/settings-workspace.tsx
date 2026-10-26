@@ -50,7 +50,6 @@ import {
   SearchSection,
   RemindersSection,
   LibrarySection,
-  SystemSection,
   SecuritySection,
 } from "./settings-sections";
 import { CapabilitiesSection } from "./capabilities-section";
@@ -58,7 +57,6 @@ import { CapabilitiesSection } from "./capabilities-section";
 import {
   ChunkingSection,
   EmbeddingsSection,
-  ModelRoutersSection,
   RerankingSection,
   SpeechToTextSection,
   VectorDatabaseSection,
@@ -100,7 +98,6 @@ import {
   Bell,
   FolderOpen,
   Shield,
-  SlidersHorizontal,
   AlertCircle,
   Lock,
   Globe,
@@ -134,7 +131,6 @@ export const SECTIONS: {
   { id: "chat", label: "Chat", icon: <MessageSquare className="h-4 w-4" />, category: "conversation" },
   { id: "providers", label: "Providers", icon: <Layers className="h-4 w-4" />, category: "system" },
   { id: "models", label: "Models", icon: <Bot className="h-4 w-4" />, category: "system" },
-  { id: "routers", label: "Model Routers", icon: <Network className="h-4 w-4" />, category: "system" },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" />, category: "user" },
   { id: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" />, category: "system" },
   { id: "rag", label: "RAG", icon: <Database className="h-4 w-4" />, category: "system" },
@@ -149,7 +145,6 @@ export const SECTIONS: {
   { id: "reminders", label: "Reminders", icon: <Bell className="h-4 w-4" />, category: "user" },
   { id: "capabilities", label: "Capabilities", icon: <Puzzle className="h-4 w-4" />, category: "system" },
   { id: "library", label: "Library", icon: <FolderOpen className="h-4 w-4" />, category: "project" },
-  { id: "system", label: "System", icon: <SlidersHorizontal className="h-4 w-4" />, category: "system" },
   { id: "security", label: "Security", icon: <Shield className="h-4 w-4" />, category: "system" },
 ];
 
@@ -265,7 +260,6 @@ export function SettingsWorkspace() {
         {activeSection === "chunking" && <ChunkingSection />}
         {activeSection === "reranking" && <RerankingSection />}
         {activeSection === "speech" && <SpeechToTextSection />}
-        {activeSection === "routers" && <ModelRoutersSection />}
         {activeSection === "providers" && <ProvidersSection />}
         {activeSection === "models" && <ModelsSection />}
         {activeSection === "skills" && <SkillsSection />}
@@ -274,7 +268,6 @@ export function SettingsWorkspace() {
         {activeSection === "reminders" && <RemindersSection />}
         {activeSection === "capabilities" && <CapabilitiesSection />}
         {activeSection === "library" && <LibrarySection />}
-        {activeSection === "system" && <SystemSection />}
         {activeSection === "security" && <SecuritySection />}
       </div>
     </div>

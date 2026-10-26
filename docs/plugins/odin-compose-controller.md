@@ -1,40 +1,75 @@
-# Contrôleur Compose Odin
+# Gestion du cycle de vie Odin — architecture directe
 
-Le cycle de vie Odin est exécuté par `odin-controller`, un service interne du
-Compose ETHAN. Seul ce service reçoit `/var/run/docker.sock`; l'API ETHAN lui
-transmet des opérations prédéfinies et conserve l'authentification et le RBAC
-des routes WebUI. Le navigateur n'accède jamais au socket ni au contrôleur.
+## Principe
 
-Le contrôleur est limité au projet `odin`, au fichier
-`examples/odin/compose.yaml` et aux actions `config`, `ps`, `up -d`, `stop`,
-`restart`, `down`, `logs` et à la sonde HTTP interne. Il n'accepte aucun chemin,
-nom de projet ou argument Compose arbitraire. La désinstallation utilise
-`down` sans `-v`; elle conserve les volumes et les fichiers du dépôt.
+ETHAN pilote le cycle de vie du service Odin **directement** depuis `core/plugins/odin.py` via `docker compose` subprocess. Il n'existe plus de service intermédiaire `odin-controller`.
 
-Le dépôt Odin doit être présent sur l'hôte dans `examples/odin`. Le chemin du
-projet ETHAN est transmis par `${PWD}` au démarrage de Compose; lancez donc
-`docker compose` depuis la racine ETHAN. Le contrôleur monte le dépôt Odin en
-lecture seule au même chemin absolu que l'hôte. Le daemon Docker résout ainsi
-correctement le contexte `build: .` et le bind mount du Compose Odin.
-Il s'exécute avec l'UID/GID hôte (pour lire le `.env` protégé) et reçoit le GID
-du socket en groupe supplémentaire. Si le groupe du socket n'est pas `118`,
-définissez `DOCKER_GID` dans l'environnement avant d'exécuter Compose, par
-exemple `DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d`.
+Le flux d'appel est :
 
-Après une modification de l'API ou du contrôleur, reconstruisez l'image partagée
-puis recréez ces services sans toucher aux volumes :
-
-```sh
-docker compose build api
-docker compose up -d --no-deps odin-controller api
+```
+WebUI → API → ETHAN Core → docker compose subprocess (projet `odin`)
 ```
 
-Le contrôleur possède le socket Docker, ce qui constitue une autorité élevée
-sur le daemon. Il est isolé de l'API, sans port publié, avec système de fichiers
-en lecture seule, capacités Linux supprimées et `no-new-privileges`. Garder le
-code du contrôleur et le Compose Odin dans le périmètre de confiance de
-l'opérateur; le jeton interne dérive du `JWT_SECRET` ETHAN et ne doit pas être
-copié dans une interface ou un client externe.
+Le socket Docker n'est monté que sur le service `api` de la stack ETHAN ; aucune interface n'y accède directement.
 
-Ce mécanisme ne clone ni ne met à jour le dépôt Odin. Le dépôt upstream reste
-indépendant et sa préparation demeure une opération d'administration.
+## Fichier Compose cible
+
+- Projet Compose : `odin`
+- Fichier : `examples/odin/compose.yaml`
+- Dépôt : `/home/fatsio/AI/Ethan/examples/odin`
+
+## Opérations autorisées
+
+Seules les opérations figées suivantes sont exécutables, via la classe `OdinService` (Core) :
+
+| Action | Commande docker compose |
+|--------|-------------------------|
+| Démarrer | `compose -p odin -f examples/odin/compose.yaml up -d` |
+| Arrêter | `compose -p odin -f examples/odin/compose.yaml stop` |
+| Redémarrer | `compose -p odin -f examples/odin/compose.yaml restart` |
+| Désinstaller | `compose -p odin -f examples/odin/compose.yaml down` |
+| État | `compose -p odin -f examples/odin/compose.yaml ps --all --format json` |
+| Valider config | `compose -p odin -f examples/odin/compose.yaml config` |
+| Logs | `compose -p odin -f examples/odin/compose.yaml logs --tail=N --no-color` |
+
+Aucune commande Docker arbitraire n'est acceptée (allowlist stricte dans `OdinService._is_allowed_docker_args`).
+
+## Confinement
+
+Le service `OdinService` valide à chaque appel que le fichier Compose visé est exactement `examples/odin/compose.yaml` sous la racine ETHAN. Tout autre chemin est refusé (fail-closed).
+
+La variable d'environnement `ETHAN_ODIN_REPO_DIR` peut surcharger le répertoire du dépôt, mais le fichier Compose doit rester `compose.yaml` à la racine de ce répertoire.
+
+## Gestion manuelle depuis le dépôt Odin
+
+Depuis le répertoire du dépôt Odin (`examples/odin`) :
+
+```sh
+# Vérifier la configuration
+docker compose --project-name odin -f compose.yaml config
+
+# Démarrer Odin
+docker compose --project-name odin -f compose.yaml up -d
+
+# Voir l'état des conteneurs
+docker compose --project-name odin -f compose.yaml ps --all
+
+# Arrêter Odin
+docker compose --project-name odin -f compose.yaml stop
+
+# Redémarrer Odin
+docker compose --project-name odin -f compose.yaml restart
+
+# Désinstaller (stop + suppression des conteneurs, volumes conservés)
+docker compose --project-name odin -f compose.yaml down
+
+# Voir les logs
+docker compose --project-name odin -f compose.yaml logs --tail=100 --no-color
+```
+
+## Sécurité
+
+- Le socket Docker est monté uniquement sur le service `api` de la stack ETHAN.
+- Les secrets (tokens, clés API) sont automatiquement redactés dans les logs et sorties d'erreur (`OdinService._redact_secrets`).
+- Aucun démarrage automatique non sollicité au boot d'ETHAN.
+- L'authentification et le RBAC sont gérés par l'API ETHAN sur les routes WebUI.
