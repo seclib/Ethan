@@ -15,6 +15,11 @@ const nextConfig = {
         destination: "/odin",
         permanent: true,
       },
+      {
+        source: "/workspace",
+        destination: "/skills",
+        permanent: false,
+      },
     ];
   },
   async headers() {

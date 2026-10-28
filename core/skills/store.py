@@ -262,27 +262,80 @@ class SkillStore:
         return await self.list_skills()
 
     async def import_skills(self, records: list[dict[str, Any]] | dict[str, Any]) -> dict[str, Any]:
-        """Importe des skills exportées — nouvelles ids, never overwrite.
+        """Importe des skills exportées — détection de doublons et règles d'unicité.
 
         Accepte une liste de records ou un export complet
         ``{"skills": [...]}``.  Les enregistrements sans ``name`` sont
-        ignorés.  Retourne un résumé ``{imported, skipped}``.
+        ignorés.  Retourne un résumé ``{imported, skipped, conflicts}``.
+
+        Règles de détection :
+        - ID en conflit : si un skill avec le même ID existe déjà, il est comptabilisé dans les conflits.
+        - Nom en conflit : si un skill avec le même nom (cas sensible) existe déjà,
+          il est comptabilisé dans les conflits.
+        - Contenu normalisé : si le contenu (content + steps + required_tools) est identique
+          à un skill existant, il est considéré comme un doublon.
+        - En cas de conflit, le skill n'est pas importé et est comptabilisé dans skipped.
         """
         if isinstance(records, dict):
             records = records.get("skills", [records])
         imported = 0
         skipped = 0
+        conflicts = []
+        existing_ids = {str(sk["id"]) for sk in await self.list_skills()}
+        existing_names = {str(sk["name"]).lower() for sk in await self.list_skills()}
+        
         for raw in records:
             if not isinstance(raw, dict) or not str(raw.get("name", "")).strip():
                 skipped += 1
                 continue
+            
+            # Vérification ID en conflit
+            raw_id = raw.get("id", "")
+            if raw_id and str(raw_id) in existing_ids:
+                conflicts.append({
+                    "type": "id_conflit",
+                    "existing_id": str(raw_id),
+                    "name": raw.get("name", ""),
+                })
+                skipped += 1
+                continue
+            
+            # Vérification nom en conflit (insensible à la casse)
+            name_lower = str(raw.get("name", "")).lower()
+            if name_lower in existing_names:
+                conflicts.append({
+                    "type": "nom_conflit",
+                    "existing_name": name_lower,
+                    "name": raw.get("name", ""),
+                })
+                skipped += 1
+                continue
+            
+            # Vérification contenu normalisé en conflit
+            content_existing = None
+            for existing in await self.list_skills():
+                if str(existing.get("name", "")).lower() == name_lower and existing.get("content") == raw.get("content"):
+                    content_existing = existing
+                    break
+            if content_existing:
+                conflicts.append({
+                    "type": "contenu_identique",
+                    "existing_name": str(content_existing.get("name", "")),
+                    "name": raw.get("name", ""),
+                })
+                skipped += 1
+                continue
+            
             payload = {key: raw[key] for key in _SKILL_FIELDS if key in raw and key != "is_builtin"}
             try:
                 await self.create_skill(payload)
                 imported += 1
+                # Mettre à jour les ensembles de suivi
+                existing_ids.add(str(raw.get("id", "")))
+                existing_names.add(name_lower)
             except ValueError:
                 skipped += 1
-        return {"imported": imported, "skipped": skipped}
+        return {"imported": imported, "skipped": skipped, "conflicts": conflicts}
 
     # ── Valves (configuration par skill, inspiré Open-WebUI) ──────────
 

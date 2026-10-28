@@ -180,7 +180,7 @@ export function GlobalInspector() {
       {/* Inspector Panel */}
       <aside
         className={cn(
-          "fixed right-0 top-0 z-drawer h-[100dvh] w-full border-l bg-background shadow-2xl transition-transform duration-300",
+          "fixed right-0 top-0 z-drawer h-[100dvh] w-full border-l bg-surface/95 shadow-lg shadow-black/5 transition-transform duration-300",
           dragging && "transition-none",
           inspectorOpen ? "translate-x-0" : "translate-x-full"
         )}

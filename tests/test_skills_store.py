@@ -141,7 +141,7 @@ def test_import_export_roundtrip():
 
         fresh = SkillStore()
         summary = await fresh.import_skills({"skills": exported})
-        assert summary == {"imported": 2, "skipped": 0}
+        assert summary == {"imported": 2, "skipped": 0, "conflicts": []}
 
         imported = await fresh.list_skills()
         assert {s["name"] for s in imported} == {"a", "b"}
@@ -158,7 +158,7 @@ def test_import_skips_invalid_records():
     async def scenario():
         store = SkillStore()
         summary = await store.import_skills({"skills": [{"description": "sans nom"}, "junk"]})
-        assert summary == {"imported": 0, "skipped": 2}
+        assert summary == {"imported": 0, "skipped": 2, "conflicts": []}
 
     asyncio.run(scenario())
 

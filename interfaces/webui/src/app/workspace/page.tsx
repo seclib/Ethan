@@ -13,13 +13,14 @@ import { useFacts } from "@/components/features/memory/hooks/use-memory";
 import { useMissions } from "@/components/features/missions/hooks/use-missions";
 import { useGoals } from "@/components/features/goals/hooks/use-goals";
 import { useFluxEvents } from "@/components/features/flux/hooks/use-flux";
+import { useSkills } from "@/components/features/skills/hooks/use-skills";
 import { useUIStore } from "@/store/ui.store";
 import { Search, Download, Eye, RefreshCw, Database, Trash2, Shield, Calendar, Activity, CheckSquare } from "lucide-react";
 import type { Fact, Mission, Goal } from "@/types";
 
 export default function WorkspacePage() {
 	const [searchQuery, setSearchQuery] = React.useState("");
-	const [activeTab, setActiveTab] = React.useState<"memory" | "missions" | "events">("memory");
+	const [activeTab, setActiveTab] = React.useState<"memory" | "missions" | "events" | "skills">("memory");
 	const addToast = useUIStore((s) => s.addToast);
 
 	const { facts, isLoading: factsLoading, fetchFacts, deleteFact, isDeleting } = useFacts(
@@ -29,6 +30,7 @@ export default function WorkspacePage() {
 	const { missions = [], isLoading: missionsLoading, refetch: refetchMissions } = useMissions();
 	const { goals = [], isLoading: goalsLoading } = useGoals();
 	const { events = [], isLoading: eventsLoading, refetch: refetchEvents } = useFluxEvents();
+	const { skills = [], isLoading: skillsLoading } = useSkills();
 
 	const [pendingFact, setPendingFact] = React.useState<Fact | null>(null);
 
@@ -54,6 +56,7 @@ export default function WorkspacePage() {
 	const categories = [...new Set(facts?.map((f: Fact) => f.category).filter(Boolean))];
 	const activeMissions = missions?.filter((m: Mission) => m.status === "running").length || 0;
 	const activeGoals = goals?.filter((g: Goal) => g.status === "active").length || 0;
+	const totalSkills = skills?.length || 0;
 
 	return (
 		<div className="space-y-8 animate-fade-in pb-8">
@@ -79,6 +82,7 @@ export default function WorkspacePage() {
 				<MetricCard title="Active Missions" value={activeMissions} unit={`/ ${missions?.length || 0}`} status="normal" href="#" onClick={() => setActiveTab("missions")} />
 				<MetricCard title="Active Goals" value={activeGoals} unit={`/ ${goals?.length || 0}`} status="normal" href="#" onClick={() => setActiveTab("missions")} />
 				<MetricCard title="System Events" value={events?.length || 0} unit="logged" status="normal" href="#" onClick={() => setActiveTab("events")} />
+				<MetricCard title="Skills Active" value={totalSkills} unit="skills" status="normal" href="#" onClick={() => setActiveTab("skills")} />
 			</div>
 
 			<div className="flex border-b border-border">
@@ -198,7 +202,7 @@ export default function WorkspacePage() {
 						</Card>
 					)}
 				</div>
-			) : activeTab === "missions" ? (
+				) : activeTab === "missions" ? (
 				<div className="grid gap-6 md:grid-cols-2">
 					<Card variant="outlined">
 						<CardHeader>

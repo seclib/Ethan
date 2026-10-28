@@ -12,17 +12,29 @@ import {
   getOdinStatus,
   startOdin,
   stopOdin,
+  restartOdin,
+  installOdin,
+  uninstallOdin,
   getOdinLogs,
   getOdinHealth,
+  getOdinAIConfig,
+  updateOdinAIConfig,
+  getOdinVoiceConfig,
+  updateOdinVoiceConfig,
+  getOdinAPIConfig,
+  updateOdinAPIConfig,
   type OdinStatus,
   type OdinLogs,
   type OdinHealth,
+  type OdinAIConfig,
+  type OdinVoiceConfig,
+  type OdinAPIConfig,
 } from "@/lib/api/plugins";
 import { useUIStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Globe, Play, Square, RefreshCw, ExternalLink, Terminal, Activity, Clock
+  Globe, Play, Square, RefreshCw, ExternalLink, Terminal, Activity, Clock, Trash2
 } from "lucide-react";
 
 function statusLabel(status: OdinStatus["status"]): string {
@@ -63,6 +75,25 @@ export default function OdinPage() {
   const [logs, setLogs] = React.useState<string>("");
   const [health, setHealth] = React.useState<OdinHealth | null>(null);
   const [logsHealthRefetch, setLogsHealthRefetch] = React.useState(0);
+  const [aiConfig, setAiConfig] = React.useState<OdinAIConfig>({
+    default_model: null,
+    default_provider: null,
+    context_limit: 8000,
+    timeout_seconds: 60,
+  });
+  const [voiceConfig, setVoiceConfig] = React.useState<OdinVoiceConfig>({
+    tts_provider: "builtin-tone",
+    tts_voice: "default",
+    tts_speed: 1.0,
+    stt_enabled: false,
+  });
+  const [apiConfig, setAPIConfig] = React.useState<OdinAPIConfig>({
+    api_base_url: null,
+    api_timeout_seconds: 30,
+    api_retry_count: 3,
+  });
+  const [configBusy, setConfigBusy] = React.useState(false);
+  const [configError, setConfigError] = React.useState<string | null>(null);
   const { data, isLoading, error } = useQuery({
     queryKey: ["odin", "status"],
     queryFn: getOdinStatus,
@@ -72,9 +103,12 @@ export default function OdinPage() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["odin", "status"] });
   const mutation = useMutation({
-    mutationFn: async (kind: "start" | "stop") => {
+    mutationFn: async (kind: "start" | "stop" | "restart" | "install" | "uninstall") => {
       if (kind === "start") return startOdin();
-      return stopOdin();
+      if (kind === "stop") return stopOdin();
+      if (kind === "restart") return restartOdin();
+      if (kind === "install") return installOdin();
+      return uninstallOdin();
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(["odin", "status"], updated);
@@ -130,6 +164,100 @@ export default function OdinPage() {
     fetchLogs();
     setLogsHealthRefetch((n) => n + 1);
   };
+
+  // ── Configuration Odin ──────────────────────────────────────────────
+
+  const loadConfigs = React.useCallback(async () => {
+    try {
+      const [aiRes, voiceRes, apiRes] = await Promise.all([
+        getOdinAIConfig(),
+        getOdinVoiceConfig(),
+        getOdinAPIConfig(),
+      ]);
+      setAiConfig(aiRes.config);
+      setVoiceConfig(voiceRes);
+      setAPIConfig(apiRes);
+      setConfigError(null);
+    } catch (e) {
+      setConfigError(
+        e instanceof Error ? e.message : "Erreur lors du chargement de la configuration.",
+      );
+    }
+  }, []);
+
+  const saveAIConfig = React.useCallback(async () => {
+    setConfigBusy(true);
+    setConfigError(null);
+    try {
+      const res = await updateOdinAIConfig({
+        default_model: aiConfig.default_model,
+        default_provider: aiConfig.default_provider,
+        context_limit: aiConfig.context_limit,
+        timeout_seconds: aiConfig.timeout_seconds,
+      });
+      setAiConfig(res.config);
+    } catch (e) {
+      setConfigError(
+        e instanceof Error ? e.message : "Erreur lors de la sauvegarde IA.",
+      );
+    } finally {
+      setConfigBusy(false);
+    }
+  }, [aiConfig]);
+
+  const saveVoiceConfig = React.useCallback(async () => {
+    setConfigBusy(true);
+    setConfigError(null);
+    try {
+      const res = await updateOdinVoiceConfig({
+        tts_provider: voiceConfig.tts_provider,
+        tts_voice: voiceConfig.tts_voice,
+        tts_speed: voiceConfig.tts_speed,
+        stt_enabled: voiceConfig.stt_enabled,
+      });
+      setVoiceConfig(res);
+    } catch (e) {
+      setConfigError(
+        e instanceof Error ? e.message : "Erreur lors de la sauvegarde Voix.",
+      );
+    } finally {
+      setConfigBusy(false);
+    }
+  }, [voiceConfig]);
+
+  const saveAPIConfig = React.useCallback(async () => {
+    setConfigBusy(true);
+    setConfigError(null);
+    try {
+      const res = await updateOdinAPIConfig({
+        api_base_url: apiConfig.api_base_url,
+        api_timeout_seconds: apiConfig.api_timeout_seconds,
+        api_retry_count: apiConfig.api_retry_count,
+      });
+      setAPIConfig(res);
+    } catch (e) {
+      setConfigError(
+        e instanceof Error ? e.message : "Erreur lors de la sauvegarde API.",
+      );
+    } finally {
+      setConfigBusy(false);
+    }
+  }, [apiConfig]);
+
+  const reloadConfigs = React.useCallback(async () => {
+    setConfigBusy(true);
+    setConfigError(null);
+    try {
+      await loadConfigs();
+    } finally {
+      setConfigBusy(false);
+    }
+  }, [loadConfigs]);
+
+  // Charger les configs au montage
+  React.useEffect(() => {
+    loadConfigs();
+  }, [loadConfigs]);
 
   const allowed = new Set(data?.allowed_actions ?? []);
   const busy =
@@ -208,6 +336,20 @@ export default function OdinPage() {
                 <span>Image : {String(data.details.container_info.Image ?? "build local")}</span>
               </div>
             )}
+            {data.details?.compose_file && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-foreground-tertiary">
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-bg-2 text-foreground-tertiary">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {data.details.compose_file}
+                </span>
+                {data.details?.repo_dir && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-bg-2 text-foreground-tertiary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {data.details.repo_dir}
+                  </span>
+                )}
+              </div>
+            )}
             {data.container_stats && (
               <div className="mt-4 rounded-md border border-line-1 bg-bg-2 p-3">
                 <h3 className="text-sm font-medium text-foreground-secondary mb-2">Ressources du conteneur</h3>
@@ -244,6 +386,16 @@ export default function OdinPage() {
               </div>
             )}
             <div className="flex flex-col sm:flex-row gap-2">
+              {allowed.has("install") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => mutation.mutate("install")}
+                  disabled={busy}
+                >
+                  <Globe size={13} /> Installer
+                </Button>
+              )}
               {allowed.has("start") && (
                 <Button
                   size="sm"
@@ -253,7 +405,6 @@ export default function OdinPage() {
                   <Play size={13} /> Demarrer
                 </Button>
               )}
-
               {allowed.has("stop") && (
                 <Button
                   size="sm"
@@ -264,22 +415,252 @@ export default function OdinPage() {
                   <Square size={13} /> Arreter
                 </Button>
               )}
-
+              {allowed.has("restart") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => mutation.mutate("restart")}
+                >
+                  <RefreshCw size={13} /> Redemarrer
+                </Button>
+              )}
+              {allowed.has("uninstall") && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Desinstaller Odin ? Les conteneurs et ressources Compose seront retire. Les volumes, fichiers .env, secrets et donnees du projet seront conserves."
+                      )
+                    )
+                      mutation.mutate("uninstall");
+                  }}
+                >
+                  <Trash2 size={13} /> Desinstaller
+                </Button>
+              )}
               {busy && <Spinner className="h-4 w-4" />}
             </div>
           </div>
 
+          {/* Configuration Odin — IA */}
+          <details className="rounded-xl border border-line-1 bg-bg-1 p-4">
+            <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground mb-1">
+              <div className="flex items-center gap-2">
+                <Globe size={14} />
+                <span>Configuration Odin — IA</span>
+              </div>
+              <span className="text-xs text-foreground-tertiary">Persiste via ETHAN Core</span>
+            </summary>
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Modele par defaut</label>
+                <input
+                  type="text"
+                  value={aiConfig.default_model ?? ""}
+                  onChange={(e) =>
+                    setAiConfig((p) => ({ ...p, default_model: e.target.value || null }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  placeholder="ex: llama3.2"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Fournisseur</label>
+                <input
+                  type="text"
+                  value={aiConfig.default_provider ?? ""}
+                  onChange={(e) =>
+                    setAiConfig((p) => ({ ...p, default_provider: e.target.value || null }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  placeholder="ex: ollama"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Limite contexte</label>
+                <input
+                  type="number"
+                  value={aiConfig.context_limit}
+                  onChange={(e) =>
+                    setAiConfig((p) => ({
+                      ...p,
+                      context_limit: parseInt(e.target.value) || 8000,
+                    }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  min="256"
+                  max="100000"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Timeout (sec)</label>
+                <input
+                  type="number"
+                  value={aiConfig.timeout_seconds}
+                  onChange={(e) =>
+                    setAiConfig((p) => ({
+                      ...p,
+                      timeout_seconds: parseFloat(e.target.value) || 60,
+                    }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  min="5"
+                  max="300"
+                  step="0.5"
+                />
+              </div>
+              <Button size="sm" onClick={saveAIConfig} disabled={configBusy} className="w-full mt-2">
+                Sauvegarder IA
+              </Button>
+            </div>
+          </details>
+
+          {/* Configuration Odin — Voix */}
+          <details className="rounded-xl border border-line-1 bg-bg-1 p-4">
+            <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground mb-1">
+              <div className="flex items-center gap-2">
+                <Activity size={14} />
+                <span>Configuration Odin — Voix</span>
+              </div>
+              <span className="text-xs text-foreground-tertiary">TTS/STT via ETHAN Core</span>
+            </summary>
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Provider TTS</label>
+                <input
+                  type="text"
+                  value={voiceConfig.tts_provider}
+                  onChange={(e) =>
+                    setVoiceConfig((p) => ({ ...p, tts_provider: e.target.value }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Voix</label>
+                <input
+                  type="text"
+                  value={voiceConfig.tts_voice}
+                  onChange={(e) =>
+                    setVoiceConfig((p) => ({ ...p, tts_voice: e.target.value }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Vitesse (0.1-4.0)</label>
+                <input
+                  type="number"
+                  value={voiceConfig.tts_speed}
+                  onChange={(e) =>
+                    setVoiceConfig((p) => ({ ...p, tts_speed: parseFloat(e.target.value) || 1.0 }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  min="0.1"
+                  max="4.0"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-1 text-[10px] text-foreground-tertiary block mb-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={voiceConfig.stt_enabled}
+                    onChange={(e) =>
+                      setVoiceConfig((p) => ({ ...p, stt_enabled: e.target.checked }))
+                    }
+                    className="rounded bg-elevated border-line-2 text-accent focus:ring-accent"
+                  />
+                  STT active
+                </label>
+              </div>
+              <Button size="sm" onClick={saveVoiceConfig} disabled={configBusy} className="w-full mt-2">
+                Sauvegarder Voix
+              </Button>
+            </div>
+          </details>
+
+          {/* Configuration Odin — API */}
+          <details className="rounded-xl border border-line-1 bg-bg-1 p-4">
+            <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground mb-1">
+              <div className="flex items-center gap-2">
+                <Terminal size={14} />
+                <span>Configuration Odin — API</span>
+              </div>
+              <span className="text-xs text-foreground-tertiary">API externe via ETHAN Core</span>
+            </summary>
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">URL base API</label>
+                <input
+                  type="text"
+                  value={apiConfig.api_base_url ?? ""}
+                  onChange={(e) =>
+                    setAPIConfig((p) => ({ ...p, api_base_url: e.target.value || null }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  placeholder="ex: https://api.example.com"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Timeout API (sec)</label>
+                <input
+                  type="number"
+                  value={apiConfig.api_timeout_seconds}
+                  onChange={(e) =>
+                    setAPIConfig((p) => ({
+                      ...p,
+                      api_timeout_seconds: parseInt(e.target.value) || 30,
+                    }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  min="1"
+                  max="300"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-foreground-tertiary block mb-1">Tentatives retry</label>
+                <input
+                  type="number"
+                  value={apiConfig.api_retry_count}
+                  onChange={(e) =>
+                    setAPIConfig((p) => ({
+                      ...p,
+                      api_retry_count: parseInt(e.target.value) || 3,
+                    }))
+                  }
+                  className="w-full rounded border-line-2 bg-elevated px-2 py-1.5 text-[11px] text-foreground focus:border-accent"
+                  min="0"
+                  max="10"
+                />
+              </div>
+              <Button size="sm" onClick={saveAPIConfig} disabled={configBusy} className="w-full mt-2">
+                Sauvegarder API
+              </Button>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={reloadConfigs} disabled={configBusy}>
+                <RefreshCw size={12} /> Recharger depuis le serveur
+              </Button>
+              {configError && (
+                <span className="text-[10px] text-red-500">{configError}</span>
+              )}
+            </div>
+          </details>
+
           {/* Health Detail Panel */}
           <details className="rounded-xl border border-line-1 bg-bg-1 p-4">
-            <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground">
+            <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground mb-1">
               <div className="flex items-center gap-2">
                 <Activity size={14} />
                 <span>Etat de sante detaille</span>
               </div>
               {health ? (
-                <span className={`text-xs font-medium ${
-                  health.healthy ? "text-green-600" : "text-amber-600"
-                }`}>
+                <span className={`text-xs font-medium ${health.healthy ? "text-green-600" : "text-amber-600"}`}>
                   {health.status}
                 </span>
               ) : (
@@ -333,7 +714,7 @@ export default function OdinPage() {
           </details>
 
           {/* Logs Panel */}
-          <details className="rounded-xl border border-line-1 bg-bg-1 p-4 open">
+          <details className="rounded-xl border border-line-1 bg-bg-1 p-4">
             <summary className="flex items-center justify-between cursor-pointer font-medium text-foreground mb-1">
               <div className="flex items-center gap-2">
                 <Terminal size={14} />

@@ -25,7 +25,10 @@ from datetime import timedelta
 from typing import Any
 
 from core.auth import Permission, rbac
+from core.config import ConfigurationService
+from core.config.store import ConfigPersistenceError
 from core.llm.types import ChatMessage, LLMRequirements
+from core.llm.tts import TTSEngine
 from core.plugins.odin_prompts import (
     HUD_SUMMARY_WORD_COUNT,
     HUD_SYSTEM_PROMPT,
@@ -47,6 +50,8 @@ router = APIRouter(
 )
 
 _manager = None  # ProviderManager injecte au startup (pattern providers.py).
+_config_service: ConfigurationService | None = None  # injecte au startup.
+_tts_engine: TTSEngine | None = None  # injecte au startup.
 
 
 def set_provider_manager(manager) -> None:
@@ -62,6 +67,36 @@ def get_manager():
             status_code=503, detail="Provider manager not initialized"
         )
     return _manager
+
+
+def set_odin_config_service(service: ConfigurationService) -> None:
+    """Injecte le ConfigurationService (appele au startup)."""
+    global _config_service
+    _config_service = service
+
+
+def get_config_service() -> ConfigurationService:
+    """Retourne le ConfigurationService (503 s'il n'est pas initialise)."""
+    if _config_service is None:
+        raise HTTPException(
+            status_code=503, detail="Configuration service not initialized"
+        )
+    return _config_service
+
+
+def set_tts_engine(engine: TTSEngine) -> None:
+    """Injecte le moteur TTS (appele au startup)."""
+    global _tts_engine
+    _tts_engine = engine
+
+
+def get_tts_engine() -> TTSEngine:
+    """Retourne le moteur TTS (503 s'il n'est pas initialise)."""
+    if _tts_engine is None:
+        raise HTTPException(
+            status_code=503, detail="TTS engine not initialized"
+        )
+    return _tts_engine
 
 
 AI_SCOPE = "plugins:odin-ai"
@@ -102,27 +137,99 @@ ALLOWED_TOOL_NAMES = frozenset({
     "next_satellite_pass", "next_iss_pass",
 })
 
-_odin_ai_config: dict[str, Any] = {
+# ── Configuration IA Odin (persiste via ConfigurationService) ───────────────
+# Domaine "preferences" — clé "odin_ai".  Les secrets ne sont jamais stockes
+# ici ; ils vivent dans core/config/secrets.py (env / Vault / Docker secrets).
+
+_ODIN_AI_DEFAULTS: dict[str, Any] = {
     "default_model": None,
     "default_provider": None,
     "context_limit": 8000,
     "timeout_seconds": 60,
 }
 
+_ODIN_VOICE_DEFAULTS: dict[str, Any] = {
+    "tts_provider": "builtin-tone",
+    "tts_voice": "default",
+    "tts_speed": 1.0,
+    "stt_enabled": False,
+}
+
+_ODIN_API_DEFAULTS: dict[str, Any] = {
+    "api_base_url": None,
+    "api_timeout_seconds": 30,
+    "api_retry_count": 3,
+}
+
+_ODIN_CONFIG_KEY = "odin_ai"
+
+
+def _merge_with_defaults(
+    stored: dict[str, Any], defaults: dict[str, Any]
+) -> dict[str, Any]:
+    """Fusionne les valeurs stockees avec les valeurs par defaut."""
+    result = dict(defaults)
+    if isinstance(stored, dict):
+        for key, value in stored.items():
+            if key in defaults and value is not None:
+                result[key] = value
+    return result
+
 
 def get_odin_config() -> dict[str, Any]:
-    """Retourne la config IA Odin (copie, jamais de secret)."""
-    return dict(_odin_ai_config)
+    """Retourne la config IA Odin (copie, jamais de secret).
+
+    Lit depuis le ConfigurationService (domaine preferences, cle odin_ai).
+    Retourne les valeurs par defaut si rien n'est encore configure.
+    """
+    try:
+        service = get_config_service()
+        stored = service.get_domain("preferences").get(_ODIN_CONFIG_KEY, {})
+    except HTTPException:
+        stored = {}
+    return _merge_with_defaults(stored, _ODIN_AI_DEFAULTS)
 
 
-def set_odin_config(config: dict[str, Any]) -> None:
-    """Met a jour la config IA Odin (sans secret, sans toucher global)."""
+async def set_odin_config(config: dict[str, Any]) -> None:
+    """Met a jour la config IA Odin (sans secret, sans toucher global).
+
+    Persiste via ConfigurationService (domaine preferences, cle odin_ai).
+    Les valeurs nulles sont ignorees (ne remplacent pas par None).
+    """
     if not isinstance(config, dict):
         return
-    for key in ("default_model", "default_provider",
-                "context_limit", "timeout_seconds"):
-        if config.get(key) is not None:
-            _odin_ai_config[key] = config[key]
+    service = get_config_service()
+    current = service.get_domain("preferences").get(_ODIN_CONFIG_KEY, {})
+    merged = dict(current)
+    if config.get("default_model") is not None:
+        merged["default_model"] = config["default_model"]
+    if config.get("default_provider") is not None:
+        merged["default_provider"] = config["default_provider"]
+    if config.get("context_limit") is not None:
+        try:
+            val = int(config["context_limit"])
+            if val < 256 or val > 100000:
+                raise HTTPException(
+                    status_code=422,
+                    detail="context_limit doit être entre 256 et 100000.")
+            merged["context_limit"] = val
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=422,
+                detail="context_limit entier requis (256-100000).")
+    if config.get("timeout_seconds") is not None:
+        try:
+            val = float(config["timeout_seconds"])
+            if val < 5.0 or val > 300.0:
+                raise HTTPException(
+                    status_code=422,
+                    detail="timeout_seconds doit être entre 5 et 300.")
+            merged["timeout_seconds"] = val
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=422,
+                detail="timeout_seconds nombre requis (5-300).")
+    await service.set_domain("preferences", {**service.get_domain("preferences"), _ODIN_CONFIG_KEY: merged})
 
 
 def _to_chat_messages(messages: list[dict[str, Any]]) -> list[ChatMessage]:
@@ -380,21 +487,115 @@ async def update_config(body: dict[str, Any]) -> dict[str, Any]:
     if provider is not None:
         patch["default_provider"] = provider
     if body.get("context_limit") is not None:
-        try:
-            patch["context_limit"] = max(
-                256, min(int(body["context_limit"]), 100000))
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=422,
-                                detail="context_limit entier requis.")
+        patch["context_limit"] = body["context_limit"]
     if body.get("timeout_seconds") is not None:
-        try:
-            patch["timeout_seconds"] = max(
-                5.0, min(float(body["timeout_seconds"]), 300.0))
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=422,
-                                detail="timeout_seconds nombre requis.")
-    set_odin_config(patch)
+        patch["timeout_seconds"] = body["timeout_seconds"]
+    await set_odin_config(patch)
     return {"config": get_odin_config()}
+
+
+# ── Configuration voix (TTS/STT) pour Odin ─────────────────────────────────
+
+@router.get("/voice-config",
+            dependencies=[Depends(require_permission(Permission.READ))])
+def get_voice_config() -> dict[str, Any]:
+    """Configuration voix d'Odin (TTS/STT, jamais de secret)."""
+    try:
+        service = get_config_service()
+        stored = service.get_domain("preferences").get("odin_voice", {})
+    except HTTPException:
+        stored = {}
+    return _merge_with_defaults(stored, _ODIN_VOICE_DEFAULTS)
+
+
+@router.put("/voice-config",
+            dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def update_voice_config(body: dict[str, Any]) -> dict[str, Any]:
+    """Met a jour la configuration voix d'Odin (sans secret)."""
+    body = body or {}
+    service = get_config_service()
+    current = service.get_domain("preferences").get("odin_voice", {})
+    merged = dict(current)
+    for key in _ODIN_VOICE_DEFAULTS:
+        if body.get(key) is not None:
+            if key == "tts_speed":
+                try:
+                    val = float(body[key])
+                    if val < 0.1 or val > 4.0:
+                        raise HTTPException(
+                            status_code=422,
+                            detail="tts_speed doit être entre 0.1 et 4.0.")
+                    merged[key] = val
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="tts_speed nombre requis (0.1-4.0).")
+            else:
+                merged[key] = body[key]
+    await service.set_domain("preferences",
+                       {**service.get_domain("preferences"), "odin_voice": merged})
+    return _merge_with_defaults(
+        service.get_domain("preferences").get("odin_voice", {}),
+        _ODIN_VOICE_DEFAULTS,
+    )
+
+
+# ── Configuration API externe pour Odin ────────────────────────────────────
+
+@router.get("/api-config",
+            dependencies=[Depends(require_permission(Permission.READ))])
+def get_api_config() -> dict[str, Any]:
+    """Configuration API externe d'Odin (jamais de secret)."""
+    try:
+        service = get_config_service()
+        stored = service.get_domain("preferences").get("odin_api", {})
+    except HTTPException:
+        stored = {}
+    return _merge_with_defaults(stored, _ODIN_API_DEFAULTS)
+
+
+@router.put("/api-config",
+            dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def update_api_config(body: dict[str, Any]) -> dict[str, Any]:
+    """Met a jour la configuration API externe d'Odin (sans secret)."""
+    body = body or {}
+    service = get_config_service()
+    current = service.get_domain("preferences").get("odin_api", {})
+    merged = dict(current)
+    for key in _ODIN_API_DEFAULTS:
+        if body.get(key) is not None:
+            if key == "api_timeout_seconds":
+                try:
+                    val = int(body[key])
+                    if val < 1 or val > 300:
+                        raise HTTPException(
+                            status_code=422,
+                            detail="api_timeout_seconds doit être entre 1 et 300.")
+                    merged[key] = val
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="api_timeout_seconds entier requis (1-300).")
+            elif key == "api_retry_count":
+                try:
+                    val = int(body[key])
+                    if val < 0 or val > 10:
+                        raise HTTPException(
+                            status_code=422,
+                            detail="api_retry_count doit être entre 0 et 10.")
+                    merged[key] = val
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="api_retry_count entier requis (0-10).")
+            else:
+                merged[key] = body[key]
+    await service.set_domain("preferences",
+                       {**service.get_domain("preferences"), "odin_api": merged})
+    return _merge_with_defaults(
+        service.get_domain("preferences").get("odin_api", {}),
+        _ODIN_API_DEFAULTS,
+    )
 
 
 @router.post("/provision",
@@ -624,8 +825,16 @@ __all__ = [
     "legacy_router",
     "set_provider_manager",
     "get_manager",
+    "set_odin_config_service",
+    "get_config_service",
+    "set_tts_engine",
+    "get_tts_engine",
     "get_odin_config",
     "set_odin_config",
+    "get_voice_config",
+    "update_voice_config",
+    "get_api_config",
+    "update_api_config",
     "ALLOWED_TOOL_NAMES",
     "AI_FUNCTIONS_MAP",
     "AI_SCOPE",

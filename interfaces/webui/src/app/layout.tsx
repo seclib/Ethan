@@ -17,7 +17,8 @@ import { OverlayEscHandler } from "@/components/ui/overlay-esc-handler";
 import { GlobalInspector } from "@/components/layout/global-inspector";
 import { AtmosphereLayer } from "@/components/layout/atmosphere-layer";
 import { FloatingWindow } from "@/components/ui/floating-window";
-import { MailPanel } from "@/components/features/flux/components/mail-panel";
+import dynamic from "next/dynamic";
+const MailPanel = dynamic(() => import("@/components/features/flux/components/mail-panel").then(m => m.MailPanel), { ssr: false });
 import { Inbox } from "lucide-react";
 import "./globals.css";
 

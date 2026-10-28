@@ -1,0 +1,577 @@
+"use client";
+
+import * as React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricCard } from "@/components/shared/metric-card";
+import { EventStream } from "@/components/shared/event-stream";
+import { useFacts } from "@/components/features/memory/hooks/use-memory";
+import { useMissions } from "@/components/features/missions/hooks/use-missions";
+import { useGoals } from "@/components/features/goals/hooks/use-goals";
+import { useFluxEvents } from "@/components/features/flux/hooks/use-flux";
+import { useUIStore } from "@/store/ui.store";
+import { Search, Download, Eye, RefreshCw, Database, Trash2, Shield, Calendar, Activity, CheckSquare } from "lucide-react";
+import type { Fact, Mission, Goal } from "@/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSkills } from "@/components/features/skills/hooks/use-skills";
+import { FileUploadDropzone } from "@/components/features/projects/file-upload-dropzone";
+import { SkillDialog } from "@/components/features/skills/components/skill-dialog";
+import { ExecuteSkillDialog } from "@/components/features/skills/components/skill-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Dialog } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+export default function WorkspacePage() {
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState<
+    "memory" | "missions" | "events" | "skills"
+  >("memory");
+  const addToast = useUIStore((s) => s.addToast);
+
+  const { facts, isLoading: factsLoading, fetchFacts, deleteFact, isDeleting } = useFacts(
+    searchQuery ? { query: searchQuery } : undefined,
+  );
+
+  const { missions = [], isLoading: missionsLoading, refetch: refetchMissions } = useMissions();
+  const { goals = [], isLoading: goalsLoading } = useGoals();
+  const { events = [], isLoading: eventsLoading, refetch: refetchEvents } = useFluxEvents();
+
+  const {
+    skills,
+    isLoading,
+    error,
+    refetch,
+    createSkill,
+    updateSkill,
+    deleteSkill,
+    toggleSkill,
+    executeSkill,
+    runSkill,
+    importSkills,
+    exportSkills,
+    isCreating,
+    isExecuting,
+    isRunning,
+    isImporting,
+  } = useSkills();
+
+  const queryClient = useQueryClient();
+
+  const handleDeleteFact = (fact: Fact) => setPendingFact(fact);
+
+  const confirmDeleteFact = async () => {
+    if (!pendingFact) return;
+    const result = await deleteFact(pendingFact.id);
+    setPendingFact(null);
+    if (result.error) {
+      addToast({ type: "error", message: result.error });
+    } else {
+      addToast({ type: "success", message: "Fact deleted" });
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchFacts();
+  };
+
+  const totalFacts = facts?.length || 0;
+  const categories = [...new Set(facts?.map((f: Fact) => f.category).filter(Boolean))];
+  const activeMissions = missions?.filter((m: Mission) => m.status === "running").length || 0;
+  const activeGoals = goals?.filter((g: Goal) => g.status === "active").length || 0;
+
+  // Import state
+  const [hasPreview, setHasPreview] = React.useState(false);
+  const [preview, setPreview] = React.useState<any>(null);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importResults, setImportResults] = React.useState<{
+    status: string;
+    message: string;
+    items: Array<{ id: string; name: string; reason: string }>;
+  } | null>(null);
+  const [importFromDirectory, setImportFromDirectory] = React.useState(false);
+  const [selectedFiles, setSelectedFiles] = React.useState<FileList | null>(null);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["skills"] });
+
+  // File upload handler
+  const handleFileUpload = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      addToast({ type: "error", message: "Aucun fichier sélectionné" });
+      return;
+    }
+
+    const formData = new FormData();
+    for (const file of selectedFiles) {
+      if (file.name.endsWith(".md") || file.name.endsWith(".txt") || file.name.endsWith(".json")) {
+        formData.append("skills", JSON.stringify({ name: file.name, content: await file.text() }));
+      } else {
+        addToast({ type: "error", message: `Format non支持: ${file.name}` });
+        return;
+      }
+    }
+
+    setIsImporting(true);
+    try {
+      const result = await importSkills.mutateAsync(formData as any);
+      setIsImporting(false);
+      invalidate();
+      addToast({
+        type: "success",
+        message: `${result.imported} skill(s) importée(s), ${result.skipped} ignorée(s)`,
+      });
+      setHasPreview(false);
+      setSelectedFiles(null);
+    } catch (err: any) {
+      setIsImporting(false);
+      addToast({ type: "error", message: err.message || "Échec de l'import" });
+    }
+  };
+
+  // Directory select handler (simulated - WebUI limitation)
+  const handleDirectorySelect = (files: FileList) => {
+    setSelectedFiles(files);
+    setHasPreview(true);
+    setPreview({
+      totalFiles: files.length,
+      mdFiles: 0,
+      jsonFiles: 0,
+      skills: [],
+      missingTools: new Set(),
+      duplicates: [],
+    });
+    addToast({ type: "info", message: "Sélection de dossier détectée - analyse requise" });
+  };
+
+  // Skill preview from uploaded files
+  React.useEffect(() => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      setHasPreview(false);
+      setPreview(null);
+      return;
+    }
+
+    const skillsDetected: any[] = [];
+    const mdCount = selectedFiles.filter((f) => f.name.endsWith(".md")).length;
+    const jsonCount = selectedFiles.filter((f) => f.name.endsWith(".json")).length;
+    const allNames = selectedFiles.map((f) => f.name);
+
+    // Detect potential duplicates
+    const nameCounts: Record<string, number> = {};
+    selectedFiles.forEach((f) => {
+      nameCounts[f.name] = (nameCounts[f.name] || 0) + 1;
+    });
+    const duplicates = Object.entries(nameCounts)
+      .filter(([_, count]) => count > 1)
+      .map(([name]) => ({ name, count: 0 }));
+
+    for (const file of selectedFiles) {
+      if (file.name.endsWith(".md") || file.name.endsWith(".txt")) {
+        skillsDetected.push({
+          id: file.name.replace(/\.[^/.]+$/, ""),
+          name: file.name.replace(/\.[^/.]+$/, ""),
+          kind: "prompt",
+          required_tools: [],
+        });
+      } else if (file.name.endsWith(".json")) {
+        try {
+          const jsonContent = JSON.parse(await file.text());
+          skillsDetected.push({
+            id: jsonContent.id || file.name.replace(/\.[^/.]+$/, ""),
+            name: jsonContent.name || file.name.replace(/\.[^/.]+$/, ""),
+            kind: jsonContent.kind || "prompt",
+            required_tools: jsonContent.required_tools || [],
+          });
+        } catch (e) {
+          // Skip invalid JSON
+        }
+      }
+    }
+
+    setHasPreview(true);
+    setPreview({
+      totalFiles: selectedFiles.length,
+      mdFiles: mdCount,
+      jsonFiles: jsonCount,
+      skills: skillsDetected,
+      missingTools: new Set(),
+      duplicates: duplicates.map((d) => ({ name: d.name, reason: "Nom en double" })),
+    });
+  }, [selectedFiles]);
+
+  // Confirm import
+  const confirmImport = async () => {
+    if (!preview || preview.skills.length === 0) return;
+
+    setIsImporting(true);
+    const records = preview.skills.map((s: any) => ({
+      name: s.name,
+      description: "",
+      content: "",
+      version: "1.0.0",
+      tags: [],
+      kind: s.kind,
+      steps: [],
+      required_tools: s.required_tools || [],
+      valves: {},
+      is_builtin: false,
+      author: "workspace-import",
+      created_at: new Date().toISOString(),
+      is_enabled: true,
+      success_count: 0,
+      total_executions: 0,
+    }));
+
+    try {
+      const result = await importSkills.mutateAsync(records);
+      setIsImporting(false);
+      invalidate();
+      setImportResults({
+        status: "succès",
+        message: `${result.imported} skill(s) importée(s), ${result.skipped} ignorée(s)`,
+        items: result.skills.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          reason: "importé avec succès",
+        })),
+      });
+      addToast({
+        type: "success",
+        message: `${result.imported} skill(s) importée(s), ${result.skipped} ignorée(s)`,
+      });
+    } catch (err: any) {
+      setIsImporting(false);
+      addToast({ type: "error", message: err.message || "Échec de l'import" });
+      setImportResults({
+        status: "échec",
+        message: err.message || "Erreur inconnue",
+        items: preview.skills.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          reason: "échec d'import",
+        })),
+      });
+    }
+  };
+
+  // Metric cards
+  const totalSkills = skills?.length || 0;
+  const activeSkills = skills?.filter((s: any) => s.is_active).length || 0;
+
+  return (
+    <div className="space-y-8 animate-fade-in pb-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Workspace</h1>
+          <p className="text-muted-foreground mt-1">
+            Central dashboard for cognitive monitoring, planning, and long-term memory
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              fetchFacts();
+              refetchMissions();
+              refetchEvents();
+            }}
+          >
+            <RefreshCw size={14} /> Sync Workspace
+          </Button>
+        </div>
+      </div>
+
+      {/* KPI Strip */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Memory Facts" value={totalFacts} unit="entries" status="normal" href="#" onClick={() => setActiveTab("memory")} />
+        <MetricCard title="Active Missions" value={activeMissions} unit={`/ ${missions?.length || 0}`} status="normal" href="#" onClick={() => setActiveTab("missions")} />
+        <MetricCard title="Active Goals" value={activeGoals} unit={`/ ${goals?.length || 0}`} status="normal" href="#" onClick={() => setActiveTab("events")} />
+        <MetricCard title="System Events" value={events?.length || 0} unit="logged" status="normal" href="#" onClick={() => setActiveTab("events")} />
+        <MetricCard title="Skills actifs" value={activeSkills} unit="skills" status="normal" href="#" onClick={() => setActiveTab("skills")} />
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("memory")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[2px] transition-colors ${activeTab === "memory" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Memory Explorer
+        </button>
+        <button
+          onClick={() => setActiveTab("missions")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[2px] transition-colors ${activeTab === "missions" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Missions & Goals
+        </button>
+        <button
+          onClick={() => setActiveTab("events")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[2px] transition-colors ${activeTab === "events" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          System Event Log
+        </button>
+        <button
+          onClick={() => setActiveTab("skills")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-[2px] transition-colors ${activeTab === "skills" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Skills
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "memory" ? (
+        <div className="space-y-6">
+          {/* ... memory content stays the same ... */}
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search memory facts..."
+                className="pl-9 bg-elevated"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button type="submit">Search</Button>
+          </form>
+
+          {factsLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} variant="rectangle" className="w-full h-12" />
+              ))}
+            </div>
+          ) : (
+            <Card variant="outlined" className="p-4">
+              <h3 className="text-sm font-medium text-foreground-secondary mb-3">Memory Facts</h3>
+              <p className="text-sm text-muted-foreground">
+                System facts will pop up automatically as you interact with the agent
+              </p>
+            </Card>
+          )}
+
+          <ConfirmDialog
+            open={pendingFact !== null}
+            onOpenChange={(o) => {
+              if (!o) setPendingFact(null);
+            }}
+            title="Supprimer la mémoire"
+            message={pendingFact
+              ? `Supprimer définitivement "${pendingFact.subject} ${pendingFact.predicate} ${pendingFact.object}" de la mémoire ? Cette action est irréversible.`
+              : ""}
+            confirmLabel="Supprimer"
+            destructive
+            onConfirm={() => void confirmDeleteFact()}
+          />
+        </div>
+      ) : activeTab === "missions" ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card variant="outlined">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-foreground-secondary">
+                Active Workflow Missions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {missionsLoading ? (
+                <Skeleton variant="rectangle" className="w-full h-32" />
+              ) : (
+                missions as Mission[].map((mission) => {
+                  const stepsTotal = mission.steps_total || 0;
+                  const stepsCompleted = mission.steps_completed || 0;
+                  const progress = stepsTotal > 0 ? Math.round((stepsCompleted / stepsTotal) * 100) : 0;
+                  return (
+                    <div key={mission.id} className="rounded-lg border bg-card p-4 transition-all hover:bg-accent/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-foreground">{mission.title}</div>
+                        <div className="text-xs font-mono text-muted-foreground">{progress}%</div>
+                      </div>
+                      <Progress value={progress} className="h-1.5 mb-3" />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Steps: {stepsCompleted}/{stepsTotal}</span>
+                        <span className="capitalize">{mission.status}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-foreground-secondary">
+                Strategic Planning Goals
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {goalsLoading ? (
+                <Skeleton variant="rectangle" className="w-full h-32" />
+              ) : goals.map((goal) => (
+                <div key={goal.id} className="rounded-lg border bg-card p-4 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-foreground text-sm">{goal.title}</div>
+                    <p className="text-xs text-foreground-tertiary mt-1">{goal.description}</p>
+                  </div>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${goal.status === "active" ? "bg-green/10 text-green" : "bg-muted-foreground/10 text-muted-foreground"}`}
+                  >
+                    {goal.status}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      ) : activeTab === "events" ? (
+        <div className="space-y-4">
+          <Card variant="outlined" className="p-4">
+            {eventsLoading ? (
+              <Skeleton variant="rectangle" className="w-full h-64" />
+            ) : (
+              <EventStream
+                events={events || []}
+                maxHeight={450}
+                showFilters={true}
+                onPause={() => {}}
+                onResume={() => {}}
+              />
+            )}
+          </Card>
+        </div>
+      ) : activeTab === "skills" ? (
+        <div className="space-y-6">
+          {/* Skills Import Section */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-xs font-medium text-foreground-secondary mb-2">Importer des Skills</h4>
+              <FileUploadDropzone
+                accept=".md,.txt,.json"
+                onUploaded={() => {
+                  // Trigger preview update via selectedFiles state
+                  // The useEffect will handle the preview generation
+                }}
+              />
+              {/* Fallback: directory selection not available in WebUI */}
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground/60">
+                  Accès direct au système de fichiers non disponible dans WebUI —
+                  utilisez l'upload d'archive (.md, .txt, .json) instead
+                </p>
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            {hasPreview && preview && !isImporting ? (
+              <div className="bg-card p-4 rounded max-h-80 overflow-y-auto">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Fichiers détectés : {preview.totalFiles} ({preview.mdFiles} .md, {preview.jsonFiles} .json)
+                </p>
+                <ul className="space-y-2 max-h-40 overflow-y-auto">
+                  {preview.skills.map((s: any) => (
+                    <li key={s.id} className="flex items-center justify-between p-2 rounded bg-muted/5">
+                      <span className="font-medium text-foreground">{s.name}</span>
+                      <div className="text-xs">
+                        <strong>Type :</strong> {s.kind}
+                      </div>
+                      <div className="text-xs">
+                        <strong>Outils :</strong>{" "}
+                        {s.required_tools?.length > 0 ? s.required_tools.join(", ") : "aucun"}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {preview.duplicates && preview.duplicates.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <strong>Doublons détectés :</strong> {preview.duplicates.length}
+                    {preview.duplicates.map((d: any) => (
+                      <span key={d.name} className="ml-2 text-red/60">{d.name}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm"><em>Aucun fichier uploadé pour le moment.</em></p>
+            )}
+
+            {hasPreview && !isImporting ? (
+              <Button
+                variant="primary"
+                onClick={() => confirmImport()}
+              >
+                Confirmer l'import ({preview.totalSkills} skills)
+              </Button>
+            ) : null}
+
+            {/* Import Results */}
+            {importResults ? (
+              <div className={`p-4 rounded ${importResults.status === "succès" ? "bg-green/5" : "bg-red/5"}`}>
+                <h4 className="text-xs font-medium mb-2">{importResults.status}</h4>
+                <p className="text-xs text-muted-foreground mb-2">{importResults.message}</p>
+                <ul className="text-xs space-y-1">
+                  {importResults.items.map((item: any) => (
+                    <li key={item.id} className={item.status === "imported" ? "text-green" : item.status === "skipped" ? "text-yellow" : "text-red"}>
+                      {item.status} : {item.name} ({item.reason})
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant="outline"
+                  onClick={() => setImportResults(null)}
+                >
+                  Fermer
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Skills List */}
+          <div>
+            <h4 className="text-xs font-medium text-foreground-secondary mb-2">Skills existants</h4>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} variant="rectangle" className="w-full h-12" />
+                ))}
+              </div>
+            ) : skills?.length > 0 ? (
+              <ul className="space-y-2">
+                {skills.map((skill) => (
+                  <li key={skill.id} className="flex items-center justify-between p-2 rounded bg-card hover:bg-accent/5">
+                    <span className="font-medium text-foreground">{skill.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {skill.is_active ? "active" : "inactive"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">Aucune skill enregistrée</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={pendingFact !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingFact(null);
+        }}
+        title="Supprimer la mémoire"
+        message={pendingFact
+          ? `Supprimer définitivement "${pendingFact.subject} ${pendingFact.predicate} ${pendingFact.object}" de la mémoire ? Cette action est irréversible.`
+          : ""}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={() => void confirmDeleteFact()}
+      />
+    </div>
+  );
+}

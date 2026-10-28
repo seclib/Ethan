@@ -329,5 +329,67 @@ export function getOdinHealth(): Promise<OdinHealth> {
   return apiFetch<OdinHealth>("/v1/plugins/odin/health");
 }
 
+/* ── Configuration Odin (persiste via ConfigurationService) ── */
 
+/** Configuration IA Odin (modèle, provider, limites). */
+export interface OdinAIConfig {
+  default_model: string | null;
+  default_provider: string | null;
+  context_limit: number;
+  timeout_seconds: number;
+}
+
+/** Configuration voix Odin (TTS/STT). */
+export interface OdinVoiceConfig {
+  tts_provider: string;
+  tts_voice: string;
+  tts_speed: number;
+  stt_enabled: boolean;
+}
+
+/** Configuration API externe Odin. */
+export interface OdinAPIConfig {
+  api_base_url: string | null;
+  api_timeout_seconds: number;
+  api_retry_count: number;
+}
+
+/** GET /v1/plugins/odin/ai/config — configuration IA Odin. */
+export function getOdinAIConfig(): Promise<{ config: OdinAIConfig; allowed_models: any[]; voice_fallback: string }> {
+  return apiFetch("/v1/plugins/odin/ai/config");
+}
+
+/** PUT /v1/plugins/odin/ai/config — mettre à jour la config IA Odin. */
+export function updateOdinAIConfig(body: Partial<OdinAIConfig>): Promise<{ config: OdinAIConfig }> {
+  return apiFetch<{ config: OdinAIConfig }>("/v1/plugins/odin/ai/config", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+/** GET /v1/plugins/odin/ai/voice-config — configuration voix Odin. */
+export function getOdinVoiceConfig(): Promise<OdinVoiceConfig> {
+  return apiFetch<OdinVoiceConfig>("/v1/plugins/odin/ai/voice-config");
+}
+
+/** PUT /v1/plugins/odin/ai/voice-config — mettre à jour la config voix Odin. */
+export function updateOdinVoiceConfig(body: Partial<OdinVoiceConfig>): Promise<OdinVoiceConfig> {
+  return apiFetch<OdinVoiceConfig>("/v1/plugins/odin/ai/voice-config", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+/** GET /v1/plugins/odin/ai/api-config — configuration API externe Odin. */
+export function getOdinAPIConfig(): Promise<OdinAPIConfig> {
+  return apiFetch<OdinAPIConfig>("/v1/plugins/odin/ai/api-config");
+}
+
+/** PUT /v1/plugins/odin/ai/api-config — mettre à jour la config API Odin. */
+export function updateOdinAPIConfig(body: Partial<OdinAPIConfig>): Promise<OdinAPIConfig> {
+  return apiFetch<OdinAPIConfig>("/v1/plugins/odin/ai/api-config", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
 

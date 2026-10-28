@@ -1,0 +1,528 @@
+{
+  "version": 1,
+  "sessions": {
+    "cline:1781261826788": {
+      "checksum": "e179639cd69301ac9b6657b1c578e8f83aaa20cd867c5bcc2c4154345a1991bc",
+      "path": "01-Archives/cline/2026-06-12/1781261826788.md",
+      "synced_at": "2026-10-28T11:29:49.569957+00:00",
+      "status": "completed"
+    },
+    "cline:1781262561008": {
+      "checksum": "a19b21bb09a1b3d9aee41bbf6c29f019386ef14dedfccb363e77b10deeee0328",
+      "path": "01-Archives/cline/2026-06-12/1781262561008.md",
+      "synced_at": "2026-10-28T11:29:49.627373+00:00",
+      "status": "completed"
+    },
+    "cline:1781265677020": {
+      "checksum": "e9bc7db63c4e48810b2276fb868881029e5ad3e54440123a48b4548e781c2953",
+      "path": "01-Archives/cline/2026-06-12/1781265677020.md",
+      "synced_at": "2026-10-28T11:29:49.649805+00:00",
+      "status": "completed"
+    },
+    "cline:1781324525374": {
+      "checksum": "c14f04c30035b09914a1317e2b2e5026ae19173438c5c5a007323b414a490945",
+      "path": "01-Archives/cline/2026-06-13/1781324525374.md",
+      "synced_at": "2026-10-28T11:29:49.679288+00:00",
+      "status": "completed"
+    },
+    "cline:1781326479958": {
+      "checksum": "f4fe3d1f7cf93398012e53055476624fa8b8bda9bbbda3280703668d678a9b67",
+      "path": "01-Archives/cline/2026-06-13/1781326479958.md",
+      "synced_at": "2026-10-28T11:29:49.680941+00:00",
+      "status": "completed"
+    },
+    "cline:1781438417220": {
+      "checksum": "8663cf0b9ea026b09acd3f7231ccad779472d204a5fbe9e49af85fef18063bb4",
+      "path": "01-Archives/cline/2026-06-14/1781438417220.md",
+      "synced_at": "2026-10-28T11:29:49.707145+00:00",
+      "status": "completed"
+    },
+    "cline:1781440243749": {
+      "checksum": "3376f7e1fa7eca6c8ef7b7b4d9e8b40b2fbaca14a406b9b02401458166992a1d",
+      "path": "01-Archives/cline/2026-06-14/1781440243749.md",
+      "synced_at": "2026-10-28T11:29:49.720586+00:00",
+      "status": "completed"
+    },
+    "cline:1781445007397": {
+      "checksum": "c99648666ebdbc6a5c42ec1944e4a295e1f07bbf41351786273be33b3a15eef0",
+      "path": "01-Archives/cline/2026-06-14/1781445007397.md",
+      "synced_at": "2026-10-28T11:29:49.755193+00:00",
+      "status": "completed"
+    },
+    "cline:1781448124733": {
+      "checksum": "d6bf4fea1d38a0c4cbf84e730cecab26f03c07dcb2d74f9979316634504909b2",
+      "path": "01-Archives/cline/2026-06-16/1781448124733.md",
+      "synced_at": "2026-10-28T11:29:49.855887+00:00",
+      "status": "completed"
+    },
+    "cline:1781506386208": {
+      "checksum": "54ee179a78f03e6f4567377e2c521a03a260c44c9f200b6705450599cad4bbfa",
+      "path": "01-Archives/cline/2026-06-15/1781506386208.md",
+      "synced_at": "2026-10-28T11:29:49.859474+00:00",
+      "status": "completed"
+    },
+    "cline:1781584795579": {
+      "checksum": "b23314282b265fcc0dcf0fa444e84cf2b2cf228c6a66e8c028387c1ddf30dbf7",
+      "path": "01-Archives/cline/2026-06-16/1781584795579.md",
+      "synced_at": "2026-10-28T11:29:50.056862+00:00",
+      "status": "completed"
+    },
+    "cline:1781619688061": {
+      "checksum": "9c336a89d0278aa181e4ed9ee38bf09b9fe8b3936a71166b17d997d8ede793ac",
+      "path": "01-Archives/cline/2026-06-17/1781619688061.md",
+      "synced_at": "2026-10-28T11:29:50.145128+00:00",
+      "status": "completed"
+    },
+    "cline:1781684089320": {
+      "checksum": "5c3f1a974253aa249719f3228fc1a44689764a3ea1aa375dcab0a70e122f84df",
+      "path": "01-Archives/cline/2026-06-17/1781684089320.md",
+      "synced_at": "2026-10-28T11:29:50.245131+00:00",
+      "status": "completed"
+    },
+    "cline:1781696790844": {
+      "checksum": "a6c34f4ff5d8e0017535ea86ad09aa38fdbde4e899f04bf6e665aec45a895155",
+      "path": "01-Archives/cline/2026-06-18/1781696790844.md",
+      "synced_at": "2026-10-28T11:29:50.315197+00:00",
+      "status": "completed"
+    },
+    "cline:1781759466869": {
+      "checksum": "baf2be8a665348cf4b349954cd9d919b914bce1c72329ba39af740fff2a43dfb",
+      "path": "01-Archives/cline/2026-06-18/1781759466869.md",
+      "synced_at": "2026-10-28T11:29:50.373818+00:00",
+      "status": "completed"
+    },
+    "cline:1781763556859": {
+      "checksum": "fac6f0a3d5c45f7d2a1b8af531ac81613a88c21e3b9e8b3dd4f53c9b86d4b6af",
+      "path": "01-Archives/cline/2026-06-18/1781763556859.md",
+      "synced_at": "2026-10-28T11:29:50.380728+00:00",
+      "status": "completed"
+    },
+    "cline:1781763556860": {
+      "checksum": "a773bb1fb2bbf2f2934ca44dad28b9f50079b6544e2255ab2e19e98ef798ff33",
+      "path": "01-Archives/cline/2026-06-18/1781763556860.md",
+      "synced_at": "2026-10-28T11:29:50.426433+00:00",
+      "status": "completed"
+    },
+    "cline:1781773490515": {
+      "checksum": "28d2e34bd5420a6d2b9da2586802af89df6e0b713dab6cfc84951303bf8ecd54",
+      "path": "01-Archives/cline/2026-06-18/1781773490515.md",
+      "synced_at": "2026-10-28T11:29:50.428706+00:00",
+      "status": "completed"
+    },
+    "cline:1781773629795": {
+      "checksum": "d023916e7fc8a8734b6d5148b08fd6c7b3bd67b8e37a34de9863270480695de1",
+      "path": "01-Archives/cline/2026-06-18/1781773629795.md",
+      "synced_at": "2026-10-28T11:29:50.459186+00:00",
+      "status": "completed"
+    },
+    "cline:1781790224363": {
+      "checksum": "1b6f631c14dd66f4edab34698ce043af332a914d820a6b6838e3f4143afe6fff",
+      "path": "01-Archives/cline/2026-06-19/1781790224363.md",
+      "synced_at": "2026-10-28T11:29:50.592302+00:00",
+      "status": "completed"
+    },
+    "cline:1781845301775": {
+      "checksum": "eb4cc06515713250314a2496ea77ba3d05e74f9233a5e4149d5cb7b29229caaa",
+      "path": "01-Archives/cline/2026-06-19/1781845301775.md",
+      "synced_at": "2026-10-28T11:29:50.606424+00:00",
+      "status": "completed"
+    },
+    "cline:1781847538003": {
+      "checksum": "dd2f14a2a5420f1b084d22b3d0d55ea9f7ec22f9c95503af907ee31f7077b7b6",
+      "path": "01-Archives/cline/2026-06-19/1781847538003.md",
+      "synced_at": "2026-10-28T11:29:50.625672+00:00",
+      "status": "completed"
+    },
+    "cline:1781852108784": {
+      "checksum": "3ece7b778d0a51ac11a282d782d5766bf8edae93859ca9986f9768085c899c41",
+      "path": "01-Archives/cline/2026-06-19/1781852108784.md",
+      "synced_at": "2026-10-28T11:29:50.637138+00:00",
+      "status": "completed"
+    },
+    "cline:1781855138200": {
+      "checksum": "a2f0e641a141996906a0b8f540bd0663db49986dcf7acfb92f893fb1850590eb",
+      "path": "01-Archives/cline/2026-06-19/1781855138200.md",
+      "synced_at": "2026-10-28T11:29:50.826513+00:00",
+      "status": "completed"
+    },
+    "cline:1781926691577": {
+      "checksum": "9c2bdab278adaa30dd4f22b300470bd0f6536aa84cad4ad4654bf2a74d5219c7",
+      "path": "01-Archives/cline/2026-06-20/1781926691577.md",
+      "synced_at": "2026-10-28T11:29:50.829422+00:00",
+      "status": "completed"
+    },
+    "cline:1781927049974": {
+      "checksum": "87c1d666c7fd0144bbcd25fd1f5d1a583e87f5044fb7907bd236d1322ec8c25d",
+      "path": "01-Archives/cline/2026-06-20/1781927049974.md",
+      "synced_at": "2026-10-28T11:29:50.834054+00:00",
+      "status": "completed"
+    },
+    "cline:1781928390660": {
+      "checksum": "925f769ebe2bef076bea559c821db7302acc5742c0d7edcada52d91381071516",
+      "path": "01-Archives/cline/2026-06-21/1781928390660.md",
+      "synced_at": "2026-10-28T11:29:50.899716+00:00",
+      "status": "completed"
+    },
+    "cline:1782049607778": {
+      "checksum": "3fb991cbe42cc3191113829c1f31d7380f92d2472c55b2267e25d510b51ff026",
+      "path": "01-Archives/cline/2026-06-21/1782049607778.md",
+      "synced_at": "2026-10-28T11:29:50.927212+00:00",
+      "status": "completed"
+    },
+    "cline:1782110267799": {
+      "checksum": "a95ad076525f4fdf851accf99914dbbdf505f88fab01dec68c686f6a8e0b202f",
+      "path": "01-Archives/cline/2026-06-22/1782110267799.md",
+      "synced_at": "2026-10-28T11:29:50.977838+00:00",
+      "status": "completed"
+    },
+    "cline:1782122303274": {
+      "checksum": "33858ebceb7cefa7014759acbc6e829f66b86367e29a2dd8dfcd8ffba56176c4",
+      "path": "01-Archives/cline/2026-06-23/1782122303274.md",
+      "synced_at": "2026-10-28T11:29:51.213306+00:00",
+      "status": "completed"
+    },
+    "cline:1782236030293": {
+      "checksum": "5db67952e167863bde667ff69eb8fa2c65f127362bdd74b439617fce0fb93479",
+      "path": "01-Archives/cline/2026-06-24/1782236030293.md",
+      "synced_at": "2026-10-28T11:29:51.222191+00:00",
+      "status": "completed"
+    },
+    "cline:1782277746766": {
+      "checksum": "d3817c1aba031589f3cde87667e6409f90450221e659f602a60e0fbd4f53e657",
+      "path": "01-Archives/cline/2026-06-24/1782277746766.md",
+      "synced_at": "2026-10-28T11:29:51.266004+00:00",
+      "status": "completed"
+    },
+    "cline:1782282405489": {
+      "checksum": "fa08be32f4087d941166436a29b14309cd0d3d1509dcbf2ea7dfabad29028ffd",
+      "path": "01-Archives/cline/2026-06-24/1782282405489.md",
+      "synced_at": "2026-10-28T11:29:51.269667+00:00",
+      "status": "completed"
+    },
+    "cline:1782291853665": {
+      "checksum": "6d27d24c84a7d1e332df7240e9ec7d5363034aaced887eedb61d7283d82d3270",
+      "path": "01-Archives/cline/2026-06-24/1782291853665.md",
+      "synced_at": "2026-10-28T11:29:51.295922+00:00",
+      "status": "completed"
+    },
+    "cline:1782299082878": {
+      "checksum": "8e255afa83a5882526502377527b55f34cf40ce7c619451ae9780491530d8699",
+      "path": "01-Archives/cline/2026-06-24/1782299082878.md",
+      "synced_at": "2026-10-28T11:29:51.302978+00:00",
+      "status": "completed"
+    },
+    "cline:1782299840579": {
+      "checksum": "fc10c1e67df0e9a9f6ae8c3acbcfa000fad1adaa65a8fce81b4ae2a24fbe69d3",
+      "path": "01-Archives/cline/2026-06-26/1782299840579.md",
+      "synced_at": "2026-10-28T11:29:51.608862+00:00",
+      "status": "completed"
+    },
+    "cline:1782460736319": {
+      "checksum": "7a0aabc75b563bdf4b6809c59ba6660979c87e8ff1444b193a9d653b79fb103a",
+      "path": "01-Archives/cline/2026-07-08/1782460736319.md",
+      "synced_at": "2026-10-28T11:29:51.901681+00:00",
+      "status": "completed"
+    },
+    "cline:1783480315445": {
+      "checksum": "5ebf45fa558335b1ce7067ba9a5fd11bd7476189e9a574d82d54f1af5fc3dd62",
+      "path": "01-Archives/cline/2026-07-08/1783480315445.md",
+      "synced_at": "2026-10-28T11:29:51.932954+00:00",
+      "status": "completed"
+    },
+    "cline:1783498502281": {
+      "checksum": "a26680eb308aacafbadf87a72c0cd4c096ead461110181001e95d3d2b0bb0202",
+      "path": "01-Archives/cline/2026-07-09/1783498502281.md",
+      "synced_at": "2026-10-28T11:29:52.144072+00:00",
+      "status": "completed"
+    },
+    "cline:1783595051689": {
+      "checksum": "3c8f0e028718370cdd061aa201e38d0a91b7d94a5dbb03e6100241e3f70e324b",
+      "path": "01-Archives/cline/2026-07-18/1783595051689.md",
+      "synced_at": "2026-10-28T11:29:52.239091+00:00",
+      "status": "completed"
+    },
+    "cline:1783841799690": {
+      "checksum": "a219e234237d36f99c2aa3fc0c7bc0ebc7ce7bfeb0319531907441ed0826b591",
+      "path": "01-Archives/cline/2026-07-12/1783841799690.md",
+      "synced_at": "2026-10-28T11:29:52.247686+00:00",
+      "status": "completed"
+    },
+    "cline:1784446073123": {
+      "checksum": "5a5e30ac438c59016f23694d5d2f794514cdc03dc81a6f59eda2bcb56bc7fb92",
+      "path": "01-Archives/cline/2026-07-19/1784446073123.md",
+      "synced_at": "2026-10-28T11:29:52.331975+00:00",
+      "status": "completed"
+    },
+    "cline:1784465617197": {
+      "checksum": "441ddcd19c6c33667ac7f003288ba0545bc64fff4724d9257079c7630ad7767f",
+      "path": "01-Archives/cline/2026-07-19/1784465617197.md",
+      "synced_at": "2026-10-28T11:29:52.348293+00:00",
+      "status": "completed"
+    },
+    "cline:1784468478017": {
+      "checksum": "3f17eb953333be383a030da31845045b977970d7e0158ce974fd457afb185a67",
+      "path": "01-Archives/cline/2026-07-20/1784468478017.md",
+      "synced_at": "2026-10-28T11:29:52.436604+00:00",
+      "status": "completed"
+    },
+    "cline:1784553716546": {
+      "checksum": "93f1fe2756263d26e4cad9fa5134d5f4c6fae63dd5f8d13f7516d31884dd049d",
+      "path": "01-Archives/cline/2026-07-21/1784553716546.md",
+      "synced_at": "2026-10-28T11:29:52.532487+00:00",
+      "status": "completed"
+    },
+    "cline:1784629956873": {
+      "checksum": "0f35706e53045b3ffcd1ec52b454d5bc29440ba4e260371cfdd8fa95d76f8e0b",
+      "path": "01-Archives/cline/2026-07-22/1784629956873.md",
+      "synced_at": "2026-10-28T11:29:52.601267+00:00",
+      "status": "completed"
+    },
+    "cline:1784702896150": {
+      "checksum": "90613bcafc35d862eade831eb238722c22d088d84bf4a1ed7dd4531451b8e7fd",
+      "path": "01-Archives/cline/2026-07-22/1784702896150.md",
+      "synced_at": "2026-10-28T11:29:52.652428+00:00",
+      "status": "completed"
+    },
+    "cline:1784714379731": {
+      "checksum": "410831c170090350de6e91c383851295daa171bf323451b520875b5fc08a66e5",
+      "path": "01-Archives/cline/2026-07-22/1784714379731.md",
+      "synced_at": "2026-10-28T11:29:52.675729+00:00",
+      "status": "completed"
+    },
+    "cline:1784720147277": {
+      "checksum": "3e12a1544d0bcaa7bb1f4c26cbe3310d5abf2e864bf71925bb0c67549a918b7f",
+      "path": "01-Archives/cline/2026-07-23/1784720147277.md",
+      "synced_at": "2026-10-28T11:29:52.717523+00:00",
+      "status": "completed"
+    },
+    "cline:1784780539134": {
+      "checksum": "692d5a8effe3327881323092df6df3e05204c5d8a154b6f3c9e59252ca5d2a2e",
+      "path": "01-Archives/cline/2026-07-23/1784780539134.md",
+      "synced_at": "2026-10-28T11:29:52.826215+00:00",
+      "status": "completed"
+    },
+    "cline:1784803567417": {
+      "checksum": "12a29742d563b40563d871d8177dc21120b779d6b41a2a9741d664b88ce885df",
+      "path": "01-Archives/cline/2026-07-30/1784803567417.md",
+      "synced_at": "2026-10-28T11:29:52.955466+00:00",
+      "status": "completed"
+    },
+    "cline:1785382419039": {
+      "checksum": "22531e70560ad512d72819aef2a59148dcc03e9edd26a923384c7617df279447",
+      "path": "01-Archives/cline/2026-07-31/1785382419039.md",
+      "synced_at": "2026-10-28T11:29:53.055892+00:00",
+      "status": "completed"
+    },
+    "cline:1785475619469": {
+      "checksum": "414fa616ca4c01beefff03192887f21c597bbda16929cd5f274707af2ceb5034",
+      "path": "01-Archives/cline/2026-07-31/1785475619469.md",
+      "synced_at": "2026-10-28T11:29:53.093078+00:00",
+      "status": "completed"
+    },
+    "cline:1785478061904": {
+      "checksum": "56e44192b1d7d12cee4dda6bc09f0722eaeefae8ffadab14c2ed382ff91a5538",
+      "path": "01-Archives/cline/2026-07-31/1785478061904.md",
+      "synced_at": "2026-10-28T11:29:53.105350+00:00",
+      "status": "completed"
+    },
+    "cline:1785497242482": {
+      "checksum": "48bfcddc9a130b548e094a8708b4f4b5504d4c9de0703eabc213a94cb9a81b27",
+      "path": "01-Archives/cline/2026-07-31/1785497242482.md",
+      "synced_at": "2026-10-28T11:29:53.137553+00:00",
+      "status": "completed"
+    },
+    "cline:1785510775651": {
+      "checksum": "da02fe4105dfa19406ca40016499b099b21e9230384cabea5d54d4ca20f02c8f",
+      "path": "01-Archives/cline/2026-08-02/1785510775651.md",
+      "synced_at": "2026-10-28T11:29:53.226162+00:00",
+      "status": "completed"
+    },
+    "cline:1785663110020": {
+      "checksum": "6d4f963c6b1dce0821c00341ab89f0de93a0a9ba0a362b2c88b6c369bc6cc85e",
+      "path": "01-Archives/cline/2026-08-02/1785663110020.md",
+      "synced_at": "2026-10-28T11:29:53.298195+00:00",
+      "status": "completed"
+    },
+    "cline:1785676074904": {
+      "checksum": "bbd361f59a248baacdf34e52fc23a23b0340af5462e8135463d805ebfb59bea5",
+      "path": "01-Archives/cline/2026-08-03/1785676074904.md",
+      "synced_at": "2026-10-28T11:29:53.504346+00:00",
+      "status": "completed"
+    },
+    "cline:1785748404435": {
+      "checksum": "eefbe198170acc469048318a8d09ed10ab2c42eac39dd5ad83ea7e215a9da1d7",
+      "path": "01-Archives/cline/2026-08-03/1785748404435.md",
+      "synced_at": "2026-10-28T11:29:53.555953+00:00",
+      "status": "completed"
+    },
+    "cline:1785763683280": {
+      "checksum": "1c2f3b6bf65e9cc1b1c9b8d88b7e0fd8a0739ed67fb72f5b606b156aa27155f9",
+      "path": "01-Archives/cline/2026-08-04/1785763683280.md",
+      "synced_at": "2026-10-28T11:29:53.583646+00:00",
+      "status": "completed"
+    },
+    "cline:1785821621715": {
+      "checksum": "d6018a53201503e14618b74b8dc13c02ae4f98abf7721603e286ed4e0a28c220",
+      "path": "01-Archives/cline/2026-08-12/1785821621715.md",
+      "synced_at": "2026-10-28T11:29:53.656680+00:00",
+      "status": "completed"
+    },
+    "cline:1786194792842": {
+      "checksum": "4c9b082a3bad37641c35d318c649ea31629e56e674bf736ca87ad49df952800e",
+      "path": "01-Archives/cline/2026-08-11/1786194792842.md",
+      "synced_at": "2026-10-28T11:29:53.763224+00:00",
+      "status": "completed"
+    },
+    "cline:1786441307139": {
+      "checksum": "2ddcfd099d56f0b681d4c99fa26c63c28683c6dc5ba205eb57ec20fe324dc8ca",
+      "path": "01-Archives/cline/2026-08-11/1786441307139.md",
+      "synced_at": "2026-10-28T11:29:53.791898+00:00",
+      "status": "completed"
+    },
+    "cline:1786516782485": {
+      "checksum": "22186d17e1c804199c0c4674a15672af8af4fe84bb0d951a4c375ec4565ead52",
+      "path": "01-Archives/cline/2026-08-12/1786516782485.md",
+      "synced_at": "2026-10-28T11:29:53.801337+00:00",
+      "status": "completed"
+    },
+    "cline:1786520589377": {
+      "checksum": "74fb07e4342131ff98100e8f721286d0ad9616965184b6e2565b2d9d169cb7c0",
+      "path": "01-Archives/cline/2026-08-13/1786520589377.md",
+      "synced_at": "2026-10-28T11:29:53.867421+00:00",
+      "status": "completed"
+    },
+    "cline:1786588790163": {
+      "checksum": "cf8b407f1744284fd3a99366e605363ce5c532df850c2fb4b56bf62fcf5188ce",
+      "path": "01-Archives/cline/2026-08-13/1786588790163.md",
+      "synced_at": "2026-10-28T11:29:54.324446+00:00",
+      "status": "completed"
+    },
+    "cline:1786592167914": {
+      "checksum": "9e019a114ec39e6296c7b3a1f15c10e1a028fa28f100c7ef2685acf512d3a268",
+      "path": "01-Archives/cline/2026-08-14/1786592167914.md",
+      "synced_at": "2026-10-28T11:29:54.487518+00:00",
+      "status": "completed"
+    },
+    "cline:1786689632319": {
+      "checksum": "9d3ea0ec43e508c5d3d2ea1999891d28c1dc6c906bd8e7c81db928e7f4b56b60",
+      "path": "01-Archives/cline/2026-08-14/1786689632319.md",
+      "synced_at": "2026-10-28T11:29:54.507252+00:00",
+      "status": "completed"
+    },
+    "cline:1786691977752": {
+      "checksum": "1b66e7c0646a74536924d8135c0c29096171dd6e38ea37e0b5e3804507efc34b",
+      "path": "01-Archives/cline/2026-08-14/1786691977752.md",
+      "synced_at": "2026-10-28T11:29:54.529412+00:00",
+      "status": "completed"
+    },
+    "cline:1786694120897": {
+      "checksum": "41f7617da15ed924b304341f81dd503b22a4b85f1739efa7af05ccddedad7f37",
+      "path": "01-Archives/cline/2026-08-14/1786694120897.md",
+      "synced_at": "2026-10-28T11:29:54.627488+00:00",
+      "status": "completed"
+    },
+    "cline:1786715813776": {
+      "checksum": "e9dd40a3ac50b4938031269a1cda3484eba730a8811964841863da0d786bd1d4",
+      "path": "01-Archives/cline/2026-08-15/1786715813776.md",
+      "synced_at": "2026-10-28T11:29:54.635015+00:00",
+      "status": "completed"
+    },
+    "cline:1786767655858": {
+      "checksum": "0431bd3a39cf2e1d953a70ea12d191b5134efa140f62073ff80fb65a69d12d7f",
+      "path": "01-Archives/cline/2026-08-15/1786767655858.md",
+      "synced_at": "2026-10-28T11:29:54.638293+00:00",
+      "status": "completed"
+    },
+    "cline:1786771650555": {
+      "checksum": "5e9d049e2ffcf752a963b516c030343c179e1b9b580ef5e6bc23ae81eccb2df2",
+      "path": "01-Archives/cline/2026-08-15/1786771650555.md",
+      "synced_at": "2026-10-28T11:29:54.644627+00:00",
+      "status": "completed"
+    },
+    "cline:1786773027890": {
+      "checksum": "6bae5236eaefeea4edc2e5e5970df76fc5192160842d13f96be3f3ee19ecc5af",
+      "path": "01-Archives/cline/2026-08-17/1786773027890.md",
+      "synced_at": "2026-10-28T11:29:54.648329+00:00",
+      "status": "completed"
+    },
+    "cline:1786962026659": {
+      "checksum": "f56be563fda2cf9c1456ff4dbefc13b524bef98118630f0db6cca882508df0c5",
+      "path": "01-Archives/cline/2026-08-17/1786962026659.md",
+      "synced_at": "2026-10-28T11:29:54.652740+00:00",
+      "status": "completed"
+    },
+    "cline:1786966184691": {
+      "checksum": "7b320f4c4383f1f174aa6bdd7c1d86f3818d0fac4fd755bba98e7804dcd99cbf",
+      "path": "01-Archives/cline/2026-08-18/1786966184691.md",
+      "synced_at": "2026-10-28T11:29:54.718282+00:00",
+      "status": "completed"
+    },
+    "cline:1787028404021": {
+      "checksum": "f216440d8a16cdfaee4839268c2d705bae1a25a2ea4327e21a49437258ee9bbb",
+      "path": "01-Archives/cline/2026-08-18/1787028404021.md",
+      "synced_at": "2026-10-28T11:29:54.726008+00:00",
+      "status": "completed"
+    },
+    "cline:1787031131780": {
+      "checksum": "4be53830f964074bd61bee0b334748a93a0deeb92a7af2172e6940c010c97482",
+      "path": "01-Archives/cline/2026-08-18/1787031131780.md",
+      "synced_at": "2026-10-28T11:29:54.834458+00:00",
+      "status": "completed"
+    },
+    "cline:1787040529358": {
+      "checksum": "0b1923fe28ffc12dea4ba11b54e5c649e4e32c46cfeecfc192ce56c835cf45d1",
+      "path": "01-Archives/cline/2026-08-18/1787040529358.md",
+      "synced_at": "2026-10-28T11:29:54.854181+00:00",
+      "status": "completed"
+    },
+    "cline:1787043334788": {
+      "checksum": "e35b337a795dee495f1957efe94c06cdef75f3abf07b95d6d5a1bd146f4b49e2",
+      "path": "01-Archives/cline/2026-08-18/1787043334788.md",
+      "synced_at": "2026-10-28T11:29:54.895124+00:00",
+      "status": "completed"
+    },
+    "cline:1787050182381": {
+      "checksum": "be3495f57e740917fc42ec03afc7470974df8a6899db7c75c88742808f8691d6",
+      "path": "01-Archives/cline/2026-08-18/1787050182381.md",
+      "synced_at": "2026-10-28T11:29:54.910628+00:00",
+      "status": "completed"
+    },
+    "cline:1787051436064": {
+      "checksum": "d9855a84ee67d024507bbc04844622d81e67b4d49dc6a28b50e121824329906b",
+      "path": "01-Archives/cline/2026-08-19/1787051436064.md",
+      "synced_at": "2026-10-28T11:29:55.021403+00:00",
+      "status": "completed"
+    },
+    "cline:1787143354523": {
+      "checksum": "10bc10d47072429cca2755ad78e9c9931e90e68b4935e757f265f972b8787268",
+      "path": "01-Archives/cline/2026-08-23/1787143354523.md",
+      "synced_at": "2026-10-28T11:29:55.191913+00:00",
+      "status": "completed"
+    },
+    "copilot:36e60f5c-6fff-4b49-91db-77a2eb8078d6": {
+      "checksum": "0ea32cb4eec79186249d95e41db90b0dc6df4aa63813b8f93f13ebb0d0a116dc",
+      "path": "01-Archives/copilot/2026-05-25/36e60f5c-6fff-4b49-91db-77a2eb8078d6.md",
+      "synced_at": "2026-10-28T11:29:55.389990+00:00",
+      "status": "completed"
+    },
+    "copilot:b19268d9-cfc6-4cf3-b3cf-142ff2d72088": {
+      "checksum": "fa569ae001d03e483d2254e72dff6748b18af997e55fdb756c44cc9b5b9055cb",
+      "path": "01-Archives/copilot/2026-04-24/b19268d9-cfc6-4cf3-b3cf-142ff2d72088.md",
+      "synced_at": "2026-10-28T11:29:55.405447+00:00",
+      "status": "completed"
+    },
+    "codex:01a16865-1f63-7e03-a356-f32e825a29c2": {
+      "checksum": "77c940a8e6e307dad9ff09135eccb45a85bd2aaf24b7993818099a5b6afb201c",
+      "path": "01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2.md",
+      "synced_at": "2026-10-28T11:35:50.812690+00:00",
+      "status": "completed"
+    },
+    "codex:01a16882-fc47-73c2-85e1-a6093f0dbfd9": {
+      "checksum": "7dd7093ee715edb24f8ffc1dd2c41f5ce27826ee1621c2fec55a136d883f57de",
+      "path": "01-Archives/codex/2026-10-23/01a16882-fc47-73c2-85e1-a6093f0dbfd9.md",
+      "synced_at": "2026-10-28T11:35:51.275102+00:00",
+      "status": "completed"
+    }
+  },
+  "last_sync": "2026-10-28T11:36:45.146089+00:00"
+}

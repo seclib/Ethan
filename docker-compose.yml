@@ -109,6 +109,30 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ── Python Base Image ───────────────────────────────────────────────────────
+  # Builds ethan/python-base:latest from deploy/Dockerfile.python-base.
+  # This image is shared by api, kernel, and modules services to leverage
+  # Docker layer caching and avoid redundant pip installations.
+  python-base:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.python-base
+    container_name: ethan-python-base
+    networks:
+      - ethan-core
+    volumes:
+      - ethan_python_base_cache:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    command: sleep infinity
+
   # ── Application Services ────────────────────────────────────────────
   # Seul ce contrôleur reçoit le socket Docker. Son API interne n'accepte que
   # les opérations Compose prédéfinies pour examples/odin/compose.yaml.
@@ -309,6 +333,8 @@ services:
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
     command: python -m core.modules
     depends_on:
+      python-base:
+        condition: service_healthy
       nats:
         condition: service_healthy
       postgres:
@@ -459,6 +485,9 @@ volumes:
   postgres_data:
     driver: local
   postgres_backup:
+    driver: local
+  # Cache partagé pour l'image Python de base ETHAN.
+  ethan_python_base_cache:
     driver: local
   # Artefacts des capabilities Python/Node installés depuis l'API (§1 audit).
   ethan_api_artifacts:

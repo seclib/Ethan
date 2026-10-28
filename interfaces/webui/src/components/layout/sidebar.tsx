@@ -242,7 +242,7 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
         />
         {/* Settings — pied de la sidebar (navigation secondaire : capacités
             techniques via Settings + palette Ctrl+K) */}
-        <div className="sidebar-nav-group border-t border-line-1/40 pt-1">
+        <div className="sidebar-nav-group pt-1">
           <Link
             href="/settings"
             className={cn("sidebar-nav-item", pathname === "/settings" && "active")}

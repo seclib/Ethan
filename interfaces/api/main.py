@@ -92,6 +92,8 @@ from interfaces.api.routers.odin_ai import (
 )
 from interfaces.api.routers.odin_ai import (
     set_provider_manager as set_odin_ai_provider_manager,
+    set_odin_config_service,
+    set_tts_engine,
 )
 from interfaces.api.routers.integrations import router as integrations_router
 from interfaces.api.routers.internal import init_modules
@@ -700,6 +702,7 @@ async def lifespan(app: FastAPI):
         skills=skill_manager,
     )
     set_capability_managers(capability_managers)
+    set_tts_engine(capability_managers.tts)
 
     # --- API Keys (Core-owned, politique secret-once) ---
     from core.auth.api_keys import APIKeyManager
@@ -894,6 +897,7 @@ async def lifespan(app: FastAPI):
         config_service = ConfigurationService(store=config_store)
         await config_service.load()
         set_configuration_service(config_service)
+        set_odin_config_service(config_service)
         app.state.config_service = config_service
         logger.info("ConfigurationService ready")
     except Exception as exc:

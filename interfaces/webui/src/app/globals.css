@@ -299,6 +299,17 @@ body {
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
   --radius-full: 9999px;
 
   --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
@@ -389,7 +400,7 @@ body {
   width: var(--sidebar-width, 260px);
   flex-shrink: 0;
   background: var(--sidebar-bg, var(--panel));
-  border-right: 0.5px solid var(--sidebar-border, var(--border));
+  border-right: 0.125px solid var(--sidebar-border, var(--border));
   display: flex;
   flex-direction: column;
   overflow: hidden;
