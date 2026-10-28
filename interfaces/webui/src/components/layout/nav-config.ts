@@ -25,10 +25,11 @@ import type { ComponentType } from "react";
 import {
   Bot, Cpu, Database, Wrench, Sparkles, ScrollText,
   Target, Calendar, StickyNote, Inbox, Telescope, BookOpen,
-    Layers, Settings, FolderTree, Shapes, FolderKanban,
+  Layers, Settings, FolderTree, Shapes, FolderKanban,
   Activity, ShieldCheck, Gauge, Globe,
   UsersRound, BarChart3, ScanSearch, LifeBuoy,
   Workflow, FlaskConical, MessagesSquare, SquareTerminal as TerminalIcon,
+  Puzzle,
 } from "lucide-react";
 
 /** Monitoring externe réel : Grafana (osiris-grafana, cf. port_registry.json). */
@@ -154,10 +155,9 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     description: "Documents, organisation et mémoire d'ETHAN",
     collapsible: true,
     items: [
-      { href: "/knowledge", label: "navigation.knowledge", icon: Database },
-      // Library = onglet de /knowledge (LibraryWorkspace y est monté) : même
-      // jeu de données (mêmes 5 endpoints Core), donc un seul menu. /library
-      // reste une URL valide (redirige vers ?view=library).
+      // Gestion directe des dossiers de connaissances (interface principale).
+      // Les vues RAG Collections, Knowledge, Library et Web Import sont
+      // accessibles depuis l'onglet correspondant de /knowledge (hub).
       { href: "/folders", label: "navigation.folders", icon: FolderTree },
       { href: "/domains", label: "navigation.domains", icon: Shapes },
       { href: "/dedup", label: "navigation.dedup", icon: ScanSearch },
@@ -176,6 +176,15 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
       // Serveurs MCP = onglet de /tools (ToolsHub), plus une page : la
       // ressource Core `/v1/tools/servers` est unique — un seul menu.
       { href: "/prompts", label: "navigation.prompts", icon: ScrollText },
+    ],
+  },
+  {
+    id: "plugins",
+    label: "navigation.plugins",
+    description: "Gestionnaire de plugins — catalogue, état, installation",
+    collapsible: true,
+    items: [
+      { href: "/plugins", label: "navigation.plugins", icon: Puzzle },
     ],
   },
   {
