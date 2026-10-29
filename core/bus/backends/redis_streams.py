@@ -56,11 +56,63 @@ class RedisStreamsBackend(StorageBackend):
         start_time: datetime,
         end_time: datetime | None = None,
     ) -> AsyncIterator[StoredEvent]:
-        """Lit les événements."""
-        # TODO: Implémenter avec Redis consumer
-        # Pour l'instant, yield vide
-        return
-        yield  # type: ignore
+        """Lit les événements depuis Redis Streams."""
+        if not self._redis:
+            return
+
+        # Redis Streams ne supporte pas nativement les patterns de sujets comme NATS.
+        # Pour le replay, on lit le stream principal.
+        stream_key = self._stream_key
+
+        # On commence la lecture depuis le début ou un ID spécifique
+        last_id = "0-0"
+
+        while True:
+            # XREADGROUP ou XREAD
+            # On récupère des chunks de 100 événements
+            events = await self._redis.xread({stream_key: last_id}, count=100)
+            if not events:
+                break
+
+            for stream, messages in events:
+                for msg_id, data in messages:
+                    # data est un dict : {"id": ..., "type": ..., ...}
+                    import json
+                    event_time = datetime.fromisoformat(data["timestamp"])
+
+                    if event_time < start_time:
+                        last_id = msg_id
+                        continue
+                    if end_time and event_time > end_time:
+                        return
+
+                    # Filtrage par pattern de sujet (simulation car Redis Stream est plat ici)
+                    # On vérifie si le type d'événement correspond au pattern
+                    from core.bus.router import EventRouter
+                    # On utilise fnmatch pour le pattern matching comme dans le Router
+                    import fnmatch
+                    event_type = data["type"]
+                    if not fnmatch.fnmatch(event_type, subject_pattern):
+                        last_id = msg_id
+                        continue
+
+                    event = Event(
+                        id=data["id"],
+                        type=EventType(data["type"]),
+                        source=data["source"],
+                        timestamp=event_time,
+                        payload=json.loads(data["payload"]),
+                        metadata=json.loads(data["metadata"]),
+                    )
+
+                    yield StoredEvent(
+                        event=event,
+                        position=int(data["position"]),
+                        stored_at=event_time,
+                        size_bytes=len(str(data)),
+                    )
+                    last_id = msg_id
+
 
     async def save_checkpoint(self, checkpoint: Checkpoint) -> None:
         """Sauvegarde un checkpoint."""

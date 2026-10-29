@@ -1,6 +1,6 @@
 # ETHAN Knowledge Base — Index
 
-*Dernière synchronisation : 2026-10-28T11:36:45.146089+00:00*
+*Dernière synchronisation : 2026-10-28T12:12:30.925159+00:00*
 
 ## Résumé
 
@@ -80,7 +80,7 @@
 | [1786441307139](01-Archives/cline/2026-08-11/1786441307139.md) | completed | 2026-10-28 |
 | [1786516782485](01-Archives/cline/2026-08-12/1786516782485.md) | completed | 2026-10-28 |
 | [1786520589377](01-Archives/cline/2026-08-13/1786520589377.md) | completed | 2026-10-28 |
-| [1786588790163](01-Archives/cline/2026-08-13/1786588790163.md) | completed | 2026-10-28 |
+| [1786588790163](01-Archives/cline/2026-08-13/1786588790163-part-01.md) (+ 4 parties) | completed | 2026-10-28 |
 | [1786592167914](01-Archives/cline/2026-08-14/1786592167914.md) | completed | 2026-10-28 |
 | [1786689632319](01-Archives/cline/2026-08-14/1786689632319.md) | completed | 2026-10-28 |
 | [1786691977752](01-Archives/cline/2026-08-14/1786691977752.md) | completed | 2026-10-28 |
@@ -103,7 +103,7 @@
 
 | Session ID | Statut | Date sync |
 |------------|--------|-----------|
-| [01a16865-1f63-7e03-a356-f32e825a29c2](01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2.md) | completed | 2026-10-28 |
+| [01a16865-1f63-7e03-a356-f32e825a29c2](01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-01.md) (+ 3 parties) | completed | 2026-10-28 |
 | [01a16882-fc47-73c2-85e1-a6093f0dbfd9](01-Archives/codex/2026-10-23/01a16882-fc47-73c2-85e1-a6093f0dbfd9.md) | completed | 2026-10-28 |
 
 ### Copilot

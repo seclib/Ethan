@@ -393,9 +393,10 @@
     },
     "cline:1786588790163": {
       "checksum": "cf8b407f1744284fd3a99366e605363ce5c532df850c2fb4b56bf62fcf5188ce",
-      "path": "01-Archives/cline/2026-08-13/1786588790163.md",
+      "path": "01-Archives/cline/2026-08-13/1786588790163-part-01.md",
       "synced_at": "2026-10-28T11:29:54.324446+00:00",
-      "status": "completed"
+      "status": "completed",
+      "parts": 5
     },
     "cline:1786592167914": {
       "checksum": "9e019a114ec39e6296c7b3a1f15c10e1a028fa28f100c7ef2685acf512d3a268",
@@ -513,9 +514,10 @@
     },
     "codex:01a16865-1f63-7e03-a356-f32e825a29c2": {
       "checksum": "77c940a8e6e307dad9ff09135eccb45a85bd2aaf24b7993818099a5b6afb201c",
-      "path": "01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2.md",
+      "path": "01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-01.md",
       "synced_at": "2026-10-28T11:35:50.812690+00:00",
-      "status": "completed"
+      "status": "completed",
+      "parts": 4
     },
     "codex:01a16882-fc47-73c2-85e1-a6093f0dbfd9": {
       "checksum": "7dd7093ee715edb24f8ffc1dd2c41f5ce27826ee1621c2fec55a136d883f57de",
@@ -524,5 +526,5 @@
       "status": "completed"
     }
   },
-  "last_sync": "2026-10-28T11:36:45.146089+00:00"
+  "last_sync": "2026-10-28T12:12:30.925159+00:00"
 }

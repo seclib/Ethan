@@ -153,14 +153,9 @@ export const NAV_SECTIONS_SECONDARY: NavSection[] = [
     id: "knowledge",
     label: "navigation.knowledge",
     description: "Documents, organisation et mémoire d'ETHAN",
-    collapsible: true,
+    collapsible: false,
     items: [
-      // Gestion directe des dossiers de connaissances (interface principale).
-      // Les vues RAG Collections, Knowledge, Library et Web Import sont
-      // accessibles depuis l'onglet correspondant de /knowledge (hub).
-      { href: "/folders", label: "navigation.folders", icon: FolderTree },
-      { href: "/domains", label: "navigation.domains", icon: Shapes },
-      { href: "/dedup", label: "navigation.dedup", icon: ScanSearch },
+      { href: "/knowledge", label: "navigation.knowledge", icon: Database },
     ],
   },
   {

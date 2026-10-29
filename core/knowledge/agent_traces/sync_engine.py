@@ -23,7 +23,7 @@ class SyncEngine:
         self.sessions_dir = self.knowledge_root / "01-Archives"
         self.index_dir = self.knowledge_root
         self.summaries_dir = self.knowledge_root / "06-Syntheses"
-        self.metadata_dir = self.knowledge_root / "_meta"
+        self.metadata_dir = self.knowledge_root / "99-Metadonnees"
         self.sync_state_path = self.metadata_dir / "sync-state.json"
 
         for d in [self.raw_dir, self.sessions_dir, self.index_dir, self.summaries_dir, self.metadata_dir]:
@@ -135,6 +135,12 @@ class SyncEngine:
         self._save_sync_state(sync_state)
         self._generate_index(sync_state, results)
         self.generate_all_summaries()
+
+        # Nouvelle étape : Lancer la synthèse technique après synchro
+        from core.knowledge.agent_traces.synthesizer import TechnicalSynthesizer
+        synthesizer = TechnicalSynthesizer(self.knowledge_root)
+        synthesizer.process_archives(self)
+
         return results
 
     def _generate_index(self, sync_state, results):
@@ -167,7 +173,12 @@ class SyncEngine:
             lines.append("|------------|--------|-----------|")
             for session_key, info in sessions:
                 sid = session_key.split(":", 1)[1]
-                lines.append(f"| [{sid}]({info['path']}) | {info['status']} | {info['synced_at'][:10]} |")
+                parts = info.get("parts", 1)
+                if parts > 1:
+                    link = f"[{sid}]({info['path']}) (+ {parts-1} parties)"
+                else:
+                    link = f"[{sid}]({info['path']})"
+                lines.append(f"| {link} | {info['status']} | {info['synced_at'][:10]} |")
             lines.append("")
 
         lines.append("## Synthèses")

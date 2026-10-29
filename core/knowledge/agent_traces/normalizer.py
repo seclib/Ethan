@@ -81,7 +81,19 @@ def session_to_markdown(session: ArchivedSession) -> str:
 
     for i, msg in enumerate(session.messages, 1):
         ts_str = _format_timestamp(msg.timestamp)
+
+        # Déterminer le label de l'étape pour la traçabilité
+        step_label = ""
+        if msg.message_type == MessageType.TOOL_CALL:
+            step_label = "⚙️ Action Tentée"
+        elif msg.message_type == MessageType.TOOL_RESULT:
+            step_label = "✅ Résultat Exécuté"
+        elif msg.role == "assistant" and msg.message_type == MessageType.USER: # Simple message
+            step_label = "💡 Proposition"
+
         lines.append(f"### Tour {i} — {msg.role.capitalize()}")
+        if step_label:
+            lines.append(f"**{step_label}**")
         lines.append("")
         lines.append(f"*{ts_str}*")
         lines.append("")
@@ -104,7 +116,7 @@ def session_to_markdown(session: ArchivedSession) -> str:
             lines.append("")
 
         if msg.message_type == MessageType.TOOL_RESULT:
-            lines.append("**Résultat de l'outil** :")
+            lines.append("**✅ Résultat Exécuté** :")
             result = msg.tool_result or msg.content
             result, _ = filter_secrets(result)
             lines.append(f"```\n{result[:2000]}\n```")

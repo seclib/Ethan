@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
@@ -184,9 +184,21 @@ class EventStore:
         return await self._backend.get_latest_checkpoint(subject_pattern)
 
     async def _apply_retention(self) -> None:
-        """Applique la politique de rétention."""
-        # TODO: Implémenter la suppression des vieux événements
-        pass
+        """Applique la politique de rétention basée sur les jours.
+
+        Supprime les événements plus anciens que self._retention_days.
+        Note: L'implémentation réelle dépend du backend (ex: TTL NATS, XTRIM Redis).
+        """
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=self._retention_days)
+            # On délègue la purge au backend si celui-ci supporte une méthode de purge
+            if hasattr(self._backend, "purge_older_than"):
+                await self._backend.purge_older_than(cutoff_date)
+            else:
+                logger.debug("Backend %s ne supporte pas la purge native, rétention ignorée", self._backend.__class__.__name__)
+        except Exception as e:
+            logger.error("Retention policy application failed: %s", e)
+
 
     async def get_stats(self) -> dict[str, Any]:
         """Récupère les statistiques.

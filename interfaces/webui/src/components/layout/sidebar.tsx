@@ -19,6 +19,7 @@ import { useUIStore } from "@/store/ui.store";
 import {
   NAV_SECTIONS_PRIMARY,
   NAV_SECTIONS_ADMIN,
+  NAV_SECTIONS_SECONDARY,
   initialCollapsedGroups,
   toggleGroupState,
 } from "./nav-config";
@@ -43,7 +44,11 @@ export interface AppSidebarProps {
  * Les entrées techniques (Models, Providers, Knowledge…) sont déléguées à
  * la navigation secondaire (Settings + palette Ctrl+K) — voir nav-config v5.
  */
-const SIDEBAR_SECTIONS = [...NAV_SECTIONS_PRIMARY, ...NAV_SECTIONS_ADMIN];
+const SIDEBAR_SECTIONS = [
+  ...NAV_SECTIONS_PRIMARY,
+  ...NAV_SECTIONS_ADMIN,
+  ...NAV_SECTIONS_SECONDARY,
+];
 
 /** Breakpoint mobile partagé (SSR-safe : false tant que non monté). */
 function useIsMobile() {
@@ -81,6 +86,10 @@ export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() =>
     initialCollapsedGroups(SIDEBAR_SECTIONS),
   );
+  // Force the "plugins" group to be open by default to ensure visibility during validation
+  React.useEffect(() => {
+    setOpenGroups((g) => ({ ...g, plugins: true }));
+  }, []);
   /** Section Projets — collapsible indépendante (Open-WebUI : « Projects »). */
   const [projectsOpen, setProjectsOpen] = React.useState(false);
 

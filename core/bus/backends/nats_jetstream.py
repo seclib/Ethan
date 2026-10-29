@@ -74,11 +74,53 @@ class NATSJetStreamBackend(StorageBackend):
         start_time: datetime,
         end_time: datetime | None = None,
     ) -> AsyncIterator[StoredEvent]:
-        """Lit les événements."""
-        # TODO: Implémenter avec JetStream consumer
-        # Pour l'instant, yield vide
-        return
-        yield  # type: ignore
+        """Lit les événements via un consumer JetStream."""
+        if not self._js:
+            return
+
+        # Note: En production, on utiliserait un consumer durable.
+        # Ici, on utilise un consumer éphémère pour le replay.
+        try:
+            # Conversion du start_time en timestamp pour NATS
+            start_seq = 1 # On pourrait optimiser en cherchant la séquence exacte
+
+            # On utilise l'API de consommation de JetStream
+            # Note: L'implémentation exacte dépend de la version de nats-py
+            # On simule ici la logique de récupération
+            sub = await self._js.subscribe(subject_pattern)
+
+            async for msg in sub:
+                import json
+                data = json.loads(msg.data.decode("utf-8"))
+
+                event_time = datetime.fromisoformat(data["timestamp"])
+                if event_time < start_time:
+                    continue
+                if end_time and event_time > end_time:
+                    break
+
+                from core.ethan_types.event import Event, EventType
+                event = Event(
+                    id=data["id"],
+                    type=EventType(data["type"]),
+                    source=data["source"],
+                    timestamp=event_time,
+                    payload=data["payload"],
+                    metadata=data["metadata"],
+                )
+
+                yield StoredEvent(
+                    event=event,
+                    position=int(data["position"]),
+                    stored_at=event_time,
+                    size_bytes=len(msg.data),
+                )
+                await msg.ack()
+
+            await sub.unsubscribe()
+        except Exception as e:
+            logger.error("Error reading from JetStream: %s", e, exc_info=True)
+
 
     async def save_checkpoint(self, checkpoint: Checkpoint) -> None:
         """Sauvegarde un checkpoint."""

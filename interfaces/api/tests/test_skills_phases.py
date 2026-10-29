@@ -141,7 +141,7 @@ def test_export_import_roundtrip():
         fresh = SkillStore()
         v1.set_skill_store(fresh)
         summary = await v1.import_skills({"skills": exported})
-        assert summary == {"imported": 2, "skipped": 0}
+        assert summary == {"imported": 2, "skipped": 0, "conflicts": []}
         assert {s["name"] for s in await fresh.list_skills()} == {"exp-a", "exp-b"}
 
         with pytest.raises(HTTPException) as exc:
