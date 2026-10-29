@@ -33,6 +33,7 @@ import {
   Puzzle, Plus, Power, Search, Check, Github, Globe, BookOpen, Code2,
   ImagePlus, FileText, Mail, FolderKanban, Clock, MessageSquare, FolderOpen,
   Wrench, Shield, Settings2, Link2, Unlink, Trash2, RefreshCw,
+  Activity, Terminal, Server, Cpu, AlertCircle,
 } from "lucide-react";
 
 // Mapping manifest.icon (nom déclaré par le Core) → composant lucide.
@@ -161,6 +162,113 @@ function PluginCard({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Odin Service View ──────────────────────────────────────────────────
+
+function OdinServiceSection({ onRefresh }: { onRefresh: () => void }) {
+  const { data: status, isLoading: statusLoading, error: statusError } = useQuery({
+    queryKey: ["plugins", "odin", "status"],
+    queryFn: async () => {
+      const { getOdinStatus } = await import("@/lib/api/plugins");
+      return getOdinStatus();
+    },
+    refetchInterval: 30000, // Auto-refresh every 30s
+  });
+
+  const { data: health, isLoading: healthLoading } = useQuery({
+    queryKey: ["plugins", "odin", "health"],
+    queryFn: async () => {
+      const { getOdinHealth } = await import("@/lib/api/plugins");
+      return getOdinHealth();
+    },
+    enabled: !!status,
+  });
+
+  const { mutate: startOdin } = useMutation({
+    mutationFn: async () => {
+      const { startOdin } = await import("@/lib/api/plugins");
+      return startOdin();
+    },
+    onSuccess: () => {
+      onRefresh();
+    },
+  });
+
+  const { mutate: stopOdin } = useMutation({
+    mutationFn: async () => {
+      const { stopOdin } = await import("@/lib/api/plugins");
+      return stopOdin();
+    },
+    onSuccess: () => {
+      onRefresh();
+    },
+  });
+
+  if (statusLoading) return <div className="flex justify-center py-4"><Spinner /></div>;
+  if (statusError) return <div className="text-xs text-destructive py-2">Error loading Odin status</div>;
+  if (!status) return null;
+
+  const isRunning = status.status === "running";
+  const isError = status.status === "error";
+
+  return (
+    <div className="rounded-xl border border-line-1 bg-bg-1 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Server size={18} className="text-accent" />
+          <h2 className="text-sm font-semibold text-foreground">Odin System Service</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={onRefresh}>
+            <RefreshCw size={12} className="mr-1" /> Sync
+          </Button>
+          {isRunning ? (
+            <Button variant="outline" size="sm" className="h-7 px-2 text-destructive" onClick={() => stopOdin()}>
+              <Power size={12} className="mr-1" /> Stop
+            </Button>
+          ) : (
+            <Button variant="default" size="sm" className="h-7 px-2" onClick={() => startOdin()}>
+              <Plus size={12} className="mr-1" /> Start
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-lg border border-line-1 bg-bg-2 p-3 flex items-center gap-3">
+          <Activity size={16} className={isRunning ? "text-green-500" : "text-muted-foreground"} />
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-foreground-tertiary">Status</p>
+            <p className="text-xs font-medium capitalize">{status.status}</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-line-1 bg-bg-2 p-3 flex items-center gap-3">
+          <Cpu size={16} className="text-accent" />
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-foreground-tertiary">Health</p>
+            <p className="text-xs font-medium">
+              {health?.healthy ? "Healthy" : health ? "Unhealthy" : "Checking..."}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-line-1 bg-bg-2 p-3 flex items-center gap-3">
+          <Terminal size={16} className="text-foreground-secondary" />
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-foreground-tertiary">Tools</p>
+            <p className="text-xs font-medium">{status.mcp_tools_count ?? 0} MCP Tools</p>
+          </div>
+        </div>
+      </div>
+
+      {isError && (
+        <div className="rounded-md bg-destructive/10 border border-destructive/20 p-2 flex items-start gap-2 text-destructive">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <p className="text-[11px] leading-relaxed">{status.error}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -386,7 +494,9 @@ export default function PluginsPage() {
         </div>
 
         {/* Grille */}
-        <div className="mt-6">
+        <div className="mt-6 space-y-6">
+          <OdinServiceSection onRefresh={invalidate} />
+
           {tab === "discover" && featured.length > 0 && (
             <>
               <h2 className="mb-3 text-sm font-semibold text-foreground">Featured</h2>
@@ -420,6 +530,10 @@ export default function PluginsPage() {
             </div>
           )}
         </div>
+        <div className="mt-6">
+          {/* We can add the "My Plugins" or "Custom" upload here if needed later */}
+        </div>
+      </div>
       </div>
 
       {/* Fiche détaillée */}
