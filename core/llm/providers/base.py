@@ -140,6 +140,17 @@ class LLMProvider(ABC):
         except Exception:
             return False
 
+    async def get_health_metrics(self) -> dict[str, Any]:
+        """Retourne les métriques de santé du provider (latence, taux de tokens, etc.).
+
+        L'implémentation par défaut retourne un objet vide. Les providers peuvent
+        surcharger cette méthode pour exposer des métriques réelles via leur API.
+
+        Returns:
+            Dict contenant les métriques (ex: {latency: float, tokens_per_sec: float}).
+        """
+        return {}
+
     async def initialize(self) -> None:
         """Hook d'initialisation asynchrone — à surcharger si besoin.
 

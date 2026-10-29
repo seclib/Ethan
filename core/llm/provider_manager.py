@@ -512,13 +512,13 @@ class ProviderManager:
     # ── Test de connexion ───────────────────────────────────────────────
 
     async def test_connection(self, provider_id: str) -> dict[str, Any]:
-        """Teste la connexion à un provider.
+        """Teste la connexion à un provider et mesure la latence.
 
         Args:
             provider_id: ID du provider
 
         Returns:
-            Dict {connected: bool, message: str, status: str}
+            Dict {connected: bool, message: str, status: str, latency_ms: float | None}
         """
         provider = self._registry.get_provider(provider_id)
         if provider is None:
@@ -540,6 +540,7 @@ class ProviderManager:
                     "connected": False,
                     "status": "error",
                     "message": f"Provider instantiation failed: {e}",
+                    "latency_ms": None,
                 }
 
         try:
@@ -558,6 +559,7 @@ class ProviderManager:
                 "connected": False,
                 "status": "error",
                 "message": str(e),
+                "latency_ms": None,
             }
 
     # ── Modèles ─────────────────────────────────────────────────────────
@@ -711,12 +713,14 @@ class ProviderManager:
         # ne doit jamais bloquer list_providers() pendant plusieurs minutes
         # (ex: provider injoignable + client HTTP longue durée).
         connection_status = "unknown"
+        latency_ms = None
         if config.get("enabled", False):
             try:
                 import asyncio
 
                 result = await asyncio.wait_for(self.test_connection(provider_id), timeout=12.0)
                 connection_status = result["status"]
+                latency_ms = result.get("latency_ms")
             except asyncio.TimeoutError:
                 connection_status = "error"
             except Exception:
@@ -743,8 +747,16 @@ class ProviderManager:
                     supports_transcription=getattr(provider, "supports_transcription", False),
                 )
             )
+            # Ajouter les métriques de santé si disponibles
+            health_metrics = {}
+            if hasattr(provider, "get_health_metrics"):
+                try:
+                    health_metrics = await provider.get_health_metrics()
+                except Exception:
+                    pass
         else:
             capabilities = _caps_for_type(config.get("type", provider_id))
+            health_metrics = {}
 
         return {
             "id": provider_id,
@@ -752,6 +764,8 @@ class ProviderManager:
             "type": config.get("type", provider_id),
             "enabled": config.get("enabled", False),
             "status": connection_status,
+            "latency_ms": latency_ms,
+            "health": health_metrics,
             "default_model": config.get("default_model", ""),
             "is_default": provider_id == self._default_provider,
             "base_url": config.get("base_url", ""),
