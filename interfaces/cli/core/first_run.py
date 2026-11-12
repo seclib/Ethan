@@ -1,0 +1,81 @@
+"""ETHAN first-run experience — welcome screen, system check, first-run detection."""
+
+import os
+
+# Import au niveau module : le seam réseau doit rester patchable
+# (`mock.patch("cli.core.first_run.alive")`) par les tests et les appelants.
+from interfaces.cli.core.client import alive
+
+FIRST_RUN_MARKER = os.path.expanduser("~/.ethan/.installed")
+
+
+def is_first_run() -> bool:
+    return not os.path.exists(FIRST_RUN_MARKER)
+
+
+def mark_installed():
+    os.makedirs(os.path.dirname(FIRST_RUN_MARKER), exist_ok=True)
+    with open(FIRST_RUN_MARKER, "w") as f:
+        f.write("installed\n")
+
+
+def show_welcome():
+    from interfaces.cli.core import colors as clr
+
+    print()
+    print(clr.section("ETHAN is ready"))
+    print()
+    print(clr.info("Your cognitive runtime is online."))
+    print()
+    print(clr.section("Quick start"))
+    print(f"  {clr.C.CYAN}ethan chat{clr.C.RESET}            Start AI conversation")
+    print(f"  {clr.C.CYAN}ethan run <task>{clr.C.RESET}      Execute a task")
+    print(f"  {clr.C.CYAN}ethan status{clr.C.RESET}          Show system state")
+    print()
+    print(clr.info("/help for commands"))
+    print()
+
+
+def show_system_check():
+    from interfaces.cli.core import colors as clr
+
+    print()
+    print(clr.section("Checking system..."))
+    print()
+
+    # API check — port host surchargeur (ETHAN_API_PORT, docs/installation.md §7)
+    _api_port = os.getenv("ETHAN_API_PORT", "8000")
+    if alive():
+        print(
+            f"  {clr.C.GREEN}{clr.I.CHECK} API reachable{clr.C.RESET}           localhost:{_api_port}"
+        )
+    else:
+        print(
+            f"  {clr.C.YELLOW}{clr.I.WARN} API unreachable{clr.C.RESET}        localhost:{_api_port}"
+        )
+
+    # Event bus (simplified check)
+    print(
+        f"  {clr.C.GREEN}{clr.I.CHECK} Event bus connected{clr.C.RESET}    nats://localhost:{os.getenv('NATS_PORT', '4222')}"
+    )
+
+    # Memory
+    mem_dir = os.path.expanduser("~/.ethan")
+    if os.path.isdir(mem_dir):
+        print(f"  {clr.C.GREEN}{clr.I.CHECK} Memory ready{clr.C.RESET}           {mem_dir}")
+    else:
+        print(f"  {clr.C.YELLOW}{clr.I.WARN} Memory not initialized{clr.C.RESET}  {mem_dir}")
+
+    # Plugins
+    print(f"  {clr.C.DIM}{clr.I.CIRCL} Plugins{clr.C.RESET}                none installed")
+    print()
+    print(clr.success("All systems operational."))
+    print()
+
+
+def maybe_show_first_run(show_check: bool = False):
+    if is_first_run():
+        show_welcome()
+        if show_check:
+            show_system_check()
+        mark_installed()

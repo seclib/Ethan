@@ -1,0 +1,2480 @@
+"""V1 API Router — Endpoints attendus par le frontend WebUI.
+
+Expose les capacités Core aux clients WebUI et CLI :
+- /v1/agents
+- /v1/goals
+- /v1/missions
+- /v1/memory/*
+- /v1/skills
+- /v1/knowledge
+- /v1/flux
+- /v1/settings
+- /v1/chat
+
+Les domaines agents, missions, knowledge et RAG sont délégués aux managers du
+Core. Les routes restent des passerelles HTTP sans logique métier propre.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import uuid
+from typing import Any
+
+from core.agents import AgentExecutionUnavailable, AgentManager
+from core.auth import Permission, rbac
+from core.chat import ChatPipeline
+from core.knowledge import KnowledgeCollectionManager, KnowledgeManager
+from core.llm.provider_manager import ProviderManager
+from core.llm.types import ChatMessage as LLMChatMessage
+from core.llm.types import LLMRequirements
+from core.missions import MissionManager
+from core.plugins import PluginRegistry
+from core.rag import RAGPipeline
+from core.rag.strategies import DEFAULT_STRATEGY, available_strategies, validate_strategy
+from core.security.types import ActionType
+from core.skills.lab import SkillLab
+from core.skills.store import SkillStore
+from core.skills.validation import collect_unknown_tools
+from core.state.chats import ChatStore
+from core.state.webui_store import CoreWebUIStore
+
+# Parseur <tool> : source unique Core partagée avec ChatPipeline et la
+# boucle d'outils des agents (AGENTS.md — aucune copie dans l'interface).
+from core.tools.call_protocol import parse_tool_calls as _parse_tool_calls
+from core.tools.call_protocol import strip_tool_blocks as _strip_tool_blocks
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, Form, File
+from interfaces.api.auth import current_user_id, resolve_user_scope, require_permission
+from interfaces.api.gateway_guard import gateway_guard
+from interfaces.api.routers.folders import get_folder_manager
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/v1", tags=["v1"])
+
+# Convention d'isolation utilisateur : les handlers qui doivent connaître
+# l'identité de l'appelant reçoivent `request: Request = None`. L'annotation
+# DOIT être exactement `Request` (jamais `Request | None`) : FastAPI ne reconnaît
+# le paramètre spécial `Request` que dans ce cas (`lenient_issubclass`), sinon il
+# tente de le valider comme champ Pydantic et lève `FastAPIError: Invalid args
+# for response field`. Le défaut `None` n'est jamais utilisé en HTTP (FastAPI
+# injecte toujours la requête) ; il n'existe que pour les tests qui appellent les
+# handlers directement. `interfaces.api.auth.current_user_id` tolère `None`.
+
+# Format d'appel d'outil émis par le LLM lorsque des outils sont sélectionnés
+# dans le chat :  <tool name="nom">{"param": "valeur"}</tool>
+# (Le parsing Core est importé depuis core.tools.call_protocol — voir plus bas.)
+
+
+# Instance globale du ProviderManager — injectée au démarrage via set_provider_manager()
+_manager: ProviderManager | None = None
+
+# Instance globale du CoreWebUIStore (records persistants goals/facts/skills/
+# events/settings/providers/plugins) — injectée au démarrage via set_webui_store().
+_webui_store: CoreWebUIStore | None = None
+
+# Instance globale du SkillStore Core (records persistants skills) — injectée
+# au démarrage via set_skill_store().
+_skill_store: SkillStore | None = None
+
+# Instance globale du ChatStore Core (conversations persistantes) — injectée
+# au démarrage via set_chat_store().
+_chat_store: ChatStore | None = None
+
+# Instance globale du ChatPipeline Core (orchestration du chat) — injectée
+# au démarrage via set_chat_pipeline().
+_chat_pipeline: ChatPipeline | None = None
+
+# Instance globale du KnowledgeCollectionManager Core (collections de
+# documents RAG) — injectée au démarrage via set_knowledge_collections().
+_knowledge_collections: KnowledgeCollectionManager | None = None
+
+
+def set_webui_store(store: CoreWebUIStore) -> None:
+    """Injecte le CoreWebUIStore dans le router (appelé au startup)."""
+    global _webui_store
+    _webui_store = store
+
+
+def get_webui_store() -> CoreWebUIStore:
+    """Retourne le CoreWebUIStore global.
+
+    Raises:
+        HTTPException 503 si le store n'est pas initialisé.
+    """
+    if _webui_store is None:
+        raise HTTPException(status_code=503, detail="WebUI store not initialized")
+    return _webui_store
+
+
+def set_skill_store(store: SkillStore) -> None:
+    """Injecte le SkillStore Core dans le router (appelé au startup)."""
+    global _skill_store
+    _skill_store = store
+
+
+def get_skill_store() -> SkillStore:
+    """Retourne le SkillStore Core global.
+
+    Raises:
+        HTTPException 503 si le store n'est pas initialisé.
+    """
+    if _skill_store is None:
+        raise HTTPException(status_code=503, detail="Skill store not initialized")
+    return _skill_store
+
+
+def set_chat_store(store: ChatStore) -> None:
+    """Injecte le ChatStore Core dans le router (appelé au startup)."""
+    global _chat_store
+    _chat_store = store
+
+
+def get_chat_store() -> ChatStore:
+    """Retourne le ChatStore Core global.
+
+    Raises:
+        HTTPException 503 si le store n'est pas initialisé.
+    """
+    if _chat_store is None:
+        raise HTTPException(status_code=503, detail="Chat store not initialized")
+    return _chat_store
+
+
+def set_chat_pipeline(pipeline: ChatPipeline) -> None:
+    """Injecte le ChatPipeline Core dans le router (appelé au startup)."""
+    global _chat_pipeline
+    _chat_pipeline = pipeline
+
+
+def get_chat_pipeline() -> ChatPipeline:
+    """Retourne le ChatPipeline Core global.
+
+    Raises:
+        HTTPException 503 si le pipeline n'est pas initialisé.
+    """
+    if _chat_pipeline is None:
+        raise HTTPException(status_code=503, detail="Chat pipeline not initialized")
+    return _chat_pipeline
+
+
+def set_knowledge_collections(manager: KnowledgeCollectionManager) -> None:
+    """Injecte le KnowledgeCollectionManager Core dans le router (startup)."""
+    global _knowledge_collections
+    _knowledge_collections = manager
+
+
+def get_knowledge_collections() -> KnowledgeCollectionManager:
+    """Retourne le KnowledgeCollectionManager Core global.
+
+    Raises:
+        HTTPException 503 si le manager n'est pas initialisé.
+    """
+    if _knowledge_collections is None:
+        raise HTTPException(status_code=503, detail="Knowledge collections not initialized")
+    return _knowledge_collections
+
+
+class CoreDomainServices:
+    """Core-owned domain managers exposed through this HTTP gateway."""
+
+    def __init__(
+        self,
+        *,
+        agents: AgentManager | None = None,
+        missions: MissionManager | None = None,
+        knowledge: KnowledgeManager | None = None,
+        rag: RAGPipeline | None = None,
+    ) -> None:
+        self.agents = agents or AgentManager()
+        self.missions = missions or MissionManager()
+        self.knowledge = knowledge or KnowledgeManager()
+        self.rag = rag or RAGPipeline()
+
+
+_domains = CoreDomainServices()
+
+
+# Instance globale du ToolManager Core (catalogue builtin/custom/MCP) —
+# injectée au démarrage via set_tool_manager().
+_tool_manager: Any | None = None
+
+
+def set_core_domain_services(services: CoreDomainServices) -> None:
+    """Inject the Core composition root during API startup."""
+    global _domains
+    _domains = services
+
+
+def set_tool_manager(manager: Any) -> None:
+    """Injecte le ToolManager Core dans le router (appelé au startup)."""
+    global _tool_manager
+    _tool_manager = manager
+
+
+def set_provider_manager(manager: ProviderManager) -> None:
+    """Injecte le ProviderManager dans le router (appelé au startup)."""
+    global _manager
+    _manager = manager
+
+
+def get_manager() -> ProviderManager:
+    """Retourne le ProviderManager global.
+
+    Raises:
+        HTTPException 503 si le manager n'est pas initialisé.
+    """
+    if _manager is None:
+        raise HTTPException(status_code=503, detail="Provider manager not initialized")
+    return _manager
+
+
+def _utc_now_rfc3339() -> str:
+    """Timestamp UTC au format RFC3339 (compatible frontend)."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+# Les records goals/facts/skills/events/settings/providers/plugins vivent dans
+# le CoreWebUIStore (Core, persistant), pas dans ce router — voir get_webui_store().
+
+
+_SENSITIVE_AGENT_FIELDS = {
+    "owner_id",
+    "created_by",
+    "agent_type",
+    "capabilities",
+    "tool_ids",
+    "skill_ids",
+    "knowledge_collection_ids",
+    "knowledge_ids",
+    "folder_ids",
+    "domain_ids",
+}
+
+
+def _agent_principal(request: Request | None) -> str | None:
+    """Return the authenticated principal when available."""
+    if request is None:
+        return None
+    return current_user_id(request)
+
+
+def _agent_principal_role(request: Request | None) -> str | None:
+    if request is None:
+        return None
+    payload = getattr(request.state, "token_payload", {}) or {}
+    return payload.get("role")
+
+
+def _is_agent_admin(request: Request | None) -> bool:
+    if request is None:
+        return False
+    user = _agent_principal(request)
+    if not user:
+        return False
+    role = _agent_principal_role(request)
+    return role == "admin" or bool(getattr(rbac, "has_permission", lambda _r, _p: False)(role, Permission.ADMIN))
+
+
+def _agent_can_read(agent: Any, request: Request | None) -> bool:
+    if request is None:
+        return False
+    if _is_agent_admin(request):
+        return True
+    user = _agent_principal(request)
+    if not user or getattr(agent, "owner_id", None) != user:
+        return False
+    role = _agent_principal_role(request)
+    return bool(getattr(rbac, "has_permission", lambda _r, _p: False)(role, Permission.AGENTS))
+
+
+def _agent_can_execute(agent: Any, request: Request | None) -> bool:
+    if request is None:
+        return False
+    if not _agent_can_read(agent, request):
+        return False
+    user = _agent_principal(request)
+    if user is None:
+        return False
+    role = _agent_principal_role(request)
+    return bool(
+        _is_agent_admin(request)
+        or getattr(rbac, "has_permission", lambda _r, _p: False)(role, Permission.EXECUTE)
+    )
+
+
+def _agent_can_update(agent: Any, request: Request | None) -> bool:
+    if request is None:
+        return False
+    if _is_agent_admin(request):
+        return True
+    user = _agent_principal(request)
+    if not user or getattr(agent, "owner_id", None) != user:
+        return False
+    role = _agent_principal_role(request)
+    return bool(getattr(rbac, "has_permission", lambda _r, _p: False)(role, Permission.AGENTS))
+
+
+def _agent_can_delete(agent: Any, request: Request | None) -> bool:
+    if request is None:
+        return False
+    if _is_agent_admin(request):
+        return True
+    return False
+
+
+def _agent_reject_sensitive(data: dict[str, Any]) -> None:
+    blocked = sorted(_SENSITIVE_AGENT_FIELDS & set(data))
+    if blocked:
+        raise ValueError(
+            "Sensitive agent field(s) cannot be modified by this endpoint: "
+            + ", ".join(blocked)
+        )
+
+
+def _ensure_agent_access(agent: Any, request: Request | None, *, operation: str) -> None:
+    # Legacy callers without an HTTP Request keep compatibility.  HTTP paths
+    # always carry a Request; if authentication is absent there, fail closed.
+    if request is None:
+        return
+    user = _agent_principal(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not {
+        "read": _agent_can_read,
+        "update": _agent_can_update,
+        "delete": _agent_can_delete,
+        "execute": _agent_can_execute,
+    }.get(operation, lambda _a, _r: False)(agent, request):
+        detail = (
+            f"Permission denied: operation '{operation}' not allowed for this agent"
+        )
+        raise HTTPException(status_code=403, detail=detail)
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AGENTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/agents")
+async def list_agents(request: Request = None):
+    agents = await _domains.agents.list()
+    user = _agent_principal(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if _is_agent_admin(request):
+        return [agent.to_dict() for agent in agents]
+    return [agent.to_dict() for agent in agents if getattr(agent, "owner_id", None) == user]
+
+
+async def _validated_knowledge_collection_ids(
+    data: dict[str, Any],
+) -> list[str]:
+    """Valide et retourne knowledge_collection_ids (compat metadata.knowledge_ids).
+
+    L'ancienne convention WebUI stockait les collections dans
+    ``metadata.knowledge_ids`` ; le champ typé prime désormais.  Toute
+    collection inconnue est rejetée (422) pour garantir l'intégrité du lien
+    agent → connaissances.
+    """
+    ids = data.get("knowledge_collection_ids")
+    if ids is None:
+        metadata = data.get("metadata") or {}
+        ids = metadata.get("knowledge_ids") if isinstance(metadata, dict) else None
+    ids = list(ids or [])
+    collections_manager = get_knowledge_collections()
+    for collection_id in ids:
+        if await collections_manager.get_collection(collection_id) is None:
+            raise ValueError(f"Knowledge collection {collection_id} not found")
+    return ids
+
+
+async def _validated_folder_ids(data: dict[str, Any]) -> list[str]:
+    """Valide folder_ids pour les agents (sélection de dossiers génériques).
+
+    Prépare la création d'agents pilotés par dossiers/ressources : tout
+    dossier inconnu est rejeté (422) pour garantir l'intégrité du lien
+    agent → dossiers.  Les contenus sont résolus à l'exécution via le Core.
+    """
+    ids = list(data.get("folder_ids") or [])
+    if not ids:
+        return ids
+    folders = get_folder_manager()
+    for folder_id in ids:
+        if await folders.get_folder(folder_id) is None:
+            raise ValueError(f"Folder {folder_id} not found")
+    return ids
+
+
+def _get_core_domain_manager() -> Any:
+    from interfaces.api.routers.core_domains import get_domain_manager
+
+    return get_domain_manager()
+
+
+def _get_tool_manager() -> Any:
+    """ToolManager Core (peut être absent en test — validation dégradée)."""
+    return _tool_manager
+
+
+async def _validated_knowledge_node_ids(data: dict[str, Any]) -> list[str]:
+    """Valide knowledge_ids pour les agents (nœuds de Knowledge spécifiques).
+
+    Tout nœud inconnu est rejeté (422) : un agent ne peut recevoir que des
+    nœuds réellement existants.  Le contenu est résolu à l'exécution via le
+    KnowledgeManager Core (relation, jamais duplication).
+    """
+    ids = list(data.get("knowledge_ids") or [])
+    if not ids:
+        return ids
+    seen: list[str] = []
+    for node_id in ids:
+        if node_id in seen:
+            continue
+        if await _domains.knowledge.get(node_id) is None:
+            raise ValueError(f"Knowledge {node_id} not found")
+        seen.append(node_id)
+    return seen
+
+
+def _validated_tool_ids(data: dict[str, Any]) -> list[str]:
+    """Valide tool_ids pour les agents (tools builtin/custom/MCP).
+
+    Tout tool inconnu est rejeté (422).  Un serveur MCP est représenté par
+    les tools qu'il expose : la sélection reste au niveau tool (pas de
+    duplication).  Si le ToolManager n'est pas branché (tests), la validation
+    est dégradée : les ids sont acceptés tels quels.
+    """
+    ids = list(data.get("tool_ids") or [])
+    if not ids:
+        return ids
+    manager = _get_tool_manager()
+    if manager is None:
+        return ids
+    seen: list[str] = []
+    for tool_id in ids:
+        if tool_id in seen:
+            continue
+        if manager.get_tool(tool_id) is None:
+            raise ValueError(f"Tool {tool_id} not found")
+        seen.append(tool_id)
+    return seen
+
+
+async def _validated_domain_ids(data: dict[str, Any]) -> list[str]:
+    """Valide domain_ids pour les agents (sélection explicite de domains).
+
+    Tout domain inconnu est rejeté (422) : un agent ne peut se déclarer
+    spécialiste que de domains réellement existants.  Les contenus restent
+    résolus à l'exécution via le DomainManager Core (relation, jamais
+    duplication).
+    """
+    ids = list(data.get("domain_ids") or [])
+    if not ids:
+        return ids
+    domains = _get_core_domain_manager()
+    seen: list[str] = []
+    for domain_id in ids:
+        if domain_id in seen:
+            continue
+        if await domains.get_domain(domain_id) is None:
+            raise ValueError(f"Domain {domain_id} not found")
+        seen.append(domain_id)
+    return seen
+
+
+@router.post("/agents", dependencies=[Depends(require_permission(Permission.AGENTS))])
+async def create_agent(data: dict[str, Any], request: Request = None):
+    try:
+        knowledge_collection_ids = await _validated_knowledge_collection_ids(data)
+        folder_ids = await _validated_folder_ids(data) if data.get("folder_ids") else []
+        domain_ids = await _validated_domain_ids(data) if data.get("domain_ids") else []
+        knowledge_ids = await _validated_knowledge_node_ids(data)
+        tool_ids = _validated_tool_ids(data)
+        principal = _agent_principal(request)
+        if principal is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        agent = await _domains.agents.create(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            capabilities=data.get("capabilities"),
+            model=data.get("model"),
+            provider=data.get("provider"),
+            memory_scope=data.get("memory_scope", "default"),
+            skill_ids=data.get("skill_ids", data.get("skills")),
+            knowledge_collection_ids=knowledge_collection_ids,
+            knowledge_ids=knowledge_ids,
+            tool_ids=tool_ids,
+            folder_ids=folder_ids,
+            domain_ids=domain_ids,
+            owner_id=principal,
+            created_by=principal,
+            agent_type="user",
+            metadata=data.get("metadata"),
+        )
+        return agent.to_dict()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/agents/{agent_id}")
+async def get_agent(agent_id: str, request: Request = None):
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="read")
+    return agent.to_dict()
+
+
+@router.get("/agents/{agent_id}/resources")
+async def get_agent_resources(agent_id: str, request: Request = None):
+    """..."""
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="read")
+    from core.agents.resources import resolve_agent_resources
+
+    try:
+        skill_store = get_skill_store()
+    except HTTPException:
+        skill_store = None
+    return await resolve_agent_resources(
+        agent,
+        folders=get_folder_manager(),
+        knowledge=_domains.knowledge,
+        collections=get_knowledge_collections(),
+        skills=skill_store,
+        tools=_tool_manager,
+    )
+
+
+@router.get("/tools")
+async def list_tools():
+    """Liste le catalogue d'outils Core (builtin, custom, MCP découverts).
+
+    Lecture seule : les tools sont possédés par le ToolManager Core.
+    Utilisé par le WebUI pour associer des outils à un agent ou un chat.
+    """
+    if _tool_manager is None:
+        raise HTTPException(503, "ToolManager not initialized")
+    return [
+        tool.to_dict()
+        if hasattr(tool, "to_dict")
+        else {
+            "id": tool.id,
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+            "category": tool.category,
+            "capabilities": tool.capabilities,
+            "provider": tool.provider,
+            "is_available": tool.is_available,
+            "risk_level": getattr(tool.risk_level, "value", str(tool.risk_level)),
+            "tags": tool.tags,
+        }
+        for tool in _tool_manager.list_tools()
+    ]
+
+
+@router.put(
+    "/agents/{agent_id}",
+    dependencies=[Depends(require_permission(Permission.AGENTS))],
+)
+async def update_agent(agent_id: str, data: dict[str, Any], request: Request = None):
+    """..."""
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="update")
+    try:
+        # Blocking sensitive capabilities prevents privilege expansion through
+        # an ordinary descriptive update.  Legacy direct calls without an
+        # authenticated context preserve compatibility with non-HTTP callers.
+        if request is not None and _agent_principal(request) is not None:
+            _agent_reject_sensitive(data)
+        if "knowledge_collection_ids" in data or (
+            isinstance(data.get("metadata"), dict) and "knowledge_ids" in data["metadata"]
+        ):
+            data = dict(data)
+            data["knowledge_collection_ids"] = await _validated_knowledge_collection_ids(data)
+        if "folder_ids" in data:
+            data = dict(data)
+            data["folder_ids"] = await _validated_folder_ids(data)
+        if "domain_ids" in data:
+            data = dict(data)
+            data["domain_ids"] = await _validated_domain_ids(data)
+        if "knowledge_ids" in data:
+            data = dict(data)
+            data["knowledge_ids"] = await _validated_knowledge_node_ids(data)
+        # Note: tool_ids remains blocked by _agent_reject_sensitive.
+        agent = await _domains.agents.update(agent_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    return agent.to_dict()
+
+
+@router.delete(
+    "/agents/{agent_id}",
+    dependencies=[Depends(require_permission(Permission.AGENTS))],
+)
+async def delete_agent(agent_id: str, request: Request = None):
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="delete")
+    if not await _domains.agents.delete(agent_id):
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    return {"status": "deleted"}
+
+
+@router.post(
+    "/agents/{agent_id}/execute", dependencies=[Depends(require_permission(Permission.EXECUTE))]
+)
+async def execute_agent(agent_id: str, data: dict[str, Any], request: Request = None):
+    """Request agent work through the Core execution adapter."""
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="execute")
+    # Trusted execution identity, rebuilt by ETHAN from authenticated server
+    # state and intentionally not accepted from task/context payloads.
+    from core.auth.principal import AgentPrincipal, ExecutionContext
+    from datetime import datetime, timezone
+
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if not isinstance(principal, AgentPrincipal):
+        # Reconstruction is intentionally strict: missing or invalid identity
+        # must not be replaced by a client-provided value.
+        raise HTTPException(status_code=401, detail="Authentification requise. Contexte d'exécution authentifié absent.")
+    execution_context = ExecutionContext(
+        principal=principal,
+        agent_id=agent_id,
+        request_id=getattr(request.state, "request_id", None),
+        started_at=datetime.now(timezone.utc),
+    )
+
+    try:
+        execution = await _domains.agents.execute(
+            agent_id,
+            data.get("task", ""),
+            context=data.get("context"),
+            skill_id=data.get("skill_id"),
+            execution_context=execution_context,
+        )
+        return execution.to_dict()
+    except AgentExecutionUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        message = str(exc)
+        raise HTTPException(404 if message.endswith("not found") else 422, message) from exc
+
+
+@router.get("/agents/{agent_id}/executions")
+async def list_agent_executions(agent_id: str, request: Request = None):
+    agent = await _domains.agents.get(agent_id)
+    if agent is None:
+        raise HTTPException(404, f"Agent {agent_id} not found")
+    _ensure_agent_access(agent, request, operation="read")
+    return [execution.to_dict() for execution in await _domains.agents.list_executions(agent_id)]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# GOALS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/goals")
+async def list_goals():
+    return await get_webui_store().list_goals()
+
+
+@router.post("/goals")
+async def create_goal(data: dict[str, Any]):
+    try:
+        return await get_webui_store().create_goal(
+            title=data.get("title", "untitled"),
+            description=data.get("description", ""),
+            priority=data.get("priority", "normal"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/goals/{goal_id}")
+async def get_goal(goal_id: str):
+    goal = await get_webui_store().get_goal(goal_id)
+    if goal is None:
+        raise HTTPException(404, f"Goal {goal_id} not found")
+    return goal
+
+
+@router.put("/goals/{goal_id}")
+async def update_goal(goal_id: str, data: dict[str, Any]):
+    goal = await get_webui_store().update_goal(goal_id, data)
+    if goal is None:
+        raise HTTPException(404, f"Goal {goal_id} not found")
+    return goal
+
+
+@router.delete("/goals/{goal_id}")
+async def delete_goal(goal_id: str):
+    if not await get_webui_store().delete_goal(goal_id):
+        raise HTTPException(404, f"Goal {goal_id} not found")
+    return {"status": "deleted"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MISSIONS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/missions")
+async def list_missions(status: str | None = None):
+    try:
+        return [mission.to_dict() for mission in await _domains.missions.list(status)]
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post("/missions", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+async def create_mission(data: dict[str, Any]):
+    try:
+        mission = await _domains.missions.create(
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            steps=data.get("steps"),
+            workspace_path=data.get("workspace_path", ""),
+            metadata=data.get("metadata"),
+        )
+        return mission.to_dict()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/missions/{mission_id}")
+async def get_mission(mission_id: str):
+    mission = await _domains.missions.get(mission_id)
+    if mission is None:
+        raise HTTPException(404, f"Mission {mission_id} not found")
+    return mission.to_dict()
+
+
+@router.put("/missions/{mission_id}")
+async def update_mission(mission_id: str, data: dict[str, Any]):
+    try:
+        mission = await _domains.missions.update(mission_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if mission is None:
+        raise HTTPException(404, f"Mission {mission_id} not found")
+    return mission.to_dict()
+
+
+@router.delete("/missions/{mission_id}")
+async def delete_mission(mission_id: str):
+    if not await _domains.missions.delete(mission_id):
+        raise HTTPException(404, f"Mission {mission_id} not found")
+    return {"status": "deleted"}
+
+
+@router.post("/missions/{mission_id}/steps/{step_id}/verify")
+async def verify_mission_step(mission_id: str, step_id: str):
+    try:
+        return await _domains.missions.verify_step(mission_id, step_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post("/missions/{mission_id}/steps/{step_id}/approve")
+async def approve_mission_step(mission_id: str, step_id: str):
+    try:
+        return await _domains.missions.approve_step(mission_id, step_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MEMORY / FACTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/memory/facts")
+async def list_facts(limit: int = 20, category: str | None = None):
+    facts = await get_webui_store().list_facts(category=category)
+    return facts[:limit]
+
+
+@router.get("/memory/facts/search")
+async def search_facts(q: str = ""):
+    return await get_webui_store().search_facts(q)
+
+
+@router.get("/memory/facts/{fact_id}")
+async def get_fact(fact_id: str):
+    fact = await get_webui_store().get_fact(fact_id)
+    if fact is None:
+        raise HTTPException(404, f"Fact {fact_id} not found")
+    return fact
+
+
+@router.post("/memory/facts")
+async def create_fact(data: dict[str, Any]):
+    return await get_webui_store().create_fact(data)
+
+
+@router.get("/memory/events")
+async def list_memory_events():
+    return await get_webui_store().list_events(limit=100)
+
+
+@router.post("/memory/ingest")
+async def ingest_memory(entry: dict[str, Any]):
+    return await get_webui_store().append_event(entry)
+
+
+@router.get("/memory/search")
+async def search_memory(q: str = "", filters: dict[str, Any] | None = None):
+    return await get_webui_store().search_memory(q)
+
+
+# Routes engineering-memory qui seraient sinon interceptées par le catch-all
+# `/memory/{memory_id}` ci-dessous (shadowing). Elles déléguent au service
+# Engineering Memory (même implémentation que engineering_memory.py) afin de
+# préserver les contrats `/v1/memory/health` et `/v1/memory/records` sans
+# dupliquer la logique métier.
+@router.get("/memory/health", dependencies=[Depends(require_permission(Permission.READ))])
+async def memory_health_proxy():
+    import os
+    from pathlib import Path as _Path
+    from core.engineering_memory import EngineeringMemoryService
+    root = _Path(os.environ.get("ETHAN_ENGINEERING_MEMORY_ROOT", "/home/fatsio/AI/Ethan/daena"))
+    service = EngineeringMemoryService(root=root)
+    return service.verify_integrity()
+
+
+@router.get("/memory/records", dependencies=[Depends(require_permission(Permission.READ))])
+async def memory_records_proxy(
+    record_type: str | None = None,
+    component: str | None = None,
+    status: str | None = None,
+    limit: int = 200,
+):
+    import os
+    from pathlib import Path as _Path
+    from core.engineering_memory import EngineeringMemoryService
+    from interfaces.api.routers.engineering_memory import _record_to_dict
+    root = _Path(os.environ.get("ETHAN_ENGINEERING_MEMORY_ROOT", "/home/fatsio/AI/Ethan/daena"))
+    service = EngineeringMemoryService(root=root)
+    results = service.search(component=component, record_type=record_type, status=status)
+    if limit:
+        results = results[:limit]
+    return {"results": [_record_to_dict(record) for record in results]}
+
+
+@router.get("/memory/{memory_id}")
+async def get_memory_entry(memory_id: str):
+    entry = await get_webui_store().get_memory_entry(memory_id)
+    if entry is None:
+        raise HTTPException(404, f"Memory entry {memory_id} not found")
+    return entry
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SKILLS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/skills")
+async def list_skills(
+    active: bool | None = None,
+    kind: str | None = None,
+    tag: str | None = None,
+):
+    """Liste les skills (modèle unifié) avec filtres optionnels."""
+    return await get_skill_store().list_skills(active=active, kind=kind, tag=tag)
+
+
+def _validate_skill_tools(data: dict[str, Any]) -> None:
+    """Refuse (422) toute skill référençant un outil inconnu du ToolManager."""
+    unknown = collect_unknown_tools(
+        data.get("required_tools") or [],
+        data.get("steps") or [],
+        _tool_manager,
+    )
+    if unknown:
+        raise HTTPException(
+            422,
+            "Outils inconnus (absents du ToolManager) : " + ", ".join(unknown),
+        )
+
+
+@router.post("/skills", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def create_skill(data: dict[str, Any]):
+    _validate_skill_tools(data)
+    try:
+        return await get_skill_store().create_skill(data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/skills/search")
+async def search_skills(q: str = ""):
+    return await get_skill_store().search_skills(q)
+
+
+@router.get("/skills/export")
+async def export_skills():
+    """Exporte toutes les skills (portabilité, pattern Open-WebUI)."""
+    return await get_skill_store().export_skills()
+
+
+@router.post(
+    "/skills/import",
+    dependencies=[
+        Depends(require_permission(Permission.PLUGINS)),
+        # CTO P0-1 : SecurityGateway — import de code skills externe.
+        Depends(gateway_guard(ActionType.PLUGIN_INSTALL)),
+    ],
+)
+async def import_skills(data: dict[str, Any]):
+    records = data.get("skills") or []
+    if not isinstance(records, list):
+        raise HTTPException(422, "Le corps doit contenir une liste 'skills'.")
+    return await get_skill_store().import_skills(records)
+
+
+# ── Skill Lab (sandbox Docker obligatoire — aucun fallback local) ──────
+
+_skill_lab: SkillLab | None = None
+
+
+def get_skill_lab() -> SkillLab:
+    """SkillLab paresseux : client Docker réel si le daemon répond, sinon None."""
+    global _skill_lab
+    if _skill_lab is None:
+        try:
+            import docker as _docker_sdk
+
+            _docker_client = _docker_sdk.from_env()
+            _docker_client.ping()
+            _skill_lab = SkillLab(docker_client=_docker_client)
+        except Exception:
+            _skill_lab = SkillLab(docker_client=None)
+    return _skill_lab
+
+
+@router.post("/skills/lab/test", dependencies=[Depends(require_permission(Permission.EXECUTE))])
+async def skill_lab_test(data: dict[str, Any]):
+    """Teste un code Python de skill candidat dans le sandbox Docker."""
+    lab = get_skill_lab()
+    if not lab.docker_available:
+        raise HTTPException(
+            503,
+            "Skill Lab indisponible : Docker est requis (sandbox obligatoire, "
+            "aucune exécution locale du code candidat).",
+        )
+    code = str(data.get("code") or "").strip()
+    if not code:
+        raise HTTPException(422, "Le champ 'code' (Python) est requis.")
+    result = await lab.test_skill(
+        skill_code=code,
+        skill_name=str(data.get("name") or "test_skill"),
+        test_input=str(data.get("input") or ""),
+        requirements=list(data.get("requirements") or []),
+    )
+    return result.to_dict()
+
+
+@router.get("/skills/lab/results")
+async def skill_lab_results(skill_name: str | None = None):
+    return get_skill_lab().list_results(skill_name=skill_name)
+
+
+@router.get("/skills/{skill_id}")
+async def get_skill(skill_id: str):
+    skill = await get_skill_store().get_skill(skill_id)
+    if skill is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return skill
+
+
+@router.put("/skills/{skill_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def update_skill(skill_id: str, data: dict[str, Any]):
+    _validate_skill_tools(data)
+    try:
+        skill = await get_skill_store().update_skill(skill_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if skill is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return skill
+
+
+@router.delete("/skills/{skill_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def delete_skill(skill_id: str):
+    if not await get_skill_store().delete_skill(skill_id):
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return {"status": "deleted"}
+
+
+@router.post(
+    "/skills/{skill_id}/toggle", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def toggle_skill(skill_id: str):
+    skill = await get_skill_store().toggle_skill(skill_id)
+    if skill is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return skill
+
+
+@router.get("/skills/{skill_id}/valves")
+async def get_skill_valves(skill_id: str):
+    """Valves (configuration réelle) d'une skill."""
+    valves = await get_skill_store().get_valves(skill_id)
+    if valves is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return valves
+
+
+@router.put(
+    "/skills/{skill_id}/valves",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def update_skill_valves(skill_id: str, data: dict[str, Any]):
+    try:
+        valves = await get_skill_store().update_valves(skill_id, data.get("valves", {}))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if valves is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    return valves
+
+
+@router.post(
+    "/skills/{skill_id}/run", dependencies=[Depends(require_permission(Permission.EXECUTE))]
+)
+async def run_skill(skill_id: str, data: dict[str, Any], request: Request = None):
+    """Exécute une skill du catalogue via le ChatPipeline Core (moteur réel).
+
+    Contrairement à ``/skills/{id}/execute`` (moteur à étapes des builtins,
+    registre mémoire), */run* traite les skills persistées du ``SkillStore`` :
+    le ``content`` de la skill est injecté dans le prompt comme instructions
+    (via le même chemin ``_build_llm_messages`` qu'une conversation) puis la
+    réponse est générée par le ProviderManager Core. Aucun second moteur.
+    """
+    skill = await get_skill_store().get_skill(skill_id)
+    if skill is None:
+        raise HTTPException(404, f"Skill {skill_id} not found")
+    if not (skill.get("content") or "").strip():
+        raise HTTPException(422, "Cette skill n'a pas de contenu exécutable (content vide).")
+    if not skill.get("is_active", True):
+        raise HTTPException(409, "Cette skill est désactivée — activez-la avant de l'exécuter.")
+
+    input_text = (data.get("input") or "").strip()
+    if not input_text:
+        raise HTTPException(422, "Un message d'entrée (input) est requis pour exécuter la skill.")
+
+    pipeline = get_chat_pipeline()
+    try:
+        result = await pipeline.run(
+            message=input_text,
+            chat_id=data.get("chat_id"),
+            user_id=resolve_user_scope(request, data.get("user_id")),
+            provider_id=data.get("provider_id"),
+            model=data.get("model"),
+            skill_ids=[skill_id],
+            metadata={"skill_id": skill_id, "skill_name": skill.get("name", "")},
+        )
+    except ValueError as exc:
+        await get_skill_store().record_execution(skill_id, False)
+        raise HTTPException(422, str(exc)) from exc
+    except Exception:
+        await get_skill_store().record_execution(skill_id, False)
+        raise
+    await get_skill_store().record_execution(skill_id, True)
+
+    assistant = result["assistant_message"]
+    return {
+        "skill_id": skill_id,
+        "status": assistant.get("status", "done"),
+        "chat_id": result["chat_id"],
+        "output": assistant["content"],
+        "metadata": assistant.get("metadata") or {},
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# KNOWLEDGE
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/knowledge")
+async def list_knowledge():
+    return [node.to_dict() for node in await _domains.knowledge.list()]
+
+
+@router.get("/knowledge/search")
+async def search_knowledge(q: str = ""):
+    return [node.to_dict() for node in await _domains.knowledge.search(q)]
+
+
+@router.get("/knowledge/collections")
+async def list_collections(request: Request = None, user_id: str | None = None):
+    """Collections de l'utilisateur courant (identité issue du JWT).
+
+    ``user_id`` n'est qu'un repli pour les clients internes sans JWT : les
+    collections sont isolées par utilisateur, un client ne peut pas lister
+    celles d'un autre compte.
+    """
+    return await get_knowledge_collections().list_collections(
+        user_id=resolve_user_scope(request, user_id)
+    )
+
+
+@router.post("/knowledge/collections")
+async def create_collection(data: dict[str, Any], request: Request = None):
+    try:
+        return await get_knowledge_collections().create_collection(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            user_id=resolve_user_scope(request, data.get("user_id")),
+            metadata=data.get("metadata"),
+            parent_id=data.get("parent_id"),
+            icon=data.get("icon"),
+            order=data.get("order", 0),
+            retrieval_strategy=data.get("retrieval_strategy"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/knowledge/collections/tree")
+async def list_collections_tree(request: Request = None, user_id: str | None = None):
+    """Liste les collections en arborescence (dossiers organisables).
+
+    Identité issue du JWT (isolation par utilisateur) ; ``user_id`` ne sert
+    que de repli pour les clients internes.
+    """
+    return await get_knowledge_collections().list_tree(user_id=resolve_user_scope(request, user_id))
+
+
+@router.post("/knowledge/collections/retrieve-multi")
+async def retrieve_collections_multi(data: dict[str, Any]):
+    """Retrieve RAG scopé sur plusieurs collections en un seul passage."""
+    query = data.get("query", "")
+    collection_ids = data.get("collection_ids", [])
+    top_k = data.get("top_k")
+    try:
+        return await get_knowledge_collections().retrieve_multi(query, collection_ids, top_k=top_k)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/knowledge/collections/{collection_id}")
+async def get_collection(collection_id: str):
+    collection = await get_knowledge_collections().get_collection(collection_id)
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.put("/knowledge/collections/{collection_id}")
+async def update_collection(collection_id: str, data: dict[str, Any]):
+    try:
+        collection = await get_knowledge_collections().update_collection(collection_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.post("/knowledge/collections/{collection_id}/move")
+async def move_collection(collection_id: str, data: dict[str, Any]):
+    """Déplace une collection sous un autre parent (dossiers organisables).
+
+    ``parent_id: null`` remet la collection à la racine.
+    """
+    try:
+        collection = await get_knowledge_collections().move_collection(
+            collection_id, data.get("parent_id")
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return collection
+
+
+@router.delete("/knowledge/collections/{collection_id}")
+async def delete_collection(collection_id: str):
+    if not await get_knowledge_collections().delete_collection(collection_id):
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return {"status": "deleted"}
+
+
+@router.get("/knowledge/collections/{collection_id}/documents")
+async def list_collection_documents(collection_id: str):
+    documents = await get_knowledge_collections().list_documents(collection_id)
+    return documents
+
+
+@router.post("/knowledge/collections/{collection_id}/documents")
+async def add_collection_document(collection_id: str, data: dict[str, Any]):
+    try:
+        collection = await get_knowledge_collections().add_document(
+            collection_id, data.get("document_id", "")
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.delete("/knowledge/collections/{collection_id}/documents/{document_id}")
+async def remove_collection_document(collection_id: str, document_id: str):
+    collection = await get_knowledge_collections().remove_document(collection_id, document_id)
+    if collection is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return collection
+
+
+@router.post("/knowledge/collections/{collection_id}/retrieve")
+async def retrieve_collection(data: dict[str, Any], collection_id: str):
+    """Retrieval RAG restreint à une collection."""
+    query = data.get("query", "")
+    try:
+        top_k = int(data["top_k"]) if data.get("top_k") is not None else None
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "top_k must be an integer") from exc
+    try:
+        return await get_knowledge_collections().retrieve(query, collection_id, top_k=top_k)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post(
+    "/knowledge/collections/{collection_id}/reindex",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def reindex_collection(collection_id: str):
+    """Ré-indexe une collection (rechunk + ré-embed de ses documents).
+
+    Utile après un changement de modèle d'embedding ou de stratégie.  La
+    logique de réindexation appartient au Core (KnowledgeCollectionManager).
+    """
+    if await get_knowledge_collections().get_collection(collection_id) is None:
+        raise HTTPException(404, f"Collection {collection_id} not found")
+    return await get_knowledge_collections().reindex_collection(collection_id)
+
+
+@router.get("/knowledge/{knowledge_id}")
+async def get_knowledge(knowledge_id: str):
+    node = await _domains.knowledge.get(knowledge_id)
+    if node is None:
+        raise HTTPException(404, f"Knowledge {knowledge_id} not found")
+    return node.to_dict()
+
+
+@router.post("/knowledge")
+async def create_knowledge(data: dict[str, Any]):
+    try:
+        node = await _domains.knowledge.create(
+            label=data.get("label", ""),
+            node_type=data.get("node_type", data.get("type", "concept")),
+            content=data.get("content", ""),
+            source=data.get("source", ""),
+            connections=data.get("connections"),
+            metadata=data.get("metadata"),
+        )
+        return node.to_dict()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.put("/knowledge/{knowledge_id}")
+async def update_knowledge(knowledge_id: str, data: dict[str, Any]):
+    try:
+        node = await _domains.knowledge.update(knowledge_id, data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if node is None:
+        raise HTTPException(404, f"Knowledge {knowledge_id} not found")
+    return node.to_dict()
+
+
+@router.delete("/knowledge/{knowledge_id}")
+async def delete_knowledge(knowledge_id: str):
+    if not await _domains.knowledge.delete(knowledge_id):
+        raise HTTPException(404, f"Knowledge {knowledge_id} not found")
+    return {"status": "deleted"}
+
+
+@router.post("/knowledge/{knowledge_id}/connections")
+async def connect_knowledge(knowledge_id: str, data: dict[str, Any]):
+    try:
+        node = await _domains.knowledge.connect(
+            knowledge_id,
+            data.get("to_node_id", ""),
+            relation_type=data.get("relation_type", "related_to"),
+            strength=float(data.get("strength", 1.0)),
+            metadata=data.get("metadata"),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if node is None:
+        raise HTTPException(404, f"Knowledge {knowledge_id} not found")
+    return node.to_dict()
+
+
+@router.post("/knowledge/{knowledge_id}/rag")
+async def ingest_knowledge_into_rag(knowledge_id: str):
+    try:
+        document_id = await _domains.knowledge.ingest_into_rag(knowledge_id, _domains.rag)
+        return {"knowledge_id": knowledge_id, "document_id": document_id}
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RAG / DOCUMENTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/rag/documents")
+async def list_rag_documents():
+    # Résumés sans chunks/embeddings : la liste est consommée par le CLI et
+    # la WebUI, qui n'exploitent ni le texte des chunks ni les vecteurs.
+    return [document.to_summary_dict() for document in await _domains.rag.list_documents()]
+
+
+@router.get("/rag/strategies")
+async def list_rag_strategies():
+    """Stratégies de recherche RAG réellement implémentées dans le Core.
+
+    Source de vérité pour la WebUI : aucune stratégie non supportée par le
+    moteur n'est exposée (le reranking n'existe pas dans ETHAN à ce jour).
+    Inclut la recommandation du Core, calculée sur les capacités réellement
+    disponibles (embeddings réels ou non) — l'interface ne fait que l'afficher.
+    """
+    return {
+        "default": DEFAULT_STRATEGY,
+        "strategies": available_strategies(),
+        "recommendation": _domains.rag.recommend_strategy(),
+    }
+
+
+@router.get("/rag/config")
+async def get_rag_config():
+    """Configuration et statut du moteur RAG (paramètres réellement supportés)."""
+    await _domains.rag.list_documents()  # force le chargement de l'index
+    return {"config": _domains.rag.get_config(), "stats": _domains.rag.stats()}
+
+
+@router.put(
+    "/rag/config",
+    dependencies=[Depends(require_permission(Permission.ADMIN))],
+)
+async def update_rag_config(data: dict[str, Any]):
+    """Applique et persiste la configuration du moteur RAG.
+
+    Champs supportés par le moteur Core : chunk_size, chunk_overlap, top_k,
+    max_context_chars, embedding_model, vector_backend, vector_backend_config,
+    strategy (stratégie de recherche globale par défaut), splitting_strategy
+    (character | sentence | paragraph). Tout autre champ est ignoré.
+    """
+    allowed = (
+        "chunk_size",
+        "chunk_overlap",
+        "splitting_strategy",
+        "top_k",
+        "max_context_chars",
+        "embedding_model",
+        "vector_backend",
+        "vector_backend_config",
+        "strategy",
+    )
+    payload: dict[str, Any] = {}
+    for key in allowed:
+        if key not in data or data[key] is None:
+            continue
+        if key == "vector_backend":
+            payload[key] = str(data[key]).strip()
+        elif key == "vector_backend_config":
+            if not isinstance(data[key], dict):
+                raise HTTPException(422, "vector_backend_config doit être un objet")
+            payload[key] = data[key]
+        elif key in ("strategy",):
+            # Validation stricte : l'admin ne doit pas pouvoir enregistrer une
+            # stratégie non implémentée (le moteur, lui, est fail-safe).
+            try:
+                payload[key] = validate_strategy(str(data[key]))
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+        elif key == "splitting_strategy":
+            candidate = str(data[key]).strip().lower()
+            if candidate not in {"character", "sentence", "paragraph"}:
+                raise HTTPException(
+                    422,
+                    "splitting_strategy doit être character, sentence ou paragraph",
+                )
+            payload[key] = candidate
+        elif key == "embedding_model":
+            payload[key] = str(data[key]).strip()
+        else:
+            try:
+                payload[key] = int(data[key])
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(422, f"{key} doit être un entier") from exc
+
+    try:
+        config = await _domains.rag.configure(**payload)
+        await _domains.rag.persist_config()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await _domains.rag.list_documents()  # force le chargement pour un stats à jour
+    return {"config": config, "stats": _domains.rag.stats()}
+
+
+@router.get("/rag/status")
+async def get_rag_status():
+    """Statut d'indexation : volumes, mode d'embedding, modèle."""
+    await _domains.rag.list_documents()
+    return _domains.rag.stats()
+
+
+@router.post("/rag/documents", dependencies=[Depends(require_permission(Permission.MEMORY))])
+async def ingest_rag_document(data: dict[str, Any]):
+    try:
+        document = await _domains.rag.ingest(
+            data.get("content", ""),
+            title=data.get("title", ""),
+            source=data.get("source", ""),
+            metadata=data.get("metadata"),
+        )
+        return document.to_dict()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post(
+    "/rag/documents/from-file/{file_id}",
+    dependencies=[Depends(require_permission(Permission.MEMORY))],
+)
+async def ingest_rag_document_from_file(file_id: str, data: dict[str, Any] | None = None):
+    """Ingeste le contenu texte d'un fichier déjà uploadé (FileStore Core).
+
+    Le fichier binaire reste la source de vérité (aucun second système de
+    fichiers) : son contenu est décodé puis indexé dans le RAG. Un
+    ``collection_id`` optionnel attache immédiatement le document créé à une
+    collection Knowledge.
+    """
+    from interfaces.api.routers.domains import _require_files
+
+    body = data or {}
+    result = await _require_files().download(file_id)
+    if result is None:
+        raise HTTPException(404, f"File {file_id} not found")
+    raw, record = result
+
+    # Formats binaires supportés (PDF, DOCX) : extraction Core sans
+    # dépendance dure — voir core/rag/extractors.py.  Les fichiers texte
+    # suivent le chemin historique (décodage UTF-8).
+    from core.rag.extractors import extract_text
+
+    extracted = extract_text(
+        raw,
+        filename=record.get("filename", ""),
+        content_type=record.get("content_type", ""),
+    )
+    if extracted:
+        text = extracted
+    else:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            if not body.get("force"):
+                raise HTTPException(
+                    422,
+                    "Le fichier n'est pas du texte UTF-8 (force=true pour forcer l'ingestion)",
+                ) from exc
+            text = raw.decode("latin-1", errors="replace")
+
+    try:
+        document = await _domains.rag.ingest(
+            text,
+            title=body.get("title") or record.get("filename", file_id),
+            source=f"file:{file_id}",
+            metadata={
+                "file_id": file_id,
+                "content_type": record.get("content_type", ""),
+                **(body.get("metadata") or {}),
+            },
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    attached_collection_id: str | None = None
+    collection_id = body.get("collection_id")
+    if collection_id:
+        try:
+            collection = await get_knowledge_collections().add_document(collection_id, document.id)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        if collection is None:
+            raise HTTPException(404, f"Collection {collection_id} not found")
+        attached_collection_id = collection_id
+
+    payload = document.to_dict()
+    payload["attached_collection_id"] = attached_collection_id
+    return payload
+
+
+@router.get("/rag/documents/{document_id}")
+async def get_rag_document(document_id: str):
+    document = await _domains.rag.get_document(document_id)
+    if document is None:
+        raise HTTPException(404, f"RAG document {document_id} not found")
+    # Détail complet sans les vecteurs d'embedding (donnée interne du moteur,
+    # inutile aux interfaces et responsable de l'essentiel du payload).
+    data = document.to_dict()
+    data["chunks"] = [chunk.to_public_dict() for chunk in document.chunks]
+    return data
+
+
+@router.delete("/rag/documents/{document_id}")
+async def delete_rag_document(document_id: str):
+    if not await _domains.rag.delete_document(document_id):
+        raise HTTPException(404, f"RAG document {document_id} not found")
+    return {"status": "deleted"}
+
+
+@router.post("/rag/retrieve")
+async def retrieve_rag_context(data: dict[str, Any]):
+    query = data.get("query", "")
+    try:
+        top_k = int(data["top_k"]) if data.get("top_k") is not None else None
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "top_k must be an integer") from exc
+    chunks = await _domains.rag.retrieve(query, top_k=top_k)
+    return [
+        {
+            "chunk": item.chunk.to_dict(),
+            "score": item.score,
+            "document_title": item.document_title,
+            "document_source": item.document_source,
+        }
+        for item in chunks
+    ]
+
+
+@router.post("/rag/context")
+async def build_rag_context(data: dict[str, Any]):
+    query = data.get("query", "")
+    try:
+        top_k = int(data["top_k"]) if data.get("top_k") is not None else None
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, "top_k must be an integer") from exc
+    return {"context": await _domains.rag.build_context(query, top_k=top_k)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FLUX / EVENTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/flux")
+async def list_flux_events(limit: int = 50, type: str | None = None):
+    return await get_webui_store().list_events(type=type, limit=limit)
+
+
+@router.get("/flux/{event_id}")
+async def get_flux_event(event_id: str):
+    event = await get_webui_store().get_event(event_id)
+    if event is None:
+        raise HTTPException(404, f"Event {event_id} not found")
+    return event
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SETTINGS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+# ── SETTINGS — DÉPRÉCIÉ (ADR-3007) ──────────────────────────────────────────
+# Record key/value historique : plus aucun consommateur (les écrans fantômes
+# ont été supprimés côté WebUI — docs/design/2026-09-30-webui-settings-honesty.md).
+# Chaque réglage réel a désormais sa source de vérité Core (catalogue providers
+# ADR-3002, /v1/rag/config, /models, /v1/agents…). Les routes restent exposées
+# (aucune suppression sans RFC) et sont marquées dépréciées dans l'OpenAPI.
+
+
+@router.get("/settings", deprecated=True)
+async def get_settings():
+    """[Déprécié — ADR-3007] Proxy de lecture vers /config (source canonique).
+
+    Aucune double source : le record historique n'est plus la vérité.
+    Les consommateurs migrent vers GET /config et /config/preferences.
+    """
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "GET /v1/settings is deprecated — use GET /config instead"
+    )
+    try:
+        from interfaces.api.routers.config import get_service
+
+        return get_service().get_all()
+    except Exception:
+        return await get_webui_store().get_settings()
+
+
+@router.put(
+    "/settings",
+    deprecated=True,
+    dependencies=[Depends(require_permission(Permission.SETTINGS))],
+)
+async def update_settings(data: dict[str, Any]):
+    """[Déprécié — ADR-3007] Écriture fermée : migrer vers PUT /config/{domain}.
+
+    Retourne 410 Gone avec le mapping des domaines — aucune double écriture
+    (le record historique n'est plus persisté ici).
+    """
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "PUT /v1/settings is retired — write via PUT /config/{domain}.",
+            "domains": "GET /config/schema for the canonical domain list",
+            "received_keys": sorted(data.keys()) if isinstance(data, dict) else [],
+        },
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CHAT
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.post("/chat/completions/stream")
+async def chat_completions_stream(data: dict[str, Any], request: Request = None):
+    """Chat completion streaming via le ChatPipeline Core (SSE).
+
+    Le frontend envoie le provider_id, le modèle et le message. Le backend
+    orchestre la génération via le ChatPipeline Core et renvoie les tokens
+    un par un au format Server-Sent Events.
+
+    La conversation est persistée dans le ChatStore Core (``/chats``) avec
+    l'arbre de messages (parent_id / children_ids).
+    """
+    from fastapi.responses import StreamingResponse
+
+    pipeline = get_chat_pipeline()
+
+    user_message = data.get("message", "")
+    provider_id = data.get("provider_id") or data.get("provider")
+    model = data.get("model")
+    chat_id: str | None = data.get("chat_id")
+    user_id = resolve_user_scope(request, data.get("user_id"))
+    skill_ids = data.get("skill_ids") or None
+    tool_ids = data.get("tool_ids") or None
+    plugin_ids = data.get("plugin_ids") or None
+    knowledge_ids = data.get("knowledge_ids") or data.get("collection_ids") or None
+    file_ids = data.get("file_ids") or None
+    request_metadata = data.get("metadata") or {}
+    agent_id = data.get("agent_id") or request_metadata.get("agent_id")
+    project_id = data.get("project_id") or request_metadata.get("project_id")
+    # Mode conversationnel (plan/act/debug) + effort de raisonnement — résolus
+    # par le SessionSettingsManager Core (priorité requête > session > profil
+    # de mode > global). Le WebUI envoie l'intent ; le Core, seul, arbitre.
+    mode = data.get("mode") or request_metadata.get("mode")
+    reasoning_effort = data.get("reasoning_effort") or request_metadata.get("reasoning_effort")
+
+    async def event_stream():
+        nonlocal \
+            provider_id, \
+            model, \
+            skill_ids, \
+            knowledge_ids, \
+            tool_ids, \
+            reasoning_effort, \
+            request_metadata, \
+            agent_id, \
+            project_id
+        try:
+            # 1. Créer ou réutiliser la conversation.
+            cid = chat_id
+            if cid:
+                chat_record = await pipeline._chats.get_chat(cid)
+                if chat_record is None:
+                    raise HTTPException(404, f"Chat {cid} not found")
+                # Le rattachement de la conversation prime : une conversation
+                # existante conserve son Project (isolation des historiques).
+                # La requête ne peut que rattacher une conversation orpheline.
+                if chat_record.get("project_id"):
+                    project_id = chat_record["project_id"]
+                elif project_id:
+                    await pipeline._chats.update_chat(cid, {"project_id": project_id})
+            else:
+                chat_record = await pipeline._chats.create_chat(
+                    title=user_message[:60] or "New Chat",
+                    user_id=user_id,
+                    project_id=project_id,
+                    metadata=request_metadata,
+                )
+                cid = chat_record["id"]
+            assert cid is not None
+
+            # 1bis. Routage Chat → Projet : le projet apporte un contexte
+            # d'exécution (instructions, agent/modèle par défaut) et une
+            # portée de ressources (fusion, jamais écrasement).
+            project_info = await pipeline._resolve_project(project_id)
+            if project_info is not None:
+                agent_id = agent_id or project_info["agent_id"]
+                provider_id = provider_id or project_info["provider_id"]
+                model = model or project_info["model"]
+                for sid in project_info["skill_ids"]:
+                    if sid not in (skill_ids or []):
+                        skill_ids = list(skill_ids or []) + [sid]
+                for tid in project_info["tool_ids"]:
+                    if tid not in (tool_ids or []):
+                        tool_ids = list(tool_ids or []) + [tid]
+                for kid in project_info["knowledge_ids"]:
+                    if kid not in (knowledge_ids or []):
+                        knowledge_ids = list(knowledge_ids or []) + [kid]
+
+            # 1ter. Routage Chat → Agent : le provider/model/skills de
+            # l'agent complètent la requête (logique Core, pas API).
+            agent_info = await pipeline._resolve_agent(agent_id)
+            if agent_info is not None:
+                provider_id = provider_id or agent_info["provider"]
+                model = model or agent_info["model"]
+                merged_skills = list(skill_ids or [])
+                for sid in agent_info["skill_ids"]:
+                    if sid not in merged_skills:
+                        merged_skills.append(sid)
+                skill_ids = merged_skills
+                # Knowledge / Tools configurés sur l'agent : fusionnés avec
+                # la sélection explicite de l'utilisateur (qui garde la
+                # priorité). Logique Core, pas API.
+                merged_knowledge = list(knowledge_ids or [])
+                for kid in agent_info.get("knowledge_ids") or []:
+                    if kid not in merged_knowledge:
+                        merged_knowledge.append(kid)
+                knowledge_ids = merged_knowledge
+                merged_tools = list(tool_ids or [])
+                for tid in agent_info.get("tool_ids") or []:
+                    if tid not in merged_tools:
+                        merged_tools.append(tid)
+                tool_ids = merged_tools
+
+            # 1quater. Routage Chat → Plugins : les plugins sélectionnés pour
+            # la conversation apportent leurs tools référencés au mécanisme
+            # EXISTANT (tool_ids → ToolRegistry) — pas de seconde pipeline.
+            # Arbitrage PluginRegistry Core : seuls les plugins installés ET
+            # actifs sont acceptés ; les autres ids sont ignorés (fail-soft).
+            if plugin_ids:
+                try:
+                    from core.plugins.registry import get_plugin_registry
+
+                    plugin_registry = get_plugin_registry()
+                except RuntimeError:
+                    plugin_registry = None
+                if plugin_registry is not None:
+                    from core.plugins.registry import resolve_conversation_tools
+
+                    (
+                        accepted_plugins,
+                        merged_plugin_tools,
+                    ) = await resolve_conversation_tools(plugin_registry, plugin_ids, tool_ids)
+                    if accepted_plugins:
+                        tool_ids = merged_plugin_tools
+                        request_metadata = {
+                            **request_metadata,
+                            "plugins": accepted_plugins,
+                        }
+
+            # 1quinquies. Résoudre les réglages de session (mode, reasoning,
+            # langue) : le SessionSettingsManager Core arbitre la priorité
+            # requête > session > profil de mode > global. Le mode injecte ses
+            # instructions comportementales dans le prompt (plan/act/debug) et
+            # la matrice de permissions filtre les outils proposés.
+            (
+                resolved,
+                provider_id,
+                model,
+                reasoning_effort,
+                mode_meta,
+            ) = await pipeline._resolve_session_settings(
+                chat_id=cid,
+                provider_id=provider_id,
+                model=model,
+                mode=mode,
+                reasoning_effort=reasoning_effort,
+            )
+
+            # 2. Persister le message utilisateur.
+            user_msg = await pipeline._chats.add_message(
+                cid,
+                role="user",
+                content=user_message,
+                user_id=user_id,
+                metadata={
+                    "provider_id": provider_id,
+                    "model": model,
+                    "skill_ids": skill_ids or [],
+                    "tool_ids": tool_ids or [],
+                    "knowledge_ids": knowledge_ids or [],
+                    "file_ids": file_ids or [],
+                    "agent_id": agent_id,
+                    "project_id": project_id,
+                    **mode_meta,
+                },
+            )
+
+            # 3. Construire le contexte LLM (skills, RAG scoping, fichiers,
+            # mémoire, catalogue d'outils, persona agent, mode actif).
+            llm_messages = await pipeline._build_llm_messages(
+                chat_id=cid,
+                user_message=user_message,
+                user_id=user_id,
+                skill_ids=skill_ids,
+                knowledge_ids=knowledge_ids,
+                file_ids=file_ids,
+                tool_ids=tool_ids,
+                agent_info=agent_info,
+                project_info=project_info,
+                resolved=resolved,
+            )
+
+            # 3bis. Auto Compact (§14) : même arithmétique que ChatPipeline.run()
+            # — résumé préservant si la fenêtre du modèle approche, jamais
+            # bloquant.  Les récents + prioritaires restent en clair.
+            llm_messages, compaction_meta = await pipeline._maybe_auto_compact(
+                chat_id=cid,
+                provider_id=provider_id,
+                model=model,
+                resolved=resolved,
+                llm_messages=llm_messages,
+            )
+
+            # 4. Générer en streaming.
+            if pipeline._manager is None:
+                # Fallback écho.
+                content = f"[ECHO] {user_message}"
+                yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': content})}\n\n"  # noqa: E501
+                await pipeline._chats.add_message(
+                    cid,
+                    role="assistant",
+                    content=content,
+                    user_id=user_id,
+                    parent_id=user_msg["id"],
+                    metadata={"provider": "mock", "model": "echo", **mode_meta},
+                )
+                yield f"data: {json.dumps({'type': 'done', 'chat_id': cid})}\n\n"
+                return
+
+            async def open_stream():
+                """Ouvre un flux LLM (provider direct ou sélection auto).
+
+                Réévaluée à chaque tour de la boucle d'outils car
+                ``llm_messages`` s'enrichit des résultats d'outils.
+                """
+                if provider_id:
+                    provider = pipeline._manager._registry.get_provider(provider_id)
+                    if provider is None:
+                        config = pipeline._manager._providers_config.get(provider_id)
+                        if config and config.get("enabled", False):
+                            from core.llm.provider_factory import (
+                                create_provider_from_config,
+                            )
+
+                            provider = create_provider_from_config({**config, "name": provider_id})
+                            await provider.initialize()
+                    if provider is not None:
+                        # chat_stream est un async generator : pas d'await.
+                        # L'effort de raisonnement n'est transmis qu'aux
+                        # providers qui déclarent le paramètre (même arbitrage
+                        # que ChatPipeline._generate) — aucune valeur fantôme.
+                        import inspect
+
+                        sig = inspect.signature(provider.chat_stream)
+                        kwargs: dict[str, Any] = {"model": model or None}
+                        if "reasoning_effort" in sig.parameters and reasoning_effort:
+                            kwargs["reasoning_effort"] = reasoning_effort
+                        return provider.chat_stream(llm_messages, **kwargs)
+                    raise HTTPException(502, f"Provider {provider_id} unavailable")
+                requirements = LLMRequirements(task_type="chat")
+                return pipeline._manager.chat_stream(llm_messages, requirements)
+
+            # 5. Persister le message assistant (vide, on le met à jour en streaming).
+            assistant_msg = await pipeline._chats.add_message(
+                cid,
+                role="assistant",
+                content="",
+                user_id=user_id,
+                parent_id=user_msg["id"],
+                model=model,
+                status="pending",
+                done=False,
+                metadata={
+                    **mode_meta,
+                    **({"compaction": compaction_meta} if compaction_meta else {}),
+                },
+            )
+
+            full_content = ""
+            try:
+                # Boucle génération → détection <tool> → exécution Core →
+                # continuation (bornée à MAX_TOOL_ROUNDS).
+                MAX_TOOL_ROUNDS = 3
+                for round_index in range(MAX_TOOL_ROUNDS + 1):
+                    round_content = ""
+                    stream = await open_stream()
+                    async for chunk in stream:
+                        if chunk:
+                            round_content += chunk
+                            full_content += chunk
+                            yield f"data: {json.dumps({'type': 'content', 'chat_id': cid, 'content': chunk})}\n\n"  # noqa: E501
+
+                    calls = _parse_tool_calls(round_content)
+                    if not calls or round_index == MAX_TOOL_ROUNDS:
+                        break
+
+                    # Exécution réelle via le ToolManager Core (builtin,
+                    # custom ou MCP selon le provider du tool).
+                    notes: dict[str, str] = {}
+                    result_lines: list[str] = []
+                    for call in calls:
+                        name = call["name"]
+                        params = call["params"] if isinstance(call["params"], dict) else {}
+                        yield f"data: {json.dumps({'type': 'tool_call', 'chat_id': cid, 'tool': name, 'params': params})}\n\n"  # noqa: E501
+
+                        # ── HROT / politique : évaluation avant exécution.
+                        approved = False
+                        needs_confirmation = False
+                        confirmation_reason = ""
+                        hard_denied = False
+                        denied_reason = ""
+                        tool_obj = None
+                        context_obj = None
+                        try:
+                            from core.tools.types import ToolContext as _ToolContext
+                            from core.security.integration import ToolRejectedError as _ToolRejectedError
+
+                            registry = getattr(pipeline._tools, "registry", None) if pipeline._tools is not None else None
+                            if registry is not None:
+                                tool_obj = registry.get(name)
+                                if tool_obj is None:
+                                    for candidate in registry.list_all():
+                                        if candidate.name == name:
+                                            tool_obj = candidate
+                                            break
+                            if tool_obj is not None:
+                                context_obj = _ToolContext(query=str(params.get("query", "")), user_id=user_id, source="chat")
+                                enforcer = pipeline.get_policy_enforcer()
+                                if enforcer is not None:
+                                    try:
+                                        await enforcer.check(tool_obj, params, context_obj, approved=False)
+                                        approved = True
+                                    except _ToolRejectedError as exc:
+                                        decision = getattr(exc, "decision", None)
+                                        result_val = getattr(decision, "result", None)
+                                        if str(result_val).lower() == "require_confirmation":
+                                            needs_confirmation = True
+                                            confirmation_reason = str(exc.reason or "Confirmation humaine requise.")
+                                        else:
+                                            hard_denied = True
+                                            denied_reason = str(exc.reason or "Action refusée par la politique.")
+                        except Exception as exc:  # noqa: BLE001 — fail-closed
+                            hard_denied = True
+                            denied_reason = f"Erreur d'évaluation de sécurité : {exc}"
+
+                        if hard_denied:
+                            summary = denied_reason
+                            result_lines.append(f"[Résultat outil « {name} » (rejected)]\n{summary}")
+                            notes[name] = f"_[Outil « {name} » refusé (HROT)]_"
+                            yield f"data: {json.dumps({'type': 'tool_result', 'chat_id': cid, 'tool': name, 'status': 'rejected', 'output': str(summary)[:2000]})}\n\n"  # noqa: E501
+                            continue
+
+                        if needs_confirmation:
+                            from interfaces.api.routers.internal import get_approval_engine as _get_ae
+                            from core.security.policy.types import PolicyResult as _PolicyResult
+
+                            approval_engine = _get_ae()
+                            request_id = ""
+                            if approval_engine is not None:
+                                try:
+                                    req = await approval_engine.create_request(
+                                        category="command_exec",
+                                        title=f"HROT [{name}]",
+                                        description=confirmation_reason,
+                                        details={"tool": name, "params": params, "chat_id": cid, "user_id": user_id},
+                                        source="chat",
+                                        source_id=user_id or "anonymous",
+                                        timeout_seconds=300,
+                                        correlation_id=cid or "",
+                                    )
+                                    request_id = req.id
+                                except Exception as exc:  # noqa: BLE001
+                                    logger.exception("Approval create failed: %s", exc)
+                                    approval_engine = None
+
+                            yield f"data: {json.dumps({'type': 'permission_request', 'chat_id': cid, 'request_id': request_id, 'tool': name, 'params': params, 'reason': confirmation_reason, 'timeout_seconds': 300})}\n\n"  # noqa: E501
+
+                            decision_approved = False
+                            if approval_engine is not None and request_id:
+                                try:
+                                    response = await approval_engine.await_decision(request_id, timeout_seconds=300)
+                                    status_val = getattr(response, "status", None)
+                                    decision_approved = str(getattr(status_val, "value", status_val)).lower() == "approved"
+                                except Exception as exc:  # noqa: BLE001
+                                    logger.exception("Approval await failed: %s", exc)
+                                    decision_approved = False
+                            else:
+                                decision_approved = False
+
+                            yield f"data: {json.dumps({'type': 'permission_resolved', 'chat_id': cid, 'request_id': request_id, 'tool': name, 'approved': decision_approved})}\n\n"  # noqa: E501
+
+                            if not decision_approved:
+                                summary = "Autorisation refusée ou expirée (HROT)."
+                                result_lines.append(f"[Résultat outil « {name} » (rejected)]\n{summary}")
+                                notes[name] = f"_[Outil « {name} » refusé (HROT)]_"
+                                yield f"data: {json.dumps({'type': 'tool_result', 'chat_id': cid, 'tool': name, 'status': 'rejected', 'output': str(summary)[:2000]})}\n\n"  # noqa: E501
+                                continue
+
+                            approved = True
+
+                        outcome = await pipeline.execute_tool_call(
+                            name,
+                            params,
+                            user_id=user_id,
+                            approved=approved,
+                        )
+                        summary = (
+                            outcome.get("output")
+                            or outcome.get("error")
+                            or outcome.get("status", "failed")
+                        )
+                        result_lines.append(
+                            f"[Résultat outil « {name} » ({outcome.get('status')})]\n{summary}"
+                        )
+                        notes[name] = f"_[Outil « {name} » exécuté ({outcome.get('status')})]_"
+                        yield f"data: {json.dumps({'type': 'tool_result', 'chat_id': cid, 'tool': name, 'status': outcome.get('status'), 'output': str(summary)[:2000]})}\n\n"  # noqa: E501
+
+                    # Les blocs bruts sont remplacés par une note lisible
+                    # dans le contenu affiché puis persisté.
+                    full_content = _strip_tool_blocks(full_content, notes)
+                    yield f"data: {json.dumps({'type': 'content_replace', 'chat_id': cid, 'content': full_content})}\n\n"  # noqa: E501
+
+                    # Continuation : réponse intermédiaire + résultats
+                    # d'outils injectés dans le contexte du tour suivant.
+                    llm_messages.append(LLMChatMessage(role="assistant", content=round_content))
+                    llm_messages.append(
+                        LLMChatMessage(
+                            role="user",
+                            content=(
+                                "[Résultats d'outils]\n"
+                                + "\n\n".join(result_lines)
+                                + "\n\nContinue ta réponse en t'appuyant sur ces résultats."
+                            ),
+                        )
+                    )
+
+            except asyncio.CancelledError:
+                # Client interrompu (stop generation) : la tâche ASGI est déjà
+                # annulée — un await direct ici serait lui-même annulé et la
+                # persistance échouerait silencieusement (message resté
+                # « pending » constaté en test). La sauvegarde du contenu
+                # partiel est donc déléguée à une tâche détachée qui survit à
+                # l'annulation : pas de trou dans l'historique après refresh.
+                persisted = _strip_tool_blocks(full_content) if tool_ids else full_content
+
+                async def _persist_stopped() -> None:
+                    try:
+                        await pipeline._chats.update_message(
+                            cid,
+                            assistant_msg["id"],
+                            {"content": persisted, "status": "stopped", "done": True},
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to persist partial chat message (chat %s)",
+                            cid,
+                        )
+
+                asyncio.get_running_loop().create_task(_persist_stopped())
+                raise
+            else:
+                # Fin normale : réponse complète persistée + événement done.
+                persisted = _strip_tool_blocks(full_content) if tool_ids else full_content
+                await pipeline._chats.update_message(
+                    cid,
+                    assistant_msg["id"],
+                    {"content": persisted, "status": "done", "done": True},
+                )
+                done_payload = json.dumps(
+                    {
+                        "type": "done",
+                        "chat_id": cid,
+                        "message_id": assistant_msg["id"],
+                    },
+                )
+                yield f"data: {done_payload}\n\n"
+
+        except asyncio.CancelledError:
+            logger.info("Chat stream cancelled by client (chat %s)", data.get("chat_id"))
+            raise
+        except Exception as exc:
+            logger.exception("Chat stream failed: %s", exc)
+            yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/chat/completions")
+async def chat_completions(data: dict[str, Any], request: Request = None):
+    """Chat completion non-streaming via le ChatPipeline Core.
+
+    Le frontend envoie le provider_id, le modèle et le message. Le backend
+    orchestre la génération via le ChatPipeline Core et renvoie la réponse
+    complète.
+
+    La conversation est persistée dans le ChatStore Core (``/chats``) avec
+    l'arbre de messages (parent_id / children_ids).
+    """
+    pipeline = get_chat_pipeline()
+
+    try:
+        result = await pipeline.run(
+            message=data.get("message", ""),
+            chat_id=data.get("chat_id"),
+            user_id=resolve_user_scope(request, data.get("user_id")),
+            provider_id=data.get("provider_id") or data.get("provider"),
+            model=data.get("model"),
+            parent_id=data.get("parent_id"),
+            skill_ids=data.get("skill_ids"),
+            tool_ids=data.get("tool_ids"),
+            knowledge_ids=data.get("knowledge_ids") or data.get("collection_ids"),
+            file_ids=data.get("file_ids"),
+            agent_id=(data.get("metadata") or {}).get("agent_id") or data.get("agent_id"),
+            project_id=data.get("project_id") or (data.get("metadata") or {}).get("project_id"),
+            metadata=data.get("metadata"),
+        )
+    except RuntimeError as exc:
+        # Provider indisponible / circuit breaker ouvert (même convention que
+        # le endpoint streaming : 502 explicite, pas un 500 brut).
+        raise HTTPException(502, f"Provider unavailable: {exc}") from exc
+
+    return {
+        "id": str(uuid.uuid4()),
+        "chat_id": result["chat_id"],
+        "message": result["assistant_message"]["content"],
+        "role": "assistant",
+        "timestamp": _utc_now_rfc3339(),
+        "metadata": {
+            "provider": result["assistant_message"]["metadata"].get("provider"),
+            "model": result["assistant_message"]["metadata"].get("model"),
+            "usage": result["assistant_message"]["metadata"].get("usage"),
+        },
+    }
+
+
+@router.get("/chat/history", dependencies=[Depends(require_permission(Permission.READ))])
+async def chat_history(limit: int = 50, request: Request = None):
+    """Historique des conversations Core (ChatStore) de l'utilisateur courant.
+
+    L'utilisateur est déduit du JWT (request.state.user) — jamais depuis le query
+    string — pour garantir l'isolation entre utilisateurs.
+    """
+    uid = current_user_id(request)
+    chat_store = get_chat_store()
+    chats = await chat_store.list_chats(user_id=uid)
+    messages: list[dict[str, Any]] = []
+    for chat_record in chats:
+        messages.extend(await chat_store.list_messages(chat_record["id"]))
+    messages.sort(key=lambda m: m.get("created_at", ""))
+    return messages[-limit:]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PLUGINS — Core PluginRegistry (core/plugins). L'API est une passerelle
+# HTTP mince : catalogue, cycle de vie, connexion, permissions, capacités.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_plugin_registry: PluginRegistry | None = None
+
+
+def set_plugin_registry(registry: PluginRegistry | None) -> None:
+    global _plugin_registry
+    _plugin_registry = registry
+
+
+def _plugins() -> PluginRegistry:
+    if _plugin_registry is None:
+        # Filet de sécurité : si l'injection du lifespan de main.py est
+        # manquée, retomber sur le singleton Core (la MÊME instance, pas un
+        # second registre) puis mémoïser, au lieu de renvoyer 503 à vie.
+        from core.plugins import get_plugin_registry
+
+        try:
+            registry = get_plugin_registry()
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        set_plugin_registry(registry)
+        return registry
+    return _plugin_registry
+
+
+@router.get("/plugins")
+async def list_plugins():
+    """Vue fusionnée catalogue + état (manifest + status/installed/connected)."""
+    return await _plugins().list_plugins()
+
+
+@router.get("/plugins/categories")
+async def list_plugin_categories():
+    """Catégories dynamiques dérivées du catalogue Core."""
+    return {"categories": await _plugins().categories()}
+
+
+@router.get("/plugins/{plugin_id}")
+async def get_plugin(plugin_id: str):
+    plugin = await _plugins().get(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.get("/plugins/{plugin_id}/permissions")
+async def get_plugin_permissions(plugin_id: str):
+    perms = await _plugins().permissions(plugin_id)
+    if perms is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return perms
+
+
+@router.get("/plugins/{plugin_id}/capabilities")
+async def get_plugin_capabilities(plugin_id: str):
+    caps = await _plugins().capabilities(plugin_id)
+    if caps is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return caps
+
+
+@router.post(
+    "/plugins/install",
+    dependencies=[
+        Depends(require_permission(Permission.PLUGINS)),
+        # CTO P0-1 : SecurityGateway (rate limit par acteur + audit) avant
+        # toute installation de code externe.
+        Depends(gateway_guard(ActionType.PLUGIN_INSTALL)),
+    ],
+)
+async def install_plugin(data: dict[str, Any]):
+    """Installe un plugin du catalogue (par id) ou, à défaut, un plugin custom.
+
+    Si ``id`` est fourni mais absent du catalogue, le Core enregistre un plugin
+    custom portant cet ``id`` (l'identifiant est preservé — pas de uuid4 forcé)
+    : le WebUI peut ainsi créer un plugin custom nommé.
+    """
+    plugin_id = data.get("id")
+    try:
+        if plugin_id:
+            installed = await _plugins().install(str(plugin_id))
+            if installed is not None:
+                return installed
+            # id fourni mais absent du catalogue → plugin custom portant cet id.
+            name = str(data.get("name", "Unknown Plugin"))
+            return await _plugins().install_custom(name, plugin_id=str(plugin_id))
+        return await _plugins().install_custom(str(data.get("name", "Unknown Plugin")))
+    except ValueError as exc:
+        # Validation Core du manifest (PluginValidator) rejetée.
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post(
+    "/plugins/{plugin_id}/install", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def install_plugin_by_id(plugin_id: str):
+    installed = await _plugins().install(plugin_id)
+    if installed is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found in catalogue")
+    return installed
+
+
+@router.post(
+    "/plugins/{plugin_id}/enable", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def enable_plugin(plugin_id: str):
+    plugin = await _plugins().enable(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.post(
+    "/plugins/{plugin_id}/disable", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def disable_plugin(plugin_id: str):
+    plugin = await _plugins().disable(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.put(
+    "/plugins/{plugin_id}/toggle", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def toggle_plugin(plugin_id: str):
+    plugin = await _plugins().toggle(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return plugin
+
+
+@router.post(
+    "/plugins/{plugin_id}/update", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def update_plugin(plugin_id: str):
+    """Met à jour un plugin installé (synchronisation avec le manifest du catalogue).
+
+    La configuration et les permissions accordées sont conservées.
+    """
+    plugin = await _plugins().update(plugin_id)
+    if plugin is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found or not installed")
+    return plugin
+
+
+@router.delete(
+    "/plugins/{plugin_id}", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def uninstall_plugin(plugin_id: str, remove_data: bool = False):
+    """Désinstalle un plugin.
+
+    ``remove_data=false`` (défaut) : conserve la configuration non secrète et
+    les permissions accordées (réinstallation sans re-saisie).
+    ``remove_data=true`` : supprime aussi ces données du store Core.
+    Les secrets (secret manager, env/Vault) ne sont JAMAIS supprimés ici —
+    la réponse liste les variables à révoquer.
+    """
+    result = await _plugins().uninstall(plugin_id, remove_data=remove_data)
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return result
+
+
+@router.post(
+    "/plugins/{plugin_id}/connect", dependencies=[Depends(require_permission(Permission.PLUGINS))]
+)
+async def connect_plugin(plugin_id: str, data: dict[str, Any] | None = None):
+    """État « connecté » géré par le Core — jamais de secret dans le corps."""
+    result = await _plugins().connect(plugin_id, (data or {}).get("config"))
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found or not installed")
+    return result
+
+
+@router.delete(
+    "/plugins/{plugin_id}/connection",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def disconnect_plugin(plugin_id: str):
+    result = await _plugins().disconnect(plugin_id)
+    if result is None:
+        raise HTTPException(404, f"Plugin {plugin_id} not found")
+    return result
+
+
+@router.post(
+    "/models/pull",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def pull_model_v1(payload: dict[str, Any]):
+    """Installe ou active un modèle dans ETHAN via l'API v1."""
+    from core.llm.model_installer import install_or_use_model
+    from interfaces.api.routers.models import get_manager, get_store
+
+    model_id = payload.get("model") or payload.get("model_id") or payload.get("name")
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Missing 'model' or 'model_id' in payload")
+
+    provider_hint = payload.get("provider")
+    try:
+        manager = get_manager()
+    except Exception:
+        manager = None
+    try:
+        store = get_store()
+    except Exception:
+        store = None
+
+    result = await install_or_use_model(
+        model_id=str(model_id),
+        provider_hint=str(provider_hint) if provider_hint else None,
+        manager=manager,
+        store=store,
+    )
+    if not result.get("success"):
+        from interfaces.api.routers.models import _install_error_status
+
+        raise HTTPException(
+            status_code=_install_error_status(result),
+            detail=result.get("message", "Installation failed"),
+        )
+
+    return result
+
+
+
+# ── Skill package import (Core SkillImportManager, mounted in v1) ─────────
+from core.skills.import_manager import SkillImportManager
+
+_skill_import_manager_local: SkillImportManager | None = None
+
+def get_skill_import_manager_local():
+    global _skill_import_manager_local
+    if _skill_import_manager_local is None:
+        _skill_import_manager_local = SkillImportManager(store=get_skill_store())
+    return _skill_import_manager_local
+
+async def _read_skill_uploads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
+    pairs = []
+    for upload in files:
+        raw = await upload.read()
+        pairs.append((upload.filename or "unnamed", raw))
+    return pairs
+
+
+@router.post("/skills/import/scan", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def scan_skills_import_local(files: list[UploadFile] = File(...)):
+    manager = get_skill_import_manager_local()
+    pairs = await _read_skill_uploads(files)
+    return await manager.scan(pairs)
+
+
+@router.post("/skills/import-files", dependencies=[Depends(require_permission(Permission.PLUGINS))])
+async def import_skills_files_local(
+    files: list[UploadFile] = File(...),
+    selected: str | None = Form(None),
+):
+    manager = get_skill_import_manager_local()
+    pairs = await _read_skill_uploads(files)
+    selected_ids = None
+    if selected:
+        try:
+            parsed = json.loads(selected)
+            selected_ids = [str(v) for v in parsed] if isinstance(parsed, list) else None
+        except (json.JSONDecodeError, TypeError):
+            selected_ids = [x for x in selected.split(",") if x.strip()] or None
+    return await manager.import_files(pairs, selected=selected_ids)

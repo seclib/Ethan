@@ -1,0 +1,241 @@
+"""Ollama Provider — Implémentation du provider Ollama (local).
+
+Capabilities: LLM, Vision (LLaVA, etc.), Embeddings, no native transcription.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from core.llm.providers.base import LLMProvider
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    ModelInfo,
+    VisionRequest,
+    VisionResponse,
+    is_embedding_model,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class OllamaProvider(LLMProvider):
+    """Provider Ollama (local).
+
+    Supports: chat, embeddings, vision (llava). No native transcription.
+    """
+
+    name = "ollama"
+    default_model = "llama3.1"
+    supports_vision = True
+    supports_transcription = False
+
+    def __init__(self, base_url: str = "http://localhost:11434"):
+        self._base_url = base_url
+        self._client = None
+
+    async def initialize(self) -> None:
+        """Initialise le client."""
+        try:
+            import httpx
+
+            self._client = httpx.AsyncClient(timeout=300.0)
+            logger.info(f"Ollama provider initialized ({self._base_url})")
+        except ImportError:
+            logger.warning("httpx package not installed")
+
+    async def test_connection(self) -> bool:
+        """Healthcheck rapide avec un timeout court.
+
+        Ne réutilise PAS le client principal (timeout=300s, adapté aux
+        générations LLM longues) : un healthcheck qui bloque 5 minutes
+        fige /providers et /models entiers. On utilise un client jetable
+        avec un timeout de connexion de 3s.
+        """
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+                return response.status_code == 200
+        except Exception as e:
+            logger.debug("Ollama healthcheck failed (%s): %s", self._base_url, e)
+            return False
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        stream: bool = False,
+    ) -> ChatResponse:
+        """Chat completion."""
+        if not self._client:
+            await self.initialize()
+
+        response = await self._client.post(
+            f"{self._base_url}/api/chat",
+            json={
+                "model": model or self.default_model,
+                "messages": [{"role": m.role, "content": m.content} for m in messages],
+                "stream": stream,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            },
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        return ChatResponse(
+            content=data["message"]["content"],
+            model=data.get("model", model or self.default_model),
+            provider=self.name,
+            usage={
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "completion_tokens": data.get("eval_count", 0),
+                "total_tokens": data.get("prompt_eval_count", 0) + data.get("eval_count", 0),
+            },
+        )
+
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ):
+        """Streaming chat."""
+        if not self._client:
+            await self.initialize()
+
+        async with self._client.stream(
+            "POST",
+            f"{self._base_url}/api/chat",
+            json={
+                "model": model or self.default_model,
+                "messages": [{"role": m.role, "content": m.content} for m in messages],
+                "stream": True,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            },
+        ) as response:
+            async for line in response.aiter_lines():
+                if line:
+                    import json
+
+                    data = json.loads(line)
+                    if "message" in data and "content" in data["message"]:
+                        yield data["message"]["content"]
+
+    async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
+        """Generate embeddings."""
+        if not self._client:
+            await self.initialize()
+
+        embeddings = []
+        for text in texts:
+            response = await self._client.post(
+                f"{self._base_url}/api/embeddings",
+                json={
+                    "model": model or "llama2:70b",
+                    "prompt": text,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            embeddings.append(data["embedding"])
+
+        return embeddings
+
+    async def list_models(self) -> list[ModelInfo]:
+        """List available models."""
+        if not self._client:
+            return []
+
+        try:
+            response = await self._client.get(f"{self._base_url}/api/tags")
+            response.raise_for_status()
+            data = response.json()
+
+            models = []
+            for model_data in data.get("models", []):
+                model_name = model_data["name"]
+                models.append(
+                    ModelInfo(
+                        id=model_name,
+                        provider=self.name,
+                        name=model_name,
+                        model=model_name,
+                        context_length=4096,  # Ollama ne retourne pas cette info
+                        quality_score=0.80,  # Par défaut
+                        avg_latency_ms=100.0,  # Local = rapide
+                        is_local=True,
+                        is_private=True,
+                        # Ollama liste ses modèles sans métadonnée de tâche :
+                        # sans distinction, un encodeur (ex. « qwen3-embedding »)
+                        # serait sélectionné pour le chat et échouerait.
+                        capabilities=(
+                            ["embedding"]
+                            if is_embedding_model(model_name)
+                            else ["chat", "embedding"]
+                        ),
+                    )
+                )
+
+            return models
+        except Exception as e:
+            logger.warning(f"Failed to list Ollama models: {e}")
+            return []
+
+    async def vision_analyze(self, request: VisionRequest) -> VisionResponse:
+        """Analyze an image via Ollama (LLaVA-style models)."""
+        if not self._client:
+            await self.initialize()
+
+        model = request.model or "llava"
+        images_b64: list[str] = []
+
+        for img in request.images:
+            if img.is_url:
+                # Ollama only supports base64 images
+                raise NotImplementedError(
+                    "Ollama vision requires base64 image data (URL not supported)"
+                )
+            images_b64.append(img.data)
+
+        response = await self._client.post(
+            f"{self._base_url}/api/chat",
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": request.prompt,
+                        "images": images_b64,
+                    }
+                ],
+                "stream": False,
+                "options": {
+                    "num_predict": request.max_tokens,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        return VisionResponse(
+            content=data["message"]["content"],
+            model=data.get("model", model),
+            provider=self.name,
+            usage={
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "completion_tokens": data.get("eval_count", 0),
+            },
+        )

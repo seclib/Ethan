@@ -1,0 +1,524 @@
+"use client";
+
+/**
+ * ETHAN WebUI — Sidebar (refonte Open-WebUI)
+ *
+ * Une seule barre latérale, toujours montée dans le shell, repliable :
+ *  - sur la page chat (/) → groupe CONVERSATIONS
+ *  - partout → groupe NAVIGATION (taxinomie unique NAV_SECTIONS), collapsible
+ * Le sélecteur Agent/Model reste dans le header du chat (ChatSecondaryBar).
+ */
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { useChatSidebarStore } from "@/store/chat-sidebar.store";
+import { useUIStore } from "@/store/ui.store";
+import {
+  NAV_SECTIONS_PRIMARY,
+  NAV_SECTIONS_ADMIN,
+  NAV_SECTIONS_SECONDARY,
+  initialCollapsedGroups,
+  toggleGroupState,
+} from "./nav-config";
+import type { NavSection } from "./nav-config";
+import {
+  SidebarNavSections,
+  SidebarNavSectionsFallback,
+} from "./sidebar-nav-sections";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  Pin, Trash2, MessageSquare, Search, Settings,
+  ChevronDown, LogOut, SquarePen, PanelLeftClose, FolderKanban, Target, Activity,
+  Database, Sparkles, Puzzle, Wrench, Layers, Server, BookOpen, Library,
+} from "lucide-react";
+import { LogoSquare } from "@/components/shared/logo";
+import type { EthChat } from "@/components/features/assistant/hooks/use-chats";
+
+export interface AppSidebarProps {
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+/**
+ * Sections rendues dans la sidebar déployée (conversation-centric) :
+ * navigation quotidienne + Administration compacte en bas.
+ * Les entrées techniques (Models, Providers, Knowledge…) sont déléguées à
+ * la navigation secondaire (Settings + palette Ctrl+K) — voir nav-config v5.
+ *
+ * Exporté pour les tests de navigation : c'est une donnée de présentation,
+ * pas un détail d'implémentation.
+ */
+export const WORKSPACE_SECTIONS: NavSection[] = [
+  {
+    id: "workspaces",
+    label: "navigation.workspaces",
+    description: "Workspaces opérationnels ETHAN",
+    collapsible: true,
+    items: [
+      { href: "/workspaces/observatory", label: "navigation.observatory", icon: BookOpen },
+      { href: "/library", label: "navigation.library", icon: Library },
+      { href: "/knowledge", label: "navigation.knowledge", icon: Database },
+      { href: "/skills", label: "navigation.skills", icon: Sparkles },
+      { href: "/providers", label: "navigation.providers", icon: Layers },
+      { href: "/plugins", label: "navigation.plugins", icon: Puzzle },
+      { href: "/tools", label: "navigation.tools", icon: Wrench },
+      { href: "/workspaces/mcp", label: "navigation.mcp", icon: Server },
+    ],
+  },
+];
+
+const SIDEBAR_SECTIONS = [
+  ...NAV_SECTIONS_PRIMARY,
+  ...WORKSPACE_SECTIONS,
+  ...NAV_SECTIONS_ADMIN,
+];
+
+/** Breakpoint mobile partagé (SSR-safe : false tant que non monté). */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
+export function AppSidebar({ expanded, onToggle }: AppSidebarProps) {
+  const pathname = usePathname();
+  const { t } = useI18n();
+  const chatState = useChatSidebarStore();
+  const router = useRouter();
+  const { openCommandPalette } = useUIStore();
+  const setPendingChat = useChatSidebarStore((s) => s.setPendingChat);
+  // Clic sur une conversation hors page chat : on enregistre la cible puis on
+  // navigue vers "/" — la page chat ouvrira la conversation au montage.
+  const selectFromSidebar = (id: string) => {
+    if (chatState.onSelectChat) { chatState.onSelectChat(id); }
+    else { setPendingChat(id); router.push("/"); }
+  };
+  const handleNewChat = () => {
+    if (chatState.onNewChat) { chatState.onNewChat(); }
+    else { window.location.href = "/"; }
+  };
+  // Sections repliées au premier rendu (data pure : NavSection.defaultCollapsed)
+  // — la sidebar reste « assistant-first », l'administration ne s'ouvre pas
+  // d'office. Tout le reste démarre déployé.
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() =>
+    initialCollapsedGroups(SIDEBAR_SECTIONS),
+  );
+  // Force the "plugins" group to be open by default to ensure visibility during validation
+  React.useEffect(() => {
+    setOpenGroups((g) => ({ ...g, plugins: true }));
+  }, []);
+  /** Section Projets — collapsible indépendante (Open-WebUI : « Projects »). */
+  const [projectsOpen, setProjectsOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!expanded) {
+      document.documentElement.classList.add("sidebar-collapsed");
+    } else {
+      document.documentElement.classList.remove("sidebar-collapsed");
+    }
+  }, [expanded]);
+
+  React.useEffect(() => {
+    if (!pathname) return;
+    const active = SIDEBAR_SECTIONS.find((sec) => sec.items.some((it) => it.href === pathname));
+    if (!active) return;
+    // Déplie le groupe actif (ex. Administration repliée → /monitoring) sans
+    // state update inutile si le groupe est déjà ouvert — et sans écraser le
+    // repli manuel des autres groupes.
+    setOpenGroups((g) => ((g[active.id] ?? true) ? g : { ...g, [active.id]: true }));
+  }, [pathname]);
+
+  /**
+   * Responsive — mobile (< 768px) : la sidebar déployée devient un drawer
+   * en overlay (cf. classe `.sidebar-mobile-open` + backdrop). L'état runtime
+   * est ajusté SANS écrire la préférence utilisateur : sur desktop la session
+   * démarre toujours déployée, sauf préférence explicite.
+   */
+  const isCollapsedRouteActive = (href: string) =>
+    pathname === href || (href !== "/" && (pathname ?? "").startsWith(href + "/"));
+
+  const isMobile = useIsMobile();
+  const setSidebarExpanded = useUIStore((s) => s.setSidebarExpanded);
+  const prevMobile = React.useRef<boolean | null>(null);
+  React.useEffect(() => {
+    const wasMobile = prevMobile.current;
+    prevMobile.current = isMobile;
+    // Ferme (runtime, sans persister) au montage mobile et au passage desktop→mobile.
+    if (isMobile && (wasMobile === null || !wasMobile) && expanded) {
+      setSidebarExpanded(false);
+    }
+  }, [isMobile, expanded, setSidebarExpanded]);
+
+    if (!expanded) {
+    return (
+      <nav className="sidebar sidebar-collapsed" id="sidebar">
+        <div className="sidebar-header-collapsed">
+          {/* Logo cliquable pour (ré-)ouvrir la sidebar — Open-WebUI : le rail
+              collapsé a toujours un point d'ancrage pour revenir au state
+              développé. */}
+          <button
+            onClick={onToggle}
+            className="sidebar-collapsed-btn"
+            aria-label="Ouvrir la sidebar"
+            title="Ouvrir la sidebar"
+          >
+            <LogoSquare size={18} />
+          </button>
+        </div>
+        <div className="flex flex-col items-center gap-1 px-1 pb-1">
+          {/* Rail replié MINIMAL (Open-WebUI) : uniquement les actions utiles —
+              pas de colonne d'icônes techniques. La navigation complète vit
+              dans la sidebar déployée / Settings / palette Ctrl+K. */}
+          <button onClick={handleNewChat} className="sidebar-collapsed-btn" title="Nouveau chat" aria-label="Nouveau chat">
+            <SquarePen size={16} />
+          </button>
+          <button onClick={openCommandPalette} className="sidebar-collapsed-btn" title="Rechercher (Ctrl+K)" aria-label="Rechercher">
+            <Search size={16} />
+          </button>
+          {/* Library reste joignable quand la sidebar est réduite : le rail
+              minimal ne doit pas faire disparaître une capacité de premier
+              niveau. Libellé traduit (title + aria-label), état actif réel. */}
+          <Link
+            href="/library"
+            className={cn("sidebar-collapsed-btn", isCollapsedRouteActive("/library") && "active")}
+            title={t("navigation.library")}
+            aria-label={t("navigation.library")}
+            aria-current={isCollapsedRouteActive("/library") ? "page" : undefined}
+            data-testid="sidebar-collapsed-library"
+          >
+            <Library size={16} />
+          </Link>
+          <Link
+            href="/settings"
+            className={cn("sidebar-collapsed-btn", isCollapsedRouteActive("/settings") && "active")}
+            title="Paramètres"
+            aria-label="Paramètres"
+            aria-current={isCollapsedRouteActive("/settings") ? "page" : undefined}
+            data-testid="sidebar-collapsed-settings"
+          >
+            <Settings size={16} />
+          </Link>
+          <Link
+            href="/missions"
+            className={cn("sidebar-collapsed-btn", isCollapsedRouteActive("/missions") && "active")}
+            title="Pilotage"
+            aria-label="Pilotage"
+            aria-current={isCollapsedRouteActive("/missions") ? "page" : undefined}
+            data-testid="sidebar-collapsed-pilotage"
+          >
+            <Target size={16} />
+          </Link>
+          <Link
+            href="/diagnostics"
+            className={cn("sidebar-collapsed-btn", isCollapsedRouteActive("/diagnostics") && "active")}
+            title="Administration"
+            aria-label="Administration"
+            aria-current={isCollapsedRouteActive("/diagnostics") ? "page" : undefined}
+            data-testid="sidebar-collapsed-administration"
+          >
+            <Activity size={16} />
+          </Link>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ flexShrink: 0 }}>
+          <UserBar expanded={false} />
+        </div>
+      </nav>
+    );
+  }
+
+  return (
+    <>
+      {/* Backdrop mobile : ferme le drawer sans persister de préférence */}
+      {isMobile && (
+        <div
+          className="sidebar-mobile-backdrop"
+          onClick={() => setSidebarExpanded(false)}
+          aria-hidden
+        />
+      )}
+      <nav
+        className={cn("sidebar", isMobile && "sidebar-mobile-open")}
+        id="sidebar"
+                        style={{
+          display: "flex", flexDirection: "column", zIndex: 49, flexShrink: 0,
+        }}
+      >
+        <div className="sidebar-header">
+          <div className="sidebar-brand flex items-center gap-2">
+            <LogoSquare size={18} />
+            <span>ETHAN</span>
+          </div>
+          <button
+            onClick={onToggle}
+            className="sidebar-hamburger"
+            title="Replier la sidebar"
+            aria-label="Replier la sidebar"
+          >
+            <PanelLeftClose size={16} />
+          </button>
+        </div>
+        <div className="sidebar-actions">
+          <button onClick={handleNewChat} className="sidebar-new-chat" aria-label="Nouveau chat">
+            <span>Nouveau chat</span>
+            <SquarePen size={15} />
+          </button>
+          <button onClick={openCommandPalette} className="sidebar-search" aria-label="Rechercher" title="Rechercher (Ctrl+K)">
+            <Search size={15} />
+            <span>Rechercher…</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        </div>
+        <div className="sidebar-inner custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+        {/* Sidebar conversation-centric (Open-WebUI) : les conversations
+            restent visibles sur toutes les pages tant que le store en a. */}
+        {chatState.chats.length > 0 && (
+          <ChatSection
+            chats={chatState.chats} pinnedChats={chatState.pinnedChats}
+            regularChats={chatState.regularChats} currentChatId={chatState.currentChatId}
+            onNewChat={handleNewChat} onSelectChat={selectFromSidebar}
+            onDeleteChat={chatState.onDeleteChat} onTogglePin={chatState.onTogglePin}
+            onRenameChat={chatState.onRenameChat}
+          />
+        )}
+        {/* Projets — structure Open-WebUI (« Projects »). ETHAN Core ne
+            possède pas encore de module projets : état vide honnête, aucune
+            donnée simulée, aucun lien fantôme (règle anti-fantôme). */}
+        <div className="sidebar-nav-group">
+          <button
+            className="sidebar-nav-section-header"
+            onClick={() => setProjectsOpen((o) => !o)}
+            aria-expanded={projectsOpen}
+            title="Projets — regroupement de conversations (bientôt disponible)"
+          >
+            <span className="sidebar-nav-item-outer">
+              <FolderKanban size={15} className="sidebar-nav-icon" />
+              <span>Projets</span>
+            </span>
+            <ChevronDown size={14} className={cn("sidebar-nav-chevron", !projectsOpen && "rotate-[-90deg]")} />
+          </button>
+          {projectsOpen && (
+            <div className="sidebar-nav-sub">
+              <div className="px-3 py-2 text-xs leading-relaxed text-foreground-tertiary">
+                Aucun projet — la gestion des projets sera activée lorsque le
+                backend ETHAN exposera cette capacité.
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Sections de navigation — le client qui lit les paramètres d'URL est
+            isolé sous une frontière Suspense : le CSR bailout de
+            `useSearchParams()` reste confiné à ce sous-arbre, sinon le build
+            échoue sur les routes statiques (/404, /_not-found...). */}
+        <React.Suspense
+          fallback={
+            <SidebarNavSectionsFallback
+              sections={SIDEBAR_SECTIONS}
+              pathname={pathname}
+              openGroups={openGroups}
+              setOpenGroups={setOpenGroups}
+            />
+          }
+        >
+          <SidebarNavSections
+            sections={SIDEBAR_SECTIONS}
+            pathname={pathname}
+            openGroups={openGroups}
+            setOpenGroups={setOpenGroups}
+          />
+        </React.Suspense>
+        {/* Settings — pied de la sidebar (navigation secondaire : capacités
+            techniques via Settings + palette Ctrl+K) */}
+        <div className="sidebar-nav-group pt-1">
+          <Link
+            href="/settings"
+            className={cn("sidebar-nav-item", pathname === "/settings" && "active")}
+            title="Paramètres ETHAN — modèles, providers, outils, préférences"
+          >
+            <Settings size={15} className="sidebar-nav-icon" />
+            <span>Settings</span>
+            {pathname.startsWith("/settings") && (
+              <span className="ml-auto text-[10px] text-foreground-tertiary">↳</span>
+            )}
+          </Link>
+        </div>
+      </div>
+      <UserBar expanded={expanded} />
+    </nav>
+    </>
+  );
+}
+
+/* ── Conversations (vue Chat) ── */
+
+function groupChatsByPeriod(chats: EthChat[]): { label: string; items: EthChat[] }[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+  const monthAgo = new Date(today); monthAgo.setDate(monthAgo.getDate() - 30);
+  const groups: { label: string; items: EthChat[] }[] = [
+    { label: "Aujourd'hui", items: [] },
+    { label: "Hier", items: [] },
+    { label: "7 derniers jours", items: [] },
+    { label: "30 derniers jours", items: [] },
+    { label: "Plus ancien", items: [] },
+  ];
+  for (const chat of chats) {
+    const d = new Date(chat.updated_at);
+    if (d >= today) groups[0].items.push(chat);
+    else if (d >= yesterday) groups[1].items.push(chat);
+    else if (d >= weekAgo) groups[2].items.push(chat);
+    else if (d >= monthAgo) groups[3].items.push(chat);
+    else groups[4].items.push(chat);
+  }
+  return groups.filter((g) => g.items.length > 0);
+}
+
+function ChatSection(props: {
+  chats: EthChat[]; pinnedChats: EthChat[]; regularChats: EthChat[];
+  currentChatId: string | null;
+  onNewChat?: (() => void) | null; onSelectChat?: ((id: string) => void) | null;
+  onDeleteChat?: ((id: string) => void) | null;
+  onTogglePin?: ((id: string, cur: boolean) => void) | null;
+  onRenameChat?: ((id: string, t: string) => void) | null;
+}) {
+  const { pinnedChats, regularChats, currentChatId } = props;
+  const [search, setSearch] = React.useState("");
+  const filtered = React.useMemo(() => {
+    if (!search.trim()) return regularChats;
+    const q = search.toLowerCase();
+    return regularChats.filter((c) => c.title.toLowerCase().includes(q));
+  }, [regularChats, search]);
+  const grouped = React.useMemo(() => groupChatsByPeriod(filtered), [filtered]);
+
+    return (
+    <div className="sidebar-nav-group" style={{ padding: "8px 0" }}>
+      <div className="section-title">Conversations</div>
+      <div className="px-2 pb-2">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary" />
+          <input
+            type="text" value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher conversations..."
+            className="w-full rounded-md border border-line-2 bg-bg-1 py-1.5 pl-9 pr-3 text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-accent/50"
+          />
+        </div>
+      </div>
+      {pinnedChats.length > 0 && (
+        <div className="px-1">
+          <div className="section-title">Épinglés</div>
+          {pinnedChats.map((c) => (
+            <ChatItem
+              key={c.id} chat={c} isActive={c.id === currentChatId}
+              onSelect={() => props.onSelectChat?.(c.id)}
+              onDelete={(e) => { e.stopPropagation(); props.onDeleteChat?.(c.id); }}
+              onPin={(e) => { e.stopPropagation(); props.onTogglePin?.(c.id, c.pinned); }}
+              onRename={(t) => props.onRenameChat?.(c.id, t)}
+            />
+          ))}
+        </div>
+      )}
+      {grouped.map((g) => (
+        <div key={g.label} className="px-1">
+          <div className="section-title">{g.label}</div>
+          {g.items.map((c) => (
+            <ChatItem
+              key={c.id} chat={c} isActive={c.id === currentChatId}
+              onSelect={() => props.onSelectChat?.(c.id)}
+              onDelete={(e) => { e.stopPropagation(); props.onDeleteChat?.(c.id); }}
+              onPin={(e) => { e.stopPropagation(); props.onTogglePin?.(c.id, c.pinned); }}
+              onRename={(t) => props.onRenameChat?.(c.id, t)}
+            />
+          ))}
+        </div>
+      ))}
+      {props.chats.length === 0 && (
+        <div className="px-3 py-6 text-center text-sm text-foreground-tertiary">Aucune conversation</div>
+      )}
+    </div>
+  );
+}
+
+function ChatItem({ chat, isActive, onSelect, onDelete, onPin, onRename }: {
+  chat: EthChat; isActive: boolean;
+  onSelect: () => void; onDelete: (e: React.MouseEvent) => void;
+  onPin: (e: React.MouseEvent) => void; onRename: (t: string) => void;
+}) {
+  const [renaming, setRenaming] = React.useState(false);
+  const [value, setValue] = React.useState(chat.title);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => { if (renaming) { inputRef.current?.focus(); inputRef.current?.select(); } }, [renaming]);
+  const commit = () => { setRenaming(false); const t = value.trim(); if (t && t !== chat.title) onRename(t); };
+  return (
+    <div
+      onClick={onSelect} className={cn("list-item", isActive && "active")}
+      role="button" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" && !renaming) onSelect(); }}
+    >
+      <MessageSquare size={14} className="shrink-0 opacity-50" />
+      {renaming ? (
+        <input
+          ref={inputRef} value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setRenaming(false); setValue(chat.title); }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="sidebar-rename-input" aria-label="Renommer"
+        />
+      ) : (
+        <span
+          className="flex-1 truncate" title="Double-clic pour renommer"
+          onDoubleClick={(e) => { e.stopPropagation(); setValue(chat.title); setRenaming(true); }}
+        >{chat.title}</span>
+      )}
+      <span className="sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onPin} className="sidebar-action-btn" title={chat.pinned ? "Désépingler" : "Épingler"}>
+          <Pin size={12} />
+        </button>
+        <button onClick={onDelete} className="sidebar-action-btn" title="Supprimer">
+          <Trash2 size={12} />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/* ── User bar ── */
+
+export function UserBar({ expanded = true }: { expanded?: boolean }) {
+  const { user, logout } = useAuth();
+  const displayName = user?.name || user?.email || "Utilisateur";
+  const initial = (displayName[0] || "E").toUpperCase();
+  return (
+    <div className="sidebar-user-bar">
+      {expanded && (
+        <div className="user-bar-left" title={user?.email ? `${displayName} — ${user.email}` : displayName}>
+          <div className="user-bar-avatar" aria-hidden>{initial}</div>
+          <span className="user-bar-name truncate">{displayName}</span>
+        </div>
+      )}
+      {/* Barre épurée : uniquement la déconnexion. Settings reste accessible
+          via la navigation secondaire (page /settings + palette Ctrl+K) et
+          Mission Control via ⌘M / palette de commandes — aucun doublon ici. */}
+      <div className="user-bar-actions">
+        <button onClick={() => logout?.()} className="user-bar-btn" title="Déconnexion" aria-label="Déconnexion">
+          <LogOut size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}

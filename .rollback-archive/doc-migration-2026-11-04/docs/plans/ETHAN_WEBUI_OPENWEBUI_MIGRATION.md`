@@ -1,0 +1,52 @@
+# ETHAN WebUI $\rightarrow$ Open-WebUI Migration Plan
+
+This document tracks the transformation of the ETHAN WebUI into a high-fidelity interface based on Open-WebUI.
+
+## Architectural Principle
+**Open-WebUI UX + ETHAN Capabilities = ETHAN WebUI**
+The WebUI is a stateless presentation layer. All business logic, state, and persistence reside in ETHAN Core/API.
+
+---
+
+## Implementation Roadmap
+
+### P0: Core Shell & Navigation (Critical Path)
+- [x] **Root Layout**: Narrow sidebar with logo and primary navigation.
+- [x] **App Layout**: Main shell with wide sidebar and content slot.
+- [x] **Wide Sidebar**:
+    - [x] New Chat & Search buttons.
+    - [x] Pinned Menu items (Notes -> Missions, Workspace -> Dashboard, etc.).
+    - [x] Chat List with time-range grouping.
+    - [x] Pinned Chats.
+    - [x] User Profile Menu.
+    - [x] Sidebar Resizing.
+- [x] **Navigation**: Routing for `/`, `/c/:id`, `/settings`, etc.
+- [x] **Model Selector**: High-fidelity model picker with search and categories.
+- [x] **Settings**: User and Admin settings panels.
+
+### P1: Workspace & Knowledge (Productivity)
+- [ ] **Workspace**: Central hub for managing models, knowledge, and tools.
+- [ ] **Knowledge**: Document management, upload, and association.
+- [ ] **Skills/Tools/MCP**: Interface for activating and configuring capabilities.
+- [ ] **Files**: File explorer and upload management.
+- [ ] **Providers**: Backend connection management.
+
+### P2: Advanced UX & Polish (Enhancements)
+- [ ] **Memories**: Interface for managing long-term memory.
+- [ ] **Tags & Collections**: Organizing chats and knowledge.
+- [ ] **Prompts**: Prompt library and templates.
+- [ ] **Advanced Functions**: Pipeline and agent configuration.
+- [ ] **UX Polish**: Transitions, animations, and theme refinements.
+
+---
+
+## Feature Mapping Table
+
+| Feature | Open-WebUI UX | ETHAN Capability | Status |
+|----------|---------------|-------------------|--------|
+| Chat List | Time-grouped list | `ChatStore` | Done ✅ |
+| Model Picker | Searchable dropdown | `ProviderManager` | Done ✅ |
+| Knowledge | Document Collections | `RAG / VectorStore` | Pending |
+| Workspace | Centralized Hub | `ETHAN Core API` | Pending |
+| Sidebar | Resizable, Multi-section | Frontend Layout | Done ✅ |
+| User Menu | Profile & Settings | `UserManager` | Done ✅ |

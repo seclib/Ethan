@@ -1,0 +1,27 @@
+# ETHAN Core Configuration
+# Path: /etc/ethan/core.yaml
+
+nats_url: nats://localhost:4222
+redis_url: redis://localhost:6379/0
+postgres_url: postgres://ethan:password@localhost:5432/ethan
+
+grpc_port: 50051
+http_port: 8000
+
+log_level: info
+
+modules:
+  executive:
+    enabled: true
+  planner:
+    enabled: true
+  memory:
+    enabled: true
+  reflective:
+    enabled: false
+  learning:
+    enabled: false
+  autonomy:
+    enabled: false
+  metacognition:
+    enabled: false

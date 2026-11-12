@@ -1,0 +1,459 @@
+"""Agent executor — Adapter d'exécution Core pour les agents.
+
+Cette logique appartient au Core : elle résout le provider LLM et le modèle
+de l'agent, construit le prompt (description + skills + contexte) et appelle
+le ProviderManager réel. Aucun mock : sans provider capable, l'exécution
+échoue proprement.
+
+Sécurité (Constitution CT-4 — séparation données/instructions) : les skills
+et le contexte RAG injectés dans le prompt sont des **données récupérées**,
+jamais des instructions. Leur contenu est sanitisé (blocs `<system>` /
+`<instruction>` / `system:` retirés) puis enclos dans des balises `<data>`
+avec provenance et instructions sticky via ``core.security.prompt_guard``.
+
+L'injection se fait dans la composition root (interfaces/api/main.py) après
+initialisation du ProviderManager.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+from core.agents.resources import resolve_agent_resources
+from core.agents.types import Agent
+from core.llm.types import ChatMessage
+from core.security.prompt_guard import (
+    sanitize_external_content,
+    wrap_data_block,
+)
+from core.tools.call_protocol import parse_tool_calls, strip_tool_blocks
+
+logger = logging.getLogger(__name__)
+
+# Budget de la boucle d'outils (aligné sur la boucle de chat — v1.py).
+MAX_TOOL_ROUNDS = 3
+
+
+class _NoOpSkillStore:
+    """Placeholder sans effet si aucun skill store n'est fourni."""
+
+    async def get_skill(self, skill_id: str) -> dict[str, Any] | None:
+        return None
+
+
+async def _resolve_provider(provider_manager: Any, provider_id: str | None) -> Any | None:
+    """Résout une instance de provider depuis le ProviderManager.
+
+    Réutilise le registry s'il existe, sinon instancie depuis la config
+    persistée (sans exiger qu'il soit déjà initialisé).
+    """
+    if provider_id is None:
+        return None
+    provider = provider_manager._registry.get_provider(provider_id)
+    if provider is not None:
+        return provider
+    config = provider_manager._providers_config.get(provider_id)
+    if config and config.get("enabled", False):
+        from core.llm.provider_factory import create_provider_from_config
+
+        provider = create_provider_from_config({**config, "name": provider_id})
+        await provider.initialize()
+        return provider
+    return None
+
+
+class _NoOpKnowledgeCollections:
+    """Placeholder sans effet si aucun collection manager n'est fourni."""
+
+    async def build_context_multi(
+        self, query: str, collection_ids: list[str], *, top_k: int | None = None
+    ) -> str:
+        return ""
+
+
+async def _execute_agent_tool(
+    tools: Any,
+    executor: Any,
+    tool_ref: str,
+    params: dict[str, Any],
+    agent_name: str,
+) -> dict[str, Any]:
+    """Exécute un appel d'outil agent via le ToolExecutor (enforcer obligatoire).
+
+    Chemin identique au chat (ToolManager → ToolExecutor → SecureToolEnforcer)
+    : l'agent ne bénéficie d'aucun contournement (CTO Phase 0.3).
+    """
+    registry = getattr(tools, "registry", None)
+    if registry is None:
+        return {"status": "failed", "error": "tool registry unavailable"}
+
+    tool = registry.get(tool_ref)
+    if tool is None:
+        for candidate in registry.list_all():
+            if candidate.name == tool_ref:
+                tool = candidate
+                break
+    if tool is None:
+        return {"status": "failed", "error": f"Unknown tool: {tool_ref}"}
+    if not tool.is_available:
+        return {"status": "rejected", "error": f"Tool {tool.name} is disabled"}
+
+    from core.tools.types import ToolContext
+
+    context = ToolContext(
+        query=str(params.get("query", "")),
+        user_id=f"agent:{agent_name}",
+        source="agent",
+    )
+    result = await executor.execute(tool, params, context)
+    output = result.output
+    if not isinstance(output, str):
+        try:
+            output = json.dumps(output, ensure_ascii=False, default=str)
+        except Exception:
+            output = str(output)
+    return {
+        "status": result.status,
+        "tool": tool.name,
+        "output": output if result.status == "success" else None,
+        "error": result.error,
+    }
+
+
+async def run_agent_chat(
+    provider: Any,
+    messages: list[ChatMessage],
+    *,
+    model: str | None,
+    tools: Any | None,
+    agent_name: str,
+    max_rounds: int = MAX_TOOL_ROUNDS,
+) -> str:
+    """Conversation agent avec appels d'outils bornés — fail-closed.
+
+    CTO Phase 0.3 (SecureToolEnforcer dans le flux) + base de la Phase 3.1
+    (boucle d'outils autonome / agentique) :
+
+    - chaque appel ``<tool>`` passe par ``ToolExecutor`` — donc par le
+      ``SecureToolEnforcer`` (P0-2) : PolicyEngine + Capability + ExfilGuard ;
+    - **aucun ToolManager** ou **aucun enforcer** ⇒ l'appel est REFUSÉ
+      (jamais de repli implicite, Red Team Attaque 20) ;
+    - la boucle est bornée (``max_rounds``) puis les blocs bruts restants
+      sont remplacés par des notes lisibles.
+    """
+    content = ""
+    for round_index in range(max_rounds + 1):
+        response = await provider.chat(messages, model=model, temperature=0.7)
+        content = response.content or ""
+        calls = parse_tool_calls(content)
+        if not calls:
+            return content
+        if round_index == max_rounds:
+            # Budget épuisé : ne jamais rendre un bloc <tool> cru.
+            return strip_tool_blocks(content)
+
+        if tools is None:
+            logger.warning(
+                "Agent %s emitted a tool call but no ToolManager is wired — refused",
+                agent_name,
+            )
+            return (
+                "[Tool] Refus (fail-closed) : aucun ToolManager sécurisé "
+                "n'est branché sur cet agent."
+            )
+
+        executor = getattr(tools, "executor", None)
+        if executor is None or getattr(executor, "_policy_enforcer", None) is None:
+            logger.error(
+                "Agent %s tool loop without SecureToolEnforcer — refused (fail-closed)",
+                agent_name,
+            )
+            return "[Tool] Refus (fail-closed) : SecureToolEnforcer absent."
+
+        messages.append(ChatMessage(role="assistant", content=content))
+        result_lines: list[str] = []
+        for call in calls:
+            outcome = await _execute_agent_tool(
+                tools, executor, call["name"], call["params"], agent_name
+            )
+            summary = (
+                outcome.get("output") or outcome.get("error") or outcome.get("status", "failed")
+            )
+            result_lines.append(
+                f"[Résultat outil « {call['name']} » ({outcome.get('status')})]\n{summary}"
+            )
+        messages.append(ChatMessage(role="user", content="\n\n".join(result_lines)))
+
+    return content
+
+
+def create_agent_executor(
+    provider_manager: Any,
+    skill_store: Any | None = None,
+    knowledge_collections: Any | None = None,
+    domain_manager: Any | None = None,
+    folders: Any | None = None,
+    knowledge_manager: Any | None = None,
+    tools: Any | None = None,
+) -> Any:
+    """Fabrique l'exécuteur d'agents lié au runtime.
+
+    Retourne un callable asynchrone compatible avec AgentManager.executor :
+    ``(agent, task, context, skill_id) -> str``.
+
+    Args:
+        provider_manager: Instance du ProviderManager Core (LLM).
+        skill_store: Store Core des skills (optionnel) — permet d'injecter
+            le contenu des skills assignés dans le prompt de l'agent.
+        knowledge_collections: KnowledgeCollectionManager Core (optionnel) —
+            permet de scopier le RAG sur les collections de connaissances
+            assignées à l'agent (``agent.knowledge_collection_ids``).
+        domain_manager: DomainManager Core (optionnel) — résout les
+            ressources (skills, collections RAG) rattachées aux domains
+            sélectionnés explicitement par l'agent (``agent.domain_ids``).
+        folders: FolderManager Core (optionnel) — résout les contenus des
+            dossiers sélectionnés par l'agent (``agent.folder_ids``) :
+            sélectionner un dossier inclut les ressources qu'il contient.
+        knowledge_manager: KnowledgeManager Core (optionnel) — injecte le
+            contenu des nœuds de Knowledge spécifiquement autorisés
+            (``agent.knowledge_ids``) comme données sanitizées.
+        tools: ToolManager Core (optionnel) — n'expose au runtime QUE les
+            tools/MCP autorisés (``agent.tool_ids`` + ceux des dossiers).
+
+    La résolution effective (déduplication, sources, fantômes) est déléguée à
+    ``core.agents.resources.resolve_agent_resources`` : aucune ressource
+    globale n'est injectée sans décision explicite de l'utilisateur.
+    """
+    skills = skill_store or _NoOpSkillStore()
+    knowledge = knowledge_collections or _NoOpKnowledgeCollections()
+
+    async def execute(
+        agent: Agent,
+        task: str,
+        *,
+        context: dict[str, Any] | None = None,
+        skill_id: str | None = None,
+        execution_context: Any | None = None,
+    ) -> str:
+        provider = await _resolve_provider(provider_manager, agent.provider)
+        if provider is None:
+            raise RuntimeError(
+                f"Provider '{agent.provider}' for agent '{agent.name}' "
+                "is not available or not enabled"
+            )
+
+        model = agent.model or getattr(provider, "default_model", None)
+        if not model:
+            raise RuntimeError(
+                f"No model configured for agent '{agent.name}' and provider "
+                f"'{agent.provider}' has no default model"
+            )
+
+        # ── Construction du prompt ─────────────────────────────────────
+        system_parts: list[str] = []
+        if agent.description:
+            system_parts.append(f"Tu es l'agent « {agent.name} ».\n{agent.description}")
+
+        # ── Résolution des ressources effectives ───────────────────────
+        # Le résolveur Core fusionne la sélection explicite et les contenus
+        # des dossiers sélectionnés, déduplique par identité, trace la
+        # source et ignore les ressources disparues : le runtime ne reçoit
+        # QUE les ressources autorisées — jamais le catalogue global.
+        resolved = await resolve_agent_resources(
+            agent,
+            folders=folders,
+            knowledge=knowledge_manager,
+            collections=knowledge_collections,
+            skills=skills,
+            tools=tools,
+        )
+        folder_skill_ids = [s["id"] for s in resolved["skills"] if s["source"] != "explicit"]
+        folder_collection_ids = [
+            c["id"] for c in resolved["collections"] if c["source"] != "explicit"
+        ]
+        allowed_knowledge = resolved["knowledge"]
+        allowed_tools = resolved["tools"]
+
+        # Skills assignés (tous, ou uniquement celui demandé via skill_id).
+        # Les skills rattachés aux domains sélectionnés par l'agent sont
+        # résolus par le Core via le DomainManager : l'agent ne peut
+        # s'auto-attribuer des ressources, seules les memberships Core
+        # (domain_ids validés à la création) font foi.
+        # Sécurité (CT-4 — séparation données/instructions) : le contenu du
+        # skill est sanitisé puis enclos dans un bloc <data> avec provenance.
+        # Il reste des DONNÉES, jamais des instructions.
+        domain_skill_ids: list[str] = []
+        domain_collection_ids: list[str] = []
+        for domain_id in list(getattr(agent, "domain_ids", None) or []):
+            if domain_manager is None:
+                logger.warning(
+                    "Agent %s declares domain %s but no DomainManager is wired "
+                    "— domain resources are ignored",
+                    agent.name,
+                    domain_id,
+                )
+                continue
+            try:
+                memberships = await domain_manager.list_resource_ids(domain_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to resolve domain %s for agent %s: %s",
+                    domain_id,
+                    agent.name,
+                    exc,
+                )
+                continue
+            for membership in memberships:
+                rtype = membership.get("resource_type")
+                rid = membership.get("resource_id")
+                if rtype == "collection":
+                    domain_collection_ids.append(rid)
+                elif rtype == "skill":
+                    domain_skill_ids.append(rid)
+
+        skill_ids = (
+            [skill_id]
+            if skill_id
+            else list(
+                dict.fromkeys([*(agent.skill_ids or []), *folder_skill_ids, *domain_skill_ids])
+            )
+        )
+        for sid in skill_ids:
+            try:
+                skill = await skills.get_skill(sid)
+                if skill and skill.get("is_active", True):
+                    content = skill.get("content", "").strip()
+                    if content:
+                        safe = sanitize_external_content(content)
+                        system_parts.append(
+                            wrap_data_block(
+                                safe,
+                                source=f"skill:{sid}",
+                                kind="skill",
+                                header=f"[Skill: {skill.get('name', sid)}]",
+                            )
+                        )
+            except Exception as exc:
+                logger.warning("Failed to load skill %s: %s", sid, exc)
+
+        # Knowledge spécifique : le contenu des nœuds autorisés est injecté
+        # comme DONNÉES récupérées (CT-4 : sanitization + balise <data>) —
+        # jamais des instructions. Aucun nœud non autorisé n'est consulté.
+        for item in allowed_knowledge:
+            if knowledge_manager is None:
+                logger.warning(
+                    "Agent %s declares knowledge %s but no KnowledgeManager is "
+                    "wired — knowledge content is ignored",
+                    agent.name,
+                    item["id"],
+                )
+                continue
+            try:
+                node = await knowledge_manager.get(item["id"])
+            except Exception as exc:
+                logger.warning(
+                    "Failed to load knowledge %s for agent %s: %s",
+                    item["id"],
+                    agent.name,
+                    exc,
+                )
+                continue
+            record = node.to_dict() if node is not None and hasattr(node, "to_dict") else node
+            content = ""
+            if isinstance(record, dict):
+                content = str(record.get("content", "") or "")
+            if content.strip():
+                safe = sanitize_external_content(content)
+                system_parts.append(
+                    wrap_data_block(
+                        safe,
+                        source=f"knowledge:{item['id']}",
+                        kind="knowledge",
+                        header=f"[Knowledge: {item.get('name', item['id'])}]",
+                    )
+                )
+
+        # Connaissances : le RAG est scopé sur les collections assignées à
+        # l'agent (knowledge_collection_ids) augmentées des collections
+        # issues de ses dossiers et de ses domains.  Une collection
+        # indisponible ne bloque pas l'exécution — elle est simplement
+        # ignorée (warning).
+        knowledge_ids = list(
+            dict.fromkeys(
+                [
+                    *(getattr(agent, "knowledge_collection_ids", None) or []),
+                    *folder_collection_ids,
+                    *domain_collection_ids,
+                ]
+            )
+        )
+        if knowledge_ids:
+            try:
+                rag_context = await knowledge.build_context_multi(task, knowledge_ids)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to build RAG context for agent %s: %s",
+                    agent.name,
+                    exc,
+                )
+                rag_context = ""
+            if rag_context:
+                # CT-4 : le contexte RAG est des données récupérées — jamais
+                # des instructions. Sanitization + balise <data> + provenance.
+                safe_context = sanitize_external_content(rag_context)
+                system_parts.append(
+                    wrap_data_block(
+                        safe_context,
+                        source="rag:" + ",".join(knowledge_ids),
+                        kind="rag",
+                        header="[Connaissances]",
+                    )
+                )
+
+        # Tools / MCP : le runtime ne reçoit que la liste des outils
+        # explicitement autorisés (sélection directe ou via dossiers).
+        # Aucun tool global n'est exposé par défaut. Le protocole d'appel
+        # balisé est communiqué au LLM (même format que le chat).
+        if allowed_tools:
+            tool_lines = "\n".join(
+                f"- {t['name']} ({t.get('provider') or 'tool'})" for t in allowed_tools
+            )
+            system_parts.append(
+                "Outils autorisés — le runtime n'expose QUE ces tools/MCP :\n"
+                + tool_lines
+                + "\nPour appeler un outil, émis exactement : "
+                '<tool name="nom_outil">{"parametre": "valeur"}</tool>\n'
+                "Un résultat te sera renvoyé après chaque appel ; conclus "
+                "ensuite en texte clair."
+            )
+
+        if agent.capabilities:
+            system_parts.append("Capabilities: " + ", ".join(agent.capabilities))
+
+        system_prompt = "\n\n".join(system_parts) or f"Tu es l'agent « {agent.name} »."
+
+        messages = [ChatMessage(role="system", content=system_prompt)]
+        if context:
+            context_lines = "\n".join(f"- {k}: {v}" for k, v in context.items())
+            messages.append(
+                ChatMessage(
+                    role="user",
+                    content=f"[Contexte]\n{context_lines}\n\nTâche : {task}",
+                )
+            )
+        else:
+            messages.append(ChatMessage(role="user", content=task))
+
+        # Boucle d'outils bornée avec SecureToolEnforcer obligatoire
+        # (CTO Phase 0.3) — sans outil, c'est une conversation simple.
+        return await run_agent_chat(
+            provider,
+            messages,
+            model=model,
+            tools=tools if allowed_tools else None,
+            agent_name=agent.name,
+        )
+
+    return execute

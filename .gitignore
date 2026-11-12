@@ -1,0 +1,270 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# uv
+# Note: uv.lock is intentionally tracked — it pins all transitive deps for reproducibility.
+# Uncomment the line below only if you deliberately choose not to commit the lock file.
+# uv.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+.secrets/
+*.key
+# ...but keep checked-in example/templates (never contain real secrets)
+!.env.example
+!**/.env.example
+
+# Project
+*.sqlite
+*.db
+*.jsonl
+*.npz
+*.log
+results/
+logs/
+# Anchored to repo root — DO NOT use the unanchored form `traces/`.
+# hatchling honors .gitignore when building the wheel; an unanchored
+# `traces/` pattern matches src/openjarvis/traces/ and silently drops
+# the runtime module from the wheel (issue #372).
+/traces/
+/models/
+coding_task_*
+get-pip.py
+# Junk from mocked-path tests that write to their mock's __repr__ as a path
+MagicMock/
+
+# MkDocs build output
+site/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Desktop
+desktop/node_modules/
+desktop/dist/
+src/openjarvis/server/static/
+
+# Desktop (Tauri)
+frontend/src-tauri/target/
+
+# Worktrees
+.worktrees/
+
+# Rust
+target/
+
+# Claude plan artifacts, except the repository implementation source of truth.
+docs/plans/*
+!docs/plans/ETHAN_WEBUI_MASTER_PLAN.md
+docs/superpowers/
+.superpowers/
+
+# Claude Code project instructions (per-developer)
+CLAUDE.md
+.claude/
+
+# Tauri auto-generated schemas
+**/src-tauri/gen/schemas/
+
+# NFS lock artifacts
+.nfs*
+**/.nfs*
+
+# Research output
+research_mining_*
+.python-version
+src/openjarvis/channels/whatsapp_baileys_bridge/node_modules/
+
+# SQLite in-memory artifacts
+:memory:
+
+# Dogfood reports (regenerated locally; not for VCS)
+dogfood_report*.md
+
+# Second Repos
+Inline/
+scratch/
+
+# ---------------------------------------------------------------------------
+# Distillation runtime artifacts (defense in depth — these should always live
+# in ~/.openjarvis/, never inside the source tree, but we ignore them here in
+# case OPENJARVIS_HOME is misconfigured during dev)
+# ---------------------------------------------------------------------------
+.openjarvis/
+learning.db
+**/learning/sessions/
+**/learning/pending_review/
+**/learning/benchmarks/
+**/teacher_traces/
+*.session.json
+
+# Local dev artifacts (hybrid worker logs + cli debug dumps)
+minion_logs/
+*.oj-debug.json
+oj-debug.*.json
+
+# ---------------------------------------------------------------------------
+# Jarvis OS new structure artifacts
+# ---------------------------------------------------------------------------
+
+# Plugin artifacts
+plugins/*/__pycache__/
+plugins/*/*.egg-info/
+plugins/*/node_modules/
+
+# Workers temp data
+workers/*/data/
+workers/*/temp/
+
+# SDK build artifacts
+sdk/python/dist/
+sdk/python/build/
+sdk/typescript/node_modules/
+sdk/typescript/dist/
+
+# Kubernetes generated files
+deploy/kubernetes/*.generated.yaml
+
+# Data volumes (mounted in Docker, not committed — anchored to repo root only;
+# an unanchored `models/` pattern would also ignore source code such as
+# core/models/, interfaces/api/models/ or interfaces/webui/.../models/)
+/data/
+/memory/
+/models/
+/embeddings/
+/cache/
+/uploads/
+# Exception : interfaces/api/models/ contient du code source Python
+# (schémas Pydantic requis par les routeurs API) — ne pas ignorer.
+!interfaces/api/models/
+!interfaces/api/models/**
+# Exception : core/security/data/ est du code source Python
+# (anti-exfiltration importé par prompt_guard/integration) — ne pas ignorer.
+!core/security/data/
+!core/security/data/**
+
+# Jarvis OS specific
+*.jarvis-env
+jarvis.*.key
+.clinerules/
+.env
+*.key
+*.pem
+__pycache__/
+node_modules/
+dist/
+build/
+*.log
+nyarch/
+docs/seclib/
+jarvis-OS/
+/design/
+/engineering/
+examples/
+logs/
+# Tests directory is tracked, but ignore pytest cache
+tests/.pytest_cache/
+tests/.ruff_cache/
+interfaces/webui/docs/
+.claude/
+.venv-1/
+
+# ---------------------------------------------------------------------------
+# DAENA — vault documentaire local (ex-« Obsidian/ »)
+# ---------------------------------------------------------------------------
+# Le vault est un espace de travail LOCAL. Il contient des archives brutes de
+# conversations de développement, des instantanés bruts du knowledge base et des
+# notes personnelles qui ne doivent jamais être publiés sur GitHub.
+#
+# Politique : le vault est ignore par defaut, et un sous-ensemble strictement
+# technique est re-inclus, car ces documents sont necessaires a la maintenance
+# du systeme (architecture, ADR, contrats API, specifications, runbooks,
+# gouvernance memoire, modeles de donnees, gouvernance du vault).
+#
+# Regle Git : un repertoire ignore n'est jamais parcouru. Pour re-inclure un
+# sous-arbre, il faut re-inclure le repertoire lui-meme (« !/daena/X/ »)
+# avant de pouvoir re-exclure une partie de son contenu.
+#
+# Reference : daena/AGENTS.md (roles du vault), daena/README.md, daena/INDEX.md
+# ---------------------------------------------------------------------------
+/daena/*
+
+# --- Sous-ensemble technique conserve dans Git --------------------------------
+!/daena/AGENTS.md
+!/daena/README.md
+!/daena/INDEX.md
+!/daena/ETHAN-CLI-WebUI-Extensibilite-Plan-directeur.md
+!/daena/ODIN_Roadmap_generale_reference.md
+!/daena/Architecture/
+!/daena/Engineering/
+!/daena/Knowledge/
+!/daena/Metadata/
+!/daena/Operational-Memory/
+!/daena/_meta/
+!/daena/Archives/
+
+# --- Sous-arborescences privees : re-exclues explicitement ---------------------
+# (dernier motif gagnant ; les fichiers restent sur le disque, hors index)
+
+# Journaux bruts de conversations de developpement : donnees personnelles,
+# contexte de travail, traces de raisonnement d'agent.
+daena/Archives/Conversations/
+
+# Instantanés bruts du knowledge base prive (copies sources d'Obsidian et
+# d'ethan-knowledge).
+daena/_meta/source-snapshots/
+
+# Syntheses d'agents issues du workspace de connaissance prive.
+daena/Knowledge/Syntheses/
+
+# Notes personnelles du workspace de connaissance.
+daena/Knowledge/genealogie/
+
+# Evements d'ingenierie generes automatiquement a haute frequence par le
+# service ETHAN (auteur « ethan.api »). Ce sont des metadonnees machines
+# (skill mise a jour, demarrage de la gateway) : 130 des 132 evenements
+# deja suivis appartiennent a ces deux familles, et chaque session en regenere
+# ~6 fichiers, ce qui produit un bruit permanent dans `git status`.
+#
+# Ces motifs ne s'appliquent qu'aux fichiers NOUVELS : les 130 evenements
+# deja suivis restent dans l'index (aucun retrait, aucune suppression).
+# Les evenements d'intervention (« OPENCODE-* », « FINAL-* ») restent
+# versionnables : ils portent la tracabilite metier.
+daena/Archives/Events/EVT-*-SKL-skill-update:*
+daena/Archives/Events/EVT-*-OBSERVED-ethan-api-gateway-started.md
+
+# Parallel rebuild / WebUI candidate (P2)
+/rebuild/
+.env.postgres-test

@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ETHAN — Modules (exécution des capacités cognitives)
+# Hérite de ethan/python-base. Aucune réinstallation de dépendances.
+# ─────────────────────────────────────────────────────────────────────────────
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
+
+# ── Code spécifique aux modules ──────────────────────────────────────────
+COPY plugins/ /app/plugins/
+COPY core/   /app/core/
+COPY sdk/    /app/sdk/
+
+ENV PYTHONPATH=/app/core:/app/sdk:/app
+
+# ── Exécution non-root (hardening) ──────────────────────────────────────────
+RUN useradd --system --create-home --uid 10001 ethan
+USER ethan
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=25s \
+    CMD curl -fsS http://localhost:8081/health/ready || exit 1
+
+CMD ["python", "-m", "core.modules"]

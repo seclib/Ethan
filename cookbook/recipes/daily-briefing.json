@@ -1,0 +1,25 @@
+{
+  "id": "daily-briefing",
+  "name": "Briefing quotidien",
+  "version": "1.0.0",
+  "description": "Prompt de briefing matinal + automation déclenchée chaque jour à 8h.",
+  "requires": {},
+  "installs": {
+    "prompt": [
+      {
+        "name": "Briefing quotidien",
+        "description": "Génère un briefing matinal structuré.",
+        "text": "Rédige mon briefing du matin : météo locale, agenda du jour, 3 actualités clés de mon domaine, et une recommandation d'action prioritaire.",
+        "tags": ["productivite"]
+      }
+    ],
+    "automation": [
+      {
+        "name": "Déclencher le briefing quotidien (8h)",
+        "description": "Créé par la recette daily-briefing.",
+        "trigger": {"type": "schedule", "cron": "0 8 * * *"},
+        "actions": [{"type": "notification", "message": "Votre briefing quotidien est prêt."}]
+      }
+    ]
+  }
+}

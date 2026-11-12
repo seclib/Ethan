@@ -1,0 +1,117 @@
+{
+  "postgres": "not-validated",
+  "scenarios": [
+    {
+      "dataset": {
+        "chunks": 100,
+        "documents": 100,
+        "embedding_calls": 0
+      },
+      "duration_seconds": {
+        "cold": 0.02457182299986016,
+        "maximum": 0.02170781499989971,
+        "median": 0.02170781499989971,
+        "minimum": 0.02170781499989971,
+        "p95": 0.02170781499989971,
+        "warm_samples": [
+          0.02170781499989971
+        ]
+      },
+      "iterations": {
+        "measured": 1,
+        "warmup": 0
+      },
+      "scenario": "collections"
+    },
+    {
+      "dataset": {
+        "chunks": 100,
+        "documents": 100,
+        "embedding_calls": 0
+      },
+      "duration_seconds": {
+        "cold": 0.21966414600137796,
+        "maximum": 0.19972592500016617,
+        "median": 0.19972592500016617,
+        "minimum": 0.19972592500016617,
+        "p95": 0.19972592500016617,
+        "warm_samples": [
+          0.19972592500016617
+        ]
+      },
+      "iterations": {
+        "measured": 1,
+        "warmup": 0
+      },
+      "scenario": "documents"
+    },
+    {
+      "dataset": {
+        "chunks": 20100,
+        "documents": 100,
+        "embedding_calls": 100
+      },
+      "duration_seconds": {
+        "cold": 0.19239024200032873,
+        "maximum": 0.1903125930002716,
+        "median": 0.1903125930002716,
+        "minimum": 0.1903125930002716,
+        "p95": 0.1903125930002716,
+        "warm_samples": [
+          0.1903125930002716
+        ]
+      },
+      "iterations": {
+        "measured": 1,
+        "warmup": 0
+      },
+      "scenario": "rag-ingestion"
+    },
+    {
+      "dataset": {
+        "chunks": 0,
+        "documents": 100,
+        "embedding_calls": 0
+      },
+      "duration_seconds": {
+        "cold": 0.2118602619993908,
+        "maximum": 0.2168746099996497,
+        "median": 0.2168746099996497,
+        "minimum": 0.2168746099996497,
+        "p95": 0.2168746099996497,
+        "warm_samples": [
+          0.2168746099996497
+        ]
+      },
+      "iterations": {
+        "measured": 1,
+        "warmup": 0
+      },
+      "scenario": "rag-retrieval"
+    },
+    {
+      "dataset": {
+        "chunks": 0,
+        "documents": 100,
+        "embedding_calls": 0
+      },
+      "duration_seconds": {
+        "cold": 0.34403281199956837,
+        "maximum": 0.3608085249998112,
+        "median": 0.3608085249998112,
+        "minimum": 0.3608085249998112,
+        "p95": 0.3608085249998112,
+        "warm_samples": [
+          0.3608085249998112
+        ]
+      },
+      "iterations": {
+        "measured": 1,
+        "warmup": 0
+      },
+      "scenario": "rag-reconstruction"
+    }
+  ],
+  "scope": "knowledge-rag-in-memory",
+  "version": 1
+}

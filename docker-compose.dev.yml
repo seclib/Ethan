@@ -1,0 +1,174 @@
+# =============================================================================
+# docker-compose.dev.yml — Ethan OS (Development Extension)
+# =============================================================================
+#
+# Services additionnels pour le développement :
+#   - Qdrant (vector store)
+#   - ChromaDB (vector store alternatif)
+#   - Ollama (LLM local)
+#
+# Bind mounts du code source (api · kernel · modules) :
+#   le code est COPIÉ dans les images (COPY core/ …) — sans ces mounts,
+#   toute modification impose `docker compose up -d --build`. Avec cet
+#   overlay, un changement Python est visible après `restart` du service.
+#   LIMITES : mounts en lecture seule ; l'UI Next (standalone) exige toujours
+#   un rebuild (`up -d --build ui`) ; une nouvelle dépendance Python aussi.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d api
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml restart api
+#
+# Note : Redis et PostgreSQL sont définis dans docker-compose.yml (fichier principal)
+# pour éviter les conflits de réseaux et de noms de conteneurs.
+# Ce fichier n'ajoute QUE les services optionnels de développement et les
+# bind mounts ci-dessous (Compose fusionne les volumes par cible de mount :
+# ethan_api_artifacts et autres volumes racine sont conservés).
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Bind mounts du code source — services applicatifs
+  # ===========================================================================
+  api:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+      - ./interfaces/api:/app/interfaces/api:ro
+      - ./cookbook:/app/cookbook:ro
+  kernel:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+  modules:
+    volumes:
+      - ./core:/app/core:ro
+      - ./sdk:/app/sdk:ro
+      - ./plugins:/app/plugins:ro
+
+  # ===========================================================================
+  # ui-dev — WebUI en mode hot-reload (zéro rebuild en développement)
+  # next dev compile à la demande ; les sources sont montées en bind mount.
+  # Accès : http://127.0.0.1:3002 — le service ui « production » (standalone)
+  # reste sur 3001 et n'est PAS affecté (cf. `make dev-ui`).
+  # ===========================================================================
+  ui-dev:
+    image: node:20-alpine
+    container_name: ethan-ui-dev
+    working_dir: /app
+    volumes:
+      - ./interfaces/webui:/app
+      - ui-dev-node-modules:/app/node_modules
+      - ui-dev-next:/app/.next
+    ports:
+      - "127.0.0.1:${ETHAN_WEBUI_DEV_PORT:-3002}:3001"
+    environment:
+      NODE_ENV: development
+      ETHAN_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://api:8000
+      # Variable Next.js lue au demarrage du serveur de dev (bind mount).
+      # Conserve le fallback localhost uniquement pour le mode de dev hot-reload.
+      NEXT_PUBLIC_WS_URL: "${NEXT_PUBLIC_WS_URL:-ws://localhost:8000/v1/ws}"
+      # Bind mounts vs. Docker: fs events do not always propagate, so force
+      # polling watchers to keep HMR reliable without a rebuild/reboot.
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      api:
+        condition: service_healthy
+    command: sh -c "npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps; rm -rf .next/cache; npm run dev"
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Qdrant — Vector database (production)
+  # ===========================================================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ethan-qdrant
+    hostname: qdrant
+    networks:
+      - ethan-core
+    ports:
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # ChromaDB — Vector store alternatif (développement)
+  # ===========================================================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: ethan-chromadb
+    hostname: chromadb
+    networks:
+      - ethan-core
+    ports:
+      - "127.0.0.1:${CHROMADB_PORT:-8001}:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Ollama — AUCUN service ollama ni profil `llm` n'existent dans les fichiers
+  # compose racine (docker-compose.yml / docker-compose.dev.yml). ETHAN
+  # consomme un Ollama externe (host-native) via OLLAMA_BASE_URL — défaut
+  # http://host.docker.internal:11434. Voir docs/installation.md.
+  # ===========================================================================
+
+# ── Volumes additionnels ──────────────────────────────────────────────────────
+volumes:
+  qdrant-data:
+    name: ethan-qdrant-data
+  chromadb-data:
+    name: ethan-chromadb-data
+  ui-dev-node-modules:
+    name: ethan-ui-dev-node-modules
+  ui-dev-next:
+    name: ethan-ui-dev-next
+
+# ── Réseau partagé avec docker-compose.yml ────────────────────────────────────

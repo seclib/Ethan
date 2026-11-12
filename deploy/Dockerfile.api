@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ETHAN — API Gateway
+# Hérite de ethan/python-base (pip install + system deps + core/ + sdk/ partagés)
+#
+# Build :
+#   docker build -f deploy/Dockerfile.python-base -t ethan/python-base:latest .
+#   docker build -f deploy/Dockerfile.api          -t ethan/api:latest .
+# ─────────────────────────────────────────────────────────────────────────────
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
+
+# ── Code de l'API et des contrats partagés ───────────────────────────────────
+# Le code core est recopié ici pour ne pas dépendre d'un cache de base ancien.
+COPY core/ core/
+COPY sdk/ sdk/
+COPY interfaces/api/ interfaces/api/
+COPY cookbook/ cookbook/
+COPY deploy/ deploy/
+COPY scripts/odin_compose_controller.py scripts/odin_compose_controller.py
+
+# ── Outils système réellement nécessaires aux capabilities ──────────────────
+# docker-cli      : le backend `docker` du CapabilityManager DOIT pouvoir
+#                   exécuter `docker` depuis ce conteneur (sinon toute
+#                   capability Docker échoue silencieusement au lieu de
+#                   renvoyer une erreur exploitable). Version 26.1.5 en phase
+#                   avec le daemon hôte — cf. scripts/cmd-preflight.sh.
+# docker-compose  : fournit ET /usr/bin/docker-compose ET le plugin
+#                   /usr/libexec/docker/cli-plugins/docker-compose →
+#                   `docker compose` fonctionne aussi.
+# nodejs/npm       : backend `node_package` (ex. capability mcp-filesystem).
+#                   Les artefacts sont écrits dans ~/.local, monté sur un
+#                   volume docker-compose → survivent au recreate du conteneur.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    docker-cli \
+    docker-compose \
+    postgresql-client \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONPATH=/app/core:/app/interfaces/api:/app/sdk:/app
+
+# ── Exécution non-root (hardening) ──────────────────────────────────────────
+# /app reste en lecture seule pour ethan (755) ; le home (/home/ethan) reçoit
+# l'état écrit par le Core (~/.ethan). Aucune écriture n'est attendue dans /app.
+RUN useradd --system --create-home --uid 10001 ethan
+
+# ── Workspace du terminal (core/terminal) ───────────────────────────────────
+# Les sessions PTY démarrent dans /workspace (DEFAULT_ROOT). Le répertoire est
+# créé et DONNÉ à `ethan` ici, donc avant le changement d'utilisateur : le
+# `chown` est impossible une fois passé non-root. Sans cela, le garde-fou
+# `resolve_cwd` retombe sur /app (repli fail-closed). Ce workspace est borné
+# par le Core : il n'expose ni le système ni les secrets.
+RUN mkdir -p /workspace && chown ethan:ethan /workspace
+
+USER ethan
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
+    CMD curl -fsS http://localhost:8000/health/ready || exit 1
+
+CMD ["sh", "-c", "until pg_isready -h postgres -p 5432 -U ethan; do echo 'Waiting for PostgreSQL...'; sleep 2; done; uvicorn interfaces.api.main:app --host 0.0.0.0 --port 8000 --workers 1"]

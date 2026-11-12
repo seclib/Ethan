@@ -1,0 +1,60 @@
+# ETHAN Default Triggers
+# Ce fichier est chargé au démarrage du CLI.
+# Les utilisateurs peuvent le personnaliser dans ~/.config/ethan/triggers.yaml
+
+triggers:
+  # Météo
+  - keywords: ["météo", "meteo", "weather"]
+    action: "command"
+    command: "weather"
+    description: "Consulter la météo"
+    priority: 10
+
+  # Traduction
+  - keywords: ["traduis", "traduction", "translate"]
+    action: "command"
+    command: "translate"
+    description: "Traduire du texte"
+    priority: 10
+
+  # Diagnostic Docker
+  - keywords: ["docker", "conteneur", "container"]
+    action: "command"
+    command: "docker status"
+    description: "Vérifier l'état Docker"
+    priority: 5
+
+  # Tests
+  - keywords: ["lancer les tests", "run tests", "pytest"]
+    action: "command"
+    command: "run pytest"
+    description: "Exécuter les tests"
+    priority: 5
+
+  # Git status
+  - keywords: ["git status", "état git", "git stash"]
+    action: "command"
+    command: "git status"
+    description: "Vérifier l'état Git"
+    priority: 3
+
+  # Déploiement
+  - keywords: ["déployer", "deploy", "mettre en production"]
+    action: "command"
+    command: "deploy"
+    description: "Déployer l'application"
+    priority: 8
+
+  # Logs
+  - keywords: ["logs", "journal", "log"]
+    action: "command"
+    command: "logs"
+    description: "Consulter les logs"
+    priority: 5
+
+  # Aide
+  - keywords: ["aide", "help", "comment faire"]
+    action: "command"
+    command: "help"
+    description: "Afficher l'aide"
+    priority: 1

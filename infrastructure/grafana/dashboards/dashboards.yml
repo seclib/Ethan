@@ -1,0 +1,17 @@
+# =============================================================================
+# Grafana — Provisioning Dashboards
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: "Ethan Dashboards"
+    orgId: 1
+    folder: "Ethan"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

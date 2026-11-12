@@ -1,0 +1,45 @@
+{
+  "task_id": "780d9dcd-cc1e-4a84-998f-9d5235b249ce",
+  "analysis_id": "780d9dcd-cc1e-4a84-998f-9d5235b249ce",
+  "ticker": "NVDA",
+  "analysis_date": "2026-09-01",
+  "provider": null,
+  "status": "COMPLETED",
+  "created_at": "2026-11-12T08:24:40.031988+00:00",
+  "started_at": "2026-11-12T08:24:40.032146+00:00",
+  "finished_at": "2026-11-12T08:24:40.032321+00:00",
+  "result": {
+    "task_id": "780d9dcd-cc1e-4a84-998f-9d5235b249ce",
+    "ticker": "NVDA",
+    "analysis_date": "2026-09-01",
+    "decision": "HOLD NVDA 2026-09-01",
+    "reports": {},
+    "metadata": {}
+  },
+  "error": null,
+  "provenance": "TradingAgents",
+  "parameters": {
+    "ticker": "NVDA",
+    "analysis_date": "2026-09-01"
+  },
+  "metadata": {},
+  "logs": [
+    "STARTING",
+    "RUNNING",
+    "propagate() invoked"
+  ],
+  "container_id": null,
+  "exit_code": null,
+  "stdout": "",
+  "stderr": "",
+  "cancelled": false,
+  "application_id": "quantar",
+  "execution_id": "780d9dcd-cc1e-4a84-998f-9d5235b249ce",
+  "updated_at": "2026-11-12T08:24:40.032322+00:00",
+  "error_code": null,
+  "error_summary": null,
+  "result_reference": "/home/fatsio/AI/Ethan/.quantar-tasks/780d9dcd-cc1e-4a84-998f-9d5235b249ce/result.json",
+  "log_reference": "/home/fatsio/AI/Ethan/.quantar-tasks/780d9dcd-cc1e-4a84-998f-9d5235b249ce/logs.json",
+  "cancellation_requested": false,
+  "cancellation_confirmed": false
+}

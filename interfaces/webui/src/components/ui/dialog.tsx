@@ -1,0 +1,184 @@
+"use client";
+
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+import { useOverlayStore } from "@/store/overlay.store";
+
+interface DialogContextType {
+  open: boolean;
+  onClose: () => void;
+}
+
+const DialogContext = React.createContext<DialogContextType | undefined>(undefined);
+
+function useDialog() {
+  const context = React.useContext(DialogContext);
+  if (!context) {
+    throw new Error("Dialog sub-components must be used within a Dialog");
+  }
+  return context;
+}
+
+export interface DialogProps {
+  open: boolean;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
+  size?: "sm" | "md" | "lg" | "xl";
+  title?: string;
+  children: React.ReactNode;
+}
+
+function Dialog({ open, onClose, onOpenChange, size = "md", title, children }: DialogProps) {
+  const handleClose = React.useCallback(() => {
+    onClose?.();
+    onOpenChange?.(false);
+  }, [onClose, onOpenChange]);
+
+    // Save & restore focus on open/close for keyboard accessibility
+  const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const overlayIdRef = React.useRef(`dialog-${Math.random().toString(36).slice(2)}`);
+  const handleCloseRef = React.useRef(handleClose);
+  handleCloseRef.current = handleClose;
+
+  // Pile ESC centralisée : la couche s'enregistre à l'ouverture et se retire
+  // à la fermeture. L'Escape est géré par `OverlayEscHandler` (top de pile
+  // uniquement) — plus de fermeture locale qui pourrait fermer une couche
+  // masquée par un drawer/une modale au-dessus.
+  React.useEffect(() => {
+    if (!open) return;
+    const unregister = useOverlayStore.getState().push({
+      id: overlayIdRef.current,
+      onClose: () => handleCloseRef.current(),
+    });
+    return unregister;
+  }, [open]);
+
+  // Focus trap + tab cycling (a11y). L'Escape est délégué à la pile globale.
+  React.useEffect(() => {
+    if (!open) {
+      previouslyFocusedRef.current?.focus?.();
+      previouslyFocusedRef.current = null;
+      return;
+    }
+
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    // Focus the dialog panel — mais UNIQUEMENT si aucun enfant n'a déjà pris
+    // le focus (autoFocus d'un bouton/formulaire). Sans cette garde, le panel
+    // écraserait l'autoFocus au montage.
+    if (!dialogRef.current?.contains(document.activeElement)) {
+      dialogRef.current?.focus();
+    }
+
+    const focusableSelectors = [
+      "button",
+      "input",
+      "textarea",
+      "select",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",");
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Tab key focus trap
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusableEls: HTMLElement[] = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(focusableSelectors),
+        ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
+
+        if (focusableEls.length === 0) return;
+
+        const firstEl = focusableEls[0];
+        const lastEl = focusableEls[focusableEls.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+    // CORRECTIF (audit input/focus) : dépendre UNIQUEMENT de `open`.
+    // `handleClose` est recréé à chaque render du parent (callbacks inline du
+    // type `onClose={() => setShow(false)}`) ; l'effet se ré-exécutait donc à
+    // CHAQUE frappe dans un champ contrôlé → dialogRef.focus() VOLAIT le
+    // focus de l'input en cours de saisie (impossible d'écrire plus d'un
+    // caractère dans les dialogs de création/formulaires). Le corps de cet
+    // effet n'utilise que des refs — `open` est la seule dépendance réelle.
+  }, [open]);
+
+  if (!open) return null;
+
+  const sizeClasses = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+  };
+
+  return (
+    <DialogContext.Provider value={{ open, onClose: handleClose }}>
+      <div
+        className="fixed inset-0 z-modal flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? "dialog-title" : undefined}
+      >
+        {/* Backdrop */}
+        {/* Overlay fonctionnel : assombrit l'arrière-plan, sans blur (lisibilité) */}
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+
+                                {/* Panel — style modal (.modal-content) */}
+        <div
+          ref={dialogRef}
+          tabIndex={-1}
+          className={cn(
+            "modal-content relative w-full mx-4",
+            "animate-in fade-in zoom-in-95 duration-200",
+            sizeClasses[size]
+          )}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-line-1">
+            <h2
+              id="dialog-title"
+              className="text-base font-semibold text-foreground"
+            >
+              {title || "Dialog"}
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-foreground-tertiary hover:text-foreground transition-colors duration-100"
+              aria-label="Close dialog"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-4">{children}</div>
+        </div>
+      </div>
+    </DialogContext.Provider>
+  );
+}
+
+export { Dialog };

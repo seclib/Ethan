@@ -1,0 +1,108 @@
+# =============================================================================
+# Traefik — Configuration Dynamique (Routage)
+# =============================================================================
+# Définit les routes pour chaque service.
+
+http:
+  routers:
+    # ─── Frontend ─────────────────────────────────────────────────────
+    frontend:
+      rule: "PathPrefix(`/`)"
+      service: frontend
+      entryPoints:
+        - web
+        - web-secure
+      tls:
+        certResolver: letsencrypt
+      priority: 10
+
+    # ─── Backend API ──────────────────────────────────────────────────
+    backend:
+      rule: "PathPrefix(`/api`)"
+      service: backend
+      entryPoints:
+        - web
+        - web-secure
+      tls:
+        certResolver: letsencrypt
+      priority: 20
+
+    # ─── API Docs (Swagger / OpenAPI) ────────────────────────────────
+    api-docs:
+      rule: "PathPrefix(`/docs`) || PathPrefix(`/redoc`) || PathPrefix(`/openapi.json`)"
+      service: backend
+      entryPoints:
+        - web
+        - web-secure
+      tls:
+        certResolver: letsencrypt
+      priority: 30
+
+    # ─── WebSocket ───────────────────────────────────────────────────
+    websocket:
+      rule: "PathPrefix(`/ws`)"
+      service: backend
+      entryPoints:
+        - web
+        - web-secure
+      tls:
+        certResolver: letsencrypt
+      priority: 20
+
+    # ─── Traefik Dashboard ───────────────────────────────────────────
+    traefik-dashboard:
+      rule: "PathPrefix(`/traefik`)"
+      service: api@internal
+      entryPoints:
+        - traefik
+      priority: 100
+
+  services:
+    # ─── Frontend Service ────────────────────────────────────────────
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+
+    # ─── Backend Service ─────────────────────────────────────────────
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:8000"
+
+  middlewares:
+    # ─── Security Headers ────────────────────────────────────────────
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+
+    # ─── Rate Limiting ───────────────────────────────────────────────
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+
+    # ─── CORS ────────────────────────────────────────────────────────
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "OPTIONS"
+        accessControlAllowOriginList:
+          - "*"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+
+    # ─── Compression ─────────────────────────────────────────────────
+    compression:
+      compress: true

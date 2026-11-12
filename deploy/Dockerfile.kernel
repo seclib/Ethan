@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ETHAN — Kernel (moteur cognitif central)
+# Hérite de ethan/python-base. Aucune réinstallation de dépendances.
+# ─────────────────────────────────────────────────────────────────────────────
+ARG BASE_IMAGE=ethan/python-base:latest
+FROM ${BASE_IMAGE}
+
+# ── Code du kernel et de ses dépendances ────────────────────────────────
+# Copier le package complet évite qu'une couche de base périmée ne réinjecte
+# un bus, un backend d'état ou un scheduler différent du kernel.
+COPY core/   /app/core/
+COPY sdk/    /app/sdk/
+
+ENV PYTHONPATH=/app/core:/app/sdk:/app
+
+# ── Exécution non-root (hardening) ──────────────────────────────────────────
+# Le kernel écrit son état dans son home (~/.ethan), jamais dans /app.
+RUN useradd --system --create-home --uid 10001 ethan
+USER ethan
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=20s \
+    CMD curl -fsS http://localhost:8080/health/ready || exit 1
+
+CMD ["python", "core/ethan_bootstrap.py"]

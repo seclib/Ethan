@@ -1,0 +1,25 @@
+lines = [
+    "# AUDIT_INTEGRATION_2026-10-08",
+    "",
+    "## État global",
+    "| Phase | Action | Résultat |",
+    "|---|---|---|",
+    "| P0 | pytest headless Model Hub | 37 passed |",
+    "| P0 | AST routes main.py | 36 include_router |",
+    "| P1 | Validation RBAC | 26 tests passed |",
+    "| P2 | Human Root of Trust | IMPLÉMENTÉ (core/human_root) |",
+    "| P2 | HROT tests | 7 assertions passées |",
+    "| P2 | Pipeline logs/metrics | EN COURS |",
+    "| P3 | Persistance Redis/PG + migrations | EN COURS |",
+    "",
+    "## Implémenté",
+    "- core/human_root/__init__.py : HumanRoot, TrustRisk, TrustDecision, ApprovalOutcome",
+    "- core/human_root/audit_log.py : AuditLog append-only",
+    "",
+    "## À faire",
+    "- (P2) WebUI HROT : page d'approbation",
+    "- (P2) Logs/metrics : pipeline de collecte",
+    "- (P3) Persistance records : Redis/PG + migrations",
+]
+open("/home/fatsio/AI/Ethan/AUDIT_INTEGRATION_2026-10-08.md", "w").write("\n".join(lines))
+print("Report updated")

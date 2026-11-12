@@ -1,0 +1,1729 @@
+"""API Gateway — entry point for the Ethan Cognitive OS.
+
+NOTE: This file relies on the 'ethan' package being installed in editable mode:
+    pip install -e ".[server]"
+
+If you encounter import errors, run the command above from the project root.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+from pathlib import Path
+from contextlib import asynccontextmanager
+from typing import Any
+
+import nats
+from core.agents import AgentManager
+from core.auth.password_reset import get_password_reset_manager, set_password_reset_pool
+from core.bus.nats_auth import nats_connect_options
+from core.config import ConfigStore, ConfigurationService
+from core.knowledge import KnowledgeManager
+from core.llm.provider_manager import ProviderManager
+from core.llm.store import ProviderStore
+from core.missions import MissionManager
+from core.rag import RAGPipeline
+from core.skills.store import SkillStore
+from core.state import CoreRecordStore
+from core.state.webui_store import CoreWebUIStore
+from core.system_exec import SystemExecService
+from core.telemetry.logger import setup_logging
+from core.terminal import DEFAULT_ROOT, TerminalService, current_user
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials
+from interfaces.api.auth import (
+    auth_middleware,
+    create_access_token,
+    security,
+    verify_token_string,
+)
+from interfaces.api.rate_limit import limiter, rate_limit_exceeded_handler
+from interfaces.api.routers.capabilities import (
+    CapabilityManagers,
+    set_capability_managers,
+)
+from interfaces.api.routers.capabilities import (
+    router as capabilities_router,
+)
+from interfaces.api.routers.component_lifecycle import (
+    router as component_lifecycle_router,
+)
+from interfaces.api.routers.applications import (
+    router as applications_router,
+)
+from interfaces.api.routers.local_repositories import (
+    router as local_repositories_router,
+)
+from interfaces.api.routers.application_manifests import (
+    router as application_manifests_router,
+)
+from interfaces.api.routers.application_integration_catalog import (
+    router as application_integration_catalog_router,
+)
+from interfaces.api.routers.github_discovery import (
+    router as github_discovery_router,
+)
+from interfaces.api.routers.component_lifecycle import (
+    set_component_manager,
+)
+from interfaces.api.routers.config import router as config_router
+from interfaces.api.routers.config import set_configuration_service
+from interfaces.api.routers.connections import router as connections_router
+from interfaces.api.routers.cookbook import router as cookbook_router
+from interfaces.api.routers.cookbook import set_cookbook_manager
+from interfaces.api.routers.core_domains import router as core_domains_router
+from interfaces.api.routers.cti import router as cti_router
+from interfaces.api.routers.cti import set_cti_manager
+from interfaces.api.routers.dedup import router as dedup_router
+from interfaces.api.routers.dedup import set_dedup_managers
+from interfaces.api.routers.diagnostics import (
+    router as diagnostics_router,
+)
+from interfaces.api.routers.diagnostics import (
+    set_diagnostics_service,
+    set_metrics_service,
+)
+from interfaces.api.routers.domains import router as domains_router
+from interfaces.api.routers.domains import set_domain_managers
+from interfaces.api.routers.email import router as email_router
+from interfaces.api.routers.email import set_email_manager
+from interfaces.api.routers.extensions import (
+    router as extensions_router,
+)
+from interfaces.api.routers.extensions import (
+    set_extension_manager,
+)
+from interfaces.api.routers.folders import router as folders_router
+from interfaces.api.routers.odin import (
+    legacy_router as legacy_odin_router,
+    router as odin_router,
+)
+from interfaces.api.routers.frame import router as frame_router
+from interfaces.api.routers.quantar import router as quantar_router
+from interfaces.api.routers.odin_ai import (
+    legacy_router as legacy_odin_ai_router,
+    router as odin_ai_router,
+)
+from interfaces.api.routers.odin_ai import (
+    set_provider_manager as set_odin_ai_provider_manager,
+    set_odin_config_service,
+    set_tts_engine,
+)
+from interfaces.api.routers.integrations import router as integrations_router
+from interfaces.api.routers.internal import init_modules
+from interfaces.api.routers.internal import router as internal_router
+from interfaces.api.routers.knowledge_imports import router as knowledge_imports_router
+from interfaces.api.routers.logs import router as logs_router
+from interfaces.api.routers.mcp_installer import router as mcp_installer_router
+from interfaces.api.routers.mcp_installer import shared_router as mcp_shared_router
+from interfaces.api.routers.mcp_installer import set_mcp_installer
+from interfaces.api.routers.message import router as message_router
+from interfaces.api.routers.message import set_nats_client
+from interfaces.api.routers.model_router import router as model_router
+from interfaces.api.routers.models import router as models_router
+from interfaces.api.routers.models import set_model_store
+from interfaces.api.routers.models import set_provider_manager as set_models_provider_manager
+from interfaces.api.routers.openwebui import router as openwebui_router
+from interfaces.api.routers.projects import router as projects_router
+from interfaces.api.routers.providers import router as providers_router
+from interfaces.api.routers.providers import set_provider_manager
+from interfaces.api.routers.realtime import router as realtime_router
+from interfaces.api.routers.health import router as health_router
+from interfaces.api.routers.reminders import router as reminders_router
+from interfaces.api.routers.research import router as research_router
+from interfaces.api.routers.research import set_research_engine
+from interfaces.api.routers.search import router as search_router
+from interfaces.api.routers.security import router as security_router
+from interfaces.api.routers.security import set_security_pool
+from interfaces.api.routers.state import router as state_router
+from interfaces.api.routers.system_exec import router as system_exec_router
+from interfaces.api.routers.system_exec import set_system_exec_service
+from interfaces.api.routers.terminal import router as terminal_router
+from interfaces.api.routers.terminal import set_terminal_service
+from interfaces.api.routers.v1 import (
+    CoreDomainServices,
+    get_skill_store,
+    set_chat_pipeline,
+    set_chat_store,
+    set_core_domain_services,
+    set_knowledge_collections,
+    set_skill_store,
+    set_tool_manager,
+    set_webui_store,
+)
+from interfaces.api.routers.v1 import (
+    router as v1_router,
+)
+from interfaces.api.routers.v1 import (
+    set_plugin_registry as set_v1_plugin_registry,
+)
+from interfaces.api.routers.v1 import (
+    set_provider_manager as set_v1_provider_manager,
+)
+from interfaces.api.routers.web_ingest import router as web_ingest_router
+from interfaces.api.routers.web_inspiration import (
+    router as web_inspiration_router,
+)
+from interfaces.api.routers.web_inspiration import (
+    set_web_inspiration_engine,
+)
+from interfaces.api.routers.web_research import router as web_research_router
+from interfaces.api.routers.web_search import router as web_search_router
+from interfaces.api.routers.web_skill_draft import router as web_skill_draft_router
+from slowapi.middleware import SlowAPIMiddleware
+
+try:
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+    HAS_PROMETHEUS = True
+except ImportError:  # pragma: no cover - optional dependency
+    HAS_PROMETHEUS = False
+
+try:
+    from core.telemetry import init_telemetry
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    HAS_TELEMETRY = True
+except ImportError:
+    HAS_TELEMETRY = False
+
+    def generate_latest(*args, **kwargs):  # type: ignore[misc]
+        raise RuntimeError("prometheus_client is not installed")
+
+    CONTENT_TYPE_LATEST = "text/plain; version=0.4"
+
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # --- Startup ---
+    setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+
+    nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
+    logger.info(f"API Gateway connecting to NATS: {nats_url}")
+    startup_deadline = asyncio.get_running_loop().time() + float(
+        os.getenv("DEPENDENCY_STARTUP_TIMEOUT", "180")
+    )
+
+    for attempt in range(1, 11):
+        try:
+            remaining = startup_deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                raise asyncio.TimeoutError("API dependency startup deadline exceeded")
+            nc = await asyncio.wait_for(
+                nats.connect(nats_url, name="api-gateway", **nats_connect_options()),
+                timeout=min(10, remaining),
+            )
+            set_nats_client(nc)
+            logger.info("API Gateway connected to NATS")
+            break
+        except Exception as exc:
+            if attempt == 10:
+                logger.error("API Gateway could not connect to NATS after %s attempts", attempt)
+                raise
+            wait = min(attempt * 2, 10)
+            wait = min(wait, max(0.0, startup_deadline - asyncio.get_running_loop().time()))
+            logger.warning(
+                "NATS connection failed (%s), retry %s/10 in %ss",
+                exc,
+                attempt,
+                wait,
+            )
+            await asyncio.sleep(wait)
+
+    init_modules(pg_conn=None)
+
+    # --- LLM Provider Manager ---
+    # Store (persistance) + Manager (logique) pour les providers LLM.
+    # Redis/PG sont optionnels : en leur défaut, le ProviderStore bascule
+    # automatiquement en mode mémoire.
+    redis_client = None
+    pg_pool = None
+    provider_manager: ProviderManager | None = None
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan@postgres:5432/ethan")
+
+    try:
+        import redis.asyncio as aioredis
+
+        redis_client = aioredis.from_url(redis_url, decode_responses=True, protocol=2)
+        await asyncio.wait_for(redis_client.ping(), timeout=5)
+        logger.info("ProviderManager Redis cache connected")
+    except Exception as exc:
+        logger.warning("Redis unavailable for ProviderStore, using in-memory only: %s", exc)
+
+    try:
+        import asyncpg
+
+        pg_pool = await asyncio.wait_for(
+            asyncpg.create_pool(db_url, min_size=1, max_size=5), timeout=10
+        )
+        logger.info("ProviderManager PostgreSQL pool connected")
+    except Exception as exc:
+        logger.warning("PostgreSQL unavailable for ProviderStore, using in-memory only: %s", exc)
+
+    # --- Core domain managers ---
+    # The API owns only dependency composition.  The managers and their record
+    # store live in core/ and remain usable by the CLI or another interface.
+    domain_store = CoreRecordStore(pg_pool=pg_pool, redis_client=redis_client)
+    set_security_pool(pg_pool)
+    set_password_reset_pool(pg_pool)
+
+    # Engineering Memory stays optional: a failure here must not stop ETHAN.
+    engineering_memory_root = Path(
+        os.getenv("ETHAN_ENGINEERING_MEMORY_ROOT", "/home/fatsio/AI/Ethan/daena")
+    )
+    try:
+        from core.engineering_memory import EngineeringMemoryService
+        from core.engineering_memory.adapters import EngineeringMemoryIntegration
+
+        engineering_memory_service = EngineeringMemoryService(root=engineering_memory_root)
+        core_memory_integration = EngineeringMemoryIntegration(
+            service=engineering_memory_service, source="ethan.api"
+        )
+    except Exception as exc:  # pragma: no cover - guarded startup integration
+        logger.warning("Engineering Memory service unavailable: %s", exc)
+        engineering_memory_service = None
+        core_memory_integration = None
+
+    core_domains = CoreDomainServices(
+        agents=AgentManager(
+            store=domain_store,
+            engineering_memory_integration=core_memory_integration,
+        ),
+        missions=MissionManager(store=domain_store),
+        knowledge=KnowledgeManager(
+            store=domain_store,
+            engineering_memory_integration=core_memory_integration,
+        ),
+        rag=RAGPipeline(store=domain_store),
+    )
+    app.state.engineering_memory_service = engineering_memory_service
+    app.state.engineering_memory_integration = core_memory_integration
+    if engineering_memory_service is not None:
+        logger.info("Engineering Memory service ready")
+    set_core_domain_services(core_domains)
+    app.state.core_domains = core_domains
+    logger.info("Core domain managers ready")
+
+    # --- Domain managers (chats, files, users, groups) ---
+    from core.auth.groups import GroupManager
+    from core.auth.users import UserManager
+    from core.state.chats import ChatStore
+    from core.state.files import FileStore
+
+    chat_store = ChatStore(store=domain_store)
+    file_store = FileStore(store=domain_store)
+    set_domain_managers(
+        chats=chat_store,
+        files=file_store,
+        users=UserManager(store=domain_store),
+        groups=GroupManager(store=domain_store),
+    )
+    # Le router v1 partage la même instance ChatStore pour /v1/chat.
+    set_chat_store(chat_store)
+    logger.info("Domain managers ready (chats, files, users, groups)")
+
+    # --- WebUI-facing records store (goals, facts, events, settings, providers, plugins) ---
+    # Replaces the old process-local MemoryStore in routers/v1.py.  Persistence
+    # lives in Core (CoreRecordStore) so the interface stays a thin HTTP gateway.
+    webui_store = CoreWebUIStore(store=domain_store)
+    set_webui_store(webui_store)
+    app.state.webui_store = webui_store
+    logger.info("CoreWebUIStore ready (persistent WebUI records)")
+
+    # --- Skill store (Core-owned skills) ---
+    # Skills now use their dedicated Core store instead of the duplicated
+    # ``webui_skills`` records inside CoreWebUIStore.
+    skill_store = SkillStore(
+        store=domain_store,
+        engineering_memory_integration=core_memory_integration,
+    )
+    set_skill_store(skill_store)
+    app.state.skill_store = skill_store
+
+    # Fusion du registre mémoire → store persistant (Skills unifiées) :
+    # les builtins (kind="pipeline") deviennent des records associables aux
+    # Agents et classables dans dossiers/domains.  Sync idempotente.
+    try:
+        from core.skills.builtin import iter_builtin_skill_specs
+
+        synced = await skill_store.sync_builtin_skills(iter_builtin_skill_specs())
+        logger.info("SkillStore ready — %d builtin pipeline skills synced", synced)
+    except Exception as exc:
+        logger.exception("Builtin skills sync failed: %s", exc)
+    logger.info("SkillStore ready (Core-owned skills)")
+
+    engineering_integration = getattr(app.state, "engineering_memory_integration", None)
+    if engineering_integration is not None:
+        engineering_integration.record_service_event(
+            component="core.api",
+            event_type="backend.started",
+            title="ETHAN API gateway started",
+            status="RECORDED",
+            origin=__import__(
+                "core.engineering_memory.models", fromlist=["RecordOrigin"]
+            ).RecordOrigin.OBSERVED,
+            source_of_fact="interfaces/api/main.py:lifespan",
+            details="Engineering Memory integration enabled",
+        )
+
+    # --- Knowledge collections (Core-owned grouping of RAG documents) ---
+    # Collections group RAG documents so the WebUI can offer Open-WebUI-style
+    # selection ("use this collection in the chat") without owning any data.
+    from core.knowledge import KnowledgeCollectionManager
+
+    knowledge_collections = KnowledgeCollectionManager(
+        store=domain_store,
+        rag=core_domains.rag,
+    )
+    set_knowledge_collections(knowledge_collections)
+    app.state.knowledge_collections = knowledge_collections
+    logger.info("KnowledgeCollectionManager ready (Core-owned collections)")
+
+    # --- Duplicate detection (Core-owned scan + resolve) ---
+    # Read-only detector + secure resolver.  FileStore is available; ProjectManager
+    # is not yet composed in main.py so dedup skips project-document scanning until
+    # it is wired (Knowledge + RAG + files work today).
+    set_dedup_managers(
+        store=domain_store,
+        files=file_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        rag=core_domains.rag,
+    )
+    logger.info("DuplicateDetector/Resolver wired (Core-owned)")
+
+    # --- Knowledge imports (local-first file/folder → collection) ---
+    # Import de fichiers OU dossiers vers une collection RAG.  Le WebUI envoie
+    # uniquement des octets (jamais de chemin) ; le Core valide (MIME, taille,
+    # nom), stocke le binaire via FileStore (racine ETHAN), extrait/ingère via
+    # le pipeline RAG unique et rattache le document à la collection.  La
+    # progression est réelle (job asynchrone in-memory, étapes précises).
+    from core.knowledge.imports import KnowledgeImportManager
+    from interfaces.api.routers.knowledge_imports import (
+        set_import_manager as set_knowledge_import_manager,
+    )
+
+    knowledge_import_manager = KnowledgeImportManager(
+        file_store=file_store,
+        collections=knowledge_collections,
+        ingestion=core_domains.rag,
+    )
+    set_knowledge_import_manager(knowledge_import_manager)
+    app.state.knowledge_import_manager = knowledge_import_manager
+    logger.info("KnowledgeImportManager ready (Core-owned local imports)")
+
+    # --- Folders (Core-owned generic organisation of resources) ---
+    # Dossiers créés par l'utilisateur (aucun imposé) et relations de
+    # classement vers knowledge / collections RAG / skills.  Le FolderManager
+    # résout les contenus via les managers Core propriétaires : aucune
+    # duplication de données, aucune logique dans les interfaces.
+    from core.folders import FolderManager
+    from interfaces.api.routers.folders import set_folder_manager
+
+    folder_manager = FolderManager(
+        store=domain_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        skills=skill_store,
+    )
+    set_folder_manager(folder_manager)
+    app.state.folder_manager = folder_manager
+    logger.info("FolderManager ready (Core-owned resource folders)")
+
+    # --- Web ingestion (Core-owned web → knowledge pipeline) ---
+    # URL → scan contrôlé (robots.txt, SSRF, bornes) → preview transient →
+    # validation utilisateur → indexation (Knowledge ou RAG Collection).
+    # Toute la logique vit dans le Core ; ce n'est qu'une injection ici.
+    from core.knowledge.web_ingest import WebIngestionManager
+    from interfaces.api.routers.web_ingest import set_web_ingest_manager
+
+    web_ingest_manager = WebIngestionManager(
+        rag=core_domains.rag,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        folders=folder_manager,
+    )
+    set_web_ingest_manager(web_ingest_manager)
+    app.state.web_ingest_manager = web_ingest_manager
+    logger.info("WebIngestionManager ready (Core-owned web import pipeline)")
+
+    # --- Web Search (Core-owned search engine pipeline) ---
+    # Multi-engine search (DuckDuckGo, Bing, Yandex) with proxy/VPN support.
+    # All logic lives in the Core; this is just injection here.
+    from core.knowledge.web_search import WebSearchManager
+    from interfaces.api.routers.web_search import set_web_search_manager
+
+    web_search_manager = WebSearchManager()
+    set_web_search_manager(web_search_manager)
+    app.state.web_search_manager = web_search_manager
+    logger.info("WebSearchManager ready (Core-owned web search pipeline)")
+
+    # --- Web Inspiration (Core-owned orchestration) ---
+    # Orchestration de recherche enrichie : réutilise WebSearchManager et
+    # WebIngestionManager (aucune duplication de logique) ; le ProviderManager
+    # est injecté plus bas dès qu'il est prêt (synthèse LLM optionnelle).
+    from core.knowledge.web_inspiration import WebInspirationEngine
+
+    web_inspiration_engine = WebInspirationEngine(
+        web_search=web_search_manager,
+        web_ingest=web_ingest_manager,
+    )
+    set_web_inspiration_engine(web_inspiration_engine)
+    app.state.web_inspiration_engine = web_inspiration_engine
+    logger.info("WebInspirationEngine ready (Core-owned web inspiration)")
+
+    # --- Web Research (Core-owned recherche -> sélection -> Knowledge) ---
+    # Workflow complet du Core : collecte multi-moteurs (plafond 50),
+    # aperçu transient, import Knowledge/Collection. Réutilise exclusivement
+    # WebSearchManager + WebIngestionManager (aucune nouvelle pipeline).
+    from core.knowledge.web_research_service import WebResearchService
+    from interfaces.api.routers.web_research import set_web_research_service
+
+    web_research_service = WebResearchService(web_search_manager, web_ingest_manager)
+    set_web_research_service(web_research_service)
+    app.state.web_research_service = web_research_service
+    logger.info("WebResearchService ready (Core-owned research -> knowledge)")
+
+    # --- Web Skill Draft (Core-owned Web Inspiration -> brouillon Skill) ---
+    # Récupération contrôlée des sources + synthèse LLM best-effort.
+    # N'écrit JAMAIS dans le SkillStore : brouillon uniquement, la création
+    # passe par POST /v1/skills sur validation humaine (is_active=False).
+    from core.skills.web_draft import WebSkillDraftService
+    from interfaces.api.routers.web_skill_draft import set_web_skill_draft_service
+
+    web_skill_draft_service = WebSkillDraftService(web_ingest=web_ingest_manager)
+    set_web_skill_draft_service(web_skill_draft_service)
+    app.state.web_skill_draft_service = web_skill_draft_service
+    logger.info("WebSkillDraftService ready (Core-owned web -> skill draft)")
+
+    # --- Domains (Core-owned functional specialities) ---
+    # Spécialités fonctionnelles (OSINT, Recon, Forensic, ...) organisant
+    # knowledge / collections RAG / skills / sources par **relation**
+    # many-to-many : aucune ressource n'est déplacée ni dupliquée, et aucun
+    # domain n'est seedé ni imposé.  Les agents sélectionnent explicitement
+    # leurs domains via ``domain_ids`` (résolu à l'exécution via le Core).
+    from core.domains import DomainManager
+    from interfaces.api.routers.core_domains import set_domain_manager
+
+    domain_manager = DomainManager(
+        store=domain_store,
+        knowledge=core_domains.knowledge,
+        collections=knowledge_collections,
+        skills=skill_store,
+    )
+    set_domain_manager(domain_manager)
+    app.state.domain_manager = domain_manager
+    logger.info("DomainManager ready (Core-owned functional domains)")
+
+    # --- Projects (Core-owned project / workspace container) ---
+    # Un projet est un conteneur de conversations + portée de ressources +
+    # contexte d'exécution (agent / provider / model).  Toute la logique vit
+    # dans le Core ; le WebUI ne fait que le projeter.  Aucune ressource
+    # n'est dupliquée — les associations sont de simples identifiants.
+    from core.projects import ProjectManager
+    from core.projects.anchors import (
+        AnchorTargetType,
+        ProjectAnchorService,
+        build_memory_record_resolver,
+    )
+    from interfaces.api.routers.projects import (
+        set_project_anchor_service,
+        set_project_manager,
+    )
+
+    project_manager = ProjectManager(
+        store=domain_store,
+        # Le pipeline RAG Core unique (extraction + chunking + embedding) est
+        # branché sur les documents de projet — jamais de second pipeline.
+        ingestion_service=core_domains.rag,
+    )
+    set_project_manager(project_manager)
+
+    # P2.8.2 — service d'ancrage projet (Core-owned), sur le store partage.
+    # Le resolveur lit le projet dans le domaine `projects` du store partage :
+    # aucune logique metier ne vit dans l'interface.
+    #
+    # P2.8.2 (consolidation) — la source de verite des documents
+    # d'ingenierie est le corpus documentaire (vault), pas le store de
+    # records : le resolveur est injecte pour que l'existence d'une cible
+    # `memory_record` soit etablie aupres de sa vraie source, et non
+    # supposee.
+    project_anchor_service = ProjectAnchorService(store=domain_store)
+    if engineering_memory_service is not None:
+        project_anchor_service = ProjectAnchorService(
+            store=domain_store,
+            target_resolvers={
+                AnchorTargetType.MEMORY_RECORD: build_memory_record_resolver(
+                    engineering_memory_service
+                ),
+            },
+        )
+    set_project_anchor_service(project_anchor_service)
+    app.state.project_anchor_service = project_anchor_service
+    logger.info("ProjectAnchorService ready (Core-owned project anchors)")
+    # Destination "projet" du Web Import : le pipeline d'ingestion web
+    # réutilise le ProjectManager du Core (aucune dépendance interface).
+    web_ingest_manager.set_projects(project_manager)
+    app.state.project_manager = project_manager
+    logger.info("ProjectManager ready (Core-owned projects)")
+
+    # P2.8.3 — tracabilite des interventions (Core-owned). Le service vit
+    # dans `core/engineering_memory` : l'API ne fait que le brancher et
+    # l'exposer en HTTP. Les rapports sont ecrits dans le vault DAENA par
+    # l'Engineering Memory (source documentaire unique) et rattaches au
+    # projet par les Project Anchors lorsqu'un projet est fourni.
+    if engineering_memory_service is not None:
+        from core.engineering_memory.traceability import TraceabilityService
+        from interfaces.api.routers.engineering_memory import set_traceability_service
+
+        traceability_service = TraceabilityService(
+            engineering_memory_service,
+            anchor_service=project_anchor_service,
+        )
+        set_traceability_service(traceability_service)
+        app.state.traceability_service = traceability_service
+        logger.info("TraceabilityService ready (Core-owned intervention traceability)")
+    else:
+        logger.warning("TraceabilityService unavailable: Engineering Memory missing")
+
+    # --- Event Bus (NATS-backed) ---
+    from core.bus.nats_bus import EventBus as NatsEventBus
+
+    event_bus = NatsEventBus(servers=nats_url)
+    await event_bus.connect()
+    app.state.event_bus = event_bus
+    logger.info("EventBus ready (NATS-backed)")
+
+    # CTI is a Core-owned domain. It reuses the shared persistent record store
+    # and ETHAN event bus; it does not create another database or queue.
+    from core.cti import CTIManager
+
+    cti_manager = CTIManager(store=domain_store, event_bus=event_bus)
+    set_cti_manager(cti_manager)
+    app.state.cti_manager = cti_manager
+    logger.info("CTIManager ready (Core-owned STIX 2.1 foundation)")
+
+    # --- Scheduler (background tasks, cron, reminders) ---
+    from core.scheduler.scheduler import Scheduler
+
+    scheduler = Scheduler(bus=event_bus)
+    await scheduler.start()
+    app.state.scheduler = scheduler
+    logger.info("Scheduler ready (cron + reminders)")
+
+    # --- ToolManager + ToolServerManager (Core-owned, partagés) ---
+    # Créés ici AVANT IntegrationManager : celui-ci délègue ses healthchecks
+    # MCP au ToolServerManager existant (pas de duplication), et le reste du
+    # startup (chat pipeline, skill manager, capability managers) réutilise
+    # ces mêmes instances — jamais de seconde création.
+    from core.security.integration import build_secure_enforcer
+    from core.tools.manager import ToolManager
+    from core.tools.servers import ToolServerManager
+
+    # Policy Engine (Phase 04) : toute exécution de tool (routeur /tools ET
+    # skills) passe par SecureToolEnforcer — PolicyEngine (hiérarchie
+    # CORE→LLM) + CapabilityManager + ExfilGuard + AuditStore. Fail-closed :
+    # toute panne de sécurité rejette l'action.
+    secure_enforcer = build_secure_enforcer()
+    tool_manager = ToolManager(store=domain_store, policy_enforcer=secure_enforcer)
+    await tool_manager.initialize()
+    tool_servers_manager = ToolServerManager(store=domain_store, registry=tool_manager.registry)
+
+    # --- App Integrations (Core-owned integration model) ---
+    # Identité, configuration, credentials (domaine dédié), capacités,
+    # permissions, health et lifecycle connect/disconnect. Le healthcheck
+    # MCP délègue au ToolServerManager existant (pas de duplication).
+    from core.integrations import IntegrationManager
+    from interfaces.api.routers.integrations import set_integration_manager
+
+    integration_manager = IntegrationManager(
+        store=domain_store,
+        event_bus=event_bus,
+        tool_servers=tool_servers_manager,
+    )
+    set_integration_manager(integration_manager)
+    app.state.integration_manager = integration_manager
+    logger.info("IntegrationManager ready (Core-owned app integrations)")
+
+    # --- User Connections (comptes externes liés PAR UTILISATEUR) ---
+    # OAuth (GitHub, Notion, Medium, Gmail…) : le Core possède le flux,
+    # les tokens (domaine dédié ``connection-tokens``) et l'abstraction
+    # ConnectionProvider consommée par Chat/Knowledge/Skills/Missions.
+    # Les client secrets OAuth restent dans env/Vault (SecretManager).
+    import httpx
+    from core.integrations.connections import ConnectionManager
+    from interfaces.api.routers.connections import set_connection_manager
+
+    connection_manager = ConnectionManager(
+        store=domain_store,
+        event_bus=event_bus,
+        http_factory=lambda: httpx.AsyncClient(timeout=15.0),
+        base_url=str(
+            getattr(app.state, "public_base_url", "") or os.getenv("ETHAN_PUBLIC_BASE_URL", "")
+        ),
+    )
+    set_connection_manager(connection_manager)
+    app.state.connection_manager = connection_manager
+    logger.info("ConnectionManager ready (user connections: email, github, medium, notion)")
+
+    # --- Search (unified search across ETHAN domains) ---
+    # Delegates to KnowledgeManager, ChatStore, RAGPipeline — no duplication.
+    from core.search import SearchManager
+    from interfaces.api.routers.search import set_search_manager
+
+    search_manager = SearchManager(
+        knowledge_manager=core_domains.knowledge,
+        chat_store=chat_store,
+        rag_pipeline=core_domains.rag,
+    )
+    set_search_manager(search_manager)
+    app.state.search_manager = search_manager
+    logger.info("SearchManager ready (unified search)")
+
+    # --- Reminders (Core-owned reminder system) ---
+    # Uses the ETHAN Scheduler for timing — never a browser-only scheduler.
+    from core.reminders import ReminderManager
+    from interfaces.api.routers.reminders import set_reminder_manager
+
+    reminder_manager = ReminderManager(
+        store=domain_store,
+        event_bus=event_bus,
+        scheduler=scheduler,
+    )
+    set_reminder_manager(reminder_manager)
+    app.state.reminder_manager = reminder_manager
+    logger.info("ReminderManager ready (Core-owned reminders)")
+
+    # --- Chat pipeline (Core-owned orchestration) ---
+    # The pipeline composes the ChatStore, ProviderManager, RAG, SkillStore
+    # and memory facts.  It is injected into the v1 router so /chat/completions
+    # stays a thin HTTP gateway over Core orchestration.
+    from core.chat import ChatPipeline
+
+    chat_pipeline = ChatPipeline(
+        chat_store=chat_store,
+        provider_manager=provider_manager,
+        rag=core_domains.rag,
+        skill_store=skill_store,
+        memory_store=webui_store,
+        file_store=file_store,
+        knowledge_collections=knowledge_collections,
+        project_manager=project_manager,
+    )
+    set_chat_pipeline(chat_pipeline)
+    app.state.chat_pipeline = chat_pipeline
+    logger.info("ChatPipeline ready (Core-owned chat orchestration)")
+
+    # --- Capability managers (automations, calendar, tts, images, evaluations,
+    #     analytics, channels, notes, tools, tool servers, prompts, scim) ---
+    # All managers are Core-owned and share the same CoreRecordStore.  They are
+    # injected here so the capabilities router stays a thin HTTP gateway.
+    from core.auth.ldap import LDAPManager
+    from core.auth.oauth import OAuthManager
+    from core.auth.scim import SCIMManager
+    from core.config.prompts import PromptManager
+    from core.learning.evaluations import EvaluationManager
+    from core.llm.images import ImageGenerator
+    from core.llm.tts import TTSEngine
+    from core.metrics.analytics import AnalyticsManager
+    from core.scheduler.automations import AutomationManager
+    from core.scheduler.calendar import CalendarManager
+    from core.security.integration import build_secure_enforcer
+    from core.state.channels import ChannelStore
+    from core.state.notes import NoteStore
+    from core.tools.manager import ToolManager
+    from core.tools.servers import ToolServerManager
+
+    # Policy Engine + ToolManager créés plus haut (partagés avec
+    # IntegrationManager et le chat pipeline) — réutilisés ici.
+
+    # Tools + Agents dans le ChatPipeline : la logique de tool-calling et de
+    # routage agent vit dans le Core ; l'API reste une passerelle HTTP.
+    chat_pipeline.set_tool_manager(tool_manager)
+    chat_pipeline.set_agent_manager(core_domains.agents)
+    chat_pipeline.set_project_manager(project_manager)
+    from interfaces.api.routers.internal import get_approval_engine
+    chat_pipeline.set_approval_engine(get_approval_engine())
+    # Le policy enforcer est celui de l'executor du ToolManager.
+    try:
+        chat_pipeline.set_policy_enforcer(getattr(getattr(tool_manager, "executor", None), "_policy_enforcer", None))
+    except Exception:  # noqa: BLE001
+        pass
+    set_tool_manager(tool_manager)
+
+    # --- Plugin Registry (Core-owned) ---
+    # Source de vérité unique du système Plugins : catalogue de manifestes
+    # + état persistant (domaine `webui_plugins`).  Référence la ToolRegistry
+    # réelle pour résoudre tools/permissions — jamais de duplication.
+    from core.plugins import (
+        BUILTIN_PLUGINS,
+        PluginRegistry,
+    )
+    from core.plugins import (
+        set_plugin_registry as _set_core_plugin_registry,
+    )
+
+    plugin_registry = PluginRegistry(store=domain_store, tool_registry=tool_manager.registry)
+    # Source de vérité unique : le singleton Core. Le router v1 reçoit la
+    # MÊME instance — sans cette injection, /v1/plugins* renvoie 503
+    # ("PluginRegistry not initialized") car sa variable module-level
+    # n'est jamais peuplée (cf. interfaces/api/routers/v1.py).
+    _set_core_plugin_registry(plugin_registry)
+    set_v1_plugin_registry(plugin_registry)
+    logger.info("PluginRegistry ready (%d builtin plugins)", len(BUILTIN_PLUGINS))
+
+    # --- Skill manager (Core-owned skill execution) ---
+    # The SkillManager composes a ToolManager (for step execution via
+    # ToolManager.select_and_execute) and hydrates its registry with the
+    # built-in Core skills so /v1/skills/{id}/execute is a real execution.
+    from core.skills.builtin import (
+        EmailReaderSkill,
+        PDFAnalysisSkill,
+        ProgrammingSkill,
+        ProjectCreatorSkill,
+        WebSearchSkill,
+    )
+    from core.skills.manager import SkillManager
+
+    skill_manager = SkillManager(tool_manager=tool_manager)
+    for cls in (
+        ProgrammingSkill,
+        WebSearchSkill,
+        PDFAnalysisSkill,
+        EmailReaderSkill,
+        ProjectCreatorSkill,
+    ):
+        skill_manager.register_skill(cls().get_skill())
+    app.state.skill_manager = skill_manager
+
+    automation_manager = AutomationManager(store=domain_store)
+    prompt_manager = PromptManager(store=domain_store)
+
+    capability_managers = CapabilityManagers(
+        automations=automation_manager,
+        calendar=CalendarManager(store=domain_store),
+        tts=TTSEngine(store=domain_store),
+        images=ImageGenerator(store=domain_store),
+        evaluations=EvaluationManager(store=domain_store),
+        analytics=AnalyticsManager(store=domain_store),
+        channels=ChannelStore(store=domain_store),
+        notes=NoteStore(store=domain_store),
+        tools=tool_manager,
+        tool_servers=tool_servers_manager,
+        prompts=prompt_manager,
+        scim=SCIMManager(store=domain_store),
+        ldap=LDAPManager(store=domain_store),
+        oauth=OAuthManager(store=domain_store),
+        skills=skill_manager,
+    )
+    set_capability_managers(capability_managers)
+    set_tts_engine(capability_managers.tts)
+
+    # --- API Keys (Core-owned, politique secret-once) ---
+    from core.auth.api_keys import APIKeyManager
+    from interfaces.api.routers import internal as _internal
+    from interfaces.api.routers.api_keys import configure_api_keys
+
+    api_keys_manager = APIKeyManager(store=domain_store)
+    configure_api_keys(api_keys_manager, audit_store=_internal.get_audit_store())
+    from interfaces.api.auth import set_api_key_manager
+
+    set_api_key_manager(api_keys_manager)
+    app.state.api_keys_manager = api_keys_manager
+    logger.info("API keys manager ready (secret-once policy)")
+
+    # --- Service identity registry (Core-owned) ---
+    from core.state.record_store import CoreRecordStore as _UnusedCoreRecordStore  # noqa: F401
+    from interfaces.api.auth import set_service_identity_manager
+    from core.auth.service_identities import ServiceIdentityManager
+
+    service_identity_manager = ServiceIdentityManager(store=domain_store)
+    set_service_identity_manager(service_identity_manager)
+    app.state.service_identity_manager = service_identity_manager
+    logger.info("Service identity registry ready (no middleware route enabled in this phase)")
+    app.state.capability_managers = capability_managers
+    app.state.tool_manager = tool_manager
+    logger.info("Capability managers ready (13 Core capabilities exposed, incl. skills)")
+
+    # --- Component lifecycle (Core-owned : detect/install/uninstall) ---
+    # Le Core est la source de verite du cycle de vie des composants optionnels
+    # (vectordb, runtime, integrations...). L'API n'est qu'une passerelle mince.
+    from core.capability_manager.builtin import build_manager as _build_cap_manager
+
+    component_manager = _build_cap_manager(
+        store=domain_store,
+        audit=_internal.get_audit_store(),
+        bus=event_bus,
+    )
+    set_component_manager(component_manager)
+    app.state.component_manager = component_manager
+    logger.info(
+        "Component lifecycle manager ready (%d supported components)",
+        len(component_manager.list_specs()),
+    )
+
+    # --- Réconciliation des opérations de cycle de vie (audit §2) ---
+    # À chaque démarrage : les opérations `RUNNING` interrompues passent à un
+    # état terminal consultable (ERROR/TIMEOUT), et aucune capability ne reste
+    # bloquée en INSTALLING/UNINSTALLING. Sans cela, l'UI pouvait attendre un
+    # operation_id qui n'existait plus, et une installation restait « en cours »
+    # pour toujours. Résumé d'états uniquement — aucun secret journalisé.
+    try:
+        recovery = await component_manager.recover_operations()
+        if any(recovery.values()):
+            logger.warning("Opérations de capability réconciliées après démarrage: %s", recovery)
+        else:
+            logger.info("Opérations de capability : aucune à réconcilier")
+    except Exception as exc:  # noqa: BLE001 — le démarrage ne doit pas échouer
+        logger.exception("Réconciliation des opérations de capability impossible: %s", exc)
+
+    # --- Cookbook / Email / Research (Core-owned, RFC-0001/2/3) ---
+    from core.cookbook.manager import CookbookManager
+    from core.mailbox.manager import EmailManager
+    from core.research.engine import DeepResearchEngine
+
+    cookbook_manager = CookbookManager(
+        recipes_dir=os.environ.get("ETHAN_COOKBOOK_DIR", "/app/cookbook/recipes"),
+        skill_store=skill_store,
+        prompt_manager=prompt_manager,
+        automation_manager=automation_manager,
+        store=domain_store,
+    )
+    set_cookbook_manager(cookbook_manager)
+    app.state.cookbook_manager = cookbook_manager
+    logger.info("Cookbook manager ready (%d recipes)", len(cookbook_manager.list_recipes()))
+
+    # --- Système d'extensions unifié (Capabilities + Plugins + Cookbook) ---
+    # UNE couche de gestion au-dessus des trois systèmes d'origine : elle ne
+    # les remplace pas (compatibilité), elle uniformise leur cycle de vie, leur
+    # persistance et leurs erreurs. Les trois restent masters de leur sémantique.
+    from core.extensions import (
+        CapabilityHandler,
+        CookbookHandler,
+        ExtensionKind,
+        ExtensionManager,
+        PluginHandler,
+    )
+
+    extension_manager = ExtensionManager(
+        handlers={
+            ExtensionKind.CAPABILITY: CapabilityHandler(component_manager),
+            ExtensionKind.PLUGIN: PluginHandler(plugin_registry),
+            ExtensionKind.COOKBOOK: CookbookHandler(cookbook_manager),
+        },
+        store=domain_store,
+        event_bus=event_bus,
+    )
+    set_extension_manager(extension_manager)
+    app.state.extension_manager = extension_manager
+
+    # Réconciliation : une opération d'extension interrompue ne doit jamais
+    # rester « en cours » après un redémarrage (audit §5).
+    try:
+        ext_recovery = await extension_manager.recover_operations()
+        if any(ext_recovery.values()):
+            logger.warning(
+                "Opérations d'extensions réconciliées après démarrage: %s", ext_recovery
+            )
+    except Exception as exc:  # noqa: BLE001 — le démarrage ne doit pas échouer
+        logger.exception("Réconciliation des opérations d'extensions impossible: %s", exc)
+
+    set_email_manager(EmailManager())
+
+    try:
+        store = ProviderStore(redis_client=redis_client, pg_pool=pg_pool)
+        provider_manager = ProviderManager(store=store)
+        await provider_manager.initialize()
+        set_provider_manager(provider_manager)
+        set_odin_ai_provider_manager(provider_manager)
+        set_v1_provider_manager(provider_manager)
+        # Réinjecte le manager dans le ChatPipeline (créé plus tôt dans le
+        # lifespan, avant que le ProviderManager n'existe) — sinon le chat
+        # tombe sur le fallback echo/mock.
+        chat_pipeline.set_provider_manager(provider_manager)
+
+        # Deep Research : moteur Core réutilisant le LLM par défaut + web_search
+        set_research_engine(
+            DeepResearchEngine(provider_manager=provider_manager, tool_manager=tool_manager)
+        )
+        logger.info("Deep research engine ready")
+        # Branch la synthèse LLM du moteur Web Inspiration (créé plus tôt,
+        # avant que le ProviderManager n'existe).  Lecture via app.state (et
+        # non la variable locale) : si le bloc d'initialisation amont a
+        # échoué, la variable locale n'existerait pas (NameError) — getattr
+        # reste sûr et best-effort.
+        inspiration_engine = getattr(app.state, "web_inspiration_engine", None)
+        if inspiration_engine is not None:
+            inspiration_engine.set_provider_manager(provider_manager)
+        # Brouillons de Skill (web) : synthèse LLM best-effort — repli
+        # déterministe si le ProviderManager est absent.
+        web_skill_draft_service = getattr(app.state, "web_skill_draft_service", None)
+        if web_skill_draft_service is not None:
+            web_skill_draft_service.set_provider_manager(provider_manager)
+        # Injecte l'exécuteur d'agents (Core real LLM adapter) : l'AgentManager
+        # est créé plus haut sans executor afin de rester testable en isolation ;
+        # le runtime fournit maintenant l'adapter de production qui route la
+        # tâche de l'agent vers son provider LLM configuré.
+        from core.agents.executor import create_agent_executor
+
+        await core_domains.agents.set_executor(
+            create_agent_executor(
+                provider_manager=provider_manager,
+                skill_store=get_skill_store(),
+                knowledge_collections=knowledge_collections,
+                domain_manager=domain_manager,
+                folders=folder_manager,
+                knowledge_manager=core_domains.knowledge,
+                tools=tool_manager,
+            )
+        )
+        logger.info("Agent executor injected (Core real LLM adapter)")
+        logger.info(
+            "ProviderManager ready (default=%s, providers=%d)",
+            provider_manager._default_provider,
+            len(provider_manager._registry.list_providers()),
+        )
+    except Exception as exc:
+        logger.exception("Failed to initialize ProviderManager: %s", exc)
+        provider_manager = None
+
+    # ── RAG : embeddings réels + configuration persistée (Step 4) ──────
+    if provider_manager is not None:
+        try:
+            # Sort le RAG du mode textuel : les embeddings passent par les
+            # providers Core (ollama en priorité).
+            core_domains.rag.attach_llm_client(provider_manager)
+        except Exception as exc:
+            logger.exception("Failed to attach RAG embeddings client: %s", exc)
+    try:
+        applied = await core_domains.rag.load_persisted_config()
+        if applied:
+            logger.info("RAG config restored: %s", applied)
+        logger.info("RAG engine status: %s", core_domains.rag.stats())
+    except Exception as exc:
+        logger.exception("Failed to restore RAG config: %s", exc)
+
+    # --- Model store (Core-owned custom model cards) ---
+    # The ModelStore persists custom model cards (base_model_id, params, meta,
+    # is_active, ACL) via the same CoreRecordStore.  It is injected into the
+    # /models router which aggregates discovered models + custom cards.
+    from core.llm.model_store import ModelStore
+
+    model_store = ModelStore(store=domain_store)
+    set_model_store(model_store)
+    if provider_manager is not None:
+        set_models_provider_manager(provider_manager)
+    app.state.model_store = model_store
+    logger.info("ModelStore ready (Core-owned custom model cards)")
+
+    # --- Configuration Service (source de vérité unique) ---
+    try:
+        config_store = ConfigStore(redis_client=redis_client, pg_pool=pg_pool)
+        config_service = ConfigurationService(store=config_store)
+        await config_service.load()
+        set_configuration_service(config_service)
+        set_odin_config_service(config_service)
+        app.state.config_service = config_service
+        logger.info("ConfigurationService ready")
+    except Exception as exc:
+        logger.exception("Failed to initialize ConfigurationService: %s", exc)
+
+    if HAS_TELEMETRY:
+        try:
+            init_telemetry("ethan-api")
+            FastAPIInstrumentor.instrument_app(app)
+            logger.info("OpenTelemetry tracing enabled for API Gateway")
+        except Exception as e:
+            logger.warning(f"Failed to initialize OpenTelemetry: {e}")
+
+    # --- Diagnostics & Metrics (capacité Core-owned, servie au CLI + WebUI) ---
+    # SystemDiagnostics interroge les VRAIS composants (PG, Redis, NATS, kernel,
+    # providers, RAG, tools, MCP, plugins, filesystem) ; SystemMetrics collecte
+    # CPU/RAM/disque/GPU/Docker réels. Une dépendance absente → statut
+    # UNAVAILABLE explicite, jamais de valeur inventée.
+    try:
+        from core.diagnostics import SystemDiagnostics, SystemMetrics
+
+        try:
+            from core.plugins import get_plugin_registry as _get_plugin_registry
+
+            plugin_registry = _get_plugin_registry()
+        except Exception:  # noqa: BLE001 — registre pas encore prêt
+            plugin_registry = None
+
+        diagnostics_service = SystemDiagnostics(
+            pg_pool=pg_pool,
+            redis_client=redis_client,
+            nats_url=nats_url,
+            database_url=db_url,
+            # kernel_url non passé : résolu par SystemDiagnostics depuis
+            # ETHAN_KERNEL_URL (défini par docker-compose → http://kernel:8080).
+            provider_manager=provider_manager,
+            rag_pipeline=core_domains.rag,
+            tool_manager=tool_manager,
+            tool_servers_manager=tool_servers_manager,
+            plugin_registry=plugin_registry,
+            workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
+        )
+        set_diagnostics_service(diagnostics_service)
+        set_metrics_service(
+            SystemMetrics(
+                workspace_dir=os.getenv("ETHAN_WORKSPACE_DIR") or None,
+            )
+        )
+        app.state.diagnostics = diagnostics_service
+        logger.info("Diagnostics service ready (12 composants réels)")
+    except Exception as exc:
+        logger.exception("Failed to initialize diagnostics service: %s", exc)
+
+    # --- Logs (Core-owned : LogService, exposé par /logs) ───────────────
+    # Sans cette injection, GET /logs renvoie 503 ("Log service not
+    # initialized"). Best-effort : un échec ne bloque jamais le démarrage.
+    try:
+        from core.telemetry.log_pipeline import LogService
+        from interfaces.api.routers.logs import set_log_service
+
+        log_service = LogService()
+        set_log_service(log_service)
+        app.state.log_service = log_service
+        logger.info("LogService ready (Core-owned, exposed via /logs)")
+    except Exception as exc:
+        logger.exception("Failed to initialize LogService: %s", exc)
+
+    # --- Persistance unifiée (Core-owned : Redis + PostgreSQL) ──────────
+    # Les factories de drivers viennent de la couche interface (ADR-1005).
+    # Sans Redis/PostgreSQL, les backends restent dégradés : le boot continue.
+    try:
+        from core.persistence.manager import init_persistence
+        from core.persistence.migrations import MigrationManager
+        from interfaces.api.persistence.backend import pg_pool_factory, redis_client_factory
+
+        persistence = await init_persistence(
+            redis_client_factory=redis_client_factory,
+            pg_pool_factory=pg_pool_factory,
+        )
+        app.state.persistence = persistence
+        try:
+            applied = await MigrationManager().run(persistence.postgres)
+            if applied:
+                logger.info("Persistence migrations applied: %s", applied)
+        except Exception as exc:
+            logger.warning("Persistence migrations skipped: %s", exc)
+    except Exception as exc:
+        logger.exception("Failed to initialize persistence: %s", exc)
+
+    # Terminal : service Core de sessions PTY réelles (interface WebUI).
+    # Le registre est en mémoire et les workers sont uniques (workers=1) :
+    # une session appartient au worker qui l'a créée.
+    terminal_service = TerminalService()
+    set_terminal_service(terminal_service)
+    app.state.terminal_service = terminal_service
+    logger.info("Terminal service ready (PTY, user=%s, root=%s)", current_user(), DEFAULT_ROOT)
+
+    # Commandes système contrôlées : capacité Core distincte du terminal PTY.
+    # Elle utilise le même moteur d'approbation et journal append-only, sans
+    # shell implicite ni montage Docker ajouté par l'API.
+    from interfaces.api.routers.internal import get_approval_engine, get_audit_store
+
+    approval_engine = get_approval_engine()
+    if approval_engine is None:  # pragma: no cover - init_modules vient de réussir
+        raise RuntimeError("Approval engine unavailable: system execution stays disabled")
+    system_exec_service = SystemExecService(
+        root=os.getenv("ETHAN_EXEC_ROOT", DEFAULT_ROOT),
+        approval_engine=approval_engine,
+        audit_store=get_audit_store(),
+    )
+    set_system_exec_service(system_exec_service)
+    app.state.system_exec_service = system_exec_service
+    logger.info(
+        "Controlled system execution service ready (root=%s)",
+        os.getenv("ETHAN_EXEC_ROOT", DEFAULT_ROOT),
+    )
+
+    # MCP Installer : même moteur d'approbation HROT que SystemExec, même
+    # registre canonique que l'UI MCP. L'installation ne démarre jamais avant
+    # l'approbation humaine et l'enregistrement passe par ToolServerManager.
+    from core.mcp_installer import McpInstaller
+
+    mcp_installer = McpInstaller(
+        tool_servers=tool_servers_manager,
+        approval_engine=approval_engine,
+        store=domain_store,
+        audit_store=get_audit_store(),
+    )
+    set_mcp_installer(mcp_installer)
+    app.state.mcp_installer = mcp_installer
+    logger.info("MCP installer ready (root=%s)", mcp_installer.install_root)
+
+    yield
+
+    # --- Shutdown ---
+    try:
+        await mcp_installer.shutdown()
+    except Exception:  # noqa: BLE001 - shutdown must continue even after a child error
+        logger.warning("MCP installer: cleanup incomplete", exc_info=True)
+    set_mcp_installer(None)
+
+    try:
+        await system_exec_service.shutdown()
+    except Exception:  # noqa: BLE001 - shutdown must continue even after a child error
+        logger.warning("System exec: cleanup incomplete", exc_info=True)
+
+    # Aucune session terminal ne doit survivre à l'arrêt de l'API : chaque
+    # shell forké est tué avec son groupe de processus (pas de fuite).
+    try:
+        terminal_service.shutdown_all()
+    except Exception:  # noqa: BLE001 — l'arrêt ne doit pas être bloqué par le terminal
+        logger.warning("Terminal: nettoyage des sessions incomplet", exc_info=True)
+    from interfaces.api.routers import message as _message_router
+
+    nc = _message_router._nats
+    if nc:
+        try:
+            await asyncio.wait_for(nc.drain(), timeout=10)
+            logger.info("API Gateway NATS connection closed")
+        except Exception as e:
+            logger.error(f"Error during NATS shutdown: {e}")
+
+    # Fermer le ProviderManager (clients providers + store/redis)
+    if provider_manager is not None:
+        try:
+            await provider_manager.close()
+            logger.info("ProviderManager closed")
+        except Exception as exc:
+            logger.warning("Error closing ProviderManager: %s", exc)
+    persistence = getattr(app.state, "persistence", None)
+    if persistence is not None:
+        try:
+            await persistence.close()
+            logger.info("Persistence closed")
+        except Exception as exc:
+            logger.warning("Error closing persistence: %s", exc)
+    if pg_pool is not None:
+        try:
+            await asyncio.wait_for(pg_pool.close(), timeout=5)
+        except Exception as exc:
+            logger.warning("Error closing PostgreSQL pool: %s", exc)
+
+
+app = FastAPI(
+    title="Ethan Cognitive OS API",
+    version="0.2.0",
+    description="Event-driven cognitive operating system API Gateway",
+    lifespan=lifespan,
+)
+
+# CORS — restrict origins in production via CORS_ORIGINS env var
+_cors_origins = os.getenv("CORS_ORIGINS", "*")
+_cors_origins_list = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Rate limiting middleware (must be before auth middleware)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(429, rate_limit_exceeded_handler)
+
+# Middleware d'authentification JWT (protège les routes sauf /health, /metrics, /docs)
+app.middleware("http")(auth_middleware)
+
+
+# ── API Keys — Core APIKeyManager (wiring) ──────────────────
+# Import tardif : le routeur dépend de l'app déjà construite (wiring FastAPI).
+from interfaces.api.routers.api_keys import router as api_keys_router  # noqa: E402
+
+app.include_router(api_keys_router)
+app.include_router(folders_router)
+app.include_router(projects_router)
+app.include_router(web_ingest_router)
+app.include_router(web_search_router)
+app.include_router(web_inspiration_router)
+app.include_router(web_research_router)
+app.include_router(web_skill_draft_router)
+app.include_router(knowledge_imports_router)
+app.include_router(core_domains_router)
+app.include_router(dedup_router)
+
+app.include_router(message_router)
+app.include_router(state_router)
+app.include_router(internal_router)
+app.include_router(v1_router)
+app.include_router(security_router)
+app.include_router(providers_router)
+app.include_router(models_router)
+app.include_router(model_router)
+app.include_router(integrations_router)
+app.include_router(connections_router)
+app.include_router(cti_router)
+app.include_router(logs_router)
+app.include_router(search_router)
+app.include_router(reminders_router)
+app.include_router(diagnostics_router)
+app.include_router(config_router)
+app.include_router(domains_router)
+app.include_router(capabilities_router)
+app.include_router(component_lifecycle_router)
+app.include_router(applications_router)
+app.include_router(local_repositories_router)
+app.include_router(application_manifests_router)
+app.include_router(application_integration_catalog_router)
+app.include_router(github_discovery_router)
+
+try:
+    from interfaces.api.routers.engineering_memory import (
+        router as engineering_memory_router,
+    )
+    app.include_router(engineering_memory_router)
+except Exception as exception:
+    logging.warning(
+        "Engineering Memory router disabled: %s", exception
+    )
+app.include_router(extensions_router)
+app.include_router(cookbook_router)
+app.include_router(email_router)
+app.include_router(research_router)
+app.include_router(realtime_router)
+app.include_router(health_router)
+app.include_router(terminal_router)
+app.include_router(system_exec_router)
+app.include_router(mcp_installer_router)
+app.include_router(mcp_shared_router)
+app.include_router(odin_router)
+app.include_router(frame_router)
+app.include_router(quantar_router)
+app.include_router(odin_ai_router)
+# Rétro-compatibilité temporaire dépréciée (migration GEV -> Odin)
+app.include_router(legacy_odin_router)
+app.include_router(legacy_odin_ai_router)
+# Open WebUI-compatible adapter — exposes /api/v1/auths/*, /api/v1/models/*,
+# /openai/config and /api/chat/completions so the Open WebUI frontend fork
+# (interfaces/webui-openwebui) can run against ETHAN Core/Runtime.
+app.include_router(openwebui_router)
+
+
+# Old startup code removed as it's now in the lifespan context manager.
+
+
+@app.post("/auth/login")
+async def login(request: Request, response: Response):
+    """Login endpoint — returns a JWT token and sets an HttpOnly cookie."""
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    username = body.get("username", "developer")
+    password = body.get("password", "")
+
+    # Default role for users created without an explicit role. New accounts
+    # get "standard" (FILES|AGENTS|PLUGINS|SETTINGS) — the legacy "user"
+    # role is restricted (read/write/chat/memory only) and kept for compat.
+    role = "standard"
+    try:
+        import asyncio
+
+        import asyncpg
+        import bcrypt
+
+        db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
+
+        # Connect to DB with timeout
+        conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
+        try:
+            row = await conn.fetchrow(
+                "SELECT password_hash, roles, is_active, totp_secret, totp_enabled FROM users WHERE username = $1",  # noqa: E501
+                username,
+            )
+            if not row:
+                # Prevent timing attacks
+                bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    b"$2b$12$IMasHHKJXSeiAxx6kYiGf.8zkx.ueVl6/oWo61VnT0mGCbv9.CQzK",
+                )
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+
+            if not row["is_active"]:
+                raise HTTPException(status_code=401, detail="User account is disabled")
+
+            if not bcrypt.checkpw(password.encode("utf-8"), row["password_hash"].encode("utf-8")):
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+
+                # 2FA — TOTP verification (Core-owned: core/auth/totp.py)
+            if row["totp_enabled"]:
+                from core.auth.totp import verify_code
+
+                totp_code = str(body.get("totp_code", ""))
+                if not totp_code:
+                    raise HTTPException(status_code=401, detail="Code 2FA requis.")
+                if not verify_code(row["totp_secret"], totp_code):
+                    raise HTTPException(status_code=401, detail="Code 2FA invalide.")
+
+            role = row["roles"][0] if row["roles"] else "standard"
+        finally:
+            await conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"DB Auth unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable")
+
+    token = create_access_token(data={"sub": username, "role": role})
+
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    is_secure_request = request.url.scheme == "https" or forwarded_proto == "https"
+
+    response.set_cookie(
+        key="ethan_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=86400,
+        path="/",
+        secure=is_secure_request,
+    )
+
+    return {
+        "access_token": token,
+        "token": token,
+        "token_type": "bearer",
+        "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+        "user": {"username": username, "role": role},
+    }
+
+
+@app.post("/auth/register")
+async def register(request: Request):
+    """Registration endpoint — public, creates a durable user and returns a JWT.
+
+    The user is persisted in PostgreSQL (table ``users``) so the registered
+    account can later log in via /auth/login.  The password is stored as a
+    bcrypt hash, never as plain text.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    username = body.get("username") or body.get("email") or body.get("name")
+    if not username:
+        raise HTTPException(status_code=400, detail="Username or email is required")
+    if not body.get("password"):
+        raise HTTPException(status_code=400, detail="Password is required")
+
+    # Hacher le mot de passe avec bcrypt directement (passlib 1.7.4 est
+    # incompatible avec bcrypt>=4.0 : ValueError "password cannot be longer
+    # than 72 bytes" même pour des mots de passe courts).
+    import bcrypt
+
+    password_hash = bcrypt.hashpw(body.get("password").encode("utf-8"), bcrypt.gensalt()).decode(
+        "utf-8"
+    )
+
+    import asyncpg
+
+    # Persister l'utilisateur en base — la table users est la source de vérité
+    # utilisée par /auth/login.  En cas d'infrastructure indisponible,
+    # l'inscription échoue explicitement plutôt que de créer un compte fantôme.
+    try:
+        db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
+        conn = await asyncio.wait_for(asyncpg.connect(db_url), timeout=2.0)
+        try:
+            await conn.execute(
+                """
+                INSERT INTO users (username, password_hash, roles, is_active)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (username) DO NOTHING
+                """,
+                username,
+                password_hash,
+                ["standard"],
+                True,
+            )
+        finally:
+            await conn.close()
+    except Exception as exc:
+        logger.error("Register failed — user %s not persisted: %s", username, exc)
+        raise HTTPException(status_code=503, detail="Registration service unavailable")
+
+    token = create_access_token(data={"sub": username, "role": "standard"})
+    return {
+        "access_token": token,
+        "token": token,
+        "token_type": "bearer",
+        "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+        "user": {"username": username, "email": body.get("email", ""), "role": "standard"},
+    }
+
+
+@app.post("/auth/forgot-password")
+async def forgot_password(request: Request):
+    """Demande de réinitialisation « mot de passe oublié ».
+
+    Passerelle MINCE : toute la logique vit dans Core
+    (core/auth/password_reset.py).  La réponse ne révèle jamais si le
+    compte existe (anti-énumération) — même statut 200 dans tous les cas.
+
+    En développement uniquement (``ETHAN_DEV_PASSWORD_RESET=1``), le token
+    est renvoyé dans la réponse pour permettre le test du flux sans canal
+    email configuré.  Ce champ n'est JAMAIS émis en production.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    username = str(body.get("username", ""))
+    raw_token = await get_password_reset_manager().request_reset(username)
+    payload: dict[str, Any] = {
+        "status": "ok",
+        "message": ("Si ce compte existe, un lien de réinitialisation lui a été envoyé."),
+    }
+    if raw_token and os.getenv("ETHAN_DEV_PASSWORD_RESET") == "1":
+        payload["dev_reset_token"] = raw_token
+    return payload
+
+
+@app.post("/auth/reset-password")
+async def reset_password(request: Request):
+    """Réinitialisation effective avec un token valide (usage unique)."""
+    from core.auth.password_reset import PasswordResetError
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    token = str(body.get("token", ""))
+    new_password = body.get("new_password")
+    if not token or new_password is None:
+        raise HTTPException(422, "token et new_password sont requis.")
+    try:
+        result = await get_password_reset_manager().reset_password(token, str(new_password))
+    except PasswordResetError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return result
+
+
+@app.get("/auth/me")
+async def auth_me(request: Request):
+    """Return the current authenticated user from the JWT token.
+
+    The auth middleware already validated the token and injected the user
+    into request.state. We just return it.
+    """
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = getattr(request.state, "token_payload", {})
+    return {"user": {"username": user, "role": payload.get("role", "user")}}
+
+
+@app.post("/auth/refresh")
+async def auth_refresh(
+    response: Response,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request = None,
+):
+    """Issue a new JWT token from a valid existing token."""
+    # Read the cookie explicitly: Depends(security) may miss it when no
+    # Bearer header is present.
+    token = request.cookies.get("ethan_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentification requise.")
+
+    try:
+        payload = await verify_token_string(token)
+        username = payload.get("sub", "unknown")
+        role = payload.get("role", "user")
+        new_token = create_access_token(data={"sub": username, "role": role})
+
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+        is_secure_request = request.url.scheme == "https" or forwarded_proto == "https"
+
+        response.set_cookie(
+            key="ethan_token",
+            value=new_token,
+            httponly=True,
+            samesite="lax",
+            max_age=86400,
+            path="/",
+            secure=is_secure_request,
+        )
+
+        return {
+            "access_token": new_token,
+            "token": new_token,
+            "token_type": "bearer",
+            "expires_in_hours": int(os.getenv("JWT_EXPIRY_HOURS", "24")),
+            "user": {"username": username, "role": role},
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+@app.post("/auth/logout")
+async def auth_logout(request: Request, response: Response):
+    """Logout endpoint — clears the HttpOnly cookie.
+
+    The deletion attributes must match the login cookie, including Secure.
+    Otherwise an HTTPS session cookie can survive logout in the browser.
+    """
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    is_secure_request = request.url.scheme == "https" or forwarded_proto == "https"
+    response.delete_cookie(
+        key="ethan_token",
+        httponly=True,
+        samesite="lax",
+        path="/",
+        secure=is_secure_request,
+    )
+    return {"status": "ok", "message": "Logged out successfully"}
+
+
+@app.get("/health")
+async def health():
+    """Healthcheck endpoint used by Docker and scripts."""
+    return await _health_readiness()
+
+
+@app.get("/health/live")
+async def health_live():
+    """Liveness probe: the HTTP process is serving requests."""
+    return {"status": "ok", "service": "api"}
+
+
+@app.get("/health/ready")
+async def health_ready():
+    """Readiness probe: the API can publish through its NATS connection."""
+    return await _health_readiness()
+
+
+async def _health_readiness() -> Response | dict:
+    """Return a truthful readiness response for the API service."""
+    from interfaces.api.routers import message as _message_router
+
+    nc = _message_router._nats
+    nats_ok = nc is not None and nc.is_connected
+    payload = {
+        "status": "ok" if nats_ok else "degraded",
+        "service": "api",
+        "nats_connected": nats_ok,
+    }
+    if not nats_ok:
+        return Response(
+            content=json.dumps(payload),
+            status_code=503,
+            media_type="application/json",
+        )
+    return payload
+
+
+@app.get("/health/detailed")
+async def health_detailed():
+    """Detailed health check verifying connectivity to dependencies."""
+    import asyncio
+    import json
+    import os
+
+    results = {}
+
+    from interfaces.api.routers import message as _message_router
+
+    api_nats = _message_router._nats
+    results["api_nats"] = (
+        "connected"
+        if api_nats is not None and api_nats.is_connected
+        else "error: API NATS disconnected"
+    )
+
+    nc = None
+    try:
+        nats_url = os.getenv("NATS_URL", "nats://nats:4222")
+        nc = await asyncio.wait_for(nats.connect(nats_url, **nats_connect_options()), timeout=2)
+        results["nats"] = "connected"
+    except Exception as e:
+        results["nats"] = f"error: {e}"
+    finally:
+        if nc is not None:
+            try:
+                await asyncio.wait_for(nc.close(), timeout=2)
+            except Exception:
+                logger.exception("Detailed healthcheck could not close its NATS probe")
+
+    r = None
+    try:
+        import redis.asyncio as aioredis
+
+        redis_url = os.getenv("REDIS_URL", "redis://default:ethan_dev_redis@redis:6379/0")
+        r = aioredis.from_url(
+            redis_url,
+            decode_responses=True,
+            protocol=2,
+        )
+        pong = await asyncio.wait_for(r.ping(), timeout=2)
+        results["redis"] = "connected" if pong else "error"
+    except Exception as e:
+        results["redis"] = f"error: {e}"
+    finally:
+        if r is not None:
+            try:
+                await asyncio.wait_for(r.close(), timeout=2)
+            except Exception:
+                logger.exception("Detailed healthcheck could not close its Redis probe")
+
+    conn = None
+    try:
+        import asyncpg
+
+        db_url = os.getenv("DATABASE_URL", "postgresql://ethan:ethan_dev_pass@postgres:5432/ethan")
+        conn = await asyncio.wait_for(asyncpg.connect(db_url, timeout=2), timeout=3)
+        results["postgresql"] = "connected"
+    except Exception as e:
+        results["postgresql"] = f"error: {e}"
+    finally:
+        if conn is not None:
+            try:
+                await asyncio.wait_for(conn.close(), timeout=2)
+            except Exception:
+                logger.exception("Detailed healthcheck could not close its PostgreSQL probe")
+
+    all_ok = all(v == "connected" for v in results.values())
+    status_code = 200 if all_ok else 503
+
+    return Response(
+        content=json.dumps({"status": "ok" if all_ok else "degraded", "checks": results}),
+        status_code=status_code,
+        media_type="application/json",
+    )
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    if not HAS_PROMETHEUS:
+        return {"error": "prometheus_client not installed"}
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+# Old shutdown code removed as it's now in the lifespan context manager.

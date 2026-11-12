@@ -1,0 +1,192 @@
+"""Agent Types — Types de données pour le module Agents."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+
+class AgentStatus(str, Enum):
+    """États possibles d'un agent."""
+
+    IDLE = "idle"
+    RUNNING = "running"
+    PAUSED = "paused"
+    ERROR = "error"
+    STOPPED = "stopped"
+
+
+class AgentType(str, Enum):
+    """Catégorie d'ownership d'un agent.
+
+    User-created agents have an owner.
+    System and internal components are governed separately.
+    """
+
+    USER = "user"
+    SYSTEM = "system"
+    INTERNAL = "internal"
+
+
+class AgentExecutionStatus(str, Enum):
+    """Terminal and transient states for an agent execution."""
+
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass
+class Agent:
+    """Enregistrement d'un agent (persisté)."""
+
+    id: str
+    name: str
+    description: str = ""
+    capabilities: list[str] = field(default_factory=list)
+    status: AgentStatus = AgentStatus.IDLE
+    owner_id: str | None = None
+    created_by: str | None = None
+    agent_type: AgentType = AgentType.USER
+    model: str | None = None
+    provider: str | None = None
+    memory_scope: str = "default"
+    skill_ids: list[str] = field(default_factory=list)
+    knowledge_collection_ids: list[str] = field(default_factory=list)
+    # Nœuds de Knowledge spécifiques (core/knowledge) sélectionnés
+    # explicitement pour cet agent — indépendants des collections RAG.
+    knowledge_ids: list[str] = field(default_factory=list)
+    # Tools + MCP (core/tools) autorisés pour cet agent. Un serveur MCP est
+    # représenté par les tools qu'il expose : aucune duplication, la
+    # sélection reste au niveau tool (le groupement Tools/MCP est de l'affichage).
+    tool_ids: list[str] = field(default_factory=list)
+    # Dossiers génériques (core/folders) associés à l'agent : prépare la
+    # sélection de dossiers/ressources à la création des agents.  Résolu en
+    # ressources réelles au moment de l'exécution — jamais dupliqué ici.
+    folder_ids: list[str] = field(default_factory=list)
+    # Domains fonctionnels (core/domains) sélectionnés explicitement par
+    # l'agent (OSINT, Recon, ...).  Sélection déclarative : les contenus
+    # sont résolus à l'exécution via le DomainManager Core — un id de
+    # domain supprimé est simplement ignoré (jamais de ressource fantôme).
+    domain_ids: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Sérialise l'agent en dict."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "capabilities": self.capabilities,
+            "status": self.status.value,
+            "owner_id": self.owner_id,
+            "created_by": self.created_by,
+            "agent_type": self.agent_type.value,
+            "model": self.model,
+            "provider": self.provider,
+            "memory_scope": self.memory_scope,
+            "skill_ids": self.skill_ids,
+            "knowledge_collection_ids": self.knowledge_collection_ids,
+            "knowledge_ids": self.knowledge_ids,
+            "tool_ids": self.tool_ids,
+            "folder_ids": self.folder_ids,
+            "domain_ids": self.domain_ids,
+            "metadata": self.metadata,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Agent":
+        """Désérialise un agent depuis un dict."""
+        metadata = data.get("metadata") or {}
+        return cls(
+            id=data["id"],
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            capabilities=data.get("capabilities", []),
+            status=AgentStatus(data.get("status", "idle")),
+            owner_id=data.get("owner_id"),
+            created_by=data.get("created_by"),
+            agent_type=AgentType(data.get("agent_type", "user")),
+            model=data.get("model"),
+            provider=data.get("provider"),
+            memory_scope=data.get("memory_scope", "default"),
+            skill_ids=data.get("skill_ids", data.get("skills", [])),
+            # Rétro-compatibilité : la WebUI stockait les collections dans
+            # metadata.knowledge_ids (convention UI).  Le champ typé prime.
+            knowledge_collection_ids=list(
+                data.get("knowledge_collection_ids") or metadata.get("knowledge_ids", [])
+            ),
+            # Rétro-compatibilité : la WebUI stockait les tools dans
+            # metadata.tool_ids (convention UI).  Le champ typé prime.
+            knowledge_ids=list(data.get("knowledge_ids", []) or []),
+            tool_ids=list(data.get("tool_ids") or metadata.get("tool_ids", [])),
+            folder_ids=list(data.get("folder_ids", []) or []),
+            domain_ids=list(data.get("domain_ids", []) or []),
+            metadata=metadata,
+            created_at=datetime.fromisoformat(data["created_at"])
+            if data.get("created_at")
+            else datetime.utcnow(),
+            updated_at=datetime.fromisoformat(data["updated_at"])
+            if data.get("updated_at")
+            else datetime.utcnow(),
+        )
+
+
+@dataclass
+class AgentExecution:
+    """An auditable request handled by an agent execution adapter."""
+
+    id: str
+    agent_id: str
+    task: str
+    status: AgentExecutionStatus = AgentExecutionStatus.RUNNING
+    result: Any = None
+    error: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
+    skill_id: str | None = None
+    execution_context: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    completed_at: datetime | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize this execution for storage and interfaces."""
+        return {
+            "id": self.id,
+            "agent_id": self.agent_id,
+            "task": self.task,
+            "status": self.status.value,
+            "result": self.result,
+            "error": self.error,
+            "context": self.context,
+            "skill_id": self.skill_id,
+            "execution_context": self.execution_context,
+            "created_at": self.created_at.isoformat(),
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AgentExecution":
+        """Rebuild an execution from its persisted representation."""
+        return cls(
+            id=data["id"],
+            agent_id=data["agent_id"],
+            task=data.get("task", ""),
+            status=AgentExecutionStatus(data.get("status", "running")),
+            result=data.get("result"),
+            error=data.get("error"),
+            context=data.get("context", {}),
+            skill_id=data.get("skill_id"),
+            execution_context=dict(data.get("execution_context") or {}),
+            created_at=datetime.fromisoformat(data["created_at"])
+            if data.get("created_at")
+            else datetime.utcnow(),
+            completed_at=datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None,
+        )

@@ -1,0 +1,20 @@
+# ETHAN Runtime Configuration
+# Path: /etc/ethan/runtime.yaml
+
+socket_path: /var/run/ethan/runtime.sock
+socket_permissions: 0660
+socket_group: ethan
+
+compose_dir: /usr/local/share/ethan/compose
+project_name: ethan
+
+log_level: info
+
+services:
+  - nats
+  - redis
+  - postgres
+  - ethan-core
+  - ethan-plugins
+
+grpc_address: localhost:50051

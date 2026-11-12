@@ -1,0 +1,17 @@
+{
+  "id": "meeting-notes",
+  "name": "Compte-rendu de réunion",
+  "version": "1.0.0",
+  "description": "Transforme des notes brutes de réunion en CR structuré avec actions.",
+  "requires": {},
+  "installs": {
+    "prompt": [
+      {
+        "name": "CR de réunion",
+        "description": "Structure un compte-rendu à partir de notes brutes.",
+        "text": "À partir de mes notes brutes, produis un compte-rendu : participants, décisions, actions (responsable + échéance), questions ouvertes. Sois factuel, n'invente rien.",
+        "tags": ["productivite"]
+      }
+    ]
+  }
+}

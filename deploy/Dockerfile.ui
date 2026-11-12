@@ -1,0 +1,35 @@
+# Stage 1: Build Next.js app
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# ETHAN_API_URL is used at BUILD TIME by next.config.js rewrites.
+# Default to localhost for local builds; override via --build-arg in Docker Compose.
+ARG ETHAN_API_URL=http://localhost:8000
+# NEXT_PUBLIC_WS_URL est intentionally supplied by the build orchestration for
+# any target. An empty value must fail fast rather than silently backing the
+# WebSocket onto localhost. The dev override may set an explicit wss/ws URL.
+ARG NEXT_PUBLIC_WS_URL=
+ENV ETHAN_API_URL=${ETHAN_API_URL}
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+
+# Refuse silencieusement un build qui se ferait sans configuration WS explicite.
+RUN test -n "$NEXT_PUBLIC_WS_URL" || { echo "NEXT_PUBLIC_WS_URL must be set at build time"; exit 1; }
+
+COPY interfaces/webui/package.json interfaces/webui/package-lock.json* /app/
+RUN npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps
+COPY interfaces/webui/ /app/
+RUN npm run build
+
+# Stage 2: Production runtime
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+EXPOSE 3001
+# ── Exécution non-root avec la sortie standalone produite par Next. ────────
+USER node
+CMD ["node", "server.js"]

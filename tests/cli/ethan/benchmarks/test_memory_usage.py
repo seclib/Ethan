@@ -1,0 +1,100 @@
+"""Memory usage benchmarks."""
+
+import sys
+import time
+import tracemalloc
+
+import pytest
+
+from cli.registry import COMMAND_HANDLERS, discover_commands
+
+
+@pytest.fixture
+def runner():
+    from tests.cli.ethan.benchmarks.benchmark_runner import BenchmarkRunner
+
+    return BenchmarkRunner(warmup_iterations=2, benchmark_iterations=30)
+
+
+@pytest.fixture(autouse=True)
+def setup_commands():
+    """Ensure commands are discovered."""
+    discover_commands()
+
+
+def _get_memory_mb():
+    """Get current memory usage in MB."""
+    import gc
+
+    gc.collect()
+    import psutil
+
+    process = psutil.Process()
+    return process.memory_info().rss / 1024 / 1024
+
+
+class TestMemoryUsage:
+    """Measure memory consumption."""
+
+    def test_base_memory_footprint(self, runner):
+        """Base CLI memory should be < 30MB."""
+
+        def import_and_discover():
+            # Clear modules, then RESTORE them.
+            #
+            # Sans restauration, les modules `cli.*` sont recréés avec les
+            # chemins RÉELS : les fixtures d'isolation du conftest ne
+            # s'appliquent plus et les monkeypatch des autres tests (frontière
+            # HTTP du TUI) sont perdus → pollution croisée.
+            saved = {k: v for k, v in sys.modules.items() if k.startswith("cli.")}
+            try:
+                for m in list(saved):
+                    del sys.modules[m]
+                from cli.registry import discover_commands
+
+                discover_commands()
+            finally:
+                for m in [k for k in list(sys.modules) if k.startswith("cli.")]:
+                    del sys.modules[m]
+                sys.modules.update(saved)
+
+        # Measure multiple times to get stable reading
+        times = []
+        for _ in range(5):
+            tracemalloc.start()
+            time.perf_counter()
+            import_and_discover()
+            time.perf_counter()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            times.append(peak / 1024 / 1024)
+
+        peak_mb = max(times)
+        assert peak_mb < 30, f"Base memory too high: {peak_mb:.1f}MB (target: <30MB)"
+
+    def test_command_memory_delta(self, runner):
+        """Single command execution should not leak > 5MB."""
+        cmd = COMMAND_HANDLERS.get("help")
+        if not cmd:
+            pytest.skip("no commands registered")
+
+        # Le seuil doit être un DELTA, pas un total : l'arbre `cli.*` complet
+        # fait 81 modules (constante de l'architecture), pas une fuite. On
+        # mesure donc la croissance induite par l'exécution d'une commande.
+        baseline_mods = len([k for k in sys.modules if k.startswith("cli.")])
+
+        def run_cmd():
+            try:
+                cmd([])
+            finally:
+                # Check module count didn't explode
+                new_mods = [k for k in sys.modules.keys() if k.startswith("cli.")]
+                delta = len(new_mods) - baseline_mods
+                if delta > 10:
+                    pytest.fail(
+                        f"Module leak: {delta} cli modules loaded by the command "
+                        f"(baseline {baseline_mods}, après {len(new_mods)})"
+                    )
+
+        summary = runner.measure("command_memory", run_cmd)
+        assert summary.max_memory_mb < 10, f"Command memory too high: {summary.max_memory_mb:.1f}MB"

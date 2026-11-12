@@ -1,0 +1,16 @@
+[package]
+name = "ethan-health"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ethan-health"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde", "clock"] }

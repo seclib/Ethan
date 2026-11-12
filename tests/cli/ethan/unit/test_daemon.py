@@ -1,0 +1,226 @@
+"""Tests for cli/core/daemon.py — daemon lifecycle."""
+
+from __future__ import annotations
+
+import os
+from unittest import mock
+
+import pytest
+
+from tests.cli.ethan.helpers import patch_fork, write_cache_file, write_pid_file
+
+
+class TestPidManagement:
+    """PID file management tests."""
+
+    def test_pid_write(self) -> None:
+        from cli.core.daemon import PID_FILE, _pid_write
+
+        # `_pid_write` attend désormais le PID explicitement (avant :
+        # `_pid_write()` utilisait `os.getpid()` implicitement).
+        _pid_write(os.getpid())
+        with open(PID_FILE) as f:
+            assert f.read().strip().isdigit()
+
+    def test_pid_read_nonexistent(self) -> None:
+        from cli.core.daemon import _pid_read
+
+        assert _pid_read() is None
+
+    def test_pid_read_existing(self) -> None:
+        from cli.core.daemon import _pid_read
+
+        write_pid_file("tests/cli/ethan/unit/test.daemon.pid", 12345)
+        with mock.patch("cli.core.daemon.PID_FILE", "tests/cli/ethan/unit/test.daemon.pid"):
+            pid = _pid_read()
+            assert pid == 12345
+
+    def test_pid_remove_nonexistent(self) -> None:
+        from cli.core.daemon import _pid_remove
+
+        _pid_remove()  # should not raise
+
+    def test_pid_remove_existing(self) -> None:
+        from cli.core.daemon import PID_FILE, _pid_remove, _pid_write
+
+        _pid_write(os.getpid())
+        assert os.path.exists(PID_FILE)
+        _pid_remove()
+        assert not os.path.exists(PID_FILE)
+
+
+class TestIsRunning:
+    """_is_running() tests."""
+
+    def test_is_running_none(self) -> None:
+        from cli.core.daemon import _is_running
+
+        assert _is_running(None) is False
+
+    def test_is_running_alive(self) -> None:
+        from cli.core.daemon import _is_running
+
+        with mock.patch("cli.core.daemon.os.kill") as mk:
+            assert _is_running(100) is True
+            mk.assert_called_once_with(100, 0)
+
+    def test_is_running_dead(self) -> None:
+        from cli.core.daemon import _is_running
+
+        with mock.patch("cli.core.daemon.os.kill", side_effect=ProcessLookupError):
+            assert _is_running(999) is False
+
+    def test_is_running_permission_error(self) -> None:
+        from cli.core.daemon import _is_running
+
+        with mock.patch("cli.core.daemon.os.kill", side_effect=PermissionError):
+            assert _is_running(999) is False
+
+
+class TestCacheManagement:
+    """Cache file management tests."""
+
+    def test_cache_write_and_read(self) -> None:
+        # L'écriture du cache daemon a été déplacée dans `core/daemon_loop.py`
+        # (le module ne fait plus qu'orchestrer) ; la lecture reste dans
+        # `core/daemon.py`.
+        from cli.core.daemon import _cache_read
+        from cli.core.daemon_loop import _cache_write
+
+        state = {"mode": "running", "active_goal": "test"}
+        _cache_write(state)
+        cached = _cache_read()
+        assert cached is not None
+        assert cached["state"]["mode"] == "running"
+
+    def test_cache_read_nonexistent(self) -> None:
+        from cli.core.daemon import _cache_read
+
+        assert _cache_read() is None
+
+    def test_cache_read_corrupt(self) -> None:
+        from cli.core.daemon import CACHE_FILE, _cache_read
+
+        with open(CACHE_FILE, "w") as f:
+            f.write("not valid json")
+        assert _cache_read() is None
+
+
+class TestCmdStart:
+    """cmd_start() tests.
+
+    Le daemon est désormais lancé comme **sous-processus**
+    (`subprocess.Popen` sur `core/daemon_loop.py`) et non plus via
+    `os.fork` : les tests patchent donc `Popen`, plus `_daemon_loop`
+    (qui n'existe plus dans ce module).
+    """
+
+    @staticmethod
+    def _patch_popen(pid: int = 4242) -> mock.MagicMock:
+        """Patche `subprocess.Popen` pour ne pas lancer de vrai daemon."""
+        proc = mock.MagicMock()
+        proc.pid = pid
+        return mock.patch("cli.core.daemon.subprocess.Popen", return_value=proc)
+
+    def test_start_daemon(self) -> None:
+        from cli.core.daemon import cmd_start
+
+        with self._patch_popen():
+            with mock.patch("cli.core.daemon._is_running", side_effect=[False, True]):
+                with mock.patch("cli.core.daemon.time.sleep"):
+                    cmd_start([])
+
+    def test_start_already_running(self) -> None:
+        from cli.core.daemon import cmd_start
+
+        with mock.patch("cli.core.daemon._is_running", return_value=True):
+            with pytest.raises(SystemExit):
+                cmd_start([])
+
+    def test_start_failed(self) -> None:
+        """Un daemon qui ne démarre pas doit lever SystemExit (exit 1)."""
+        from cli.core.daemon import cmd_start
+
+        with self._patch_popen():
+            # Premier appel : déjà en cours ? non. Second : le process est-il
+            # vivant ? non → échec.
+            with mock.patch("cli.core.daemon._is_running", side_effect=[False, False]):
+                with mock.patch("cli.core.daemon.time.sleep"):
+                    with pytest.raises(SystemExit):
+                        cmd_start([])
+
+    def test_start_with_interval(self) -> None:
+        from cli.core.daemon import cmd_start
+
+        with self._patch_popen():
+            with mock.patch("cli.core.daemon._is_running", side_effect=[False, True]):
+                with mock.patch("cli.core.daemon.time.sleep"):
+                    cmd_start(["--interval", "10"])
+
+
+class TestCmdStop:
+    """cmd_stop() tests."""
+
+    def test_stop_not_running(self) -> None:
+        from cli.core.daemon import cmd_stop
+
+        with mock.patch("cli.core.daemon._is_running", return_value=False):
+            cmd_stop([])
+
+    def test_stop_running(self) -> None:
+        from cli.core.daemon import cmd_stop
+
+        with mock.patch("cli.core.daemon._is_running", return_value=True):
+            with mock.patch("cli.core.daemon._pid_read", return_value=100):
+                with mock.patch("cli.core.daemon._pid_remove"):
+                    with mock.patch("cli.core.daemon.os.kill"):
+                        cmd_stop([])
+
+    def test_stop_already_dead(self) -> None:
+        from cli.core.daemon import cmd_stop
+
+        with mock.patch("cli.core.daemon._is_running", return_value=False):
+            with mock.patch("cli.core.daemon._pid_read", return_value=100):
+                with mock.patch("cli.core.daemon._pid_remove"):
+                    cmd_stop([])
+
+
+class TestCmdStatus:
+    """cmd_status() tests."""
+
+    def test_status_running(self, capsys) -> None:
+        from cli.core.daemon import cmd_status
+
+        with mock.patch("cli.core.daemon._is_running", return_value=True):
+            with mock.patch("cli.core.daemon._pid_read", return_value=100):
+                cmd_status([])
+                captured = capsys.readouterr()
+                assert "running" in captured.out
+
+    def test_status_stopped(self, capsys) -> None:
+        from cli.core.daemon import cmd_status
+
+        with mock.patch("cli.core.daemon._is_running", return_value=False):
+            cmd_status([])
+            captured = capsys.readouterr()
+            assert "stopped" in captured.out
+
+    def test_status_with_cache(self, capsys) -> None:
+        from cli.core.daemon import CACHE_FILE, cmd_status
+
+        write_cache_file(CACHE_FILE, {"mode": "running", "active_goal": "test"})
+        with mock.patch("cli.core.daemon._is_running", return_value=True):
+            with mock.patch("cli.core.daemon._pid_read", return_value=100):
+                cmd_status([])
+                captured = capsys.readouterr()
+                assert "running" in captured.out
+                assert "test" in captured.out
+
+    def test_status_without_cache(self, capsys) -> None:
+        from cli.core.daemon import cmd_status
+
+        with mock.patch("cli.core.daemon._is_running", return_value=False):
+            cmd_status([])
+            captured = capsys.readouterr()
+            assert "stopped" in captured.out
+            assert "cache" in captured.out.lower()

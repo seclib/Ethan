@@ -1,0 +1,22 @@
+# SNAPSHOT
+# Command: status 
+# Exit code: 0
+# Captured: <TIMESTAMP>
+# Meta: {}
+# ===
+
+ETHAN Status  ◇ STOPPED
+
+  Runtime
+    State:   stopped
+    CPU:     N/A
+    Memory:  N/A
+
+  Services
+    No ETHAN containers found
+
+
+  Core API  ○ unreachable
+    ↳ http://localhost:8000
+    ↳ runtime: Core API unreachable: ETHAN API unavailable: [Errno 111] Connection refused
+    ↳ start the stack: ./ethan up

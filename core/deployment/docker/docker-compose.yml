@@ -1,0 +1,284 @@
+# =============================================================================
+# docker-compose.yml — Ethan Production
+# =============================================================================
+#
+# Usage:
+#   cp .env.example .env && docker compose up -d
+#
+# Services:
+#   - backend    : Ethan API server (FastAPI)
+#   - frontend   : Nginx serving static files + reverse proxy
+#   - ollama     : Local LLM inference (optional, enable via COMPOSE_PROFILES)
+#   - postgres   : Database (optional)
+#   - chromadb   : Vector store (optional)
+#   - redis      : Cache & queue (optional)
+#
+# Profiles:
+#   All optional services are behind profiles. Enable with:
+#   COMPOSE_PROFILES=ollama,postgres,chromadb,redis docker compose up -d
+# =============================================================================
+
+networks:
+  jarvis-network:
+    name: jarvis-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  jarvis-config:
+    name: jarvis-config
+  jarvis-logs:
+    name: jarvis-logs
+  jarvis-workspace:
+    name: jarvis-workspace
+  jarvis-memory:
+    name: jarvis-memory
+  jarvis-uploads:
+    name: jarvis-uploads
+  jarvis-cache:
+    name: jarvis-cache
+  jarvis-models:
+    name: jarvis-models
+  ollama-models:
+    name: ollama-models
+  postgres-data:
+    name: postgres-data
+  chromadb-data:
+    name: chromadb-data
+  redis-data:
+    name: redis-data
+
+services:
+  # ===========================================================================
+  # Backend — Ethan API Server
+  # ===========================================================================
+  backend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.backend
+    image: openjarvis/backend:latest
+    container_name: openjarvis-backend
+    networks:
+      - jarvis-network
+    ports:
+      - "${OPENJARVIS_PORT:-8000}:8000"
+    environment:
+      # Core
+      - OPENJARVIS_API_KEY=${OPENJARVIS_API_KEY:?OPENJARVIS_API_KEY is required}
+      - OPENJARVIS_HOME=/etc/openjarvis
+      - OPENJARVIS_CONFIG=/etc/openjarvis/config.toml
+      - OPENJARVIS_LOG_LEVEL=${OPENJARVIS_LOG_LEVEL:-info}
+      - OPENJARVIS_DEV_MODE=${OPENJARVIS_DEV_MODE:-false}
+
+      # Engine
+      - OPENJARVIS_ENGINE_DEFAULT=${OPENJARVIS_ENGINE_DEFAULT:-ollama}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+
+      # Database
+      - OPENJARVIS_DATABASE_URL=${OPENJARVIS_DATABASE_URL:-sqlite:////var/lib/openjarvis/memory/openjarvis.db}
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-openjarvis}
+      - POSTGRES_USER=${POSTGRES_USER:-openjarvis}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+
+      # Vector store
+      - CHROMA_HOST=${CHROMA_HOST:-chromadb}
+      - CHROMA_PORT=${CHROMA_PORT:-8000}
+
+      # Redis
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+
+      # Telemetry
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
+      - POSTHOG_HOST=${POSTHOG_HOST:-}
+
+      # Paths
+      - OPENJARVIS_WORKSPACE=/workspace
+      - OPENJARVIS_UPLOADS=/var/lib/openjarvis/uploads
+      - OPENJARVIS_CACHE=/var/lib/openjarvis/cache
+      - OPENJARVIS_MODELS=/var/lib/openjarvis/models
+    volumes:
+      - jarvis-config:/etc/openjarvis:ro
+      - jarvis-logs:/var/log/openjarvis
+      - jarvis-workspace:/workspace
+      - jarvis-memory:/var/lib/openjarvis/memory
+      - jarvis-uploads:/var/lib/openjarvis/uploads
+      - jarvis-cache:/var/lib/openjarvis/cache
+      - jarvis-models:/var/lib/openjarvis/models
+    depends_on:
+      ollama:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Frontend — Nginx + Static Files
+  # ===========================================================================
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.frontend
+    image: openjarvis/frontend:latest
+    container_name: openjarvis-frontend
+    networks:
+      - jarvis-network
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Ollama — Local LLM Inference (optional)
+  # ===========================================================================
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    container_name: openjarvis-ollama
+    networks:
+      - jarvis-network
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # PostgreSQL — Database (optional)
+  # ===========================================================================
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:16-alpine
+    container_name: openjarvis-postgres
+    networks:
+      - jarvis-network
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-openjarvis}
+      - POSTGRES_USER=${POSTGRES_USER:-openjarvis}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openjarvis} -d ${POSTGRES_DB:-openjarvis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # ChromaDB — Vector Store (optional)
+  # ===========================================================================
+  chromadb:
+    profiles: ["chromadb"]
+    image: chromadb/chroma:latest
+    container_name: openjarvis-chromadb
+    networks:
+      - jarvis-network
+    ports:
+      - "${CHROMA_PORT:-8001}:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=${CHROMA_TELEMETRY:-FALSE}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Redis — Cache & Queue (optional)
+  # ===========================================================================
+  redis:
+    profiles: ["redis"]
+    image: redis:7-alpine
+    container_name: openjarvis-redis
+    networks:
+      - jarvis-network
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

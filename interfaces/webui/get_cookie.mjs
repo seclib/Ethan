@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const page = await ctx.newPage();
+await page.goto('http://localhost:3001/login', { waitUntil: 'networkidle', timeout: 30000 });
+await page.fill('#operator-id', 'diag_tok2', { timeout: 15000 });
+await page.fill('#password', 'DiagPass-123', { timeout: 15000 });
+await page.click('button[type=submit]');
+await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 }).catch(() => {});
+const cookies = await ctx.cookies();
+const tok = cookies.find(c => c.name === 'ethan_token');
+console.log('COOKIE=' + tok.value);
+await browser.close();

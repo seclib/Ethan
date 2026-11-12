@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package ethan.core;
+
+option go_package = "github.com/seclib/ethan/proto/ethan/core";
+
+// ============================================================================
+// Orchestrator Service
+// ============================================================================
+// Pont gRPC entre le Kernel Go et l'Orchestrator Python.
+// Toute communication entre le Kernel et les modules Python passe par ici.
+
+service OrchestratorService {
+    // ProcessEvent : Point d'entrée unique pour tous les événements
+    rpc ProcessEvent(Event) returns (Response);
+    
+    // GetState : Lecture de l'état depuis Redis
+    rpc GetState(StateRequest) returns (StateResponse);
+    
+    // SetState : Écriture de l'état dans Redis
+    rpc SetState(StateRequest) returns (StateResponse);
+    
+    // ExecuteTask : Délégation d'une tâche à un module
+    rpc ExecuteTask(Task) returns (TaskResult);
+    
+    // HealthCheck : Vérification de l'état du système
+    rpc HealthCheck(HealthRequest) returns (HealthResponse);
+    
+    // StreamEvents : Streaming bidirectionnel d'événements
+    rpc StreamEvents(stream Event) returns (stream Event);
+}
+
+// ============================================================================
+// Messages de base
+// ============================================================================
+
+message Event {
+    string id = 1;                          // UUID unique
+    string type = 2;                        // "ethan.module.<name>.<action>"
+    string source = 3;                      // "cli", "kernel", "executive", ...
+    int64 timestamp_ns = 4;                 // Unix timestamp en nanosecondes
+    bytes payload = 5;                      // Payload sérialisé (JSON/Protobuf)
+    map<string, string> metadata = 6;       // Métadonnées (correlation_id, etc.)
+    string version = 7;                     // Version du schema d'événement
+}
+
+message Response {
+    string request_id = 1;                  // Correlation ID
+    Status status = 2;                      // success | error | timeout
+    bytes result = 3;                       // Résultat sérialisé
+    string error = 4;                       // Message d'erreur (si status == error)
+    int64 duration_ms = 5;                  // Temps de traitement
+}
+
+enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_SUCCESS = 1;
+    STATUS_ERROR = 2;
+    STATUS_TIMEOUT = 3;
+    STATUS_REJECTED = 4;
+}
+
+// ============================================================================
+// State
+// ============================================================================
+
+message StateRequest {
+    string module = 1;                      // Namespace du module
+    string key = 2;                         // Clé Redis
+    bytes value = 3;                        // Valeur (pour SetState)
+    int64 ttl_seconds = 4;                  // TTL optionnel (0 = pas de TTL)
+}
+
+message StateResponse {
+    bytes value = 1;                        // Valeur sérialisée
+    int64 ttl_remaining = 2;                // TTL restant en secondes
+    bool exists = 3;                        // True si la clé existe
+}
+
+// ============================================================================
+// Task
+// ============================================================================
+
+message Task {
+    string task_id = 1;                     // UUID de la tâche
+    string capability = 2;                  // "memory.store", "llm.generate"
+    map<string, bytes> params = 3;          // Paramètres de la tâche
+    int32 priority = 4;                     // 0 (bas) à 100 (haut)
+    int64 timeout_ms = 5;                   // Timeout en ms (0 = pas de timeout)
+    int32 max_retries = 6;                  // Nombre max de tentatives
+    repeated string depends_on = 7;         // IDs des tâches dépendantes
+}
+
+message TaskResult {
+    string task_id = 1;                     // UUID de la tâche
+    Status status = 2;                      // success | error | timeout
+    bytes output = 3;                       // Résultat sérialisé
+    string error = 4;                       // Message d'erreur
+    int64 duration_ms = 5;                  // Temps d'exécution
+    int32 retry_count = 6;                  // Nombre de tentatives effectuées
+    map<string, double> metrics = 7;        // Métriques (cpu, memory, etc.)
+}
+
+// ============================================================================
+// Health
+// ============================================================================
+
+message HealthRequest {
+    bool verbose = 1;                       // Si true, retourne les détails
+}
+
+message HealthResponse {
+    string status = 1;                      // "healthy" | "degraded" | "unhealthy"
+    int64 uptime_seconds = 2;               // Uptime du kernel
+    map<string, string> modules = 3;        // État de chaque module
+    map<string, string> connections = 4;    // État des connexions (NATS, Redis, etc.)
+    int64 event_count = 5;                  // Nombre d'événements traités
+    double avg_latency_ms = 6;              // Latence moyenne
+}
+
+// ============================================================================
+// Module registration
+// ============================================================================
+
+message ModuleRegistration {
+    string name = 1;                        // Nom du module
+    string version = 2;                     // Version semver
+    repeated Capability capabilities = 3;   // Capacités déclarées
+    repeated Dependency dependencies = 4;   // Dépendances
+    int64 healthcheck_interval = 5;         // Intervalle de healthcheck en secondes
+}
+
+message Capability {
+    string name = 1;                        // "memory.store"
+    string version = 2;                     // "1.0.0"
+    string description = 3;                 // Description lisible
+    repeated string inputs = 4;             // Event types consommés
+    repeated string outputs = 5;            // Event types produits
+    repeated string state_reads = 6;        // Clés lues
+    repeated string state_writes = 7;       // Clés écrites
+    bool shared = 8;                        // True si partagé entre modules
+}
+
+message Dependency {
+    string name = 1;                        // "redis", "nats", "postgres"
+    string version = 2;                     // ">=7.0"
+    bool required = 3;                      // True = bloquant si absent
+    string fallback = 4;                    // Module de fallback optionnel
+}

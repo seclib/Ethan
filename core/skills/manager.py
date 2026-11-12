@@ -1,0 +1,142 @@
+"""Skill Manager — Orchestrateur principal des skills."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.skills.executor import SkillExecutor
+from core.skills.registry import SkillRegistry
+from core.skills.types import Skill, SkillContext, SkillResult, SkillStatus
+from core.tools.manager import ToolManager
+
+logger = logging.getLogger(__name__)
+
+
+class SkillManager:
+    """Orchestrateur principal des skills.
+
+    Responsabilités :
+    - Gestion du cycle de vie des skills
+    - Coordination avec le Tool Manager
+    - Exécution et monitoring
+    """
+
+    def __init__(self, tool_manager: ToolManager):
+        self._registry = SkillRegistry()
+        self._tool_manager = tool_manager
+        self._executor = SkillExecutor(tool_manager)
+        self._executions: dict[str, SkillResult] = {}
+
+    def register_skill(self, skill: Skill) -> None:
+        """Enregistre une skill.
+
+        Args:
+            skill: Skill à enregistrer
+        """
+        self._registry.register(skill)
+
+    def unregister_skill(self, skill_id: str) -> None:
+        """Désenregistre une skill.
+
+        Args:
+            skill_id: ID de la skill
+        """
+        self._registry.unregister(skill_id)
+
+    def get_skill(self, skill_id: str) -> Skill | None:
+        """Récupère une skill.
+
+        Args:
+            skill_id: ID de la skill
+
+        Returns:
+            Skill ou None
+        """
+        return self._registry.get(skill_id)
+
+    def list_skills(self, **kwargs: Any) -> list[Skill]:
+        """Liste les skills.
+
+        Returns:
+            Liste de skills
+        """
+        return self._registry.list_skills(**kwargs)
+
+    def search_skills(self, query: str) -> list[Skill]:
+        """Recherche des skills.
+
+        Args:
+            query: Requête
+
+        Returns:
+            Liste de skills
+        """
+        return self._registry.search(query)
+
+    async def execute(self, context: SkillContext) -> SkillResult:
+        """Exécute une skill.
+
+        Args:
+            context: Contexte d'exécution
+
+        Returns:
+            Résultat
+        """
+        skill = self._registry.get(context.skill_id)
+        if not skill:
+            return SkillResult(
+                skill_id=context.skill_id,
+                status=SkillStatus.FAILED,
+                error=f"Skill not found: {context.skill_id}",
+            )
+
+        # Activation arbitrée par le Core : une skill désactivée n'est jamais
+        # exécutée, quel que soit le chemin d'appel (API, autonomie, planner).
+        # L'interface peut aussi refuser en amont, mais la décision finale
+        # appartient au Core (AGENTS.md : pas de fausse sécurité côté UI).
+        if not getattr(skill, "is_enabled", True):
+            logger.warning("Skill %s is disabled — execution refused by Core", skill.id)
+            return SkillResult(
+                skill_id=context.skill_id,
+                status=SkillStatus.FAILED,
+                error="Skill is disabled — enable it in Core before execution",
+            )
+
+        # Valider les dépendances
+        if not self._registry.validate_dependencies(context.skill_id):
+            return SkillResult(
+                skill_id=context.skill_id,
+                status=SkillStatus.FAILED,
+                error="Dependencies not met",
+            )
+
+        logger.info(f"Executing skill: {skill.name} ({skill.id})")
+
+        # Exécution réelle via SkillExecutor (pattern Core, jamais un stub).
+        result = await self._executor.execute(skill, context)
+
+        self._executions[skill.id] = result
+        return result
+
+    def get_execution_result(self, skill_id: str) -> SkillResult | None:
+        """Récupère le résultat d'une exécution.
+
+        Args:
+            skill_id: ID de la skill
+
+        Returns:
+            Résultat ou None
+        """
+        return self._executions.get(skill_id)
+
+    def get_stats(self) -> dict[str, Any]:
+        """Récupère les statistiques.
+
+        Returns:
+            Statistiques
+        """
+        return {
+            "registry": self._registry.get_stats(),
+            "executions": len(self._executions),
+        }

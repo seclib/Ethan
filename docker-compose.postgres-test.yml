@@ -1,0 +1,35 @@
+# Optional PostgreSQL instance reserved exclusively for Knowledge/RAG integration tests.
+# Do not combine with the application database. Keep all values test-only.
+services:
+  ethan-postgres-test:
+    image: postgres:16-alpine
+    container_name: ethan-postgres-test
+    environment:
+      POSTGRES_DB: ethan_knowledge_test
+      POSTGRES_USER: ethan_test
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:?POSTGRES_TEST_PASSWORD is required}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - ethan-postgres-test-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ethan_test -d ethan_knowledge_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+
+networks:
+  postgres-test:
+    name: ethan-postgres-test-network
+
+volumes:
+  ethan-postgres-test-db:
+    name: ethan-postgres-test-db

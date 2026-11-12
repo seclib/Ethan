@@ -1,0 +1,116 @@
+# ETHAN — Public/Private Inventory
+
+| Relative path | Size | MIME type | In HEAD | In tracked history | Classification | Reason |
+|---|---:|---|---|---|---|---|
+| `Odsidian/01-Archives/cline/2026-06-12/1781261826788.md` | 133205 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-12/1781262561008.md` | 663398 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-12/1781265677020.md` | 273345 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-13/1781324525374.md` | 303177 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-13/1781326479958.md` | 1150 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-14/1781438417220.md` | 234972 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-14/1781440243749.md` | 137028 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-14/1781445007397.md` | 381977 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-15/1781506386208.md` | 2210 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-16/1781448124733.md` | 1165867 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-16/1781584795579.md` | 2468160 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-17/1781619688061.md` | 1065859 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-17/1781684089320.md` | 1416435 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781696790844.md` | 804222 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781759466869.md` | 624655 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781763556859.md` | 72830 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781763556860.md` | 657171 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781773490515.md` | 6315 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-18/1781773629795.md` | 462340 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-19/1781790224363.md` | 1771065 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-19/1781845301775.md` | 166215 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-19/1781847538003.md` | 235201 | application/javascript | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-19/1781852108784.md` | 113334 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-19/1781855138200.md` | 2558513 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-20/1781926691577.md` | 6851 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-20/1781927049974.md` | 24086 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-21/1781928390660.md` | 834881 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-21/1782049607778.md` | 305072 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-22/1782110267799.md` | 669276 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-23/1782122303274.md` | 2570556 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-24/1782236030293.md` | 78310 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-24/1782277746766.md` | 603597 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-24/1782282405489.md` | 23106 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-24/1782291853665.md` | 326687 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-24/1782299082878.md` | 75205 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-06-26/1782299840579.md` | 3997471 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-08/1782460736319.md` | 3002760 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-08/1783480315445.md` | 412597 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-09/1783498502281.md` | 2958046 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-12/1783841799690.md` | 83964 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-18/1783595051689.md` | 977389 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-19/1784446073123.md` | 1281721 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-19/1784465617197.md` | 175504 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-20/1784468478017.md` | 908834 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-21/1784553716546.md` | 1133072 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-22/1784629956873.md` | 690646 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-22/1784702896150.md` | 527926 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-22/1784714379731.md` | 251634 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-23/1784720147277.md` | 548024 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-23/1784780539134.md` | 1311253 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-30/1784803567417.md` | 1692916 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-31/1785382419039.md` | 1148124 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-31/1785475619469.md` | 443750 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-31/1785478061904.md` | 148304 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-07-31/1785497242482.md` | 389820 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-02/1785510775651.md` | 1119005 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-02/1785663110020.md` | 925836 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-03/1785676074904.md` | 3399583 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-03/1785748404435.md` | 698396 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-04/1785763683280.md` | 403257 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-11/1786194792842.md` | 1582209 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-11/1786441307139.md` | 407136 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-12/1785821621715.md` | 948337 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-12/1786516782485.md` | 100895 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786520589377.md` | 907687 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786588790163-part-01.md` | 2089349 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786588790163-part-02.md` | 2091740 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786588790163-part-03.md` | 2073236 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786588790163-part-04.md` | 2092997 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-13/1786588790163-part-05.md` | 404086 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-14/1786592167914.md` | 2168686 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-14/1786689632319.md` | 236354 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-14/1786691977752.md` | 281622 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-14/1786694120897.md` | 1248501 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-15/1786715813776.md` | 61804 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-15/1786767655858.md` | 20531 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-15/1786771650555.md` | 47598 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-17/1786773027890.md` | 26486 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-17/1786962026659.md` | 26325 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1786966184691.md` | 851661 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1787028404021.md` | 66135 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1787031131780.md` | 984319 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1787040529358.md` | 372429 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1787043334788.md` | 521868 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-18/1787050182381.md` | 181334 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-19/1787051436064.md` | 1379850 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/cline/2026-08-23/1787143354523.md` | 2342464 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-01.md` | 2098136 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-02.md` | 2090298 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-03.md` | 2098186 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/codex/2026-10-23/01a16865-1f63-7e03-a356-f32e825a29c2-part-04.md` | 1527099 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/codex/2026-10-23/01a16882-fc47-73c2-85e1-a6093f0dbfd9.md` | 3952850 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/copilot/2026-04-24/b19268d9-cfc6-4cf3-b3cf-142ff2d72088.md` | 153289 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/01-Archives/copilot/2026-05-25/36e60f5c-6fff-4b49-91db-77a2eb8078d6.md` | 1777 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/06-Syntheses/by-agent/cline-summary.md` | 6754 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/06-Syntheses/by-agent/codex-summary.md` | 446 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/06-Syntheses/by-agent/copilot-summary.md` | 448 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/COVERAGE-REPORT.md` | 1950 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/PARTS-INDEX.md` | 1412 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/backups/01a16865-1f63-7e03-a356-f32e825a29c2.md.bak` | 7809059 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/backups/1786588790163.md.bak` | 8748269 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/conventions.md` | 1572 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/99-Metadonnees/sync-state.json` | 23649 | application/json | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/AUDIT-ARCHIVES.md` | 5571 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/INDEX.md` | 8931 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+| `Odsidian/README.md` | 1943 | text/plain | yes | yes (same base tree) | PRIVATE | Obsidian agent archive / internal knowledge; should not be published in public repository |
+
+## Summary
+- Odsidian tracked files: 106
+- Total bytes Odsidian: 101913381
+- Files containing signed URL markers: 27 (identified during prior audit, content not reproduced here)
+- Classification for non-Odsidian entries: review separately as stated in the public/private separation report

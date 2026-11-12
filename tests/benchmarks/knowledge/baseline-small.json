@@ -1,0 +1,30 @@
+{
+  "postgres": "not-validated",
+  "scenarios": [
+    {
+      "dataset": {
+        "chunks": 0,
+        "documents": 0,
+        "embedding_calls": 0
+      },
+      "duration_seconds": {
+        "cold": 0.0030333109989442164,
+        "maximum": 0.0024166059993149247,
+        "median": 0.00239363249966118,
+        "minimum": 0.0023706590000074357,
+        "p95": 0.0024166059993149247,
+        "warm_samples": [
+          0.0023706590000074357,
+          0.0024166059993149247
+        ]
+      },
+      "iterations": {
+        "measured": 2,
+        "warmup": 0
+      },
+      "scenario": "collections"
+    }
+  ],
+  "scope": "knowledge-rag-in-memory",
+  "version": 1
+}

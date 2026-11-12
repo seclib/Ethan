@@ -1,0 +1,1 @@
+"""Autonomous Goal Generation — Self-directed goal creation."""

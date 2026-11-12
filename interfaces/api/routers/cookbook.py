@@ -1,0 +1,79 @@
+"""Cookbook API — thin bindings over core.cookbook.manager. RFC-0003."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from core.auth import Permission
+from fastapi import APIRouter, Depends, HTTPException
+from interfaces.api.auth import require_permission
+
+router = APIRouter(prefix="/v1/cookbook", tags=["cookbook"])
+
+# Installer une recette fait créer des **skills, prompts et automatisations**
+# par le Core (core/cookbook/manager.py).  Sans gate, c'était un contournement
+# direct des permissions de ces ressources : « install » franchissait les gates
+# PLUGINS (skills) et EXECUTE (automatisations).  La route exige donc PLUGINS.
+
+_manager: Any | None = None
+
+
+def set_cookbook_manager(manager: Any) -> None:
+    global _manager
+    _manager = manager
+
+
+def _require() -> Any:
+    if _manager is None:
+        raise HTTPException(503, "Cookbook manager not initialized")
+    return _manager
+
+
+@router.get("/recipes")
+async def list_recipes():
+    manager = _require()
+    recipes = manager.list_recipes()
+    installed = {r.get("recipe_id") for r in await manager.list_installed()}
+    for recipe in recipes:
+        recipe["installed"] = recipe["id"] in installed
+    return recipes
+
+
+@router.get("/recipes/{recipe_id}")
+async def get_recipe(recipe_id: str):
+    manager = _require()
+    try:
+        detail = manager.get_recipe(recipe_id)
+    except ValueError as exc:
+        status = 404 if "not found" in str(exc) else 422
+        raise HTTPException(status, str(exc)) from exc
+    installed = {r.get("recipe_id") for r in await manager.list_installed()}
+    detail["installed"] = recipe_id in installed
+    return detail
+
+
+@router.get("/installed")
+async def list_installed():
+    return await _require().list_installed()
+
+
+@router.post(
+    "/install/{recipe_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def install_recipe(recipe_id: str):
+    try:
+        return await _require().install(recipe_id)
+    except ValueError as exc:
+        raise HTTPException(409 if "already" in str(exc) else 422, str(exc)) from exc
+
+
+@router.delete(
+    "/install/{recipe_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def uninstall_recipe(recipe_id: str):
+    removed = await _require().uninstall(recipe_id)
+    if not removed:
+        raise HTTPException(404, f"Recipe '{recipe_id}' is not installed")
+    return {"status": "uninstalled", "recipe_id": recipe_id}

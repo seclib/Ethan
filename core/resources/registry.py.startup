@@ -1,0 +1,212 @@
+"""Resource Registry — Enregistrement central des ressources ETHAN.
+
+Ce registry permet de découvrir, identifier, référencer et décrire les ressources
+présentes dans l'écosystème ETHAN sans déplacer, modifier ou dupliquer leurs sources
+originales. Il s'appuie sur le KnowledgeManager existant et le modèle KnowledgeNode.
+
+Le registry est conçu pour :
+- Être idempotent : plusieurs analyses successives ne créent pas de doublons.
+- Être durable : l'état du registre peut être rétabli après redémarrage depuis CoreRecordStore.
+- Gérer le cycle de vie des ressources : nouvelle, modifiée, inchangée, déplacée, disparue.
+- Respecter HROT : les opérations respectent les identités et permissions via les services natifs d'ETHAN.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from core.engineering_memory.models import RecordType, SourceOfFactLevel
+from core.knowledge.manager import KnowledgeManager
+from core.knowledge.types import KnowledgeType, KnowledgeNode
+from core.resources.discovery import discover_skills, discover_all_resources
+from core.resources.types import (
+    ResourceType,
+    ResourceMeta,
+    ResourceStatus,
+    ResourceStatusChoices,
+)
+from core.auth.principal import AgentPrincipal, verify_trusted_principal
+from core.auth import ExecutionContext
+from core.applications.permissions import PermissionService
+
+logger = logging.getLogger(__name__)
+
+
+# -------------------------------------------------------------------------
+# HROT — Human Root of Trust authorization for Resource Registry access.
+#
+# This module delegates to ETHAN's native HROT authorization services.
+# It uses :
+#   - verify_trusted_principal() for cryptographic principal verification
+#   - ExecutionContext for identity envelope
+#   - PermissionService.authorize() for permission evaluation
+#   - Fail-closed: any failure or missing context results in denied access.
+#
+# This implementation relies on the native HROT services provided by ETHAN Core,
+# not on a reimplementation. It respects the same fail-closed principles
+# while using the established authority contracts.
+# -------------------------------------------------------------------------
+
+
+class HROTAuthorizationError(Exception):
+    """Raised when an operation is rejected by HROT checks."""
+    pass
+
+
+# Convenience: minimal mirror of essential ExecutionContext fields
+# (we use the real ExecutionContext from core.auth when available)
+
+
+def _extract_principal(execution_context: ExecutionContext | None) -> AgentPrincipal | None:
+    """Extract the AgentPrincipal from an ExecutionContext, if possible."""
+    if execution_context is None:
+        return None
+    principal = getattr(execution_context, "principal", None)
+    if isinstance(principal, AgentPrincipal):
+        return principal
+    return None
+
+
+def _extract_agent_id(execution_context: ExecutionContext | None) -> str | None:
+    """Extract the agent_id from an ExecutionContext."""
+    if execution_context is None:
+        return None
+    return getattr(execution_context, "agent_id", None)
+
+
+def authorize_resource_access(
+    execution_context: ExecutionContext | None,
+    *,
+    operation: str = "read",
+    resource_type: str = "resource",
+) -> tuple[bool, str]:
+    """Check HROT authorization for a Resource Registry operation.
+
+    Uses ETHAN's native HROT authorization services.
+
+    Args:
+        execution_context: The trusted execution context (principal + agent_id).
+                           If None, access is denied (fail-closed).
+        operation: "read", "write", "discover", "modify", "admin".
+        resource_type: The type of resource being accessed.
+
+    Returns:
+        (allowed, reason) tuple. allowed=True means access is granted.
+    """
+    # --- Fail-closed: no context means denied ---
+    if execution_context is None:
+        return False, "ACCESS_DENIED: no execution context provided"
+
+    ctx = execution_context
+
+    # 1. Extract and verify the principal
+    principal = _extract_principal(ctx)
+    if principal is None:
+        return False, "ACCESS_DENIED: no trusted principal in execution context"
+
+    # Verify the principal's cryptographic proof (HMAC signature check)
+    if not verify_trusted_principal(principal):
+        return False, "ACCESS_DENIED: principal authentication failed (invalid auth_proof)"
+
+    # 2. Agent identity must match the executing agent
+    agent_id = _extract_agent_id(ctx)
+    if agent_id is None or str(agent_id).strip() == "":
+        return False, "ACCESS_DENIED: no agent_id in execution context"
+
+    # Compare against the principal's actor_id or subject_id
+    # The principal must establish its identity
+    if not principal.actor_id and not principal.subject_id:
+        return False, "ACCESS_DENIED: principal has no established actor_id or subject_id"
+
+    # Use actor_id if available, otherwise subject_id, for identity matching
+    principal_identity = principal.actor_id or principal.subject_id
+    if str(principal_identity).strip() != str(agent_id).strip():
+        return False, "ACCESS_DENIED: agent_id mismatch (context={}, principal={})".format(
+            agent_id, principal_identity)
+
+    # 3. Permission check using native PermissionService
+    # Initialize PermissionService (production_mode=False for development/testing)
+    perm_service = PermissionService(production_mode=False)
+
+    # Determine required permissions based on operation type
+    required_permission_map = {
+        "read": "resource:read",
+        "write": "resource:write",
+        "discover": "resource:discover",
+        "modify": "resource:modify",
+        "admin": "resource:admin",
+    }
+
+    required_perm = required_permission_map.get(operation, "resource:read")
+
+    # Call the native PermissionService.authorize()
+    # We need: app_id, instance_id, capability, resource, action, context
+    # For the Resource Registry, we use:
+    # - app_id: derived from principal or a default
+    # - instance_id: the agent_id
+    # - capability: the resource_type
+    # - resource: the resource_type
+    # - action: the operation
+    # - context: principal info
+
+    try:
+        auth_result = perm_service.authorize(
+            app_id=principal.principal_id,
+            instance_id=str(agent_id),
+            capability=str(resource_type),
+            resource=str(resource_type),
+            action=operation,
+            context={
+                "principal_id": principal.principal_id,
+                "agent_id": str(agent_id),
+                "permissions": list(principal.permissions),
+                "scopes": list(principal.scopes),
+            },
+        )
+    except Exception as e:
+        # Fail closed on any evaluation error
+        logger.exception("HROT authorization evaluation failed: %s", e)
+        return False, "ACCESS_DENIED: authorization evaluation error: {}".format(str(e))
+
+    # Check the result
+    allowed = bool(getattr(auth_result, "allowed", False))
+    if not allowed:
+        reason_code = getattr(auth_result, "reason_code", "HROT_PERMISSION_DENIED")
+        reason = getattr(auth_result, "message", "HROT authorization denied")
+        return False, "ACCESS_DENIED: {} ({})".format(reason, reason_code)
+
+    # 4. Resource-type specific scope check
+    # The PermissionService handles this, but we also verify the resource_type
+    # is within the principal's scopes as an additional check
+    if resource_type not in principal.scopes:
+        return False, "ACCESS_DENIED: resource_type not in principal scopes {}".format(
+            principal.scopes)
+
+    allowed = True
+    reason = "ACCESS_GRANTED: principal={} operation={} resource={}".format(
+        principal.principal_id, operation, resource_type)
+    return allowed, reason
+
+
+# Convenience function for quick checks
+def check_access(
+    execution_context: ExecutionContext | None,
+    *,
+    operation: str = "read",
+    resource_type: str = "skill",
+) -> bool:
+    """Return True iff HROT authorization grants access.
+
+    Uses the native HROT authorization service.
+    """
+    allowed, _ = authorize_resource_access(execution_context, operation=operation, resource_type=resource_type)
+    return allowed
+
+
+# -------------------------------------------------------------------------
+# ResourceRecord — Enregistrement d'une ressource dans le registry.
+# -------------------------------------------------------------------------

@@ -1,0 +1,1 @@
+"""Tests ETHAN Core — Module, Registry, Bus, Config."""

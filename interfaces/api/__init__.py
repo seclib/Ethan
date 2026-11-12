@@ -1,0 +1,1 @@
+"""API Gateway — Ethan Cognitive OS entry point."""

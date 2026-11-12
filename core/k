@@ -1,0 +1,339 @@
+"""Knowledge Manager — Gestion de la connaissance persistante.
+
+Responsabilités :
+- Créer, lire, mettre à jour, supprimer des nœuds de connaissance
+- Gérer les sources et les relations
+- Rechercher la connaissance
+- Exposer l'accès RAG
+- Persister dans PostgreSQL + Redis
+- Publier des événements NATS
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+from uuid import uuid4
+
+from core.knowledge.types import KnowledgeConnection, KnowledgeNode, KnowledgeType
+from core.bus.interface import EventBus
+from core.state.postgres_state import PostgresPersistentState
+from core.state.redis_state import RedisLiveState
+from core.ethan_types.event import Event, EventType
+
+logger = logging.getLogger(__name__)
+
+
+class KnowledgeManager:
+    """Gestionnaire de connaissance."""
+
+    def __init__(
+        self,
+        event_bus: EventBus | None = None,
+        pg: PostgresPersistentState | None = None,
+        redis: RedisLiveState | None = None,
+    ):
+        self.bus = event_bus
+        self.pg = pg
+        self.redis = redis
+        self._memory: dict[str, KnowledgeNode] = {}
+
+    # ── CRUD ────────────────────────────────────────────────────────────
+
+    async def create(
+        self,
+        label: str,
+        node_type: KnowledgeType | str = KnowledgeType.CONCEPT,
+        content: str = "",
+        source: str = "",
+        connections: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> KnowledgeNode:
+        """Crée un nœud de connaissance.
+
+        Args:
+            label: Libellé du nœud
+            node_type: Type de nœud
+            content: Contenu
+            source: Source de la connaissance
+            connections: Connexions initiales
+            metadata: Métadonnées
+
+        Returns:
+            Nœud créé
+        """
+        if isinstance(node_type, str):
+            node_type = KnowledgeType(node_type)
+
+        node = KnowledgeNode(
+            id=str(uuid4()),
+            label=label,
+            node_type=node_type,
+            content=content,
+            source=source,
+            metadata=metadata or {},
+        )
+
+        # Créer les connexions
+        for conn_data in connections or []:
+            conn = KnowledgeConnection(
+                id=str(uuid4()),
+                from_node_id=node.id,
+                to_node_id=conn_data.get("to_node_id", ""),
+                relation_type=conn_data.get("relation_type", "related_to"),
+                strength=conn_data.get("strength", 1.0),
+            )
+            node.connections.append(conn)
+
+        # Persister en mémoire (fallback)
+        self._memory[node.id] = node
+
+        # Persister dans PostgreSQL
+        if self.pg:
+            try:
+                await self.pg.insert("knowledge_nodes", node.to_dict())
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge insert failed: %s", e)
+
+        # Cache Redis
+        if self.redis:
+            try:
+                await self.redis.set(f"knowledge:{node.id}", node.to_dict())
+            except Exception as e:
+                logger.warning("Redis knowledge cache failed: %s", e)
+
+        # Publier l'événement
+        if self.bus:
+            await self.bus.publish("knowledge.created", Event(
+                type=EventType.KNOWLEDGE_CREATED,
+                source="knowledge-manager",
+                payload={"node": node.to_dict()},
+            ))
+
+        logger.info("Knowledge node created: %s (%s)", node.id, node.label)
+        return node
+
+    async def get(self, node_id: str) -> KnowledgeNode | None:
+        """Récupère un nœud de connaissance.
+
+        Args:
+            node_id: ID du nœud
+
+        Returns:
+            Nœud ou None
+        """
+        # Mémoire d'abord
+        if node_id in self._memory:
+            return self._memory[node_id]
+
+        # Redis ensuite
+        if self.redis:
+            try:
+                data = await self.redis.get(f"knowledge:{node_id}")
+                if data:
+                    node = KnowledgeNode.from_dict(data)
+                    self._memory[node_id] = node
+                    return node
+            except Exception as e:
+                logger.warning("Redis knowledge get failed: %s", e)
+
+        # PostgreSQL en dernier
+        if self.pg:
+            try:
+                rows = await self.pg.query(
+                    "SELECT * FROM knowledge_nodes WHERE id = $1", (node_id,)
+                )
+                if rows:
+                    node = KnowledgeNode.from_dict(rows[0])
+                    self._memory[node_id] = node
+                    return node
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge get failed: %s", e)
+
+        return None
+
+    async def update(self, node_id: str, data: dict[str, Any]) -> KnowledgeNode | None:
+        """Met à jour un nœud de connaissance.
+
+        Args:
+            node_id: ID du nœud
+            data: Données à mettre à jour
+
+        Returns:
+            Nœud mis à jour ou None
+        """
+        node = await self.get(node_id)
+        if node is None:
+            return None
+
+        if "label" in data:
+            node.label = data["label"]
+        if "node_type" in data:
+            node.node_type = KnowledgeType(data["node_type"])
+        if "content" in data:
+            node.content = data["content"]
+        if "source" in data:
+            node.source = data["source"]
+        if "metadata" in data:
+            node.metadata.update(data["metadata"])
+        node.updated_at = __import__("datetime").datetime.utcnow()
+
+        # Persister
+        self._memory[node_id] = node
+
+        if self.pg:
+            try:
+                await self.pg.insert("knowledge_nodes", node.to_dict())
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge update failed: %s", e)
+
+        if self.redis:
+            try:
+                await self.redis.set(f"knowledge:{node_id}", node.to_dict())
+            except Exception as e:
+                logger.warning("Redis knowledge update failed: %s", e)
+
+        if self.bus:
+            await self.bus.publish("knowledge.updated", Event(
+                type=EventType.KNOWLEDGE_UPDATED,
+                source="knowledge-manager",
+                payload={"node": node.to_dict()},
+            ))
+
+        logger.info("Knowledge node updated: %s", node_id)
+        return node
+
+    async def delete(self, node_id: str) -> bool:
+        """Supprime un nœud de connaissance.
+
+        Args:
+            node_id: ID du nœud
+
+        Returns:
+            True si supprimé, False sinon
+        """
+        existed = node_id in self._memory
+        self._memory.pop(node_id, None)
+
+        if self.redis:
+            try:
+                await self.redis.delete(f"knowledge:{node_id}")
+            except Exception as e:
+                logger.warning("Redis knowledge delete failed: %s", e)
+
+        if self.pg:
+            try:
+                await self.pg.execute(
+                    "DELETE FROM knowledge_nodes WHERE id = $1", (node_id,)
+                )
+                existed = True
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge delete failed: %s", e)
+
+        if self.bus:
+            await self.bus.publish("knowledge.deleted", Event(
+                type=EventType.KNOWLEDGE_DELETED,
+                source="knowledge-manager",
+                payload={"node_id": node_id},
+            ))
+
+        logger.info("Knowledge node deleted: %s", node_id)
+        return existed
+
+    async def list(self, node_type: KnowledgeType | None = None) -> list[KnowledgeNode]:
+        """Liste les nœuds de connaissance.
+
+        Args:
+            node_type: Filtrer par type (optionnel)
+
+        Returns:
+            Liste de nœuds
+        """
+        nodes = list(self._memory.values())
+
+        if self.pg:
+            try:
+                rows = await self.pg.query("SELECT * FROM knowledge_nodes")
+                for row in rows:
+                    node = KnowledgeNode.from_dict(row)
+                    if node.id not in self._memory:
+                        nodes.append(node)
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge list failed: %s", e)
+
+        if node_type:
+            nodes = [n for n in nodes if n.node_type == node_type]
+
+        return nodes
+
+    async def search(self, query: str) -> list[KnowledgeNode]:
+        """Recherche des nœuds de connaissance.
+
+        Args:
+            query: Requête de recherche
+
+        Returns:
+            Nœuds correspondants
+        """
+        q_lower = query.lower()
+        results = []
+
+        # Recherche dans la mémoire
+        for node in self._memory.values():
+            if (q_lower in node.label.lower()
+                    or q_lower in node.content.lower()
+                    or q_lower in node.source.lower()):
+                results.append(node)
+
+        # Recherche dans PostgreSQL
+        if self.pg:
+            try:
+                rows = await self.pg.query(
+                    "SELECT * FROM knowledge_nodes WHERE label ILIKE $1 OR content ILIKE $1",
+                    (f"%{query}%",),
+                )
+                for row in rows:
+                    node = KnowledgeNode.from_dict(row)
+                    if node.id not in self._memory and all(
+                        n.id != node.id for n in results
+                    ):
+                        results.append(node)
+            except Exception as e:
+                logger.warning("PostgreSQL knowledge search failed: %s", e)
+
+        return results
+
+    # ── Relations ───────────────────────────────────────────────────────
+
+    async def connect(
+        self,
+        from_node_id: str,
+        to_node_id: str,
+        relation_type: str = "related_to",
+        strength: float = 1.0,
+    ) -> KnowledgeNode | None:
+        """Crée une connexion entre deux nœuds.
+
+        Args:
+            from_node_id: ID du nœud source
+            to_node_id: ID du nœud cible
+            relation_type: Type de relation
+            strength: Force de la relation
+
+        Returns:
+            Nœud source mis à jour ou None
+        """
+        node = await self.get(from_node_id)
+        if node is None:
+            return None
+
+        conn = KnowledgeConnection(
+            id=str(uuid4()),
+            from_node_id=from_node_id,
+            to_node_id=to_node_id,
+            relation_type=relation_type,
+            strength=strength,
+        )
+        node.connections.append(conn)
+
+        return await self.update(from_node_id, {"connections": node.connections})

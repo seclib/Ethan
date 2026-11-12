@@ -1,0 +1,36 @@
+{
+  "task_id": "7ac39754-b2e0-491c-b8e5-1e7fa3a04ff4",
+  "analysis_id": "7ac39754-b2e0-491c-b8e5-1e7fa3a04ff4",
+  "ticker": "AAPL",
+  "analysis_date": "2026-09-01",
+  "provider": null,
+  "status": "CANCELLED",
+  "created_at": "2026-11-04T05:38:57.283463+00:00",
+  "started_at": null,
+  "finished_at": "2026-11-04T05:38:57.284099+00:00",
+  "result": null,
+  "error": null,
+  "provenance": "TradingAgents",
+  "parameters": {
+    "ticker": "AAPL",
+    "analysis_date": "2026-09-01"
+  },
+  "metadata": {},
+  "logs": [
+    "CANCEL_REQUESTED"
+  ],
+  "container_id": null,
+  "exit_code": null,
+  "stdout": "",
+  "stderr": "",
+  "cancelled": true,
+  "application_id": "quantar",
+  "execution_id": null,
+  "updated_at": "2026-11-04T05:38:57.284100+00:00",
+  "error_code": null,
+  "error_summary": null,
+  "result_reference": null,
+  "log_reference": "/home/fatsio/AI/Ethan/.quantar-tasks/7ac39754-b2e0-491c-b8e5-1e7fa3a04ff4/logs.json",
+  "cancellation_requested": true,
+  "cancellation_confirmed": true
+}

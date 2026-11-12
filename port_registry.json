@@ -1,0 +1,20 @@
+{
+  "webui": {
+    "service_name": "webui",
+    "container": "ethan-ui",
+    "host_port": 3001,
+    "container_port": 3000
+  },
+  "grafana": {
+    "service_name": "grafana",
+    "container": "osiris-grafana",
+    "host_port": 3002,
+    "container_port": 3000
+  },
+  "odin": {
+    "service_name": "odin",
+    "container": "odin",
+    "host_port": 4173,
+    "container_port": 4173
+  }
+}

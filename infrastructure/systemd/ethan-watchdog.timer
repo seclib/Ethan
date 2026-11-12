@@ -1,0 +1,16 @@
+[Unit]
+Description=ETHAN Watchdog Timer — Check container health every 30s
+Documentation=https://github.com/seclib/Ethan/docs
+Requires=ethan-core.service
+After=ethan-core.service
+
+[Timer]
+# Déclencher 30s après le démarrage d'ethan-core
+OnUnitActiveSec=30
+# Exécuter immédiatement au démarrage du timer
+OnBootSec=60
+# Nom de l'unité à déclencher
+Unit=ethan-watchdog.service
+
+[Install]
+WantedBy=timers.target

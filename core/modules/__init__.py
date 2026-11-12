@@ -1,0 +1,1 @@
+"""Ethan Cognitive Modules — Independent cognitive services."""

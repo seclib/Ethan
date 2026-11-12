@@ -1,0 +1,1028 @@
+"""ProviderManager — Gestion centralisée des providers LLM.
+
+Fonctionnalités :
+- Enregistrer / supprimer un provider
+- Activer / désactiver un provider
+- Tester la connexion (healthcheck réel)
+- Lister les modèles disponibles
+- Sélectionner le modèle actif
+- Définir le provider par défaut
+- Ordonnancer via LLMSelector / LLMRouter existants
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+from typing import Any, AsyncIterator
+
+from core.llm.client import LLMClient
+from core.llm.provider_factory import (
+    SUPPORTED_PROVIDER_TYPES,
+    create_provider_from_config,
+    default_base_url,
+)
+from core.llm.providers.base import LLMProvider
+from core.llm.registry import LLMProviderRegistry
+from core.llm.router import LLMRouter
+from core.llm.selector import LLMSelector
+from core.llm.store import ProviderStore
+from core.llm.types import (
+    ChatMessage,
+    ChatResponse,
+    LLMRequirements,
+    ModelInfo,
+    ProviderCapability,
+    TranscriptionRequest,
+    TranscriptionResponse,
+    VisionRequest,
+    VisionResponse,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# Capacités canoniques par type de provider — utilisé lorsque le provider est
+# désactivé (pas d'instance enregistrée) pour ne pas inventer de capacités.
+_CAPABILITY_BY_TYPE: dict[str, list[str]] = {
+    "ollama": ["llm", "vision", "embedding"],
+    "vllm": ["llm", "embedding"],
+    "sglang": ["llm", "embedding"],
+    "llamacpp": ["llm", "embedding"],
+    "lmstudio": ["llm", "embedding"],
+    "openai": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "azure": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "anthropic": ["llm", "vision"],
+    "gemini": ["llm", "vision", "embedding", "speech_to_text", "transcription"],
+    "openrouter": ["llm", "vision", "embedding"],
+    "openai-compatible": ["llm", "embedding", "speech_to_text", "transcription"],
+    "custom": ["llm", "embedding", "speech_to_text", "transcription"],
+}
+
+
+def _caps_for_type(provider_type: str) -> list[str]:
+    """Retourne les capacités canoniques par défaut d'un type de provider.
+
+    Fallback pour ``describe_provider`` quand l'instance n'est pas enregistrée
+    (provider désactivé). Ne doit jamais lever — on retourne ``[llm]`` seul
+    pour un type inconnu plutôt que d'exposer une liste vide trompeuse.
+    """
+    return list(_CAPABILITY_BY_TYPE.get(provider_type, ["llm"]))
+
+
+# Méthodes d'authentification supportées par type de provider LLM.
+# Valeurs : "api_key" (clé/secret) et "user_account" (OAuth compte utilisateur).
+# Aucun provider LLM n'implémente encore le flux OAuth-compte dans ETHAN Core :
+# le WebUI rend l'option en fonction de cette capacité (source de vérité Core),
+# et n'affiche un flux « Connect with account » que si elle est déclarée ici.
+_AUTH_METHODS_BY_TYPE: dict[str, list[str]] = {
+    "ollama": ["api_key"],
+    "vllm": ["api_key"],
+    "sglang": ["api_key"],
+    "llamacpp": ["api_key"],
+    "lmstudio": ["api_key"],
+    "openai": ["api_key"],
+    "azure": ["api_key"],
+    "anthropic": ["api_key"],
+    "gemini": ["api_key"],
+    "openrouter": ["api_key"],
+    "openai-compatible": ["api_key"],
+    "custom": ["api_key"],
+}
+
+
+def _auth_methods_for_type(provider_type: str) -> list[str]:
+    """Méthodes d'authentification déclarées pour un type de provider.
+
+    Type inconnu → ``["api_key"]`` (méthode universelle). Ne lève jamais.
+    """
+    return list(_AUTH_METHODS_BY_TYPE.get(provider_type, ["api_key"]))
+
+
+def _resolve_ollama_base_url() -> str:
+    """Résout l'URL Ollama avec fallback localhost hors Docker.
+
+    Priorités : OLLAMA_BASE_URL explicite > host.docker.internal si
+    résolvable (conteneur) > localhost (hôte natif). Sans ce fallback,
+    le chat manager pointe une URL injoignable hors Docker alors qu'un
+    Ollama local répond (circuit breaker intempestif).
+    """
+    import socket
+
+    explicit = os.getenv("OLLAMA_BASE_URL")
+    if explicit:
+        return explicit
+    docker_host = "http://host.docker.internal:11434"
+    try:
+        socket.gethostbyname("host.docker.internal")
+        return docker_host
+    except OSError:
+        return "http://localhost:11434"
+
+
+class ProviderManager:
+    """Manager central des providers LLM.
+
+    S'appuie sur le LLMProviderRegistry (existant) et ajoute :
+    - la persistance via ProviderStore
+    - l'enregistrement dynamique depuis config
+    - le healthcheck / test de connexion
+    - la gestion de l'activation / du provider par défaut
+
+    Args:
+        store: ProviderStore optionnel (persistance). None → mode mémoire.
+    """
+
+    def __init__(self, store: ProviderStore | None = None):
+        self._store = store or ProviderStore()
+        self._registry = LLMProviderRegistry()
+        self._selector = LLMSelector()
+        self._router = LLMRouter(self._selector)
+        self._client = LLMClient(self._registry, self._selector)
+        self._providers_config: dict[str, dict[str, Any]] = {}
+        # Clés API résolues (secret manager/env ou saisie d'un rôle privilégié) :
+        # mémoire de processus UNIQUEMENT.  Les configs publiques
+        # (``_providers_config``, store) n'en contiennent jamais — un secret ne
+        # doit jamais pouvoir être sérialisé (store PG/Redis, logs, réponses).
+        self._api_keys: dict[str, str] = {}
+        self._default_provider: str | None = None
+
+    # ── Initialisation ──────────────────────────────────────────────────
+
+    async def initialize(self) -> None:
+        """Charge la config depuis le store et instancie les providers.
+
+        - Charge les configs persistées (sans clés API).
+        - Si le store est vide/absent, seed les providers par défaut.
+        - Injecte les clés API depuis les secrets/env (mémoire, jamais persistées).
+        - Instancie et enregistre les providers activés.
+        """
+        try:
+            self._providers_config = await self._store.get_all()
+        except Exception as e:
+            logger.warning("Failed to load providers from store: %s", e)
+            self._providers_config = {}
+
+        # Seed les configs par défaut si le store est vide
+        if not self._providers_config:
+            logger.info("No provider configs found - seeding defaults")
+            self._providers_config = self._default_provider_configs()
+            for pid, cfg in self._providers_config.items():
+                try:
+                    await self._store.save(pid, cfg)
+                except Exception as exc:
+                    logger.debug("Could not persist default provider %s: %s", pid, exc)
+
+        # Injecter les clés API (secrets/env) en mémoire — jamais persistées
+        await self._inject_secrets()
+
+        # Charger le provider par défaut
+        self._default_provider = await self._store.get_default()
+        if self._default_provider is None:
+            for pid, cfg in self._providers_config.items():
+                if cfg.get("enabled", False):
+                    self._default_provider = pid
+                    break
+
+        # Instancier les providers activés
+        for provider_id, config in self._providers_config.items():
+            if config.get("enabled", False):
+                try:
+                    provider = create_provider_from_config(
+                        {
+                            **config,
+                            "name": provider_id,
+                            "api_key": self._api_keys.get(provider_id, ""),
+                        }
+                    )
+                    await self._register(provider, provider_id)
+                except Exception as e:
+                    logger.error("Failed to instantiate provider %s: %s", provider_id, e)
+
+        await self._client.initialize()
+        logger.info(
+            "ProviderManager initialized with %d providers (default=%s)",
+            len(self._registry.list_providers()),
+            self._default_provider,
+        )
+
+    def _default_provider_configs(self) -> dict[str, dict[str, Any]]:
+        """Retourne les configs de providers par défaut (sans clés API)."""
+        return {
+            "ollama": {
+                "name": "ollama",
+                "type": "ollama",
+                "enabled": True,
+                "base_url": _resolve_ollama_base_url(),
+                "default_model": os.getenv("OLLAMA_DEFAULT_MODEL", ""),
+                "display_name": "Ollama (local)",
+            },
+            "openai": {
+                "name": "openai",
+                "type": "openai",
+                "enabled": False,
+                "base_url": "",
+                "default_model": "gpt-4o-mini",
+                "display_name": "OpenAI",
+            },
+            "azure": {
+                "name": "azure",
+                "type": "azure",
+                "enabled": False,
+                "base_url": os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+                "default_model": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4"),
+                "display_name": "Azure OpenAI",
+            },
+            "anthropic": {
+                "name": "anthropic",
+                "type": "anthropic",
+                "enabled": False,
+                "base_url": "",
+                "default_model": "claude-3-5-sonnet-20241022",
+                "display_name": "Anthropic Claude",
+            },
+            "vllm": {
+                "name": "vllm",
+                "type": "vllm",
+                "enabled": False,
+                "base_url": os.getenv("VLLM_BASE_URL", "http://vllm:8000"),
+                "default_model": "",
+                "display_name": "vLLM (local)",
+            },
+            "openrouter": {
+                "name": "openrouter",
+                "type": "openrouter",
+                "enabled": False,
+                "base_url": "https://openrouter.ai/api/v1",
+                "default_model": os.getenv("OPENROUTER_DEFAULT_MODEL", "openrouter/auto"),
+                "display_name": "OpenRouter",
+                "options": {"routing": {"allow_fallbacks": True}},
+            },
+            "custom": {
+                "name": "custom",
+                "type": "openai-compatible",
+                "enabled": False,
+                "base_url": os.getenv("CUSTOM_OPENAI_BASE_URL", "http://localhost:8000/v1"),
+                "default_model": "gpt-4",
+                "display_name": "Custom OpenAI-Compatible",
+            },
+        }
+
+    async def _inject_secrets(self) -> None:
+        """Injecte les clés API des providers cloud depuis les secrets/env.
+
+        Mémoire uniquement — aucune clé n'est écrite dans le store.
+        Un provider cloud disposant d'une clé est automatiquement activé.
+        """
+        keys: dict[str, str | None] = {}
+        try:
+            from core.config.secrets import get_secrets
+
+            secrets = get_secrets()
+            keys["openai"] = getattr(secrets, "openai_api_key", None)
+            keys["anthropic"] = getattr(secrets, "anthropic_api_key", None)
+            keys["gemini"] = getattr(secrets, "gemini_api_key", None)
+            keys["azure"] = getattr(secrets, "azure_openai_api_key", None)
+            keys["openrouter"] = getattr(secrets, "openrouter_api_key", None)
+        except Exception as exc:
+            logger.debug("get_secrets() unavailable, falling back to env: %s", exc)
+        keys.setdefault("openai", os.getenv("OPENAI_API_KEY"))
+        keys.setdefault("anthropic", os.getenv("ANTHROPIC_API_KEY"))
+        keys.setdefault("gemini", os.getenv("GEMINI_API_KEY"))
+        keys.setdefault("azure", os.getenv("AZURE_OPENAI_API_KEY"))
+        keys.setdefault("openrouter", os.getenv("OPENROUTER_API_KEY"))
+
+        for provider_id, config in self._providers_config.items():
+            ptype = config.get("type", "")
+            key = keys.get(ptype)
+            if ptype in keys and key:
+                # Hors config : la clé vit dans ``_api_keys`` et ne peut donc
+                # jamais être écrite dans le store par une sauvegarde.
+                self._api_keys[provider_id] = key
+                config["enabled"] = True
+                logger.info("Auto-enabled provider %s (%s) from secret/env", provider_id, ptype)
+
+    async def close(self) -> None:
+        """Libère les ressources des providers et du store."""
+        for provider in self._registry._providers.values():
+            close_fn = getattr(provider, "close", None)
+            if close_fn is not None:
+                try:
+                    await close_fn()
+                except Exception as exc:
+                    logger.debug(
+                        "Error closing provider %s: %s", getattr(provider, "name", "?"), exc
+                    )
+        if self._store is not None:
+            try:
+                await self._store.close()
+            except Exception as exc:
+                logger.debug("Error closing provider store: %s", exc)
+        logger.info("ProviderManager closed")
+
+    # ── Catalogue (source de vérité pour les interfaces) ────────────────
+
+    def get_catalog(self) -> dict[str, Any]:
+        """Catalogue des types de providers supportés par ETHAN Core.
+
+        Exposé tel quel aux interfaces (API/CLI/WebUI) : types acceptés par la
+        factory, URL de base par défaut, méthodes d'authentification et
+        capacités canoniques par type. Aucune instance n'est requise et aucun
+        secret n'est renvoyé — une interface ne doit jamais maintenir sa
+        propre liste de types ou d'endpoints.
+
+        Returns:
+            Dict ``{types: [...], provider_capabilities: [...]}``.
+        """
+        return {
+            "types": [
+                {
+                    "id": provider_type,
+                    "default_base_url": default_base_url(provider_type),
+                    "auth_methods": _auth_methods_for_type(provider_type),
+                    "capabilities": _caps_for_type(provider_type),
+                }
+                for provider_type in sorted(SUPPORTED_PROVIDER_TYPES)
+            ],
+            # Vocabulaire canonique des capacités provider
+            # (core/llm/types.py::ProviderCapability) — utilisé par les
+            # interfaces pour l'affichage, jamais pour en inventer.
+            "provider_capabilities": [cap.value for cap in ProviderCapability],
+        }
+
+    # ── Enregistrement / suppression ────────────────────────────────────
+
+    async def register_provider(
+        self,
+        provider: LLMProvider | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Enregistre un provider.
+
+        Soit on passe une instance LLMProvider directement, soit une config
+        qui sera instanciée via la factory.
+
+        Args:
+            provider: Instance LLMProvider (optionnel)
+            config: Config dict (optionnel)
+
+        Returns:
+            Le provider enregistré sous forme de dict (serializable).
+
+        Raises:
+            ValueError: Si ni provider ni config n'est fourni.
+        """
+        if provider is None:
+            if config is None:
+                raise ValueError("Either 'provider' or 'config' must be provided")
+            provider = create_provider_from_config(config)
+
+        provider_id = config.get("name", provider.name) if config else provider.name
+
+        # Clé fournie par l'appelant : mémorisée hors config (mémoire de
+        # processus).  La config persistée juste après est nettoyée — un secret
+        # ne doit jamais pouvoir être sérialisé dans le store.
+        if config and config.get("api_key"):
+            self._api_keys[provider_id] = str(config["api_key"])
+
+        # Enregistrer dans le registry uniquement si activé
+        enabled = bool(config.get("enabled", True)) if config else True
+        if enabled:
+            await self._register(provider, provider_id)
+        else:
+            # Provider désactivé : on valide la config sans l'instancier
+            try:
+                await provider.initialize()
+            except Exception as exc:
+                logger.debug(
+                    "Provider %s désactivé — skip initialization: %s",
+                    provider_id,
+                    exc,
+                )
+
+        # Persister la config (sans la clé API)
+        safe_config = dict(config or {})
+        safe_config.pop("api_key", None)
+        safe_config["name"] = provider_id
+        safe_config["type"] = safe_config.get("type", provider.name)
+        safe_config.setdefault("enabled", True)
+        safe_config.setdefault("default_model", provider.default_model)
+        self._providers_config[provider_id] = safe_config
+        await self._store.save(provider_id, safe_config)
+
+        logger.info("Provider registered: %s (type=%s)", provider_id, provider.name)
+        return await self.describe_provider(provider_id)
+
+    async def unregister_provider(self, provider_id: str) -> bool:
+        """Supprime un provider.
+
+        Args:
+            provider_id: ID du provider
+
+        Returns:
+            True si supprimé, False sinon.
+        """
+        existed = provider_id in self._providers_config or bool(
+            self._registry.get_provider(provider_id)
+        )
+        self._registry._providers.pop(provider_id, None)
+        self._providers_config.pop(provider_id, None)
+        self._api_keys.pop(provider_id, None)
+
+        if self._default_provider == provider_id:
+            self._default_provider = None
+
+        await self._store.delete(provider_id)
+        logger.info("Provider unregistered: %s", provider_id)
+        return existed
+
+    # ── Clés API (mémoire de processus UNIQUEMENT) ──────────────────────
+
+    def remember_api_key(self, provider_id: str, api_key: str | None) -> None:
+        """Mémorise une clé fournie par un appelant privilégié (session only).
+
+        La clé n'est jamais placée dans ``_providers_config`` ni écrite dans le
+        store : elle ne survit pas au processus, par conception — les secrets
+        durables vivent dans le secret manager (env/Vault), jamais dans une
+        config persistée (cf. AGENTS.md, règle « secret »).
+        """
+        if api_key:
+            self._api_keys[provider_id] = str(api_key)
+
+    def api_key_for(self, provider_id: str) -> str:
+        """Clé API résolue d'un provider ("" si absente) — jamais persistée."""
+        return self._api_keys.get(provider_id, "")
+
+    def _public_config(self, provider_id: str) -> dict[str, Any]:
+        """Copie sérialisable d'une config — sans clé API (défense en profondeur)."""
+        config = dict(self._providers_config.get(provider_id, {}))
+        config.pop("api_key", None)
+        return config
+
+    # ── Activation / désactivation ──────────────────────────────────────
+
+    async def set_enabled(self, provider_id: str, enabled: bool) -> dict[str, Any]:
+        """Active ou désactive un provider.
+
+        Args:
+            provider_id: ID du provider
+            enabled: True pour activer, False pour désactiver
+
+        Returns:
+            Le provider mis à jour.
+
+        Raises:
+            ValueError: Si le provider n'existe pas.
+        """
+        if provider_id not in self._providers_config:
+            raise ValueError(f"Provider '{provider_id}' not found")
+
+        self._providers_config[provider_id]["enabled"] = enabled
+        # Persister une copie sans secret : la clé API (secret manager/env ou
+        # saisie) vit dans ``_api_keys`` — jamais dans le store.
+        await self._store.save(provider_id, self._public_config(provider_id))
+
+        if enabled:
+            # Ré-instancier et ré-enregistrer
+            config = self._providers_config[provider_id]
+            try:
+                provider = create_provider_from_config(
+                    {
+                        **config,
+                        "name": provider_id,
+                        "api_key": self._api_keys.get(provider_id, ""),
+                    }
+                )
+                await self._register(provider, provider_id)
+                await provider.initialize()
+                logger.info("Provider enabled: %s", provider_id)
+            except Exception as e:
+                logger.error("Failed to enable provider %s: %s", provider_id, e)
+                raise ValueError(f"Failed to enable provider {provider_id}: {e}")
+        else:
+            # Retirer du registry
+            self._registry._providers.pop(provider_id, None)
+            if self._default_provider == provider_id:
+                self._default_provider = None
+            logger.info("Provider disabled: %s", provider_id)
+
+        return await self.describe_provider(provider_id)
+
+    # ── Test de connexion ───────────────────────────────────────────────
+
+    async def test_connection(self, provider_id: str) -> dict[str, Any]:
+        """Teste la connexion à un provider et mesure la latence.
+
+        Args:
+            provider_id: ID du provider
+
+        Returns:
+            Dict {connected: bool, message: str, status: str, latency_ms: float | None}
+        """
+        provider = self._registry.get_provider(provider_id)
+        if provider is None:
+            # Essayer de l'instancier depuis la config
+            config = self._providers_config.get(provider_id)
+            if not config:
+                raise ValueError(f"Provider '{provider_id}' not found")
+            try:
+                provider = create_provider_from_config(
+                    {
+                        **config,
+                        "name": provider_id,
+                        "api_key": self._api_keys.get(provider_id, ""),
+                    }
+                )
+                await provider.initialize()
+            except Exception as e:
+                return {
+                    "connected": False,
+                    "status": "error",
+                    "message": f"Provider instantiation failed: {e}",
+                    "latency_ms": None,
+                }
+
+        try:
+            t0 = time.perf_counter()
+            ok = await provider.test_connection()
+            latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+            return {
+                "connected": ok,
+                "status": "connected" if ok else "error",
+                "latency_ms": latency_ms if ok else None,
+                "message": "Connection successful" if ok else "Connection failed",
+            }
+        except Exception as e:
+            logger.warning("Connection test failed for %s: %s", provider_id, e)
+            return {
+                "connected": False,
+                "status": "error",
+                "message": str(e),
+                "latency_ms": None,
+            }
+
+    # ── Modèles ─────────────────────────────────────────────────────────
+
+    async def list_models(self, provider_id: str | None = None) -> list[ModelInfo]:
+        """Liste les modèles disponibles.
+
+        Args:
+            provider_id: Filtrer par provider (optionnel)
+
+        Returns:
+            Liste de ModelInfo.
+        """
+        if provider_id:
+            provider = self._registry.get_provider(provider_id)
+            if provider is None:
+                # Tenter d'instancier depuis la config
+                config = self._providers_config.get(provider_id)
+                if config and config.get("enabled", False):
+                    try:
+                        provider = create_provider_from_config(
+                            {
+                                **config,
+                                "name": provider_id,
+                                "api_key": self._api_keys.get(provider_id, ""),
+                            }
+                        )
+                        await provider.initialize()
+                    except Exception as e:
+                        # Provider connu mais inutilisable (endpoint mort,
+                        # SDK absent, config invalide) : état honnête « vide »,
+                        # jamais une 500 depuis la route GET /providers/{id}/models.
+                        logger.warning(
+                            "Provider %s inutilisable pour list_models: %s",
+                            provider_id,
+                            e,
+                        )
+                        return []
+            if provider is None:
+                raise ValueError(f"Provider '{provider_id}' not found or not active")
+            try:
+                return self._stamp_instance_id(await provider.list_models(), provider_id)
+            except Exception as e:
+                logger.warning("Failed to list models for %s: %s", provider_id, e)
+                return []
+
+        models: list[ModelInfo] = []
+        for pid in self._registry.list_providers():
+            provider = self._registry.get_provider(pid)
+            if provider is None:
+                continue
+            try:
+                models.extend(self._stamp_instance_id(await provider.list_models(), pid))
+            except Exception as e:
+                logger.warning("Failed to list models for %s: %s", pid, e)
+        return models
+
+    async def get_active_model(self, provider_id: str | None = None) -> str:
+        """Retourne le modèle actif d'un provider.
+
+        Args:
+            provider_id: ID du provider (None → provider par défaut)
+
+        Returns:
+            Nom du modèle actif.
+        """
+        pid = provider_id or self._default_provider
+        if pid is None:
+            return ""
+        config = self._providers_config.get(pid, {})
+        if config.get("default_model"):
+            return config["default_model"]
+
+        provider = self._registry.get_provider(pid)
+        if provider is not None:
+            return provider.default_model
+
+        return ""
+
+    # ── Provider par défaut ─────────────────────────────────────────────
+
+    async def set_default_provider(self, provider_id: str) -> dict[str, Any]:
+        """Définit le provider par défaut.
+
+        Args:
+            provider_id: ID du provider
+
+        Returns:
+            Provider défini comme défaut.
+
+        Raises:
+            ValueError: Si le provider n'existe pas.
+            ProviderDefaultError: Si le défaut n'a pas pu être persisté.
+        """
+        if provider_id not in self._providers_config and not self._registry.get_provider(
+            provider_id
+        ):
+            raise ValueError(f"Provider '{provider_id}' not found")
+
+        # Fail-closed : l'état mémoire n'est engagé qu'APRÈS l'écriture
+        # durable. Sinon un échec de persistance laisserait un « défaut »
+        # annoncé en mémoire qui disparaîtrait au redémarrage suivant.
+        await self._store.set_default(provider_id)
+        self._default_provider = provider_id
+        logger.info("Default provider set: %s", provider_id)
+        return await self.describe_provider(provider_id)
+
+    async def get_default_provider(self) -> dict[str, Any] | None:
+        """Retourne le provider par défaut.
+
+        Returns:
+            Provider par défaut ou None.
+        """
+        if self._default_provider is None:
+            self._default_provider = await self._store.get_default()
+        if self._default_provider is None:
+            return None
+        try:
+            return await self.describe_provider(self._default_provider)
+        except ValueError:
+            return None
+
+    # ── Description (pour l'API) ────────────────────────────────────────
+
+    async def describe_provider(self, provider_id: str) -> dict[str, Any]:
+        """Retourne une description sérialisable d'un provider.
+
+        Args:
+            provider_id: ID du provider
+
+        Returns:
+            Dict de description.
+
+        Raises:
+            ValueError: Si le provider n'existe pas.
+        """
+        config = self._providers_config.get(provider_id)
+        if config is None:
+            # Utiliser la config du registry
+            provider = self._registry.get_provider(provider_id)
+            if provider is None:
+                raise ValueError(f"Provider '{provider_id}' not found")
+            config = {
+                "name": provider_id,
+                "type": provider.name,
+                "enabled": True,
+                "default_model": provider.default_model,
+            }
+
+        # Tester la connexion si activé — avec un délai borné : un healthcheck
+        # ne doit jamais bloquer list_providers() pendant plusieurs minutes
+        # (ex: provider injoignable + client HTTP longue durée).
+        connection_status = "unknown"
+        latency_ms = None
+        if config.get("enabled", False):
+            try:
+                import asyncio
+
+                result = await asyncio.wait_for(self.test_connection(provider_id), timeout=12.0)
+                connection_status = result["status"]
+                latency_ms = result.get("latency_ms")
+            except asyncio.TimeoutError:
+                connection_status = "error"
+            except Exception:
+                connection_status = "error"
+
+        # Les modèles d'un provider désactivé/ne-initialisé pas sont inaccessibles.
+        # describe_provider() est appelé par list_providers() et set_enabled() et
+        # ne doit jamais planter à cause d'un provider injoignable.
+        try:
+            models = [m.id for m in await self.list_models(provider_id)]
+        except Exception:
+            models = []
+
+        # Capacités canoniques — via l'instance si enregistrée, sinon via les
+        # flags par défaut du type (provider désactivé / non instancié).
+        provider = self._registry.get_provider(provider_id)
+        if provider is not None:
+            capabilities = (
+                provider.capabilities()
+                if hasattr(provider, "capabilities")
+                else ProviderCapability.from_flags(
+                    supports_vision=getattr(provider, "supports_vision", False),
+                    supports_embedding=getattr(provider, "supports_embedding", True),
+                    supports_transcription=getattr(provider, "supports_transcription", False),
+                )
+            )
+            # Ajouter les métriques de santé si disponibles
+            health_metrics = {}
+            if hasattr(provider, "get_health_metrics"):
+                try:
+                    health_metrics = await provider.get_health_metrics()
+                except Exception:
+                    pass
+        else:
+            capabilities = _caps_for_type(config.get("type", provider_id))
+            health_metrics = {}
+
+        return {
+            "id": provider_id,
+            "name": config.get("display_name", config.get("name", provider_id)),
+            "type": config.get("type", provider_id),
+            "enabled": config.get("enabled", False),
+            "status": connection_status,
+            "latency_ms": latency_ms,
+            "health": health_metrics,
+            "default_model": config.get("default_model", ""),
+            "is_default": provider_id == self._default_provider,
+            "base_url": config.get("base_url", ""),
+            "models": models,
+            # Capacités normalisées (llm, vision, embedding, speech_to_text,
+            # transcription) — interface WebUI.
+            "capabilities": capabilities,
+            # Méthodes d'authentification supportées (api_key, user_account) —
+            # le WebUI conditionne son formulaire « Connection method » dessus.
+            "auth_methods": _auth_methods_for_type(config.get("type", provider_id)),
+            # Booléen uniquement — la clé API n'est JAMAIS sérialisée.
+            # (``_api_keys`` = clés en mémoire ; ``config`` = résidus éventuels
+            # d'anciennes versions, tolérés en lecture pour ne pas mentir.)
+            "has_api_key": bool(self._api_keys.get(provider_id) or config.get("api_key")),
+        }
+
+    async def list_providers(self) -> list[dict[str, Any]]:
+        """Liste tous les providers avec leur état.
+
+        Returns:
+            Liste de descriptions.
+        """
+        provider_ids = set(self._providers_config.keys()) | set(self._registry.list_providers())
+        providers = []
+        for pid in provider_ids:
+            try:
+                providers.append(await self.describe_provider(pid))
+            except Exception as e:
+                logger.warning("Failed to describe provider %s: %s", pid, e)
+        return providers
+
+    # ── Chat / utilisation (via LLMClient) ──────────────────────────────
+
+    async def embed(
+        self,
+        texts: list[str],
+        model: str | None = None,
+        provider_name: str | None = None,
+    ) -> list[list[float]]:
+        """Génère des embeddings via un provider capable.
+
+        Ordre de préférence : provider demandé → providers connus pour
+        supporter les embeddings (ollama…) → délégation au LLMClient.
+        """
+        if provider_name:
+            return await self._client.embed(texts, model=model, provider_name=provider_name)
+
+        for name in ("ollama", "openai", "azure", "vllm", "custom"):
+            provider = self._registry.get_provider(name)
+            if provider is not None and hasattr(provider, "embed"):
+                try:
+                    return await provider.embed(texts, model=model)
+                except Exception:
+                    logger.warning("Embed via %s failed, essai du provider suivant", name)
+        return await self._client.embed(texts, model=model)
+
+    async def vision_analyze(
+        self,
+        request: VisionRequest,
+        provider_name: str | None = None,
+    ) -> VisionResponse:
+        """Analyze an image via a vision-capable provider.
+
+        Args:
+            request: Vision request with images and prompt.
+            provider_name: Specific provider to use. None → first provider
+                with supports_vision=True.
+
+        Returns:
+            VisionResponse with the analysis text.
+
+        Raises:
+            ValueError: If no vision-capable provider is available.
+            NotImplementedError: If the provider doesn't support vision.
+        """
+        provider = self._get_capable_provider(
+            "vision", provider_name, lambda p: getattr(p, "supports_vision", False)
+        )
+        return await provider.vision_analyze(request)
+
+    async def transcribe(
+        self,
+        request: TranscriptionRequest,
+        provider_name: str | None = None,
+    ) -> TranscriptionResponse:
+        """Transcribe audio via a transcription-capable provider.
+
+        Args:
+            request: Transcription request with audio data.
+            provider_name: Specific provider to use. None → first provider
+                with supports_transcription=True.
+
+        Returns:
+            TranscriptionResponse with the transcribed text.
+
+        Raises:
+            ValueError: If no transcription-capable provider is available.
+            NotImplementedError: If the provider doesn't support transcription.
+        """
+        provider = self._get_capable_provider(
+            "transcription", provider_name, lambda p: getattr(p, "supports_transcription", False)
+        )
+        return await provider.transcribe(request)
+
+    def _get_capable_provider(
+        self,
+        capability: str,
+        provider_name: str | None,
+        check: callable,
+    ) -> LLMProvider:
+        """Find a provider that supports a given capability.
+
+        Args:
+            capability: Human-readable name for error messages.
+            provider_name: Specific provider requested, or None for auto.
+            check: Callable that returns True if provider supports capability.
+
+        Returns:
+            LLMProvider instance.
+
+        Raises:
+            ValueError: If no matching provider found.
+        """
+        if provider_name:
+            provider = self._registry.get_provider(provider_name)
+            if provider is None:
+                raise ValueError(f"Provider '{provider_name}' not found")
+            if not check(provider):
+                raise ValueError(f"Provider '{provider_name}' does not support {capability}")
+            return provider
+
+        # Auto-discover: find first provider with the capability
+        for name in self._registry.list_providers():
+            provider = self._registry.get_provider(name)
+            if provider and check(provider):
+                return provider
+
+        raise ValueError(
+            f"No provider with {capability} capability found. "
+            f"Available providers: {self._registry.list_providers()}"
+        )
+
+    def get_provider_capabilities(self, provider_id: str) -> dict[str, Any]:
+        """Retourne les capacités canoniques + flags d'un provider enregistré.
+
+        Source unique pour l'endpoint API ``/providers/{id}/capabilities``.
+        Ne sérialise jamais la config brute ni les secrets.
+
+        Args:
+            provider_id: ID du provider.
+
+        Returns:
+            Dict avec ``name``, ``capabilities`` (liste canonique) et les
+            flags ``supports_*``.
+
+        Raises:
+            ValueError: Si le provider n'est pas enregistré.
+        """
+        provider = self._registry.get_provider(provider_id)
+        if provider is None:
+            raise ValueError(f"Provider '{provider_id}' not found")
+
+        capabilities = (
+            provider.capabilities()
+            if hasattr(provider, "capabilities")
+            else ProviderCapability.from_flags(
+                supports_vision=getattr(provider, "supports_vision", False),
+                supports_embedding=getattr(provider, "supports_embedding", True),
+                supports_transcription=getattr(provider, "supports_transcription", False),
+            )
+        )
+        supports_transcription = bool(getattr(provider, "supports_transcription", False))
+        # supports_speech_to_text peut être None (hérité de la base) → fallback
+        # explicite sur le flag transcription (alias sémantique).
+        stt_flag = getattr(provider, "supports_speech_to_text", None)
+        supports_stt = supports_transcription if stt_flag is None else bool(stt_flag)
+        return {
+            "provider_id": provider_id,
+            "name": getattr(provider, "name", provider_id),
+            "capabilities": capabilities,
+            "supports_vision": bool(getattr(provider, "supports_vision", False)),
+            "supports_transcription": supports_transcription,
+            "supports_speech_to_text": supports_stt,
+            "supports_embedding": bool(getattr(provider, "supports_embedding", True)),
+        }
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        requirements: LLMRequirements | None = None,
+    ) -> ChatResponse:
+        """Chat completion via le LLMClient (avec sélection + circuit breaker).
+
+        Args:
+            messages: Messages de conversation
+            requirements: Requirements pour la sélection
+
+        Returns:
+            Réponse du LLM.
+        """
+        return await self._client.chat(messages, requirements)
+
+    async def chat_stream(
+        self,
+        messages: list[ChatMessage],
+        requirements: LLMRequirements | None = None,
+    ) -> AsyncIterator[str]:
+        """Chat completion streaming via le LLMClient.
+
+        Args:
+            messages: Messages de conversation
+            requirements: Requirements pour la sélection
+
+        Yields:
+            Chunks de texte (tokens) un par un.
+        """
+        async for chunk in self._client.chat_stream(messages, requirements):
+            yield chunk
+
+    # ── Helpers privés ──────────────────────────────────────────────────
+
+    @staticmethod
+    def _stamp_instance_id(models: list[ModelInfo], provider_id: str) -> list[ModelInfo]:
+        """Rattache les modèles à l'INSTANCE (clé registry), jamais au type.
+
+        Les adapters stampent ``ModelInfo.provider = adapter.name`` (le type :
+        « azure », « ollama »…) alors que la clé du registry est l'id
+        d'instance (« mon-azure », ou l'une des instances multiples d'un même
+        type). Sans cette réconciliation, la distinction
+        Provider (= service/instance) / Model (= modèle exposé) s'effondre :
+
+        - ``LLMClient`` résout ``registry.get_provider(model.provider)`` →
+          None pour tout id personnalisé (chat en échec) ;
+        - ``core/chat/pipeline.py`` filtre ``preferred_providers=[provider_id]``
+          sans jamais matcher ;
+        - la WebUI ``providers.find(p.id === model.provider)`` échoue → la
+          sélection chat appelle ``PUT /providers/{type}/default`` → 404.
+
+        Idempotent : se fait au fil de l'eau, aucune métadonnée inventée.
+        """
+        for model in models:
+            model.provider = provider_id
+        return models
+
+    async def _register(self, provider: LLMProvider, provider_id: str) -> None:
+        """Enregistre un provider dans le registry et l'initialise."""
+        self._registry._providers[provider_id] = provider
+        try:
+            await provider.initialize()
+            models = provider.list_models() if hasattr(provider.list_models, "__call__") else []
+            # Le registry n'a pas accès async — on met à jour la liste _models
+            if models:
+                try:
+                    model_list = await models if hasattr(models, "__await__") else models
+                    for m in self._stamp_instance_id(list(model_list), provider_id):
+                        self._registry._models[m.id] = m
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning("Failed to initialize provider %s: %s", provider_id, e)

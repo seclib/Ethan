@@ -1,0 +1,54 @@
+{
+  "name": "browser",
+  "version": "1.0.0",
+  "api_version": "2",
+  "description": "Web browser automation plugin using Playwright",
+  "author": "ETHAN Team",
+  "license": "Apache-2.0",
+  "entrypoint": "main.py",
+  "capabilities": [
+    {
+      "name": "browse_web",
+      "description": "Navigate to a URL and retrieve page content"
+    },
+    {
+      "name": "extract_content",
+      "description": "Extract structured content from a web page"
+    },
+    {
+      "name": "take_screenshot",
+      "description": "Take a screenshot of the current page"
+    },
+    {
+      "name": "fill_forms",
+      "description": "Fill form fields on a web page"
+    },
+    {
+      "name": "click_elements",
+      "description": "Click on elements by selector"
+    },
+    {
+      "name": "navigate_url",
+      "description": "Navigate to a specific URL"
+    },
+    {
+      "name": "execute_javascript",
+      "description": "Execute arbitrary JavaScript in the page context"
+    }
+  ],
+  "permissions": [
+    "network:connect",
+    "filesystem:read",
+    "filesystem:write"
+  ],
+  "dependencies": {
+    "python": {
+      "playwright": ">=1.40"
+    }
+  },
+  "config": {
+    "headless": true,
+    "timeout": 30000,
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+  }
+}

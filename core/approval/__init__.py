@@ -1,0 +1,24 @@
+"""ETHAN Core — Approval Module
+
+Système de validation humaine asynchrone pour les actions sensibles.
+Les modules peuvent demander une approbation et attendre la réponse de manière asynchrone.
+"""
+
+from .engine import ApprovalEngine
+from .types import (
+    ApprovalAuthority,
+    ApprovalCategory,
+    ApprovalRequest,
+    ApprovalResponse,
+    ApprovalStatus,
+)
+
+__version__ = "1.0.0"
+__all__ = [
+    "ApprovalAuthority",
+    "ApprovalEngine",
+    "ApprovalRequest",
+    "ApprovalResponse",
+    "ApprovalStatus",
+    "ApprovalCategory",
+]

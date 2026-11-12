@@ -1,0 +1,10 @@
+# Default owner for all public-release changes.
+* @fatsio
+
+# Security-sensitive areas.
+/.github/ @fatsio
+/core/auth/ @fatsio
+/core/config/ @fatsio
+/interfaces/api/ @fatsio
+/deploy/ @fatsio
+/scripts/ @fatsio

@@ -1,0 +1,1 @@
+"""Reflective Module — Logs and summarizes completed tasks."""

@@ -1,0 +1,539 @@
+services:
+  # ── Infrastructure Services ─────────────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    container_name: ethan-nats
+    ports:
+      - "127.0.0.1:${NATS_PORT:-4222}:4222"
+      - "127.0.0.1:${NATS_MONITOR_PORT:-8222}:8222"
+      - "127.0.0.1:${NATS_ROUTE_PORT:-6222}:6222"
+    # Expose the NATS monitoring API so health reflects a usable server,
+    # rather than merely an open client TCP port.
+    # Authentification par token (CTO P0-3) : authorization token=$NATS_TOKEN
+    # depuis infrastructure/nats/nats-server.conf — le démarrage échoue
+    # explicitement si NATS_TOKEN n'est pas défini dans .env.
+    command: ["-js", "-m", "8222", "-c", "/etc/nats/nats-server.conf"]
+    environment:
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
+    volumes:
+      - nats_data:/data
+      - ./infrastructure/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: ethan-redis
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--appendfsync", "everysec", "--save", "60", "100"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ethan-postgres
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ethan
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ethan
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ethan && psql -U ethan -d ethan -c 'SELECT 1' 2>/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+      - odin-control
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Python Base Image ───────────────────────────────────────────────────────
+  # Builds ethan/python-base:latest from deploy/Dockerfile.python-base.
+  # This image is shared by api, kernel, and modules services to leverage
+  # Docker layer caching and avoid redundant pip installations.
+  python-base:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.python-base
+    container_name: ethan-python-base
+    networks:
+      - ethan-core
+    volumes:
+      - ethan_python_base_cache:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    command: sleep infinity
+
+  # ── Application Services ────────────────────────────────────────────
+  # Seul ce contrôleur reçoit le socket Docker. Son API interne n'accepte que
+  # les opérations Compose prédéfinies pour examples/odin/compose.yaml.
+  odin-controller:
+    image: ethan-api
+    command: ["python", "scripts/odin_compose_controller.py"]
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-118}"
+    read_only: true
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      ETHAN_ODIN_CONTROLLER_TOKEN: "${JWT_SECRET}"
+      ETHAN_ODIN_REPO_DIR: "${PWD}/examples/odin"
+      UID: "${UID:-1000}"
+      GID: "${GID:-1000}"
+      DOCKER_CONFIG: /tmp/docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Le chemin cible est identique au chemin hôte : Compose transmet ainsi
+      # au daemon les bons chemins pour build: . et le bind mount ./ → /app.
+      - "${PWD}/examples/odin:${PWD}/examples/odin:ro"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - odin-control
+
+  api:
+    image: ethan-api
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: ethan-api
+    ports:
+      - "127.0.0.1:${ETHAN_API_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Artefacts des capabilities : site-packages `pip install --user`
+      # (~/.local/lib/python3.12/site-packages) et préfixe npm de node_prefix()
+      # (~/.local/share/ethan/node). Sans volume, un recreate du conteneur
+      # perdait tout ce qui avait été installé alors que l'état INSTALLED, lui,
+      # restait persisté en base — un mensonge. Le répertoire n'existe pas dans
+      # l'image et est vide dans le conteneur en cours : aucun déni de données
+      # existantes, démarrage à vide sur une installation neuve.
+      - ethan_api_artifacts:/home/ethan/.local
+      # Storage canonique des manifestes applicatifs (DTAI-03H) :
+      # expose le SQLite hôte à l'API conteneurisée sans copier la base.
+      - /home/fatsio/.ethan:/home/ethan/.ethan
+      # Copie de lecture des dépôts d'applications pour la découverte live.
+      - /home/fatsio/AI/Ethan:/home/fatsio/AI/Ethan:ro
+      # DAĒNĀ Engineering Memory — montage read-write dédié (ANOM-09-06).
+      # Le montage principal du dépôt est en lecture seule (principe du
+      # moindre privilège). Seul le répertoire daena/ est exposé en
+      # écriture pour permettre les opérations Memory (record, vault-write)
+      # sans ouvrir l'ensemble du dépôt en écriture.
+      - /home/fatsio/AI/Ethan/daena:/home/fatsio/AI/Ethan/daena:rw
+    environment:
+      ETHAN_ODIN_CONTROLLER_URL: http://odin-controller:8765
+      ETHAN_ODIN_CONTROLLER_TOKEN: "${JWT_SECRET}"
+      ETHAN_ODIN_REPO_DIR: "${PWD}/examples/odin"
+      NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
+      REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
+      # URL interne du Kernel Runtime (healthcheck du composant `kernel` de
+      # GET /diagnostics). `localhost` ne vaut que depuis le host : en
+      # intra-Docker l'adresse correcte est le nom de service DNS `kernel`.
+      ETHAN_KERNEL_URL: http://kernel:8080
+      LOG_LEVEL: INFO
+      LOG_FORMAT: "${LOG_FORMAT:-text}"
+      # WebSocket frontend direct vers FastAPI : origines navigateur explicitement
+      # autorisées pour l'upgrade. Aucune wildcard implicite; en production la
+      # valeur doit etre definie dans .env.
+      ETHAN_ALLOWED_WS_ORIGINS: "${ETHAN_ALLOWED_WS_ORIGINS:?ETHAN_ALLOWED_WS_ORIGINS manquant — configure-le dans .env (voir .env.example)}"
+      JWT_SECRET: ${JWT_SECRET}
+      # Model Hub (core/models) : /app est en lecture seule pour le user non-root
+      # de l'image, donc le stockage des modèles pointe vers le home — même
+      # contrat que ~/.ethan documenté dans deploy/Dockerfile.api. Sans cela,
+      # ensure_models_storage() échoue (PermissionError) à la première utilisation.
+      ETHAN_MODELS_DIR: /home/ethan/.ethan/models
+      # ── LLM Provider configuration ──────────────────────────────────
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      OLLAMA_DEFAULT_MODEL: "${OLLAMA_DEFAULT_MODEL:-llama3.1}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      VLLM_BASE_URL: "${VLLM_BASE_URL:-http://vllm:8000}"
+      CUSTOM_OPENAI_BASE_URL: "${CUSTOM_OPENAI_BASE_URL:-http://localhost:8000/v1}"
+      # ── MCP stdio (CTO Phase 1.3 — sandbox Tier 3, fail-closed) ────
+      # `docker` = tout serveur stdio tourne dans un conteneur durci
+      # (image OBLIGATOIRE via ETHAN_MCP_STDIO_SANDBOX_IMAGE) ; `off` =
+      # opt-out explicite de l'opérateur. Sans image ⇒ stdio REFUSÉ.
+      ETHAN_MCP_STDIO_ALLOWLIST: "${ETHAN_MCP_STDIO_ALLOWLIST:-}"
+      ETHAN_MCP_STDIO_SANDBOX: "${ETHAN_MCP_STDIO_SANDBOX:-docker}"
+      ETHAN_MCP_STDIO_SANDBOX_IMAGE: "${ETHAN_MCP_STDIO_SANDBOX_IMAGE:-}"
+      ETHAN_MCP_STDIO_SANDBOX_NETWORK: "${ETHAN_MCP_STDIO_SANDBOX_NETWORK:-none}"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      odin-controller:
+        condition: service_started
+    command: uvicorn interfaces.api.main:app --host 0.0.0.0 --port 8000 --workers 1
+    restart: "no"
+    networks:
+      - ethan-core
+      - odin-control
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  kernel:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.kernel
+    container_name: ethan-kernel
+    ports:
+      - "127.0.0.1:${ETHAN_KERNEL_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
+      REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
+      LOG_LEVEL: INFO
+      LOG_FORMAT: "${LOG_FORMAT:-text}"
+      ENABLE_LEARNING: "${ENABLE_LEARNING:-false}"
+      ENABLE_METACOGNITION: "${ENABLE_METACOGNITION:-false}"
+      ENABLE_AUTONOMY: "${ENABLE_AUTONOMY:-false}"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python core/ethan_bootstrap.py
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Cognitive Modules (unifié) ─────────────────────────────────────
+  modules:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.module
+    container_name: ethan-modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_TOKEN: "${NATS_TOKEN:?NATS_TOKEN manquant — configure-le dans .env (voir .env.example)}"
+      REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/0
+      DATABASE_URL: postgresql://ethan:${POSTGRES_PASSWORD}@postgres:5432/ethan
+      LOG_LEVEL: INFO
+      LOG_FORMAT: "${LOG_FORMAT:-text}"
+      JWT_SECRET: ${JWT_SECRET}
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+    command: python -m core.modules
+    depends_on:
+      # `python-base` est un conteneur porteur de l'image de base
+      # (commande `sleep infinity`) : il n'expose aucun endpoint. Sa
+      # disponibilité se résume à « le processus tourne » → condition
+      # `service_started` (et non `service_healthy`, qui exigeait un
+      # healthcheck inexistant et bloquait le démarrage de `modules`).
+      python-base:
+        condition: service_started
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      kernel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Backup Service ──────────────────────────────────────────────────────
+  pg_backup:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.pg_backup
+    container_name: ethan-pg_backup
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ethan
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ethan
+      BACKUP_DIR: /var/backups/ethan
+      BACKUP_RETENTION_DAYS: "30"
+      BACKUP_INTERVAL_SECONDS: "21600"
+    volumes:
+      - postgres_backup:/var/backups/ethan
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h postgres -U ethan -d ethan 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── WebUI ───────────────────────────────────────────────────────────────
+  ui:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.ui
+      args:
+        ETHAN_API_URL: http://api:8000
+        NEXT_PUBLIC_WS_URL: "${NEXT_PUBLIC_WS_URL:?NEXT_PUBLIC_WS_URL manquant — configure-le dans .env (voir .env.example)}"
+    container_name: ethan-ui
+    ports:
+      # Côté host paramétrable (ETHAN_WEBUI_PORT dans .env) ; le conteneur
+      # reste sur 3001 (build Next.js). Voir docs/installation.md.
+      - "127.0.0.1:${ETHAN_WEBUI_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      ETHAN_API_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://api:8000
+      NEXT_PUBLIC_WS_URL: "${NEXT_PUBLIC_WS_URL}"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 et non `localhost` : next-server écoute en IPv4 (0.0.0.0),
+      # `localhost` résout d'abord en ::1 (IPv6) → wget obtenait un « connection
+      # refused » sur un serveur parfaitement sain (faux négatif de doctor).
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ethan-core
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── vLLM (Optional Local GPU Model Runtime) ─────────────────────────────
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: ethan-vllm
+    profiles:
+      - gpu
+    ports:
+      - "127.0.0.1:${VLLM_PORT:-8090}:8000"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: "${HUGGING_FACE_HUB_TOKEN:-}"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - ethan-core
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  nats_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  postgres_backup:
+    driver: local
+  # Cache partagé pour l'image Python de base ETHAN.
+  ethan_python_base_cache:
+    driver: local
+  # Artefacts des capabilities Python/Node installés depuis l'API (§1 audit).
+  ethan_api_artifacts:
+    driver: local
+
+networks:
+  # Réseau applicatif partagé par tous les services ETHAN.
+  #
+  # AVERTISSEMENT — réseau manuellement créé lors de tests antérieurs :
+  #   Un réseau `ethan_ethan-core` peut exister localement avec un subnet
+  #   erroné (172.28.0.0/16) et sans label `com.docker.compose.*`. Il n'a
+  #   pas été créé par Compose et n'est pas déclaré `external: true` : on ne
+  #   le partage pas et on ne le déclare pas externe, car son propriétaire et
+  #   son cycle de vie ne sont pas ceux de Compose. Si le warning apparaît,
+  #   c'est cet artefact : le démon Compose recrée son propre réseau
+  #   (`172.20.0.0/16`) sans écraser l'existant. Ne pas supprimer de réseau
+  #   Docker sans confirmation explicite de l'opérateur.
+  ethan-core:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+  # Le contrôleur socket n'est joignable que par l'API ETHAN.
+  odin-control:
+    driver: bridge
+    internal: true

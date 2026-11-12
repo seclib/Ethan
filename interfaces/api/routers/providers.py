@@ -1,0 +1,445 @@
+"""Router API — Gestion centralisée des providers LLM.
+
+Routes :
+    GET    /api/providers                    → liste des providers
+    POST   /api/providers                    → enregistrer un provider
+    PUT    /api/providers/{id}               → mettre à jour un provider
+    DELETE /api/providers/{id}               → supprimer un provider
+    GET    /api/providers/{id}/models        → modèles disponibles
+    POST   /api/providers/{id}/test          → tester la connexion
+    PUT    /api/providers/{id}/default       → définir comme provider par défaut
+    GET    /api/providers/{id}/capabilities  → capacités du provider
+    POST   /api/providers/vision             → analyser une image
+    POST   /api/providers/transcribe         → transcrire un audio
+"""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+import logging
+
+from core.auth import Permission
+from core.llm.provider_manager import ProviderManager
+from core.llm.store import ProviderDefaultError
+from core.llm.types import TranscriptionRequest, VisionImage, VisionRequest
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from interfaces.api.auth import require_permission
+from interfaces.api.models.provider_schemas import (
+    ProviderCreate,
+    ProviderResponse,
+    ProviderUpdate,
+    TestConnectionResult,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/providers", tags=["providers"])
+
+# Instance globale du ProviderManager — injectée au démarrage via set_manager()
+_manager: ProviderManager | None = None
+
+
+def set_provider_manager(manager: ProviderManager) -> None:
+    """Injecte le ProviderManager dans le router (appelé au startup)."""
+    global _manager
+    _manager = manager
+
+
+def get_manager() -> ProviderManager:
+    """Retourne le ProviderManager global.
+
+    Raises:
+        HTTPException 503 si le manager n'est pas initialisé.
+    """
+    if _manager is None:
+        raise HTTPException(status_code=503, detail="Provider manager not initialized")
+    return _manager
+
+
+# ── GET /providers ─────────────────────────────────────────────────────────
+
+
+@router.get("", response_model=list[ProviderResponse])
+async def list_providers():
+    """Liste tous les providers enregistrés avec leur état."""
+    manager = get_manager()
+    providers = await manager.list_providers()
+    return [ProviderResponse(**p) for p in providers]
+
+
+# ── GET /providers/catalog ─────────────────────────────────────────────────
+# ⚠️ Déclaré AVANT /{provider_id} : FastAPI matche dans l'ordre de
+# déclaration et « catalog » serait sinon interprété comme un provider id.
+
+
+@router.get("/catalog")
+async def get_provider_catalog():
+    """Catalogue Core des types de providers supportés.
+
+    Source de vérité unique pour les interfaces : types acceptés par la
+    factory Core, URL de base par défaut, méthodes d'authentification et
+    capacités canoniques. Les interfaces ne dupliquent jamais cette liste.
+    """
+    manager = get_manager()
+    return manager.get_catalog()
+
+
+# ── GET /providers/{id} ────────────────────────────────────────────────────
+
+
+@router.get("/{provider_id}", response_model=ProviderResponse)
+async def get_provider(provider_id: str):
+    """Détail d'un provider (statut de connexion rafraîchi)."""
+    manager = get_manager()
+
+    try:
+        provider = await manager.describe_provider(provider_id)
+        return ProviderResponse(**provider)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to get provider %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to get provider: {e}")
+
+
+# ── POST /providers ────────────────────────────────────────────────────────
+
+
+@router.post(
+    "",
+    response_model=ProviderResponse,
+    status_code=201,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def create_provider(data: ProviderCreate):
+    """Enregistre un nouveau provider.
+
+    Le provider est instancié via la factory, testé si activé,
+    puis persisté (config sans clé API).
+
+    Gate ``PLUGINS`` : un provider reçoit **tout** le contexte des
+    conversations et choisit l'endpoint qui le reçoit — ce n'est pas une
+    action de lecture, et un rôle en lecture seule ne peut donc pas en
+    enregistrer (escalade / exfiltration par ``base_url`` arbitraire).
+    """
+    manager = get_manager()
+
+    config = {
+        "name": data.name,
+        "type": data.type,
+        "base_url": data.base_url,
+        "api_key": data.api_key or "",
+        "default_model": data.default_model,
+        "display_name": data.display_name or data.name,
+        "enabled": data.enabled,
+        "options": data.options,
+    }
+
+    try:
+        result = await manager.register_provider(config=config)
+        return ProviderResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to create provider %s: %s", data.name, e)
+        raise HTTPException(status_code=500, detail=f"Failed to create provider: {e}")
+
+
+# ── PUT /providers/{id} ────────────────────────────────────────────────────
+
+
+@router.put(
+    "/{provider_id}",
+    response_model=ProviderResponse,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def update_provider(provider_id: str, data: ProviderUpdate):
+    """Met à jour un provider existant.
+
+    - active/désactive via ``enabled``
+    - met à jour base_url, default_model, display_name
+    - une nouvelle clé API peut être fournie (jamais renvoyée)
+
+    Lève 404 si le provider n'existe pas.
+    """
+    manager = get_manager()
+
+    # Récupérer la config actuelle
+    config = await manager._store.get(provider_id)
+    if config is None:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+
+    # Appliquer les mises à jour
+    update_data = data.model_dump(exclude_unset=True)
+    # Une clé vide ne doit JAMAIS écraser une clé existante : le formulaire
+    # WebUI laisse le champ vide pour « conserver la clé actuelle ». Seule
+    # une clé non vide est une intention de rotation.
+    if update_data.get("api_key") == "":
+        update_data.pop("api_key")
+    for key, value in update_data.items():
+        if value is not None:
+            config[key] = value
+
+    # Si on change la clé API, la mémoriser hors config (mémoire de
+    # processus uniquement) : le store ne contient jamais de secret.
+    api_key = config.pop("api_key", None)
+    manager.remember_api_key(provider_id, api_key)
+
+    try:
+        # Sauvegarder la nouvelle config (copie nettoyée — jamais de secret).
+        manager._providers_config[provider_id] = config
+        await manager._store.save(provider_id, manager._public_config(provider_id))
+
+        # Ré-instancier / ré-enregistrer si activé
+        if config.get("enabled", False):
+            from core.llm.provider_factory import create_provider_from_config
+
+            provider = create_provider_from_config(
+                {
+                    **config,
+                    "name": provider_id,
+                    "api_key": manager.api_key_for(provider_id),
+                }
+            )
+            await manager._register(provider, provider_id)
+            await provider.initialize()
+        else:
+            manager._registry._providers.pop(provider_id, None)
+
+        result = await manager.describe_provider(provider_id)
+        return ProviderResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to update provider %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to update provider: {e}")
+
+
+# ── DELETE /providers/{id} ─────────────────────────────────────────────────
+
+
+@router.delete(
+    "/{provider_id}",
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def delete_provider(provider_id: str):
+    """Supprime un provider de la config et du registry."""
+    manager = get_manager()
+
+    try:
+        existed = await manager.unregister_provider(provider_id)
+        if not existed:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+        return {"status": "deleted", "provider_id": provider_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to delete provider %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to delete provider: {e}")
+
+
+# ── GET /providers/{id}/models ─────────────────────────────────────────────
+
+
+@router.get("/{provider_id}/models", response_model=list[dict])
+async def list_provider_models(provider_id: str):
+    """Liste les modèles disponibles chez un provider."""
+    manager = get_manager()
+
+    try:
+        models = await manager.list_models(provider_id)
+        return [
+            {
+                "id": m.id,
+                "name": m.name,
+                "context_length": m.context_length,
+                "is_local": m.is_local,
+                "is_private": m.is_private,
+                "quality_score": m.quality_score,
+                "capabilities": m.capabilities,
+            }
+            for m in models
+        ]
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to list models for %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to list models: {e}")
+
+
+# ── POST /providers/{id}/test ──────────────────────────────────────────────
+
+
+@router.post(
+    "/{provider_id}/test",
+    response_model=TestConnectionResult,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def test_provider_connection(provider_id: str):
+    """Teste la connexion à un provider (vrai healthcheck).
+
+    Gate ``PLUGINS`` : cet appel fait **sortir le Core** vers l'endpoint
+    enregistré (server-side request) — il suit donc la politique de la
+    mutation qui a créé cette destination.
+    """
+    manager = get_manager()
+
+    try:
+        result = await manager.test_connection(provider_id)
+        return TestConnectionResult(
+            provider_id=provider_id,
+            connected=result["connected"],
+            status=result["status"],
+            message=result["message"],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to test connection for %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to test connection: {e}")
+
+
+# ── PUT /providers/{id}/default ────────────────────────────────────────────
+
+
+@router.put(
+    "/{provider_id}/default",
+    response_model=ProviderResponse,
+    dependencies=[Depends(require_permission(Permission.PLUGINS))],
+)
+async def set_default_provider(provider_id: str):
+    """Définit le provider par défaut.
+
+    Gate ``PLUGINS`` : changer le provider par défaut redirige toutes les
+    conversations (et donc tout le contexte) vers un autre endpoint.
+
+    404 provider inconnu · 503 défaut non persisté (fail-closed, rien n'est
+    engagé en mémoire).
+    """
+    manager = get_manager()
+
+    try:
+        result = await manager.set_default_provider(provider_id)
+        return ProviderResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ProviderDefaultError as e:
+        # Fail-closed : le défaut n'a pas été rendu durable, on ne le déclare
+        # pas réussi (503 = réessayer, pas « le provider est inconnu »).
+        logger.error("Provider par défaut non persiste (%s): %s", provider_id, e)
+        raise HTTPException(
+            status_code=503,
+            detail="Provider par défaut non persisté — réessayez",
+        )
+    except Exception as e:
+        logger.exception("Failed to set default provider %s: %s", provider_id, e)
+        raise HTTPException(status_code=500, detail="Failed to set default provider")
+
+
+# ── GET /providers/{id}/capabilities ──────────────────────────────────────
+
+
+@router.get("/{provider_id}/capabilities")
+async def get_provider_capabilities(provider_id: str):
+    """Retourne les capacités normalisées d'un provider (vision, embedding,
+    speech_to_text, transcription).
+
+    Délègue au ProviderManager — source unique (modèle unifié). Ne renvoie
+    jamais la config brute ni les secrets.
+    """
+    manager = get_manager()
+
+    try:
+        return await asyncio.to_thread(manager.get_provider_capabilities, provider_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# ── POST /providers/vision ────────────────────────────────────────────────
+
+
+@router.post("/vision")
+async def vision_analyze(
+    file: UploadFile = File(...),
+    prompt: str = Form("Describe this image in detail."),
+    model: str | None = Form(None),
+    provider_id: str | None = Form(None),
+):
+    """Analyse une image via un provider capable de vision.
+
+    Le fichier image est lu en mémoire et envoyé au provider.
+    Les secrets ne sont jamais exposés — le provider utilise sa clé API
+    injectée en mémoire au démarrage.
+    """
+    manager = get_manager()
+
+    try:
+        raw = await file.read()
+        b64 = base64.b64encode(raw).decode("ascii")
+
+        # Determine MIME type (default to png)
+        mime = file.content_type or "image/png"
+
+        request = VisionRequest(
+            images=[VisionImage(data=b64, mime_type=mime, is_url=False)],
+            prompt=prompt,
+            model=model,
+        )
+        result = await manager.vision_analyze(request, provider_name=provider_id)
+        return {
+            "content": result.content,
+            "model": result.model,
+            "provider": result.provider,
+            "usage": result.usage,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        logger.exception("Vision analysis failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Vision analysis failed: {e}")
+
+
+# ── POST /providers/transcribe ────────────────────────────────────────────
+
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    model: str | None = Form(None),
+    language: str | None = Form(None),
+    provider_id: str | None = Form(None),
+):
+    """Transcrit un fichier audio via un provider capable (ex: OpenAI Whisper).
+
+    Le fichier audio est lu en mémoire et envoyé au provider.
+    """
+    manager = get_manager()
+
+    try:
+        raw = await file.read()
+        mime = file.content_type or "audio/wav"
+
+        request = TranscriptionRequest(
+            audio_data=raw,
+            mime_type=mime,
+            model=model,
+            language=language,
+        )
+        result = await manager.transcribe(request, provider_name=provider_id)
+        return {
+            "text": result.text,
+            "model": result.model,
+            "provider": result.provider,
+            "language": result.language,
+            "duration_seconds": result.duration_seconds,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        logger.exception("Transcription failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
